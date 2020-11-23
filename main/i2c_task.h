@@ -28,21 +28,25 @@
 #define ACK_VAL 0x0                             /*!< I2C ack value */
 #define NACK_VAL 0x1                            /*!< I2C nack value */
 
+#define BUILD_UINT16(loByte, hiByte) \
+          ((uint16_t)(((loByte) & 0x00FF) + (((hiByte) & 0x00FF) << 8)))
 
 typedef struct{
 	uint16_t temperature;
 	uint16_t humidity;
-	float original_temperature;
-	float original_humidity;
-	bool co2_ready;
 	uint16_t co2;
 	uint16_t tvoc_ppb;
 	uint16_t ethanol_raw_signal;
 	uint16_t h2_raw_signal;
 	uint8_t voc_baseline[4];
 	uint16_t voc_value;
-	bool voc_ini_baseline;
 	uint16_t light_value;
+	float original_temperature;
+	float original_humidity;
+	bool co2_ready;
+	bool voc_ini_baseline;
+	bool co2_start_measure;
+	bool co2_stop_measure;
 }g_sensor_t;
 
 extern g_sensor_t g_sensors;

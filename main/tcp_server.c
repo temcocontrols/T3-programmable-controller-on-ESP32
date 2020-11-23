@@ -500,9 +500,9 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 			}
 			else if(address == EXTERNAL_SENSOR1)
 			{
-				temp = g_sensors.co2;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
+				//temp = g_sensors.co2;
+				temp1 = (g_sensors.co2 >> 8) & 0xFF;
+				temp2 =(uint8_t) g_sensors.co2 & 0xFF;
 			}
 			else if(address == EXTERNAL_SENSOR2)
 			{
@@ -512,9 +512,9 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 			}
 			else if(address == VOC_DATA)
 			{
-				temp = g_sensors.voc_value;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
+				//temp = g_sensors.voc_value;
+				temp1 = (g_sensors.voc_value >> 8) & 0xFF;
+				temp2 = (uint8_t)g_sensors.voc_value & 0xFF;
 			}
 			else if(address >= MODBUS_WIFI_START &&  address <= MODBUS_WIFI_END)
 			{

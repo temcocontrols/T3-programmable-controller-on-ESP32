@@ -5,6 +5,7 @@
 #include "i2c_task.h"
 #include "unistd.h"
 #include "sgp30.h"
+#include "driver/uart.h"
 
 static const char *TAG = "i2c-task";
 
@@ -23,10 +24,11 @@ SemaphoreHandle_t print_mux = NULL;
  * --------|---------------------------|--------------------|--------------------|------|
  */
 uint8_t sht31_data[6];
-uint8_t scd40_data[9];
+uint16_t scd40_data[6];
 uint8_t light_data[2];
 uint8_t temp_data[2];
 g_sensor_t g_sensors;
+extern uint8_t tempBuf_CO2[9];
 
 float SHT3X_getTemperature(uint8_t * measure_data)
 {
@@ -139,11 +141,11 @@ static esp_err_t i2c_master_sensor_scd40(i2c_port_t i2c_num, uint8_t cmd_h, uint
 	i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_h,ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_l,ACK_CHECK_EN);
-	//vTaskDelay(2100/portTICK_RATE_MS);
-	//i2c_master_start(cmd);
-	//i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
-	//i2c_master_read(cmd,data,9,ACK_VAL);
-	//i2c_master_stop(cmd);
+	vTaskDelay(500/portTICK_RATE_MS);
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
+	i2c_master_read(cmd,data,9,ACK_VAL);
+	i2c_master_stop(cmd);
 	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
@@ -175,6 +177,7 @@ esp_err_t sensirion_i2c_read(uint8_t address, uint8_t *data, uint16_t count) {
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd,address << 1| READ_BIT, ACK_CHECK_EN);
+    //usleep(600);
     for (i = 0; i < count; i++) {
 		send_ack = i < (count - 1); /* last byte must be NACK'ed */
 		i2c_master_read_byte(cmd, &data[i],!send_ack);
@@ -218,6 +221,7 @@ void i2c_task(void *arg)
 	uint32_t iaq_baseline;
     uint32_t task_idx = (uint32_t)arg;
 
+    g_sensors.co2_start_measure = false;
 //    uint8_t sensor_data_h, sensor_data_l;
     int cnt = 0;
     g_sensors.co2_ready = false;
@@ -403,37 +407,45 @@ void i2c_task(void *arg)
 			}
 	  }
 		xSemaphoreGive(print_mux);
-		vTaskDelay(100/portTICK_RATE_MS);
+		vTaskDelay(500/portTICK_RATE_MS);
 
 		xSemaphoreTake(print_mux, portMAX_DELAY);
 		//ret = i2c_master_sensor_scd40(I2C_MASTER_NUM,0x36,0x82,scd40_data);
-		ret = sensirion_i2c_delayed_read_cmd(
-						SCD40_SENSOR_ADDR, 0x3682,
-				        //SGP_CMD_GET_SERIAL_ID_DURATION_US, sgp30_client_data.buffer.words,
-						//2100000, scd40_data,
-						200, scd40_data,
-				        3);
+		//ret = sensirion_i2c_delayed_read_cmd(SCD40_SENSOR_ADDR, 0x3682,	200, scd40_data, 3);
+		ret = ESP_OK;
 		if (ret == ESP_ERR_TIMEOUT) {
 			ESP_LOGE(TAG, "I2C Timeout");
 		} else if (ret == ESP_OK) {
+			if(g_sensors.co2_start_measure != true)
+			{
+				sensirion_i2c_write_cmd(SCD40_SENSOR_ADDR, 0x3608);
+				g_sensors.co2_start_measure = true;
+			}
+			//vTaskDelay(2000/portTICK_RATE_MS);
 			ret = sensirion_i2c_delayed_read_cmd(
-							SCD40_SENSOR_ADDR, 0x3608,
-							//SGP_CMD_GET_SERIAL_ID_DURATION_US, sgp30_client_data.buffer.words,
-							//2100000, scd40_data,
+							SCD40_SENSOR_ADDR, 0xEC05,
 							200, scd40_data,
 							3);
-
-			g_sensors.co2 = (uint16_t)(scd40_data[0]<<8) + scd40_data[1];
+			if(ret == ESP_OK)
+			{
+				//sensirion_i2c_write_cmd(SCD40_SENSOR_ADDR, 0x3F86);
+				//g_sensors.co2 = scd40_data[0];//(uint16_t)(scd40_data[0]<<8) + scd40_data[1];
+				g_sensors.co2 = BUILD_UINT16(tempBuf_CO2[1],tempBuf_CO2[0]);//(uint16_t)(tempBuf_CO2[0]<<8) + tempBuf_CO2[1];//tempBuf_CO2
+			}
 			// printf("*******************\n");
 			// printf("TASK[%d]  MASTER READ SENSOR( SCD40 )\n", task_idx);
 			// printf("*******************\n");
-			// printf("data_1: %02x\n", scd40_data[0]);//sensor_data_h);
-			// printf("data_2: %02x\n", scd40_data[1]);//sensor_data_l);
+			// printf("data_1: %02x\n", tempBuf_CO2[0]);//sensor_data_h);
+			// printf("data_2: %02x\n", tempBuf_CO2[1]);//sensor_data_l);
 			// printf("data_3: %02x\n", scd40_data[2]);//sensor_data_h);
 			// printf("data_4: %02x\n", scd40_data[3]);//sensor_data_l);
 			// printf("data_5: %02x\n", scd40_data[4]);//sensor_data_h);
 			// printf("data_6: %02x\n", scd40_data[5]);//sensor_data_l);
 			//printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
+			//uart_write_bytes(0, "\r\n", 2);
+			//uart_write_bytes(0, (const char*)&g_sensors.co2, 2);
+			//uart_write_bytes(0, (const char*)&tempBuf_CO2[0], 1);
+			//uart_write_bytes(0, (const char*)&tempBuf_CO2[1], 1);
 		} else {
 			// ESP_LOGW(TAG, "%s: No ack, scd40 sensor not connected...skip...", esp_err_to_name(ret));
 		}
