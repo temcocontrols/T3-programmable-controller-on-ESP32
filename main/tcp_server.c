@@ -26,6 +26,7 @@
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
+#include <store.h>
 
 
 #include "deviceparams.h"
@@ -38,11 +39,11 @@
 
 #include "i2c_task.h"
 #include "microphone.h"
-#include "pyq1548.h"
+//#include "pyq1548.h"
 
 #define PORT CONFIG_EXAMPLE_PORT
 
-static const char *TAG = "Example";
+//static const char *TAG = "Example";
 static const char *TCP_TASK_TAG = "TCP_TASK";
 static const char *UDP_TASK_TAG = "UDP_TASK";
 
@@ -247,6 +248,7 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 {
 	uint16_t address;
 	uint16_t  temp_i;
+	uint8_t i;
 
 	if(type == SERIAL || type == BAC_TO_MODBUS)  // modbus packet
 	{
@@ -266,6 +268,15 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 		if(temp_i >= MODBUS_WIFI_START && temp_i <= MODBUS_WIFI_END)
 		{
 			write_wifi_data_by_block(temp_i,0,bufadd,0);
+		}
+		else if(temp_i  >= MODBUS_INPUT_BLOCK_FIRST && temp_i  <= MODBUS_INPUT_BLOCK_LAST)
+		{
+			if((temp_i - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1   ) / 2) == 0)
+			{
+				i = (temp_i - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
+				memcpy(&inputs[i],&bufadd[7],sizeof(Str_in_point));
+				save_blob_info(FLASH_INPUT_INFO, (const void*)&inputs[0], INPUT_PAGE_LENTH);
+			}
 		}
 	}
 	if(*(bufadd+1) == WRITE_VARIABLES)
@@ -528,6 +539,16 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp = g_sensors.light_value;
 				temp1 = (temp >> 8) & 0xFF;
 				temp2 = temp & 0xFF;
+			}
+			else if((address >= MODBUS_INPUT_BLOCK_FIRST)&&(address<= MODBUS_INPUT_BLOCK_LAST))
+			{
+				uint8_t index,item;
+				uint16_t *block;
+				index = (address-MODBUS_INPUT_BLOCK_FIRST)/((sizeof(Str_in_point)+1)/2);
+				block = (uint16_t *)&inputs[index];
+				item = (address-MODBUS_INPUT_BLOCK_FIRST)%((sizeof(Str_in_point)+1)/2);
+				temp1 = (block[item]>>8)&0xff;
+				temp2 = block[item]&0xff;
 			}
 			else if(address == MODBUS_EX_MOUDLE_EN)
 			{
@@ -944,7 +965,7 @@ void app_main()
      */
     //ESP_ERROR_CHECK(example_connect());
 	read_default_from_flash();
-
+	mass_flash_init();
 	modbus_init();
 	debug_info("modbus init finished^^^^^^^^");
 
@@ -959,7 +980,8 @@ void app_main()
     xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
 
     xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
-    xTaskCreate(modbus_task,"modbus_task",4096, NULL, 4, NULL);
+    xTaskCreate(modbus_task,"modbus_task",4096, NULL, 3, NULL);
+    xTaskCreate(input_task,"input_task",1024, NULL, 4, NULL);
 
 	// xTaskCreate(detect_tcp_task, "detect_tcp_task", 1024,NULL, 6,NULL);
 	// xTaskCreate(pyq1548_task,"pyq1548_task",1024*2, NULL, 10, NULL);

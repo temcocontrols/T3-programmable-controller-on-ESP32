@@ -308,24 +308,7 @@ void sensirion_float_to_bytes(const float value, uint8_t* bytes);
 void sensirion_common_copy_bytes(const uint8_t* source, uint8_t* destination,
                                  uint16_t data_length);
 
-/**
- * sensirion_i2c_read_words_as_bytes() - read data words as byte-stream from
- *                                       sensor
- *
- * Read bytes without adjusting values to the uP's word-order.
- *
- * @address:    Sensor i2c address
- * @data:       Allocated buffer to store the read bytes.
- *              The buffer may also have been modified in case of an error.
- * @num_words:  Number of data words(!) to read (without CRC bytes)
- *              Since only word-chunks can be read from the sensor the size
- *              is still specified in sensor-words (num_words = num_bytes *
- *              SENSIRION_WORD_SIZE)
- *
- * @return      NO_ERROR on success, an error code otherwise
- */
-int16_t sensirion_i2c_read_words_as_bytes(uint8_t address, uint8_t* data,
-                                          uint16_t num_words);
+
 
 #ifdef __cplusplus
 }

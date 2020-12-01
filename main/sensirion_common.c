@@ -252,29 +252,4 @@ void sensirion_common_copy_bytes(const uint8_t* source, uint8_t* destination,
     }
 }
 
-int16_t sensirion_i2c_read_words_as_bytes(uint8_t address, uint8_t* data,
-                                          uint16_t num_words) {
-    int16_t ret;
-    uint16_t i, j;
-    uint16_t size = num_words * (SENSIRION_WORD_SIZE + CRC8_LEN);
-    uint16_t word_buf[SENSIRION_MAX_BUFFER_WORDS];
-    uint8_t* const buf8 = (uint8_t*)word_buf;
 
-    ret = sensirion_i2c_read(address, buf8, size);
-    if (ret != ESP_OK)
-        return ret;
-
-    /* check the CRC for each word */
-    for (i = 0, j = 0; i < size; i += SENSIRION_WORD_SIZE + CRC8_LEN) {
-
-        ret = sensirion_common_check_crc(&buf8[i], SENSIRION_WORD_SIZE,
-                                         buf8[i + SENSIRION_WORD_SIZE]);
-        if (ret != ESP_OK)
-            return ret;
-
-        data[j++] = buf8[i];
-        data[j++] = buf8[i + 1];
-    }
-
-    return ESP_OK;
-}

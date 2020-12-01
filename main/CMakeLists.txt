@@ -11,7 +11,8 @@ idf_component_register(SRCS "tcp_server.c"
 							"ethernet_task.c"
 							"flash.c"
 							"pro_info.c"
-							"scd40.c"
+#							"scd40.c"
+							"store.c"
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 

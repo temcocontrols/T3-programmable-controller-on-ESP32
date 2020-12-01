@@ -2,6 +2,7 @@
 #define	__MODBUS_H
 
 #include <string.h>
+#include "deviceparams.h"
 //#include "crc.h"
 
 
@@ -21,7 +22,9 @@
 #define USART_REC_LEN  			512
 #define USART_SEND_LEN			512
 
-#define MAX_INS			11
+#define MAX_AIS  17 //11
+#define MAX_INS			17
+#define MAX_VARS				128
 
 // *******************modbus.h***********************************
 // Header file containing all of the register information for modbus
@@ -31,7 +34,13 @@
 //caution:the tstat response should have a pause between two characrers,but the maximum allowed pause is 1.5 character times or .83 ms * 1.5 or 1.245 ms at 9600 baud.
 //  REGISTER ADDRESSES TO BE USED IN MODBUS SERIAL COMMUNICATION
 
-
+typedef enum { not_used_input, Y3K_40_150DegC, Y3K_40_300DegF, R10K_40_120DegC,
+	R10K_40_250DegF, R3K_40_150DegC, R3K_40_300DegF, KM10K_40_120DegC,
+	KM10K_40_250DegF, A10K_50_110DegC, A10K_60_200DegF, V0_5, I0_100Amps,
+	I0_20ma, I0_20psi, N0_2_32counts, N0_3000FPM_0_10V, P0_100_0_5V,
+	P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,
+	table5, HI_spd_count, Frequence, Humidty,CO2_PPM, RPM, TVOC_PPB, PM25_UG_M3, N_CM3, DB, LUX,
+} Analog_input_range_equate;
 
 
 enum {
@@ -1084,8 +1093,16 @@ enum {
 	FRC_OUTDOORHUM_END = FRC_OUTDOORHUM_BEGAIN + 23,
 
 /*********FOR CALIBRATE HUM SENSOR******************/
-//	MODBUS_INPUT_BLOCK_FIRST =11472,
-//	MODBUS_INPUT_BLOCK_LAST = MODBUS_INPUT_BLOCK_FIRST + MAX_INS * ((sizeof(Str_in_point) + 1) / 2) - 1,
+	MODBUS_SETTING_BLOCK_FIRST = 9800,
+	MODBUS_USER_BLOCK_FIRST = MODBUS_SETTING_BLOCK_FIRST,
+
+	MODBUS_SETTING_BLOCK_LAST = 9999,
+
+	MODBUS_INPUT_BLOCK_FIRST =11472,
+	MODBUS_INPUT_BLOCK_LAST = MODBUS_INPUT_BLOCK_FIRST + MAX_INS * ((sizeof(Str_in_point) + 1) / 2) - 1,
+
+	MODBUS_VAR_BLOCK_FIRST,  // 12944 - 15503  39
+	MODBUS_VAR_BLOCK_LAST = MODBUS_VAR_BLOCK_FIRST + MAX_VARS * ((sizeof(Str_variable_point) + 1) / 2) - 1,
 
 	MODBUS_EX_MOUDLE_EN = 65000,
 	MODBUS_EX_MOUDLE_FLAG12 = 65001,

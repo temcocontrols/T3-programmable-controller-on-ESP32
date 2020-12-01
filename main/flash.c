@@ -25,6 +25,56 @@ esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 	return ESP_OK;
 }
 
+esp_err_t save_uint16_to_flash(const char* key, uint16_t value)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	// Open
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+
+	err = nvs_set_u16(my_handle, key, value);
+	if (err != ESP_OK) return err;
+
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+esp_err_t read_uint8_from_falsh(const char* key, uint8_t* value)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	// Open
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+	err = nvs_get_u8(my_handle, key, value);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		return ESP_ERR_NVS_NOT_FOUND;
+	}
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+esp_err_t read_uint16_from_falsh(const char* key, uint16_t* value)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	// Open
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+	err = nvs_get_u16(my_handle, key, value);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		return ESP_ERR_NVS_NOT_FOUND;
+	}
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
 esp_err_t read_default_from_flash(void)
 {
 	nvs_handle_t my_handle;
@@ -86,6 +136,41 @@ esp_err_t save_wifi_info(void)
 	debug_info("nvs_commit\n");
 
 	// Close
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+esp_err_t save_blob_info(const char* key, const void* pValue, size_t length)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	// Open
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+
+	err = nvs_set_blob(my_handle, key, pValue, length);
+	if (err != ESP_OK) return err;
+
+	err = nvs_commit(my_handle);
+	if (err != ESP_OK) return err;
+
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+esp_err_t read_blob_info(const char* key, const void* pValue, size_t length)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	// Open
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+
+	err = nvs_get_blob(my_handle, key, pValue, &length);
+	if (err != ESP_OK) return err;
+
 	nvs_close(my_handle);
 	return ESP_OK;
 }
