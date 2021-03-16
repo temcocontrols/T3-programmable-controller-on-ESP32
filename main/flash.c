@@ -107,7 +107,20 @@ esp_err_t read_default_from_flash(void)
 		holding_reg_params.baud_rate = 4;
 		nvs_set_u8(my_handle, FLASH_BAUD_RATE, holding_reg_params.baud_rate);
 	}
-
+#if 1
+	err = nvs_get_u16(my_handle, FLASH_SERIAL_NUM_LO, &holding_reg_params.serial_number_lo);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		holding_reg_params.serial_number_lo = 26;
+		nvs_set_u16(my_handle, FLASH_SERIAL_NUM_LO, holding_reg_params.serial_number_lo);
+	}
+	err = nvs_get_u16(my_handle, FLASH_SERIAL_NUM_HI, &holding_reg_params.serial_number_hi);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		holding_reg_params.serial_number_hi = 0;
+		nvs_set_u16(my_handle, FLASH_SERIAL_NUM_HI, holding_reg_params.serial_number_hi);
+	}
+#endif
 
 	debug_info("nvs_get_blob");
 	// Close

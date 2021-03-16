@@ -21,6 +21,7 @@
 #define SGP30_SENSOR_ADDR	0x58				/*!< slave address for VOC SGP30 sensor*/  //0xB0-R, 0xB1-W
 #define MLX90632_SENSOR_ADDR	0x3A			/*!< slave address for Infrared temperatrue sensor*/ //0x74-R, 0x75-W
 #define SCD40_SENSOR_ADDR	0x62				/*!< slave address for SCD40 sensor*/ //0xC4-R, 0xC5-W
+#define MLX90614_SENSOR_ADDR	0x5A			/*!< slave address for MLX90614 sensor*/ //0xB4-R, 0xB5-W
 #define WRITE_BIT I2C_MASTER_WRITE              /*!< I2C master write */
 #define READ_BIT I2C_MASTER_READ                /*!< I2C master read */
 #define ACK_CHECK_EN 0x1                        /*!< I2C master will check ack from slave*/
@@ -41,6 +42,8 @@ typedef struct{
 	uint8_t voc_baseline[4];
 	uint16_t voc_value;
 	uint16_t light_value;
+	uint8_t occ;
+	uint32_t sound;
 	float original_temperature;
 	float original_humidity;
 	bool co2_ready;

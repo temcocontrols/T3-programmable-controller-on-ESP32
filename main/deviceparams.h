@@ -49,6 +49,11 @@
 #define HI_UINT8(a) (((a) >> 4) & 0x0F)
 #define LO_UINT8(a) ((a) & 0x0F)
 
+typedef enum{
+	PROJECT_SAUTER,
+	PROJECT_FAN_MODULE,
+}project_e;
+
 #pragma pack(1)
 typedef struct
 {
@@ -143,9 +148,9 @@ typedef struct
 typedef struct
 {
     // Parameter: Data channel 0 : DataChan0
-    uint32_t serial_number_lo;
+    uint16_t serial_number_lo;
     // Parameter: Data channel 1 : DataChan1
-    uint32_t serial_number_hi;
+    uint16_t serial_number_hi;
     // Parameter: Data channel 2 : DataChan2
     uint16_t version_number_lo;
     // Parameter: Data channel 3 : DataChan3
@@ -172,11 +177,12 @@ typedef struct
     uint8_t ip_net_mask[4];
     uint8_t ip_gateway[4];
 
-    uint16_t register75;
-    uint16_t register76;
-    uint16_t register77;
-    uint16_t register78;
-    uint16_t register79;
+    uint8_t which_project;
+    uint16_t fan_module_pwm1;
+    uint16_t fan_module_pwm2;
+    uint16_t led_rx485_tx;
+    uint16_t led_rx485_rx;
+    uint16_t fan_module_pulse;
     uint16_t register80;
     uint16_t register81;
     uint16_t register82;
@@ -222,9 +228,10 @@ typedef struct
 
 } holding_reg_params_t;
 #pragma pack(pop)
-
+#if 0
 #pragma pack(push)
 #pragma pack(1)
+
 typedef struct
 {
 	int8_t description[21]; 	      /* (21 uint8_ts; string)*/
@@ -265,7 +272,7 @@ typedef struct
 
 }	Str_variable_point; /*  39*/
 
-#if 0
+
 typedef struct
 {
 	uint8_t harware_rev;

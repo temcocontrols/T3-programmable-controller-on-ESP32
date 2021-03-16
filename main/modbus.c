@@ -6,6 +6,7 @@
 #include "esp_log.h"            // for log_write
 #include "driver/gpio.h"
 #include "modbus.h"
+#include "i2c_task.h"
 
 #define EEPROM_VERSION	  105
 
@@ -46,12 +47,12 @@ static void setup_reg_data()
     discrete_reg_params.discrete_input5 = 1;
     discrete_reg_params.discrete_input7 = 1;
 
-    holding_reg_params.serial_number_lo = 39;
-    holding_reg_params.serial_number_hi = 0;
-    holding_reg_params.version_number_lo = 20;
+    //holding_reg_params.serial_number_lo = 25;
+    //holding_reg_params.serial_number_hi = 0;
+    holding_reg_params.version_number_lo = 22;
     holding_reg_params.version_number_hi = 0;
     //holding_reg_params.modbus_address = MB_DEV_ADDR;
-    holding_reg_params.product_model = 62;
+    holding_reg_params.product_model = 74;//62;
     holding_reg_params.hardware_version = 2;
     holding_reg_params.readyToUpdate = 0;
 
@@ -129,8 +130,25 @@ void modbus_init(void)
 	gpio_set_level(GPIO_MODBUS_EN_PIN,0);*/
 // Set RS485 half duplex mode
 	uart_set_mode(uart_num, UART_MODE_RS485_HALF_DUPLEX);
+}
 
-
+void stm32_uart_init(void)
+{
+	//if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
+	{
+		uart_config_t uart_config = {
+					.baud_rate = 19200,
+					.data_bits = UART_DATA_8_BITS,
+					.parity = UART_PARITY_DISABLE,
+					.stop_bits = UART_STOP_BITS_1,
+					.flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+				};
+		// Configure UART parameters
+		holding_reg_params.testBuf[8]=uart_param_config(UART_NUM_1, &uart_config);
+		holding_reg_params.testBuf[9]=uart_set_pin(UART_NUM_1, GPIO_NUM_33, GPIO_NUM_32, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+		holding_reg_params.testBuf[10]=uart_driver_install(UART_NUM_1, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+		//uart_set_mode(UART_NUM_1, UART_MODE_UART);
+	}
 }
 
 bool checkdata(uint8_t* data)
@@ -167,6 +185,12 @@ void modbus_task(void *arg)
 	//modbus_init();
 	setup_reg_data();
 	uint8_t *uart_rsv = (uint8_t*)malloc(MB_BUF_SIZE);
+	uint8_t *stm32_uart_rsv = (uint8_t*)malloc(64);
+	if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
+	{
+		holding_reg_params.testBuf[6] = 0x55;
+		memset(stm32_uart_rsv, 030,64);
+	}
 	for(i=0;i<5;i++)
 	{
 		init_crc16();
@@ -176,10 +200,12 @@ void modbus_task(void *arg)
 
 	while (1) {
 		int len = uart_read_bytes(uart_num, uart_rsv, MB_BUF_SIZE, 20 / portTICK_RATE_MS);
+
 		if(len>0)
 		{
 			if(checkdata(uart_rsv))
 			{
+				holding_reg_params.led_rx485_rx = 2;
 				init_crc16();
 			//gpio_set_level(GPIO_MODBUS_EN_PIN,1);
 			//		vTaskDelay(5 / portTICK_RATE_MS);
@@ -189,6 +215,17 @@ void modbus_task(void *arg)
 			//gpio_set_level(GPIO_MODBUS_EN_PIN,0);
 			//uart_write_bytes(uart_num, "\r\n", 2);
 			//uart_write_bytes(uart_num, prefix, (sizeof(prefix) - 1));
+		}
+
+		if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
+		{
+			uart_read_bytes(UART_NUM_1, stm32_uart_rsv, 64, 20 / portTICK_RATE_MS);
+			//holding_reg_params.testBuf[7] = uart_write_bytes(UART_NUM_1, (const char *)holding_reg_params.testBuf, 20);
+			for(i=0;i<5;i++){
+				holding_reg_params.testBuf[i] = stm32_uart_rsv[i];
+			}
+			g_sensors.occ = stm32_uart_rsv[0];
+			g_sensors.sound = BUILD_UINT32(stm32_uart_rsv[1],stm32_uart_rsv[2],stm32_uart_rsv[3],stm32_uart_rsv[4]);
 		}
 		//uart_write_bytes(uart_num, (const char *)uart_rsv, len);
 		//vTaskDelay(1000 / portTICK_RATE_MS);

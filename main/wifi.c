@@ -41,8 +41,8 @@ void init_ssid_info()
 {
 	memset(SSID_Info.name,0,64);
 	memset(SSID_Info.password,0,32);
-	memcpy(SSID_Info.name, "Linksys51772", strlen("Linksys51772"));
-	memcpy(SSID_Info.password, "Spring15802118217", strlen("Spring15802118217"));
+	memcpy(SSID_Info.name, "TP-LINK_wuxian", strlen("TP-LINK_wuxian"));
+	memcpy(SSID_Info.password, "87654321", strlen("87654321"));
 }
 
 static void event_handler(void* arg, esp_event_base_t event_base,
@@ -107,8 +107,15 @@ void wifi_init_sta()
             },
         },
     };
-    memcpy(wifi_config.sta.ssid, SSID_Info.name, 32);
-    memcpy(wifi_config.sta.password, SSID_Info.password, 32);
+    if(SSID_Info.name[0]!=0)
+    {
+    	memcpy(wifi_config.sta.ssid, SSID_Info.name, 32);
+    	memcpy(wifi_config.sta.password, SSID_Info.password, 32);
+    }
+    else
+    {
+    	init_ssid_info();
+    }
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
@@ -144,8 +151,46 @@ void wifi_init_sta()
     vEventGroupDelete(s_wifi_event_group);
 }
 
+esp_err_t scan_event_handler(void *ctx, system_event_t *event)
+{
+	if(event->event_id == SYSTEM_EVENT_SCAN_DONE)
+	{
+		printf("WiFi Scan Completed!\n");
+		printf("Number of access points found: %d\n",event->event_info.scan_done.number);
+		uint16_t apCount = event->event_info.scan_done.number;
+		if(apCount == 0)
+		{
+			return 0;
+		}
+		wifi_ap_record_t *list = (wifi_ap_record_t *) malloc(sizeof(wifi_ap_record_t) *apCount);
+		ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&apCount, list));
+
+		printf("\n");
+		printf("               SSID              | Channel | RSSI |   Auth Mode \n");
+		printf("----------------------------------------------------------------\n");
+		for(int i = 0; i < apCount; i++)
+		{
+			//printf("2s | } | M | s\n",(char *)list[i].ssid, list[i].primary, list[i].rssi, get_authmode(list[i].authmode));
+			//if(strcmp((const char*)list[i].ssid, (const char*)SSID_Info.name)==0)
+			{
+				SSID_Info.rssi = list[i].rssi;
+			}
+		}
+
+		printf("----------------------------------------------------------------\n");
+
+
+		free(list);
+	}
+
+	return ESP_OK;
+
+
+}
+
 void wifi_task(void *pvParameters)
 {
+	uint8_t temp_rssi=0;
 	//read_default_from_flash();
 	//modbus_init();
 	debug_info("Finish flash init........");
@@ -153,11 +198,26 @@ void wifi_task(void *pvParameters)
 	wifi_init_sta();
 	debug_info("Finish wifi init%%%%%%%%%%");
     ESP_LOGI(TAG, "Finish wifi init");
+
 	while(1)
 	{
 		//if(re_init_wifi)
 		//	wifi_init_sta();
-		vTaskDelay(1000 / portTICK_RATE_MS);
+		//esp_random();
+		esp_fill_random(&temp_rssi,1);
+		temp_rssi /= 15;
+		SSID_Info.rssi = temp_rssi-95;
+	    //Initialize the system event handler
+		/*
+	    ESP_ERROR_CHECK(esp_event_loop_init(scan_event_handler, NULL));
+	    wifi_scan_config_t scanConf = {
+			.ssid = NULL,
+			.bssid = NULL,
+			.channel = 0,
+			.show_hidden = 1
+			};
+		ESP_ERROR_CHECK(esp_wifi_scan_start(&scanConf, 0));*/
+		vTaskDelay(3000 / portTICK_RATE_MS);
 	}
 }
 

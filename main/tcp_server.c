@@ -40,6 +40,9 @@
 #include "i2c_task.h"
 #include "microphone.h"
 //#include "pyq1548.h"
+#include "led_pwm.h"
+#include "ud_str.h"
+#include "controls.h"
 
 #define PORT CONFIG_EXAMPLE_PORT
 
@@ -60,7 +63,25 @@ void start_fw_update(void)
 	esp_ota_set_boot_partition(factory);
 	esp_restart();
 }
-								
+
+uint16_t read_user_data_by_block(uint16_t addr)
+{
+	uint8_t index,item=0;
+	uint16_t *block=NULL;
+	if( addr >= MODBUS_OUTPUT_BLOCK_FIRST && addr <= MODBUS_OUTPUT_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_OUTPUT_BLOCK_FIRST) / ( (sizeof(Str_out_point) + 1) / 2);
+		block = (uint16_t *)&outputs[index];
+		item = (addr - MODBUS_OUTPUT_BLOCK_FIRST) % ((sizeof(Str_out_point) + 1) / 2);
+	}
+	else if( addr >= MODBUS_INPUT_BLOCK_FIRST && addr <= MODBUS_INPUT_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
+		block = (uint16_t *)&inputs[index];
+		item = (addr - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1) / 2);
+	}
+	return block[item];
+}
 
 uint16_t read_wifi_data_by_block(uint16_t addr)
 {
@@ -278,6 +299,13 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 				save_blob_info(FLASH_INPUT_INFO, (const void*)&inputs[0], INPUT_PAGE_LENTH);
 			}
 		}
+		else if(temp_i == SERIALNUMBER_LOWORD )
+		{
+			holding_reg_params.serial_number_lo = (uint16_t)(*(bufadd+10) << 8) + *(bufadd+8);
+			holding_reg_params.serial_number_hi = (uint16_t)(*(bufadd+14) << 8) + *(bufadd+12);//BUILD_UINT16(*(bufadd+12),*(bufadd+14));
+			save_uint16_to_flash(FLASH_SERIAL_NUM_LO, holding_reg_params.serial_number_lo);
+			save_uint16_to_flash(FLASH_SERIAL_NUM_HI, holding_reg_params.serial_number_hi);
+		}
 	}
 	if(*(bufadd+1) == WRITE_VARIABLES)
 	{
@@ -300,6 +328,22 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 				holding_reg_params.baud_rate = *(bufadd+5);
 				save_uint8_to_flash( FLASH_BAUD_RATE, holding_reg_params.baud_rate);
 				modbus_init();
+			}
+		}
+		else if(address == FAN_MODULE_PWM1)
+		{
+			holding_reg_params.fan_module_pwm1 = *(bufadd+5);
+			if(holding_reg_params.which_project == PROJECT_FAN_MODULE){
+				ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);
+				ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+			}
+		}
+		else if(address == FAN_MODULE_PWM2)
+		{
+			holding_reg_params.fan_module_pwm2 = *(bufadd+5);
+			if(holding_reg_params.which_project == PROJECT_FAN_MODULE){
+				ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, holding_reg_params.fan_module_pwm2);
+				ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 			}
 		}
 		else if (address == UPDATE_STATUS)
@@ -418,22 +462,22 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 			if(address == SERIALNUMBER_LOWORD )
 			{
 				temp1 = 0 ;
-				temp2 = 39;//BREAK_UINT32(holding_reg_params.serial_number_lo,0);
+				temp2 = (uint8_t)(holding_reg_params.serial_number_lo);//BREAK_UINT32(holding_reg_params.serial_number_lo,0);
 			}
-			if(address == (SERIALNUMBER_LOWORD +1))
+			else if(address == (SERIALNUMBER_LOWORD +1))
 			{
 				temp1 = 0 ;
-				temp2 = BREAK_UINT32(holding_reg_params.serial_number_lo,1);
+				temp2 = (uint8_t)(holding_reg_params.serial_number_lo>>8);
 			}
-			if(address == (SERIALNUMBER_LOWORD +2))
+			else if(address == SERIALNUMBER_HIWORD)
 			{
 				temp1 = 0 ;
-				temp2 = BREAK_UINT32(holding_reg_params.serial_number_hi,0);
+				temp2 = LO_UINT16(holding_reg_params.serial_number_hi);
 			}
-			if(address == (SERIALNUMBER_LOWORD +3))
+			else if(address == (SERIALNUMBER_HIWORD +1))
 			{
 				temp1 = 0 ;
-				temp2 = BREAK_UINT32(holding_reg_params.serial_number_hi,1);
+				temp2 = HI_UINT16(holding_reg_params.serial_number_hi);
 			}
 			else if(address == VERSION_NUMBER_LO)
 			{
@@ -497,6 +541,21 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = 0;
 				temp2 = holding_reg_params.ip_gateway[address - IP_GATE_WAY_1];
 			}
+			else if(address == WIFI_RSSI)
+			{
+				temp1 = 0xff;
+				temp2 = SSID_Info.rssi;
+			}
+			else if(address == FAN_MODULE_PWM1)
+			{
+				temp1 = 0;
+				temp2 = holding_reg_params.fan_module_pwm1;
+			}
+			else if(address == FAN_MODULE_PWM2)
+			{
+				temp1 = 0;
+				temp2 = holding_reg_params.fan_module_pwm2;
+			}
 			else if(address == TEMPRATURE_CHIP)
 			{
 				temp = g_sensors.temperature;
@@ -527,6 +586,16 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = (g_sensors.voc_value >> 8) & 0xFF;
 				temp2 = (uint8_t)g_sensors.voc_value & 0xFF;
 			}
+			else if(address == PIR_SENSOR_VALUE)
+			{
+				temp1 = 0;
+				temp2 = g_sensors.occ & 0xFF;
+			}
+			else if(address == MIC_SOUND)
+			{
+				temp1 = (uint8_t) (g_sensors.sound >> 8) & 0xFF;
+				temp2 = (uint8_t)g_sensors.sound & 0xFF;
+			}
 			else if(address >= MODBUS_WIFI_START &&  address <= MODBUS_WIFI_END)
 			{
 				temp = read_wifi_data_by_block(address);
@@ -540,7 +609,14 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = (temp >> 8) & 0xFF;
 				temp2 = temp & 0xFF;
 			}
-			else if((address >= MODBUS_INPUT_BLOCK_FIRST)&&(address<= MODBUS_INPUT_BLOCK_LAST))
+			else if((address>= MODBUS_OUTPUT_BLOCK_FIRST)&&(address<=MODBUS_INPUT_BLOCK_LAST))
+			{
+				temp = read_user_data_by_block(address);
+
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			/*else if((address >= MODBUS_INPUT_BLOCK_FIRST)&&(address<= MODBUS_INPUT_BLOCK_LAST))
 			{
 				uint8_t index,item;
 				uint16_t *block;
@@ -549,7 +625,7 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				item = (address-MODBUS_INPUT_BLOCK_FIRST)%((sizeof(Str_in_point)+1)/2);
 				temp1 = (block[item]>>8)&0xff;
 				temp2 = block[item]&0xff;
-			}
+			}*/
 			else if(address == MODBUS_EX_MOUDLE_EN)
 			{
 				temp1 = 0;
@@ -590,10 +666,10 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 			uart_send[send_cout++] = 0xff;
 			uart_send[send_cout++] = 0x19;
 			uart_send[send_cout++] = holding_reg_params.modbus_address;
-			uart_send[send_cout++] = 0;
-			uart_send[send_cout++] = 0;
-			uart_send[send_cout++] = 0;
-			uart_send[send_cout++] = BREAK_UINT32(holding_reg_params.serial_number_lo,0);
+			uart_send[send_cout++] = LO_UINT16(holding_reg_params.serial_number_lo);
+			uart_send[send_cout++] = HI_UINT16(holding_reg_params.serial_number_lo);
+			uart_send[send_cout++] = LO_UINT16(holding_reg_params.serial_number_hi);
+			uart_send[send_cout++] = HI_UINT16(holding_reg_params.serial_number_hi);
 			for(i=0;i<send_cout;i++)
 				crc16_byte(uart_send[i]);
 		}
@@ -610,7 +686,7 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 	}else{
 		uart_send[send_cout++] = temp1 ;
 		uart_send[send_cout++] = temp2 ;
-
+		holding_reg_params.led_rx485_tx = 2;
 		uart_write_bytes(UART_NUM_0, (const char *)uart_send, send_cout);
 
 		free(uart_send);
@@ -652,10 +728,10 @@ void UdpData(unsigned char type)
 	Scan_Infor.len = 0x001d;
 
 	//serialnumber 4 bytes
-	Scan_Infor.own_sn[0] = BREAK_UINT32(holding_reg_params.serial_number_hi,1);//0;//SerialNumber(0);//(unsigned short int)Modbus.serialNum[0];
-	Scan_Infor.own_sn[1] = BREAK_UINT32(holding_reg_params.serial_number_hi,0);//1;//SerialNumber(1);//(unsigned short int)Modbus.serialNum[1];
-	Scan_Infor.own_sn[2] = BREAK_UINT32(holding_reg_params.serial_number_lo,1);//35;//SerialNumber(2);//(unsigned short int)Modbus.serialNum[2];
-	Scan_Infor.own_sn[3] = BREAK_UINT32(holding_reg_params.serial_number_lo,0);//255;//SerialNumber(3);//(unsigned short int)Modbus.serialNum[3];
+	Scan_Infor.own_sn[0] = LO_UINT16(holding_reg_params.serial_number_lo);//BREAK_UINT32(holding_reg_params.serial_number_hi,1);//0;//SerialNumber(0);//(unsigned short int)Modbus.serialNum[0];
+	Scan_Infor.own_sn[1] = HI_UINT16(holding_reg_params.serial_number_lo);//BREAK_UINT32(holding_reg_params.serial_number_hi,0);//1;//SerialNumber(1);//(unsigned short int)Modbus.serialNum[1];
+	Scan_Infor.own_sn[2] = LO_UINT16(holding_reg_params.serial_number_hi);//BREAK_UINT32(holding_reg_params.serial_number_lo,1);//35;//SerialNumber(2);//(unsigned short int)Modbus.serialNum[2];
+	Scan_Infor.own_sn[3] = HI_UINT16(holding_reg_params.serial_number_hi);//BREAK_UINT32(holding_reg_params.serial_number_lo,0);//255;//SerialNumber(3);//(unsigned short int)Modbus.serialNum[3];
 
 	Scan_Infor.product = holding_reg_params.product_model&0xff;//PM_TSTAT_AQ;//PRODUCT_MINI_ARM;  // only for test now
 
@@ -699,8 +775,11 @@ void UdpData(unsigned char type)
 	Scan_Infor.master_sn[1] = 0;
 	Scan_Infor.master_sn[2] = 0;
 	Scan_Infor.master_sn[3] = 0;
+	if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+		memcpy(Scan_Infor.panelname,(char*)"Fan-Module ",12);
+	else
+		memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
 
-	memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
 //	state = 1;
 //	scanstart = 0;
 
@@ -924,8 +1003,9 @@ static void tcp_server_task(void *pvParameters)
 								int err = send(sock, (uint8_t *)&modbus_wifi_buf, modbus_wifi_len, 0);
 								if (err < 0) {
 									ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+									break;
 								}
-								break;
+								//break;
 							}
 						}
 					}
@@ -935,8 +1015,8 @@ static void tcp_server_task(void *pvParameters)
 			if (sock != -1) {
 				holding_reg_params.testBuf[11] = 215;
 				ESP_LOGE(TCP_TASK_TAG, "Shutting down socket and restarting...");
-				shutdown(sock, 0);
-				close(sock);
+				//shutdown(sock, 0);
+				//close(sock);
 			}
 		}
     	isSocketCreated = false;
@@ -965,13 +1045,26 @@ void app_main()
      */
     //ESP_ERROR_CHECK(example_connect());
 	read_default_from_flash();
-	mass_flash_init();
+//	mass_flash_init();
 	modbus_init();
 	debug_info("modbus init finished^^^^^^^^");
 
     ESP_ERROR_CHECK(i2c_master_init());
 
     ethernet_init();
+
+    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
+	//tcpip_socket_init();
+	if(holding_reg_params.which_project == PROJECT_SAUTER)
+	{
+		stm32_uart_init();
+	}
+	else if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+	{
+		holding_reg_params.fan_module_pwm2 = 255;
+		led_pwm_init();
+		led_init();
+	}
     //microphone_init();
     //SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
     //connect_wifi();
@@ -979,10 +1072,13 @@ void app_main()
     xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 5, NULL);
     xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
 
-    xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
+    //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
+    	xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
     xTaskCreate(modbus_task,"modbus_task",4096, NULL, 3, NULL);
-    xTaskCreate(input_task,"input_task",1024, NULL, 4, NULL);
-
+    //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
+    {
+    	xTaskCreate(input_task,"input_task",1024, NULL, 4, NULL);
+    }
 	// xTaskCreate(detect_tcp_task, "detect_tcp_task", 1024,NULL, 6,NULL);
 	// xTaskCreate(pyq1548_task,"pyq1548_task",1024*2, NULL, 10, NULL);
 	// xTaskCreate(&ota_task, "ota_example_task", 8192, NULL, 5, NULL);

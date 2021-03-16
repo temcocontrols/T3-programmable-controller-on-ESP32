@@ -9,6 +9,10 @@
 #define FLASH_BAUD_RATE		"BAUD_RATE"
 #define FLASH_INPUT_INFO	"INPUT_INFO"
 #define FLASH_INPUT_FLAG	"INPUT_FLAG"
+#define FLASH_OUTPUT_INFO	"OUTPUT_INFO"
+#define FLASH_OUTPUT_FLAG	"OUTPUT_FLAG"
+#define FLASH_SERIAL_NUM_LO	"SERIAL_NUM_LO"
+#define FLASH_SERIAL_NUM_HI	"SERIAL_NUM_HI"
 
 extern esp_err_t read_default_from_flash(void);
 extern esp_err_t save_wifi_info(void);

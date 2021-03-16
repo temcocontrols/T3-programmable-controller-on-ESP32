@@ -4,10 +4,13 @@
 #include "freertos/task.h"
 #include "i2c_task.h"
 #include "store.h"
+#include "ud_str.h"
+#include "controls.h"
+//#include "driver/uart.h"
 
 
 Str_in_point   inputs[MAX_AIS];
-Str_variable_point	vars[MAX_VARS + 12];
+//Str_variable_point	vars[MAX_VARS + 12];
 
 //Str_Setting_Info    Setting_Info;
 const uint8_t Inputs_label[MAX_AIS][9] = {
@@ -62,8 +65,8 @@ void mass_flash_init(void)
 	{
 		for(loop=0; loop<MAX_AIS; loop++ )
 		{
-			memcpy(inputs[loop].description, Inputs_Description[loop], 21);
-			memcpy(inputs[loop].label, Inputs_label[loop], 9);
+			//memcpy(inputs[loop].description, Inputs_Description[loop], 21);
+			//memcpy(inputs[loop].label, Inputs_label[loop], 9);
 			inputs[loop].value = 0;
 			inputs[loop].filter = 5 ;
 			inputs[loop].decom = 0 ;
@@ -78,20 +81,20 @@ void mass_flash_init(void)
 			inputs[loop].calibration_lo = 0;//500 &0xff ;
 			inputs[loop].range = not_used_input ;
 		}
-		inputs[1].range = Humidty;
-		inputs[2].range = CO2_PPM;
-		inputs[3].range = TVOC_PPB;
-		inputs[4].range = PM25_UG_M3;
-		inputs[5].range = PM25_UG_M3;
-		inputs[6].range = PM25_UG_M3;
-		inputs[7].range = PM25_UG_M3;
-		inputs[8].range = N_CM3;
-		inputs[9].range = N_CM3;
-		inputs[10].range = N_CM3;
-		inputs[11].range = N_CM3;
-		inputs[12].range = N_CM3;
+/*		inputs[1].range = 57£»//Humidty;
+		inputs[2].range = 58£»//CO2_PPM;
+		inputs[3].range = UG_M3;
+		inputs[4].range = UG_M3;
+		inputs[5].range = UG_M3;
+		inputs[6].range = UG_M3;
+		inputs[7].range = UG_M3;
+		inputs[8].range = NUM_CM3;
+		inputs[9].range = NUM_CM3;
+		inputs[10].range = NUM_CM3;
+		inputs[11].range = NUM_CM3;
+		inputs[12].range = NUM_CM3;
 		inputs[14].range = DB;
-		inputs[15].range = LUX;
+		inputs[15].range = LUX;*/
 
 		len = MAX_AIS * sizeof(Str_in_point) ;
 		memcpy(tempbuf,(void*)&inputs[0], len);
@@ -108,7 +111,7 @@ void mass_flash_init(void)
 		read_blob_info(FLASH_INPUT_INFO, (const void *)&inputs[0].description[0], len );
 	}
 }
-
+#if 0
 void control_input(void)
 {
 	Str_in_point *ins;// = new Str_in_point;
@@ -206,12 +209,13 @@ void control_input(void)
 		ins++;
 	}
 }
-
+#endif
 void input_task(void *arg)
 {
 	while(1)
 	{
 		control_input();
+		//uart_write_bytes(UART_NUM_1, (const char *)holding_reg_params.testBuf, 20);
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
 }

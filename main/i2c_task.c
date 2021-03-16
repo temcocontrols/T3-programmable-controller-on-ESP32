@@ -6,6 +6,7 @@
 #include "unistd.h"
 #include "sgp30.h"
 #include "driver/uart.h"
+#include "deviceparams.h"
 
 static const char *TAG = "i2c-task";
 
@@ -28,6 +29,7 @@ uint16_t scd40_data[6];
 uint8_t light_data[2];
 uint8_t temp_data[2];
 g_sensor_t g_sensors;
+uint8_t mlx90614_data[3];
 extern uint8_t tempBuf_CO2[9];
 
 float SHT3X_getTemperature(uint8_t * measure_data)
@@ -51,6 +53,42 @@ float SHT3X_getHumidity(uint8_t * measure_data)
 	humidity_raw = humidity_raw + (uint16_t) measure_data[1];
 	humidity = 100.0 * (float) humidity_raw / 65535.0;
 	return humidity;
+}
+
+static esp_err_t i2c_master_sensor_mlx90614(i2c_port_t i2c_num, uint8_t *data)
+{
+    int ret;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    /*i2c_master_start(cmd);
+    //i2c_master_write_byte(cmd, MLX90614_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    i2c_master_start(cmd);
+    //i2c_master_write_byte(cmd, MLX90614_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	if (ret != ESP_OK) {
+		return ret;
+	}
+    vTaskDelay(15 / portTICK_RATE_MS);*/
+
+    cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, MLX90614_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, 0x1f,ACK_CHECK_EN);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, MLX90614_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
+    i2c_master_read(cmd,data,3,ACK_VAL);
+    //vTaskDelay(10 / portTICK_RATE_MS);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	if (ret != ESP_OK) {
+		return ret;
+	}
+	return ret;
 }
 
 static esp_err_t i2c_master_sensor_sht31(i2c_port_t i2c_num, uint8_t *data)//_h, uint8_t *data_l)
@@ -451,6 +489,15 @@ void i2c_task(void *arg)
 		}
 		xSemaphoreGive(print_mux);
 		vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
+
+		if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+		{
+			xSemaphoreTake(print_mux, portMAX_DELAY);
+			ret = i2c_master_sensor_mlx90614(I2C_MASTER_NUM, mlx90614_data);
+
+			xSemaphoreGive(print_mux);
+			vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
+		}
 #else
 		//vTaskDelay(1000/portTICK_RATE_MS);
 		i2c_cmd_handle_t cmd = i2c_cmd_link_create();

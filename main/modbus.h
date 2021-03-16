@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include "deviceparams.h"
+#include "ud_str.h"
 //#include "crc.h"
 
 
@@ -22,8 +23,9 @@
 #define USART_REC_LEN  			512
 #define USART_SEND_LEN			512
 
-#define MAX_AIS  17 //11
-#define MAX_INS			17
+#define MAX_AIS  64 //17 //11
+#define MAX_INS			64//17
+#define MAX_OUTS		64
 #define MAX_VARS				128
 
 // *******************modbus.h***********************************
@@ -33,7 +35,7 @@
 // V.25
 //caution:the tstat response should have a pause between two characrers,but the maximum allowed pause is 1.5 character times or .83 ms * 1.5 or 1.245 ms at 9600 baud.
 //  REGISTER ADDRESSES TO BE USED IN MODBUS SERIAL COMMUNICATION
-
+#if 0
 typedef enum { not_used_input, Y3K_40_150DegC, Y3K_40_300DegF, R10K_40_120DegC,
 	R10K_40_250DegF, R3K_40_150DegC, R3K_40_300DegF, KM10K_40_120DegC,
 	KM10K_40_250DegF, A10K_50_110DegC, A10K_60_200DegF, V0_5, I0_100Amps,
@@ -41,10 +43,10 @@ typedef enum { not_used_input, Y3K_40_150DegC, Y3K_40_300DegF, R10K_40_120DegC,
 	P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,
 	table5, HI_spd_count, Frequence, Humidty,CO2_PPM, RPM, TVOC_PPB, PM25_UG_M3, N_CM3, DB, LUX,
 } Analog_input_range_equate;
-
+#endif
 
 enum {
-	SERIALNUMBER_LOWORD   ,          // -	-	Lower 2 bytes of the serial number
+	SERIALNUMBER_LOWORD =0   ,          // -	-	Lower 2 bytes of the serial number
 	SERIALNUMBER_HIWORD  = 2  ,		// -	-	Upper 2 bytes of teh serial number
 	VERSION_NUMBER_LO   = 4  ,		// -	-	Software version
 	VERSION_NUMBER_HI,				// -	-	Software version
@@ -87,21 +89,10 @@ enum {
 	IP_GATE_WAY_2,
 	IP_GATE_WAY_3,
 	IP_GATE_WAY_4,
-	WIFI_FAC,//75
-	IS_WIFI_EXIST,
-
-
-
-
-
-
-
-
-
-
-
-
-
+	WIFI_FAC,//79
+	WIFI_RSSI, //80
+	FAN_MODULE_PWM1,
+	FAN_MODULE_PWM2,
 
 
 
@@ -1097,12 +1088,17 @@ enum {
 	MODBUS_USER_BLOCK_FIRST = MODBUS_SETTING_BLOCK_FIRST,
 
 	MODBUS_SETTING_BLOCK_LAST = 9999,
+	MODBUS_OUTPUT_BLOCK_FIRST = 10000,     // 10000 -  11471  45
+	MODBUS_OUTPUT_BLOCK_LAST = MODBUS_OUTPUT_BLOCK_FIRST + MAX_OUTS * ((sizeof(Str_out_point) + 1)/ 2) - 1,
 
-	MODBUS_INPUT_BLOCK_FIRST =11472,
+	MODBUS_INPUT_BLOCK_FIRST, // 11472 - 12943   46
 	MODBUS_INPUT_BLOCK_LAST = MODBUS_INPUT_BLOCK_FIRST + MAX_INS * ((sizeof(Str_in_point) + 1) / 2) - 1,
 
-	MODBUS_VAR_BLOCK_FIRST,  // 12944 - 15503  39
-	MODBUS_VAR_BLOCK_LAST = MODBUS_VAR_BLOCK_FIRST + MAX_VARS * ((sizeof(Str_variable_point) + 1) / 2) - 1,
+	//MODBUS_INPUT_BLOCK_FIRST =11472,
+	//MODBUS_INPUT_BLOCK_LAST = MODBUS_INPUT_BLOCK_FIRST + MAX_INS * ((sizeof(Str_in_point) + 1) / 2) - 1,
+
+//	MODBUS_VAR_BLOCK_FIRST,  // 12944 - 15503  39
+//	MODBUS_VAR_BLOCK_LAST = MODBUS_VAR_BLOCK_FIRST + MAX_VARS * ((sizeof(Str_variable_point) + 1) / 2) - 1,
 
 	MODBUS_EX_MOUDLE_EN = 65000,
 	MODBUS_EX_MOUDLE_FLAG12 = 65001,
@@ -1120,7 +1116,7 @@ enum {
 
 //void modbus_data_cope(u8 XDATA* pData, u16 length, u8 conn_id) ;
 extern void modbus_init(void) ;
-
+extern void stm32_uart_init(void);
 //uint8_t checkCrc(void);
 
 //typedef struct

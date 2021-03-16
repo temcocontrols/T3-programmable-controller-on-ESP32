@@ -32,6 +32,7 @@ typedef struct
 	uint8_t net_mask[4];
 	uint8_t getway[4];
 	uint8_t mac_addr[6];  // read-only
+	int8_t rssi;
 }STR_SSID;
 
 extern bool re_init_wifi;
