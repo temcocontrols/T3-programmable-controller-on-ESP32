@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := 2nd_bootloader
+PROJECT_NAME := temco_app
 
 EXTRA_COMPONENT_DIRS = $(IDF_PATH)/examples/common_components/protocol_examples_common
 

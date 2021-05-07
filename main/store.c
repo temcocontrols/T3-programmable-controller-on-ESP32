@@ -4,13 +4,21 @@
 #include "freertos/task.h"
 #include "i2c_task.h"
 #include "store.h"
-#include "ud_str.h"
-#include "controls.h"
+//#include "ud_str.h"
+//#include "controls.h"
 //#include "driver/uart.h"
 
 
 Str_in_point   inputs[MAX_AIS];
 //Str_variable_point	vars[MAX_VARS + 12];
+int16_t pre_mul_analog_input[10]; //used to filter  readings
+int16_t mul_analog_in_buffer[10];
+int16_t mul_analog_input[10];
+
+trigger_t light_trigger;
+trigger_t sound_trigger;
+trigger_t co2_trigger;
+trigger_t occ_trigger;
 
 //Str_Setting_Info    Setting_Info;
 const uint8_t Inputs_label[MAX_AIS][9] = {
@@ -31,6 +39,8 @@ const uint8_t Inputs_label[MAX_AIS][9] = {
 	"SOUND",
 	"LIGHT",
 	"OCC",
+	"AMBIENT",
+	"OBJECT"
 };
 const uint8_t Inputs_Description[MAX_AIS][21] = {
 
@@ -52,6 +62,8 @@ const uint8_t Inputs_Description[MAX_AIS][21] = {
 	"Sound Level",
 	"Light Strength",
 	"Occupency",
+	"Ambient temprature",
+	"Object temperature"
 };
 
 void mass_flash_init(void)
@@ -65,8 +77,8 @@ void mass_flash_init(void)
 	{
 		for(loop=0; loop<MAX_AIS; loop++ )
 		{
-			//memcpy(inputs[loop].description, Inputs_Description[loop], 21);
-			//memcpy(inputs[loop].label, Inputs_label[loop], 9);
+			memcpy(inputs[loop].description, Inputs_Description[loop], 21);
+			memcpy(inputs[loop].label, Inputs_label[loop], 9);
 			inputs[loop].value = 0;
 			inputs[loop].filter = 5 ;
 			inputs[loop].decom = 0 ;
@@ -81,20 +93,23 @@ void mass_flash_init(void)
 			inputs[loop].calibration_lo = 0;//500 &0xff ;
 			inputs[loop].range = not_used_input ;
 		}
-/*		inputs[1].range = 57£»//Humidty;
-		inputs[2].range = 58£»//CO2_PPM;
-		inputs[3].range = UG_M3;
-		inputs[4].range = UG_M3;
-		inputs[5].range = UG_M3;
-		inputs[6].range = UG_M3;
-		inputs[7].range = UG_M3;
-		inputs[8].range = NUM_CM3;
-		inputs[9].range = NUM_CM3;
-		inputs[10].range = NUM_CM3;
-		inputs[11].range = NUM_CM3;
-		inputs[12].range = NUM_CM3;
+		inputs[1].range = R10K_40_120DegC;
+		inputs[1].range = Humidty;
+		inputs[2].range = CO2_PPM;
+		inputs[3].range = not_used_input;
+		inputs[4].range = not_used_input;
+		inputs[5].range = not_used_input;
+		inputs[6].range = not_used_input;
+		inputs[7].range = not_used_input;
+		inputs[8].range = not_used_input;
+		inputs[9].range = not_used_input;
+		inputs[10].range = not_used_input;
+		inputs[11].range = not_used_input;
+		inputs[12].range = not_used_input;
 		inputs[14].range = DB;
-		inputs[15].range = LUX;*/
+		inputs[15].range = LUX;
+		inputs[17].range = R10K_40_120DegC;
+		inputs[18].range = R10K_40_120DegC;
 
 		len = MAX_AIS * sizeof(Str_in_point) ;
 		memcpy(tempbuf,(void*)&inputs[0], len);
@@ -111,7 +126,37 @@ void mass_flash_init(void)
 		read_blob_info(FLASH_INPUT_INFO, (const void *)&inputs[0].description[0], len );
 	}
 }
-#if 0
+
+uint16_t Filter(uint8_t channel,uint16_t input)
+{
+	// -------------FILTERING------------------
+//	int16 xdata siDelta;
+	int32_t siResult;
+	uint8_t I;
+  int32_t siTemp;
+	I = channel;
+	siTemp = input;
+  /*if(I == 10)
+	{
+	if(power_up_timer < 5)
+    	old_temperature = siTemp;
+	siResult = (old_temperature * EEP_Filter + siTemp) / (EEP_Filter + 1);
+	old_temperature = siResult;
+
+	}
+	else*/
+	{
+			siResult = (pre_mul_analog_input[I] * inputs[I].filter + siTemp) *10 / (inputs[I].filter + 1);
+			if(siResult%10 >= 5)
+				siResult += 10;
+			pre_mul_analog_input[I] = siResult/10;// + InputFilter(I);
+			siResult /= 10;
+	}
+	return siResult;
+
+}
+
+#if 1
 void control_input(void)
 {
 	Str_in_point *ins;// = new Str_in_point;
@@ -191,13 +236,24 @@ void control_input(void)
 			}
 			else if(point == 14)
 			{
-				sample = 0;//g_sensors.sound_level*1000;
+				sample = g_sensors.sound;
 			}
 			else if(point == 15)
 			{
 				sample = g_sensors.light_value*1000;//light_sensor*1000;
 			}
-
+			else if(point == 16)
+			{
+				sample = g_sensors.occ*1000;
+			}
+			else if(point == 17)
+			{
+				sample = g_sensors.ambient*100;
+			}
+			else if(point == 18)
+			{
+				sample = g_sensors.object*100;
+			}
 			if(!ins->calibration_sign)
 				sample += 100 * (ins->calibration_hi * 256 + ins->calibration_lo);
 			else
@@ -210,11 +266,58 @@ void control_input(void)
 	}
 }
 #endif
+
+void deal_input_trigger(void)
+{
+	if(((g_sensors.light_value-light_trigger.trigger)>0)&&(light_trigger.count_down == 0))
+	{
+		light_trigger.alarmOn = 1;
+		light_trigger.count_down = light_trigger.timer*60;
+	}
+	if(g_sensors.occ == 1)
+	{
+		occ_trigger.alarmOn = 1;
+		occ_trigger.count_down = occ_trigger.timer*60;
+	}
+	if(((g_sensors.co2-co2_trigger.trigger)>0)&&(co2_trigger.count_down == 0))
+	{
+		co2_trigger.alarmOn = 1;
+		co2_trigger.count_down = light_trigger.timer*60;
+	}
+	if(((g_sensors.sound-sound_trigger.trigger)>0)&&(sound_trigger.count_down == 0))
+	{
+		sound_trigger.alarmOn = 1;
+		sound_trigger.count_down = light_trigger.timer*60;
+	}
+}
+
+void deal_trigger_timer(void)
+{
+	if(sound_trigger.count_down>0)
+		sound_trigger.count_down--;
+	else
+		sound_trigger.alarmOn = 0;
+	if(light_trigger.count_down>0)
+		light_trigger.count_down--;
+	else
+		light_trigger.alarmOn = 0;
+	if(co2_trigger.count_down >0)
+		co2_trigger.count_down--;
+	else
+		co2_trigger.alarmOn = 0;
+	if(occ_trigger.count_down >0)
+		occ_trigger.count_down--;
+	else
+		occ_trigger.alarmOn = 0;
+}
+
 void input_task(void *arg)
 {
 	while(1)
 	{
 		control_input();
+		deal_input_trigger();
+		deal_trigger_timer();
 		//uart_write_bytes(UART_NUM_1, (const char *)holding_reg_params.testBuf, 20);
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}

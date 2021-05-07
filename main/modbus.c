@@ -49,10 +49,10 @@ static void setup_reg_data()
 
     //holding_reg_params.serial_number_lo = 25;
     //holding_reg_params.serial_number_hi = 0;
-    holding_reg_params.version_number_lo = 22;
+    holding_reg_params.version_number_lo = 26;
     holding_reg_params.version_number_hi = 0;
     //holding_reg_params.modbus_address = MB_DEV_ADDR;
-    holding_reg_params.product_model = 74;//62;
+    holding_reg_params.product_model = 65;//74;//74;//
     holding_reg_params.hardware_version = 2;
     holding_reg_params.readyToUpdate = 0;
 

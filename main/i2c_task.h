@@ -32,6 +32,7 @@
 #define BUILD_UINT16(loByte, hiByte) \
           ((uint16_t)(((loByte) & 0x00FF) + (((hiByte) & 0x00FF) << 8)))
 
+#pragma pack(push, 1)
 typedef struct{
 	uint16_t temperature;
 	uint16_t humidity;
@@ -44,6 +45,8 @@ typedef struct{
 	uint16_t light_value;
 	uint8_t occ;
 	uint32_t sound;
+	uint16_t ambient;
+	uint16_t object;
 	float original_temperature;
 	float original_humidity;
 	bool co2_ready;
@@ -51,6 +54,7 @@ typedef struct{
 	bool co2_start_measure;
 	bool co2_stop_measure;
 }g_sensor_t;
+#pragma pack(pop)
 
 extern g_sensor_t g_sensors;
 extern esp_err_t i2c_master_init();

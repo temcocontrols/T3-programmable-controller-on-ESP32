@@ -54,7 +54,7 @@ typedef enum{
 	PROJECT_FAN_MODULE,
 }project_e;
 
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct
 {
 	unsigned short int cmd;   // low byte first
@@ -80,6 +80,17 @@ typedef struct
 	unsigned char subnet_protocal; // 0 - modbus, 12 - bip to mstp
 
 }STR_SCAN_CMD;
+#pragma pack(pop)
+
+//#pragma pack(push, 1)
+typedef struct
+{
+	uint16_t trigger;
+	uint16_t timer;
+	uint8_t alarmOn;
+	uint16_t count_down;
+}trigger_t;
+//#pragma pack(pop)
 // This file defines structure of modbus parameters which reflect correspond modbus address space
 // for each modbus register type (coils, discreet inputs, holding registers, input registers)
 #pragma pack(push, 1)
@@ -228,7 +239,7 @@ typedef struct
 
 } holding_reg_params_t;
 #pragma pack(pop)
-#if 0
+
 #pragma pack(push)
 #pragma pack(1)
 
@@ -255,7 +266,7 @@ typedef struct
 
 } Str_in_point; /* 46 */
 #pragma pack(pop)
-
+#if 0
 typedef struct
 {
 	int8_t description[21];	      /*  (21 uint8_ts; string)*/
@@ -375,6 +386,11 @@ extern input_reg_params_t input_reg_params;
 extern coil_reg_params_t coil_reg_params;
 extern discrete_reg_params_t discrete_reg_params;
 
+extern trigger_t light_trigger;
+extern trigger_t sound_trigger;
+extern trigger_t co2_trigger;
+extern trigger_t occ_trigger;
+
 extern void modbus_init(void);
 extern void modbus_task(void *arg);
 
@@ -382,5 +398,6 @@ extern void init_crc16(void);
 extern void crc16_byte(uint8_t ch);
 extern uint16_t crc16(uint8_t *p, uint8_t length);
 extern void responseCmd(uint8_t type, uint8_t *pData, uint16_t len);
+extern uint16_t Filter(uint8_t channel,uint16_t input);
 
 #endif // !defined(_DEVICE_PARAMS)

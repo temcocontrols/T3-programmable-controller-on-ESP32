@@ -7,6 +7,8 @@
 #include "sgp30.h"
 #include "driver/uart.h"
 #include "deviceparams.h"
+#include <string.h>
+#include "mlx90632.h"
 
 static const char *TAG = "i2c-task";
 
@@ -24,13 +26,89 @@ SemaphoreHandle_t print_mux = NULL;
  * | start | slave_addr + rd_bit + ack | read 1 byte + ack  | read 1 byte + nack | stop |
  * --------|---------------------------|--------------------|--------------------|------|
  */
+// example P_R values
+int32_t P_R = 0x00587f5b;
+int32_t P_G = 0x04a10289;
+int32_t P_T = 0xfff966f8;
+int32_t P_O = 0x00001e0f;
+int32_t Ea = 4859535;
+int32_t Eb = 5686508;
+int32_t Fa = 53855361;
+int32_t Fb = 42874149;
+int32_t Ga = -14556410;
+int16_t Ha = 16384;
+int16_t Hb = 0;
+int16_t Gb = 9728;
+int16_t Ka = 10752;
+
 uint8_t sht31_data[6];
 uint16_t scd40_data[6];
 uint8_t light_data[2];
 uint8_t temp_data[2];
 g_sensor_t g_sensors;
 uint8_t mlx90614_data[3];
+double ambient; /**< Ambient temperature in degrees Celsius */
+double object; /**< Object temperature in degrees Celsius */
 extern uint8_t tempBuf_CO2[9];
+
+int32_t mlx90632_i2c_read(int16_t register_address, uint16_t *value)
+{
+    int ret;
+    uint8_t cmd_h,cmd_l;
+    uint16_t got_data;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+    cmd_h = HI_UINT16(register_address);
+    cmd_l = LO_UINT16(register_address);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, MLX90632_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, cmd_h,ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, cmd_l,ACK_CHECK_EN);
+	//i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
+
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, MLX90632_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
+	i2c_master_read_byte(cmd, &temp_data[0], ACK_VAL);
+	i2c_master_read_byte(cmd, &temp_data[1], NACK_VAL);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	got_data = BUILD_UINT16(temp_data[1], temp_data[0]);
+	memcpy(value, &got_data, 2);
+	return ret;
+}
+
+int32_t mlx90632_i2c_write(int16_t register_address, uint16_t value)
+{
+	int ret;
+	uint8_t cmd_h,cmd_l,data_h,data_l;
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    cmd_h = HI_UINT16(register_address);
+    cmd_l = LO_UINT16(register_address);
+    data_h = HI_UINT16(value);
+    data_l = LO_UINT16(value);
+    i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, MLX90632_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, cmd_h,ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, cmd_l,ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, data_h,ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, data_l,ACK_CHECK_EN);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	return ret;
+}
+
+void msleep(int msecs)
+{
+	vTaskDelay(msecs / portTICK_RATE_MS);
+}
+
+void mlx_usleep(int min_range, int max_range)
+{
+	usleep((min_range+max_range)/2);
+}
+
 
 float SHT3X_getTemperature(uint8_t * measure_data)
 {
@@ -158,7 +236,7 @@ static esp_err_t i2c_master_sensor_mlx90621(i2c_port_t i2c_num, uint8_t cmd_h, u
     i2c_master_write_byte(cmd, MLX90632_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_h,ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_l,ACK_CHECK_EN);
-	i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
+	//i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
 
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, MLX90632_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
@@ -249,6 +327,7 @@ esp_err_t i2c_master_init()
     return i2c_driver_install(i2c_master_port, conf.mode,
                               I2C_MASTER_RX_BUF_DISABLE,
                               I2C_MASTER_TX_BUF_DISABLE, 0);
+    memset(&g_sensors, 0, sizeof(g_sensor_t));
 }
 
 void i2c_task(void *arg)
@@ -258,6 +337,10 @@ void i2c_task(void *arg)
 	uint32_t temp;
 	uint32_t iaq_baseline;
     uint32_t task_idx = (uint32_t)arg;
+    int16_t ambient_new_raw=0;
+    int16_t ambient_old_raw=0;
+    int16_t object_new_raw=0;
+    int16_t object_old_raw=0;
 
     g_sensors.co2_start_measure = false;
 //    uint8_t sensor_data_h, sensor_data_l;
@@ -267,6 +350,8 @@ void i2c_task(void *arg)
     g_sensors.voc_baseline[1] = 0;
     g_sensors.voc_baseline[2] = 0;
     g_sensors.voc_baseline[3] = 0;
+    //g_sensors.ambient = 100;
+    //g_sensors.object = 10;
     uint16_t voc_buf[5];
     static uint8_t voc_cnt;
     static	uint16_t baseline_time = 0;
@@ -324,6 +409,15 @@ void i2c_task(void *arg)
 			ESP_LOGW(TAG, "%s: No ack, SGP30 sensor not connected...skip...", esp_err_to_name(ret));
 		}
 	}
+
+	ret = mlx90632_init();
+	holding_reg_params.testBuf[17] = 555;
+	holding_reg_params.testBuf[18] = ret;
+	if(ret == 0)
+	{
+		holding_reg_params.testBuf[16] = 1234;
+	}
+
     while (1) {
 #if 1
         // ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
@@ -345,6 +439,8 @@ void i2c_task(void *arg)
 			g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
 			g_sensors.temperature = (uint16_t)(g_sensors.original_temperature*10);
 			g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
+			g_sensors.temperature = Filter(0,g_sensors.temperature);
+			g_sensors.humidity = Filter(9,g_sensors.humidity);
             //printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
@@ -362,25 +458,48 @@ void i2c_task(void *arg)
 			// printf("data_h: %02x\n", light_data[1]);//sensor_data_h);
 			// printf("data_l: %02x\n", light_data[0]);//sensor_data_l);
 			g_sensors.light_value = ((uint16_t)light_data[1]<<8)+light_data[0];
+			g_sensors.light_value = Filter(8,g_sensors.light_value);
 		}else {
 			ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
 		}
 		xSemaphoreGive(print_mux);
-		/*vTaskDelay(100 / portTICK_RATE_MS);
-        ret =i2c_master_sensor_mlx90621(I2C_MASTER_NUM,0x24,0x05,&temp_data[0], &temp_data[1]);
+		vTaskDelay(100 / portTICK_RATE_MS);
+        /*ret =i2c_master_sensor_mlx90621(I2C_MASTER_NUM,0x24,0x05,&temp_data[0], &temp_data[1]);
         xSemaphoreTake(print_mux, portMAX_DELAY);
 		if (ret == ESP_ERR_TIMEOUT) {
 			ESP_LOGE(TAG, "I2C MLX90632 Timeout");
 		} else if (ret == ESP_OK) {
-			printf("*******************\n");
-			printf("TASK[%d]  MASTER READ SENSOR( MLX90621 )\n", task_idx);
-			printf("*******************\n");
-			printf("data_h: %02x\n", temp_data[0]);//sensor_data_h);
-			printf("data_l: %02x\n", temp_data[1]);//sensor_data_l);
+			//printf("*******************\n");
+			//printf("TASK[%d]  MASTER READ SENSOR( MLX90621 )\n", task_idx);
+			//printf("*******************\n");
+			//printf("data_h: %02x\n", temp_data[0]);//sensor_data_h);
+			//printf("data_l: %02x\n", temp_data[1]);//sensor_data_l);
+			g_sensors.infrared_temp1 = ((uint16_t)temp_data[0]<<8)+temp_data[1];
 		}else {
 			ESP_LOGW(TAG, "%s: No ack, MLX90632 sensor not connected...skip...", esp_err_to_name(ret));
-		}
-		xSemaphoreGive(print_mux);*/
+		}*/
+		/* Read sensor EEPROM registers needed for calcualtions */
+
+		/* Now we read current ambient and object temperature */
+		ret = mlx90632_read_temp_raw(&ambient_new_raw, &ambient_old_raw,
+									 &object_new_raw, &object_old_raw);
+	    /* Now start calculations (no more i2c accesses) */
+	    /* Calculate ambient temperature */
+		ambient = mlx90632_calc_temp_ambient(ambient_new_raw, ambient_old_raw,
+	                                         P_T, P_R, P_G, P_O, Gb);
+
+	    /* Get preprocessed temperatures needed for object temperature calculation */
+	    double pre_ambient = mlx90632_preprocess_temp_ambient(ambient_new_raw,
+	                                                          ambient_old_raw, Gb);
+	    double pre_object = mlx90632_preprocess_temp_object(object_new_raw, object_old_raw,
+	                                                        ambient_new_raw, ambient_old_raw,
+	                                                        Ka);
+	    /* Calculate object temperature */
+	    object = mlx90632_calc_temp_object(pre_object, pre_ambient, Ea, Eb, Ga, Fa, Fb, Ha, Hb);
+	    g_sensors.ambient = (uint16_t)(ambient*10)/2;
+	    g_sensors.object = (uint16_t )(object*10)/2;
+	    //g_sensors.infrared_temp1 = 321;
+		xSemaphoreGive(print_mux);
 		vTaskDelay(100/ portTICK_RATE_MS);
 		xSemaphoreTake(print_mux, portMAX_DELAY);
 		/*ret = sensirion_i2c_delayed_read_cmd(
@@ -410,6 +529,7 @@ void i2c_task(void *arg)
 						temp += voc_buf[i];
 
 					g_sensors.voc_value = temp/5;
+					g_sensors.voc_value = Filter(7,g_sensors.voc_value);
 				 //TXEN = SEND;
 				//	printf("tVOC  Concentration: %dppb\n", tvoc_ppb);
 				 //TXEN = RECEIVE;
@@ -469,6 +589,7 @@ void i2c_task(void *arg)
 				//sensirion_i2c_write_cmd(SCD40_SENSOR_ADDR, 0x3F86);
 				//g_sensors.co2 = scd40_data[0];//(uint16_t)(scd40_data[0]<<8) + scd40_data[1];
 				g_sensors.co2 = BUILD_UINT16(tempBuf_CO2[1],tempBuf_CO2[0]);//(uint16_t)(tempBuf_CO2[0]<<8) + tempBuf_CO2[1];//tempBuf_CO2
+				g_sensors.co2 = Filter(2, g_sensors.co2);
 			}
 			// printf("*******************\n");
 			// printf("TASK[%d]  MASTER READ SENSOR( SCD40 )\n", task_idx);

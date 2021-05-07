@@ -17,4 +17,11 @@
 		<nature>org.eclipse.cdt.core.ccnature</nature>
 		<nature>com.espressif.idf.core.idfNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>main/types.h</name>
+			<type>1</type>
+			<location>C:/Users/Administrator/eclipse-workspace/t3_app/main/types.h</location>
+		</link>
+	</linkedResources>
 </projectDescription>

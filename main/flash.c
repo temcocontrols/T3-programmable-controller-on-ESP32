@@ -121,6 +121,54 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u16(my_handle, FLASH_SERIAL_NUM_HI, holding_reg_params.serial_number_hi);
 	}
 #endif
+	err = nvs_get_u16(my_handle, FLASH_SOUND_TRIGGER_VALUE, &sound_trigger.trigger);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		sound_trigger.trigger = 80;
+		nvs_set_u16(my_handle, FLASH_SOUND_TRIGGER_VALUE, sound_trigger.trigger);
+	}
+	err = nvs_get_u16(my_handle, FLASH_SOUND_TRIGGER_TIMER, &sound_trigger.timer);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		sound_trigger.timer = 1;
+		nvs_set_u16(my_handle, FLASH_SOUND_TRIGGER_TIMER, sound_trigger.timer);
+	}
+	err = nvs_get_u16(my_handle, FLASH_LIGHT_TRIGGER_VALUE, &light_trigger.trigger);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		light_trigger.trigger = 1000;
+		nvs_set_u16(my_handle, FLASH_LIGHT_TRIGGER_VALUE, light_trigger.trigger);
+	}
+	err = nvs_get_u16(my_handle, FLASH_LIGHT_TRIGGER_TIMER, &light_trigger.timer);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		light_trigger.timer = 1;
+		nvs_set_u16(my_handle, FLASH_LIGHT_TRIGGER_TIMER, light_trigger.timer);
+	}
+	err = nvs_get_u16(my_handle, FLASH_CO2_TRIGGER_VALUE, &co2_trigger.trigger);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		co2_trigger.trigger = 2000;
+		nvs_set_u16(my_handle, FLASH_CO2_TRIGGER_VALUE, co2_trigger.trigger);
+	}
+	err = nvs_get_u16(my_handle, FLASH_CO2_TRIGGER_TIMER, &co2_trigger.timer);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		co2_trigger.timer = 1;
+		nvs_set_u16(my_handle, FLASH_CO2_TRIGGER_TIMER, co2_trigger.timer);
+	}
+	err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, &occ_trigger.trigger);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		occ_trigger.trigger = 200;
+		nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, occ_trigger.trigger);
+	}
+	err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, &occ_trigger.timer);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		occ_trigger.timer = 1;
+		nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
+	}
 
 	debug_info("nvs_get_blob");
 	// Close

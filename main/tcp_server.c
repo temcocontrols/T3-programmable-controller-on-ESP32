@@ -41,8 +41,8 @@
 #include "microphone.h"
 //#include "pyq1548.h"
 #include "led_pwm.h"
-#include "ud_str.h"
-#include "controls.h"
+//#include "ud_str.h"
+//#include "controls.h"
 
 #define PORT CONFIG_EXAMPLE_PORT
 
@@ -56,6 +56,8 @@ uint8_t modbus_wifi_buf[500];
 uint16_t modbus_wifi_len;
 uint8_t reg_num;
 static bool isSocketCreated = false;
+extern double ambient;
+extern double object;
 
 void start_fw_update(void)
 {
@@ -68,13 +70,13 @@ uint16_t read_user_data_by_block(uint16_t addr)
 {
 	uint8_t index,item=0;
 	uint16_t *block=NULL;
-	if( addr >= MODBUS_OUTPUT_BLOCK_FIRST && addr <= MODBUS_OUTPUT_BLOCK_LAST )
+	/*if( addr >= MODBUS_OUTPUT_BLOCK_FIRST && addr <= MODBUS_OUTPUT_BLOCK_LAST )
 	{
 		index = (addr - MODBUS_OUTPUT_BLOCK_FIRST) / ( (sizeof(Str_out_point) + 1) / 2);
 		block = (uint16_t *)&outputs[index];
 		item = (addr - MODBUS_OUTPUT_BLOCK_FIRST) % ((sizeof(Str_out_point) + 1) / 2);
 	}
-	else if( addr >= MODBUS_INPUT_BLOCK_FIRST && addr <= MODBUS_INPUT_BLOCK_LAST )
+	else */if( addr >= MODBUS_INPUT_BLOCK_FIRST && addr <= MODBUS_INPUT_BLOCK_LAST )
 	{
 		index = (addr - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
 		block = (uint16_t *)&inputs[index];
@@ -346,6 +348,54 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 				ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 			}
 		}
+		else if(address == MODBUS_SOUND_TRIGGER)
+		{
+			sound_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_uint16_to_flash(FLASH_SOUND_TRIGGER_VALUE, sound_trigger.trigger);
+		}
+		else if(address == MODBUS_SOUND_TIMER)
+		{
+			sound_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			sound_trigger.count_down = 0;
+			save_uint16_to_flash(FLASH_SOUND_TRIGGER_TIMER, sound_trigger.timer);
+		}
+		else if(address == MODBUS_LIGHT_TRIGGER)
+		{
+			light_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_uint16_to_flash(FLASH_LIGHT_TRIGGER_VALUE, light_trigger.trigger);
+		}
+		else if(address == MODBUS_LIGHT_TIMER)
+		{
+			light_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			light_trigger.count_down = 0;
+			save_uint16_to_flash(FLASH_LIGHT_TRIGGER_TIMER, light_trigger.timer);
+		}
+		else if(address == MODBUS_CO2_TRIGGER)
+		{
+			co2_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_uint16_to_flash(FLASH_CO2_TRIGGER_VALUE, co2_trigger.trigger);
+		}
+		else if(address == MODBUS_CO2_TIMER)
+		{
+			co2_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			co2_trigger.count_down = 0;
+			save_uint16_to_flash(FLASH_CO2_TRIGGER_TIMER, co2_trigger.timer);
+		}
+		else if(address == MODBUS_OCC_TRIGGER)
+		{
+			occ_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_uint16_to_flash(FLASH_OCC_TRIGGER_VALUE, occ_trigger.trigger);
+		}
+		else if(address == MODBUS_OCC_TRIGGER_TIMER)
+		{
+			occ_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			occ_trigger.count_down = 0;
+			save_uint16_to_flash(FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
+		}
+		else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
+		{
+			save_uint16_to_flash(FLASH_INPUT_FLAG, 0);
+		}
 		else if (address == UPDATE_STATUS)
 		{
 			if (*(bufadd+5) == 0x7f)
@@ -580,6 +630,30 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = (temp >> 8) & 0xFF;
 				temp2 = temp & 0xFF;
 			}
+			else if( address == (EXTERNAL_SENSOR2+3))
+			{
+				//temp = 123;//g_sensors.infrared_temp1;
+				temp1 = ((uint8_t)(ambient*10) >> 8) & 0xFF;;
+				temp2 = (uint8_t)(ambient*10) & 0xFF;
+			}
+			else if( address == (EXTERNAL_SENSOR2+4))
+			{
+				//temp = 123;//g_sensors.infrared_temp1;
+				temp1 = ((uint8_t)(object*10) >> 8) & 0xFF;;
+				temp2 = (uint8_t)(object*10) & 0xFF;
+			}
+			else if( address == COOLHEATMODE)//(EXTERNAL_SENSOR2+3))
+			{
+				//temp = 123;//g_sensors.infrared_temp1;
+				temp1 = (g_sensors.ambient >> 8) & 0xFF;;
+				temp2 = (uint8_t)g_sensors.ambient & 0xFF;
+			}
+			else if( address == PID1_MODE_OPERATION)//(EXTERNAL_SENSOR2+4))
+			{
+				//temp = 123;//g_sensors.infrared_temp1;
+				temp1 = (g_sensors.object >> 8) & 0xFF;;
+				temp2 = (uint8_t)g_sensors.object & 0xFF;
+			}
 			else if(address == VOC_DATA)
 			{
 				//temp = g_sensors.voc_value;
@@ -609,14 +683,94 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = (temp >> 8) & 0xFF;
 				temp2 = temp & 0xFF;
 			}
-			else if((address>= MODBUS_OUTPUT_BLOCK_FIRST)&&(address<=MODBUS_INPUT_BLOCK_LAST))
+			else if(address == MODBUS_SOUND_TRIGGER)
+			{
+				temp1 = (uint8_t)(sound_trigger.trigger>>8)&0xff;
+				temp2 = (uint8_t)sound_trigger.trigger;
+			}
+			else if(address == MODBUS_SOUND_TIMER)
+			{
+				temp1 = (uint8_t)(sound_trigger.timer>>8)&0xff;
+				temp2 = (uint8_t)sound_trigger.timer;
+			}
+			else if(address == MODBUS_SOUND_ALARM_ON)
+			{
+				temp1 = (uint8_t)(sound_trigger.alarmOn>>8)&0xff;
+				temp2 = (uint8_t)sound_trigger.alarmOn;
+			}
+			else if(address == MODBUS_SOUND_COUNT_DOWN)
+			{
+				temp1 = (uint8_t)(sound_trigger.count_down>>8)&0xff;
+				temp2 = (uint8_t)sound_trigger.count_down;
+			}
+			else if(address == MODBUS_LIGHT_TRIGGER)
+			{
+				temp1 = (uint8_t)(light_trigger.trigger>>8)&0xff;
+				temp2 = (uint8_t)light_trigger.trigger;
+			}
+			else if(address == MODBUS_LIGHT_TIMER)
+			{
+				temp1 = (uint8_t)(light_trigger.timer>>8)&0xff;
+				temp2 = (uint8_t)light_trigger.timer;
+			}
+			else if(address == MODBUS_LIGHT_ALARM_ON)
+			{
+				temp1 = (uint8_t)(light_trigger.alarmOn>>8)&0xff;
+				temp2 = (uint8_t)light_trigger.alarmOn;
+			}
+			else if(address == MODBUS_LIGHT_COUNT_DOWN)
+			{
+				temp1 = (uint8_t)(light_trigger.count_down>>8)&0xff;
+				temp2 = (uint8_t)light_trigger.count_down;
+			}
+			else if(address == MODBUS_CO2_TRIGGER)
+			{
+				temp1 = (uint8_t)(co2_trigger.trigger>>8)&0xff;
+				temp2 = (uint8_t)co2_trigger.trigger;
+			}
+			else if(address == MODBUS_CO2_TIMER)
+			{
+				temp1 = (uint8_t)(co2_trigger.timer>>8)&0xff;
+				temp2 = (uint8_t)co2_trigger.timer;
+			}
+			else if(address == MODBUS_CO2_ALARM_ON)
+			{
+				temp1 = (uint8_t)(co2_trigger.alarmOn>>8)&0xff;
+				temp2 = (uint8_t)co2_trigger.alarmOn;
+			}
+			else if(address == MODBUS_CO2_COUNT_DOWN)
+			{
+				temp1 = (uint8_t)(co2_trigger.count_down>>8)&0xff;
+				temp2 = (uint8_t)co2_trigger.count_down;
+			}
+			else if(address == MODBUS_OCC_TRIGGER)
+			{
+				temp1 = (uint8_t)(occ_trigger.trigger>>8)&0xff;
+				temp2 = (uint8_t)occ_trigger.trigger;
+			}
+			else if(address == MODBUS_OCC_TRIGGER_TIMER)
+			{
+				temp1 = (uint8_t)(occ_trigger.timer>>8)&0xff;
+				temp2 = (uint8_t)occ_trigger.timer;
+			}
+			else if(address == MODBUS_OCC_ALARM_ON)
+			{
+				temp1 = (uint8_t)(occ_trigger.alarmOn>>8)&0xff;
+				temp2 = (uint8_t)occ_trigger.alarmOn;
+			}
+			else if(address == MODBUS_OCC_COUNT_DOWN)
+			{
+				temp1 = (uint8_t)(occ_trigger.count_down>>8)&0xff;
+				temp2 = (uint8_t)occ_trigger.count_down;
+			}
+			/*else if((address>= MODBUS_OUTPUT_BLOCK_FIRST)&&(address<=MODBUS_INPUT_BLOCK_LAST))
 			{
 				temp = read_user_data_by_block(address);
 
 				temp1 = (temp >> 8) & 0xFF;
 				temp2 = temp & 0xFF;
-			}
-			/*else if((address >= MODBUS_INPUT_BLOCK_FIRST)&&(address<= MODBUS_INPUT_BLOCK_LAST))
+			}*/
+			else if((address >= MODBUS_INPUT_BLOCK_FIRST)&&(address<= MODBUS_INPUT_BLOCK_LAST))
 			{
 				uint8_t index,item;
 				uint16_t *block;
@@ -625,7 +779,7 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				item = (address-MODBUS_INPUT_BLOCK_FIRST)%((sizeof(Str_in_point)+1)/2);
 				temp1 = (block[item]>>8)&0xff;
 				temp2 = block[item]&0xff;
-			}*/
+			}
 			else if(address == MODBUS_EX_MOUDLE_EN)
 			{
 				temp1 = 0;
@@ -633,7 +787,7 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 			}
 			else if(address == MODBUS_EX_MOUDLE_FLAG12)
 			{
-				temp1 = 0;
+				temp1 = 0x13;
 				temp2 = 0xff;
 			}
 			else
@@ -1005,7 +1159,7 @@ static void tcp_server_task(void *pvParameters)
 									ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
 									break;
 								}
-								//break;
+								break;
 							}
 						}
 					}
@@ -1015,8 +1169,8 @@ static void tcp_server_task(void *pvParameters)
 			if (sock != -1) {
 				holding_reg_params.testBuf[11] = 215;
 				ESP_LOGE(TCP_TASK_TAG, "Shutting down socket and restarting...");
-				//shutdown(sock, 0);
-				//close(sock);
+				shutdown(sock, 0);
+				close(sock);
 			}
 		}
     	isSocketCreated = false;
@@ -1045,7 +1199,7 @@ void app_main()
      */
     //ESP_ERROR_CHECK(example_connect());
 	read_default_from_flash();
-//	mass_flash_init();
+	mass_flash_init();
 	modbus_init();
 	debug_info("modbus init finished^^^^^^^^");
 
@@ -1053,7 +1207,7 @@ void app_main()
 
     ethernet_init();
 
-    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
+    holding_reg_params.which_project = PROJECT_SAUTER;//PROJECT_FAN_MODULE;//
 	//tcpip_socket_init();
 	if(holding_reg_params.which_project == PROJECT_SAUTER)
 	{
