@@ -1,5 +1,7 @@
 #include <stdint.h>
+#include <string.h>
 #include "deviceparams.h"
+#include "driver/uart.h"
 
 #define CRC_HI   1
 #define CRC_LO   0
@@ -85,4 +87,9 @@ uint16_t crc16(uint8_t *p, uint8_t length)
 		uchCRCLo = auchCRCLo[uIndex];
 	}
 	return (((uint16_t)uchCRCHi << 8) | uchCRCLo);
+}
+
+void debug_msg(const char* string)
+{
+	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 }

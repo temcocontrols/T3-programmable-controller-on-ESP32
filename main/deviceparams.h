@@ -399,5 +399,6 @@ extern void crc16_byte(uint8_t ch);
 extern uint16_t crc16(uint8_t *p, uint8_t length);
 extern void responseCmd(uint8_t type, uint8_t *pData, uint16_t len);
 extern uint16_t Filter(uint8_t channel,uint16_t input);
+extern void debug_msg(const char* string);
 
 #endif // !defined(_DEVICE_PARAMS)

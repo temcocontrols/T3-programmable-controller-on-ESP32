@@ -1,6 +1,7 @@
 
-# TEMCO T3 Controller Project based on ESP32 module. 
-This application is for our T3 controller, a full featured Bacnet and Modbus powered building automation system running on an ESp32 module. Its a work in progress so bear with us. If you would like to join in please shoot us an email at the links elsewhere in this project. 
+# TEMCO ESP main App CODE
+
+This application establishes a TCP connection between Ethernet and WIFI, and an RS485 connection. The device can be accessed through the standard modbus protocol, so that the value of the sensor on the device can be obtained. A more intuitive way is to scan and read the device through the T3000 software of TEMCO CONTROLS.
 
 
 ## How to compile

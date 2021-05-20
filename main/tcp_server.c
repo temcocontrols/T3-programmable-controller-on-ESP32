@@ -41,6 +41,7 @@
 #include "microphone.h"
 //#include "pyq1548.h"
 #include "led_pwm.h"
+#include "ble_mesh.h"
 //#include "ud_str.h"
 //#include "controls.h"
 
@@ -1233,6 +1234,7 @@ void app_main()
     {
     	xTaskCreate(input_task,"input_task",1024, NULL, 4, NULL);
     }
+    xTaskCreate(ble_mesh_task,"ble_mesh_task",4096*2, NULL, 7, NULL);
 	// xTaskCreate(detect_tcp_task, "detect_tcp_task", 1024,NULL, 6,NULL);
 	// xTaskCreate(pyq1548_task,"pyq1548_task",1024*2, NULL, 10, NULL);
 	// xTaskCreate(&ota_task, "ota_example_task", 8192, NULL, 5, NULL);

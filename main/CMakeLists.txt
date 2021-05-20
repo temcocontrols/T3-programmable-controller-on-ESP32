@@ -19,7 +19,10 @@ idf_component_register(SRCS "tcp_server.c"
 #							"io.c"
 							"mlx90632.c"
 							"mlx90632_extended_meas.c"
+							"ble_mesh.c"
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
+
+set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 target_link_libraries(${COMPONENT_TARGET} "-u pro_info")
