@@ -59,6 +59,8 @@ uint8_t reg_num;
 static bool isSocketCreated = false;
 extern double ambient;
 extern double object;
+extern float mlx90614_ambient;
+extern float mlx90614_object;
 
 void start_fw_update(void)
 {
@@ -393,6 +395,26 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 			occ_trigger.count_down = 0;
 			save_uint16_to_flash(FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
 		}
+		else if(address == MODBUS_SHT31_TEMP_OFFSET)
+		{
+			holding_reg_params.sht31_temp_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_int16_to_flash(FLASH_SHT31_TEMP_OFFSET, holding_reg_params.sht31_temp_offset);
+		}
+		else if(address == MODBUS_TEMP_10K_OFFSET)
+		{
+			holding_reg_params.temp_10k_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_int16_to_flash(FLASH_10K_TEMP_OFFSET, holding_reg_params.temp_10k_offset);
+		}
+		else if(address == MODBUS_AMBIENT_TEMP_OFFSET)
+		{
+			holding_reg_params.ambient_temp_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_int16_to_flash(FLASH_AMBIENT_TEMP_OFFSET, holding_reg_params.ambient_temp_offset);
+		}
+		else if(address == MODBUS_OBJECT_TEMP_OFFSET)
+		{
+			holding_reg_params.object_temp_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			save_int16_to_flash(FLASH_OBJECT_TEMP_OFFSET, holding_reg_params.object_temp_offset);
+		}
 		else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
 		{
 			save_uint16_to_flash(FLASH_INPUT_FLAG, 0);
@@ -607,6 +629,50 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = 0;
 				temp2 = holding_reg_params.fan_module_pwm2;
 			}
+			else if(address == FAN_MODULE_PULSE)
+			{
+				temp = holding_reg_params.fan_module_pulse*6;
+				//temp1 = ((uint8_t)(holding_reg_params.fan_module_pulse) >> 8) & 0xFF;;
+				//temp2 = (uint8_t)(holding_reg_params.fan_module_pulse) & 0xFF;
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			else if(address == FAN_MODULE_INPUT_VOLTAGE)
+			{
+				temp = holding_reg_params.fan_module_input_voltage;
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			else if(address == FAN_MODULE_10K_TEMP)
+			{
+				temp = holding_reg_params.fan_module_10k_temp;
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			else if(address == MODBUS_SHT31_TEMP_OFFSET)
+			{
+				temp = holding_reg_params.sht31_temp_offset;
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			else if(address == MODBUS_TEMP_10K_OFFSET)
+			{
+				temp = holding_reg_params.temp_10k_offset;
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			else if(address == MODBUS_AMBIENT_TEMP_OFFSET)
+			{
+				temp = holding_reg_params.ambient_temp_offset;
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			else if(address == MODBUS_OBJECT_TEMP_OFFSET)
+			{
+				temp = holding_reg_params.object_temp_offset;
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
 			else if(address == TEMPRATURE_CHIP)
 			{
 				temp = g_sensors.temperature;
@@ -634,14 +700,30 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 			else if( address == (EXTERNAL_SENSOR2+3))
 			{
 				//temp = 123;//g_sensors.infrared_temp1;
-				temp1 = ((uint8_t)(ambient*10) >> 8) & 0xFF;;
-				temp2 = (uint8_t)(ambient*10) & 0xFF;
+				if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+				{
+					temp1 = ((uint8_t)(mlx90614_ambient*10) >> 8) & 0xFF;;
+					temp2 = (uint8_t)(mlx90614_ambient*10) & 0xFF;
+				}
+				else
+				{
+					temp1 = ((uint8_t)(ambient*10) >> 8) & 0xFF;;
+					temp2 = (uint8_t)(ambient*10) & 0xFF;
+				}
 			}
 			else if( address == (EXTERNAL_SENSOR2+4))
 			{
 				//temp = 123;//g_sensors.infrared_temp1;
-				temp1 = ((uint8_t)(object*10) >> 8) & 0xFF;;
-				temp2 = (uint8_t)(object*10) & 0xFF;
+				if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+				{
+					temp1 = ((uint8_t)(mlx90614_object*10) >> 8) & 0xFF;;
+					temp2 = (uint8_t)(mlx90614_object*10) & 0xFF;
+				}
+				else
+				{
+					temp1 = ((uint8_t)(object*10) >> 8) & 0xFF;;
+					temp2 = (uint8_t)(object*10) & 0xFF;
+				}
 			}
 			else if( address == COOLHEATMODE)//(EXTERNAL_SENSOR2+3))
 			{
@@ -1208,7 +1290,7 @@ void app_main()
 
     ethernet_init();
 
-    holding_reg_params.which_project = PROJECT_SAUTER;//PROJECT_FAN_MODULE;//
+    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
 	//tcpip_socket_init();
 	if(holding_reg_params.which_project == PROJECT_SAUTER)
 	{
@@ -1219,6 +1301,8 @@ void app_main()
 		holding_reg_params.fan_module_pwm2 = 255;
 		led_pwm_init();
 		led_init();
+		pcnt_init();
+		adc_init();
 	}
     //microphone_init();
     //SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;

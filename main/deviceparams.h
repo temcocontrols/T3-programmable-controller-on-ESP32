@@ -194,12 +194,12 @@ typedef struct
     uint16_t led_rx485_tx;
     uint16_t led_rx485_rx;
     uint16_t fan_module_pulse;
-    uint16_t register80;
-    uint16_t register81;
-    uint16_t register82;
-    uint16_t register83;
-    uint16_t register84;
-    uint16_t register85;
+    uint16_t fan_module_input_voltage;
+    uint16_t fan_module_10k_temp;
+    int16_t sht31_temp_offset;
+    int16_t temp_10k_offset;
+    int16_t ambient_temp_offset;
+    int16_t object_temp_offset;
     uint16_t register86;
     uint16_t register87;
     uint16_t register88;

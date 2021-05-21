@@ -93,9 +93,9 @@ enum {
 	WIFI_RSSI, //80
 	FAN_MODULE_PWM1,
 	FAN_MODULE_PWM2,
-
-
-
+	FAN_MODULE_PULSE,
+	FAN_MODULE_10K_TEMP,
+	FAN_MODULE_INPUT_VOLTAGE,
 
 
 	COOLHEATMODE=101,//				// -	-	Heating or cooling mode in effect	0 = coasting, 1 = cooling, 2 = heating
@@ -103,10 +103,10 @@ enum {
 	SEQUENCE,//					// 0	2	Sequence of operation , tstat behaves differently according to sequence
 	DEGC_OR_F,// 					// 0	1	Temperature units  0 = DegC, 1 = DegF
 	FAN_MODE,//					// 0	3	Number of fan speeds to show on the display 0 = 0 speeds, 3 = 3 speeds
-	POWERUP_MODE,//					// 0	3	Powerup mode.  0=Off, 2=On, 2=Last Value, 3=Auto
-	AUTO_ONLY,//					// 0	1	Enable or disable manual modes.  0=manual allowed, 1=auto only,2 = DDC mode
-	FACTORY_DEFAULTS,//   			// 0	1	Factory defaults  0=no default
-	INFO_BYTE,//						// -	-	Byte that holds info about the tstat
+	MODBUS_SHT31_TEMP_OFFSET,//					// 0	3	Powerup mode.  0=Off, 2=On, 2=Last Value, 3=Auto
+	MODBUS_TEMP_10K_OFFSET,//					// 0	1	Enable or disable manual modes.  0=manual allowed, 1=auto only,2 = DDC mode
+	MODBUS_AMBIENT_TEMP_OFFSET,//   			// 0	1	Factory defaults  0=no default
+	MODBUS_OBJECT_TEMP_OFFSET,//						// -	-	Byte that holds info about the tstat
   PREVIOUS_BAUDRATE,//110						// 0	1	Baudrate 0 = 9.6kb/s, 1 = 19.2kb/s
 	TSTAT_OVERRIDE_TIMER,//					// 0	255	Determines what controls the state of the LED
 	OVERRIDE_TIMER_LEFT,//

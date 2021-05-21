@@ -41,6 +41,22 @@ esp_err_t save_uint16_to_flash(const char* key, uint16_t value)
 	return ESP_OK;
 }
 
+esp_err_t save_int16_to_flash(const char* key, int16_t value)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	// Open
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+
+	err = nvs_set_i16(my_handle, key, value);
+	if (err != ESP_OK) return err;
+
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
 esp_err_t read_uint8_from_falsh(const char* key, uint8_t* value)
 {
 	nvs_handle_t my_handle;
@@ -107,7 +123,7 @@ esp_err_t read_default_from_flash(void)
 		holding_reg_params.baud_rate = 4;
 		nvs_set_u8(my_handle, FLASH_BAUD_RATE, holding_reg_params.baud_rate);
 	}
-#if 1
+
 	err = nvs_get_u16(my_handle, FLASH_SERIAL_NUM_LO, &holding_reg_params.serial_number_lo);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -120,7 +136,7 @@ esp_err_t read_default_from_flash(void)
 		holding_reg_params.serial_number_hi = 0;
 		nvs_set_u16(my_handle, FLASH_SERIAL_NUM_HI, holding_reg_params.serial_number_hi);
 	}
-#endif
+
 	err = nvs_get_u16(my_handle, FLASH_SOUND_TRIGGER_VALUE, &sound_trigger.trigger);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -168,6 +184,30 @@ esp_err_t read_default_from_flash(void)
 	{
 		occ_trigger.timer = 1;
 		nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
+	}
+	err = nvs_get_i16(my_handle, FLASH_SHT31_TEMP_OFFSET, &holding_reg_params.sht31_temp_offset);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		holding_reg_params.sht31_temp_offset = 0;
+		nvs_set_i16(my_handle, FLASH_SHT31_TEMP_OFFSET, holding_reg_params.sht31_temp_offset);
+	}
+	err = nvs_get_i16(my_handle, FLASH_10K_TEMP_OFFSET, &holding_reg_params.temp_10k_offset);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		holding_reg_params.temp_10k_offset = 0;
+		nvs_set_i16(my_handle, FLASH_10K_TEMP_OFFSET, holding_reg_params.temp_10k_offset);
+	}
+	err = nvs_get_i16(my_handle, FLASH_AMBIENT_TEMP_OFFSET, &holding_reg_params.ambient_temp_offset);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		holding_reg_params.ambient_temp_offset = 0;
+		nvs_set_i16(my_handle, FLASH_AMBIENT_TEMP_OFFSET, holding_reg_params.ambient_temp_offset);
+	}
+	err = nvs_get_i16(my_handle, FLASH_OBJECT_TEMP_OFFSET, &holding_reg_params.object_temp_offset);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		holding_reg_params.object_temp_offset = 0;
+		nvs_set_i16(my_handle, FLASH_OBJECT_TEMP_OFFSET, holding_reg_params.object_temp_offset);
 	}
 
 	debug_info("nvs_get_blob");

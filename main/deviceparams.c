@@ -91,5 +91,5 @@ uint16_t crc16(uint8_t *p, uint8_t length)
 
 void debug_msg(const char* string)
 {
-	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
+	//uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 }

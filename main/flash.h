@@ -21,6 +21,10 @@
 #define FLASH_CO2_TRIGGER_TIMER	"CO2_TRIGGER_TIMER"
 #define FLASH_OCC_TRIGGER_VALUE	"OCC_TRIGGER_VALUE"
 #define FLASH_OCC_TRIGGER_TIMER	"OCC_TRIGGER_TIMER"
+#define FLASH_SHT31_TEMP_OFFSET "SHT31_TEMP_OFFSET"
+#define FLASH_10K_TEMP_OFFSET	"10K_TEMP_OFFSET"
+#define FLASH_AMBIENT_TEMP_OFFSET	"AMBIENT_TEMP_OFFSET"
+#define FLASH_OBJECT_TEMP_OFFSET	"OBJECT_TEMP_OFFSET"
 
 extern esp_err_t read_default_from_flash(void);
 extern esp_err_t save_wifi_info(void);
@@ -30,5 +34,6 @@ extern esp_err_t read_uint8_from_falsh(const char* key, uint8_t* value);
 extern esp_err_t read_uint16_from_falsh(const char* key, uint16_t* value);
 extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
+extern esp_err_t save_int16_to_flash(const char* key, int16_t value);
 
 #endif

@@ -49,6 +49,8 @@ g_sensor_t g_sensors;
 uint8_t mlx90614_data[3];
 double ambient; /**< Ambient temperature in degrees Celsius */
 double object; /**< Object temperature in degrees Celsius */
+float mlx90614_ambient;
+float mlx90614_object;
 extern uint8_t tempBuf_CO2[9];
 
 int32_t mlx90632_i2c_read(int16_t register_address, uint16_t *value)
@@ -97,6 +99,120 @@ int32_t mlx90632_i2c_write(int16_t register_address, uint16_t value)
 	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
+}
+
+void WaitEE(uint16_t ms)
+{
+	vTaskDelay(ms / portTICK_RATE_MS);
+}
+
+uint8_t Calculate_PEC (uint8_t initPEC, uint8_t newData)
+{
+    uint8_t data;
+    uint8_t bitCheck;
+
+    data = initPEC ^ newData;
+
+    for (int i=0; i<8; i++ )
+    {
+        bitCheck = data & 0x80;
+        data = data << 1;
+
+        if (bitCheck != 0)
+        {
+            data = data ^ 0x07;
+        }
+
+    }
+    return data;
+}
+
+int MLX90614_SMBusRead(uint8_t slaveAddr, uint8_t readAddress, uint16_t *data)
+{
+    uint8_t sa;
+    int ack = 0;
+    uint8_t pec;
+    char cmd = 0;
+    char smbData[3] = {0,0,0};
+    uint16_t *p;
+
+    p = data;
+    sa = (slaveAddr << 1);
+    pec = sa;
+    cmd = readAddress;
+
+    //i2c.stop();
+    i2c_cmd_handle_t i2c_cmd = i2c_cmd_link_create();
+    usleep(5);
+    i2c_master_start(i2c_cmd);
+    //ack = i2c.write(sa, &cmd, 1, 1);
+    i2c_master_write_byte(i2c_cmd, sa | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(i2c_cmd, cmd,ACK_CHECK_EN);
+
+    //sa = sa | 0x01;
+    //ack = i2c.read(sa, smbData, 3, 0);
+    i2c_master_start(i2c_cmd);
+    i2c_master_write_byte(i2c_cmd, sa | READ_BIT, ACK_CHECK_EN);
+    i2c_master_read_byte(i2c_cmd, (uint8_t*)&smbData[0], ACK_VAL);
+    i2c_master_read_byte(i2c_cmd, (uint8_t*)&smbData[1], ACK_VAL);
+    i2c_master_read_byte(i2c_cmd, (uint8_t*)&smbData[2], ACK_VAL);
+    i2c_master_stop(i2c_cmd);
+	i2c_master_cmd_begin(I2C_MASTER_NUM, i2c_cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(i2c_cmd);
+    //i2c.stop();
+	sa = sa | 0x01;
+    pec = Calculate_PEC(0, pec);
+    pec = Calculate_PEC(pec, cmd);
+    pec = Calculate_PEC(pec, sa);
+    pec = Calculate_PEC(pec, smbData[0]);
+    pec = Calculate_PEC(pec, smbData[1]);
+
+    if (pec != smbData[2])
+    {
+    	//debug_msg("MLX90614_SMBusRead....failed...\r\n");
+        return -2;
+    }
+
+    *p = (uint16_t)smbData[1]*256 + (uint16_t)smbData[0];
+    //debug_msg("MLX90614_SMBusRead....SUCCESS...\r\n");
+    return 0;
+}
+
+int MLX90614_GetTa(uint8_t slaveAddr, float *ta)
+{
+    int error = 0;
+    uint16_t data = 0;
+
+    error = MLX90614_SMBusRead(slaveAddr, 0x06, &data);
+
+    if (data > 0x7FFF)
+    {
+        return -4;
+    }
+
+    *ta = (float)data * 0.02f - 273.15;
+
+    return error;
+}
+
+int MLX90614_GetTo(uint8_t slaveAddr, float *to)
+{
+    int error = 0;
+    uint16_t data = 0;
+
+    error = MLX90614_SMBusRead(slaveAddr, 0x07, &data);
+
+    if (data > 0x7FFF)
+    {
+        return -4;
+    }
+
+    if (error == 0)
+    {
+        *to = (float)data * 0.02f - 273.15;
+    }
+
+    return error;
 }
 
 void msleep(int msecs)
@@ -409,13 +525,14 @@ void i2c_task(void *arg)
 			ESP_LOGW(TAG, "%s: No ack, SGP30 sensor not connected...skip...", esp_err_to_name(ret));
 		}
 	}
-
-	ret = mlx90632_init();
-	holding_reg_params.testBuf[17] = 555;
-	holding_reg_params.testBuf[18] = ret;
-	if(ret == 0)
-	{
-		holding_reg_params.testBuf[16] = 1234;
+	if(holding_reg_params.which_project == PROJECT_SAUTER){
+		ret = mlx90632_init();
+		holding_reg_params.testBuf[17] = 555;
+		holding_reg_params.testBuf[18] = ret;
+		if(ret == 0)
+		{
+			holding_reg_params.testBuf[16] = 1234;
+		}
 	}
 
     while (1) {
@@ -441,14 +558,16 @@ void i2c_task(void *arg)
 			g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
 			g_sensors.temperature = Filter(0,g_sensors.temperature);
 			g_sensors.humidity = Filter(9,g_sensors.humidity);
+			g_sensors.temperature += holding_reg_params.sht31_temp_offset;
             //printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
         xSemaphoreGive(print_mux);
         vTaskDelay(100 / portTICK_RATE_MS);
-        ret = i2c_master_sensor_veml7700(I2C_MASTER_NUM,&light_data[0], &light_data[1]);
+
 		xSemaphoreTake(print_mux, portMAX_DELAY);
+        ret = i2c_master_sensor_veml7700(I2C_MASTER_NUM,&light_data[0], &light_data[1]);
 		if (ret == ESP_ERR_TIMEOUT) {
 			ESP_LOGE(TAG, "I2C LIGHT Timeout");
 		} else if (ret == ESP_OK) {
@@ -481,26 +600,31 @@ void i2c_task(void *arg)
 		/* Read sensor EEPROM registers needed for calcualtions */
 
 		/* Now we read current ambient and object temperature */
-		ret = mlx90632_read_temp_raw(&ambient_new_raw, &ambient_old_raw,
-									 &object_new_raw, &object_old_raw);
-	    /* Now start calculations (no more i2c accesses) */
-	    /* Calculate ambient temperature */
-		ambient = mlx90632_calc_temp_ambient(ambient_new_raw, ambient_old_raw,
-	                                         P_T, P_R, P_G, P_O, Gb);
+		if(holding_reg_params.which_project == PROJECT_SAUTER){
+			xSemaphoreTake(print_mux, portMAX_DELAY);
+			ret = mlx90632_read_temp_raw(&ambient_new_raw, &ambient_old_raw,
+										 &object_new_raw, &object_old_raw);
+			/* Now start calculations (no more i2c accesses) */
+			/* Calculate ambient temperature */
+			ambient = mlx90632_calc_temp_ambient(ambient_new_raw, ambient_old_raw,
+												 P_T, P_R, P_G, P_O, Gb);
 
-	    /* Get preprocessed temperatures needed for object temperature calculation */
-	    double pre_ambient = mlx90632_preprocess_temp_ambient(ambient_new_raw,
-	                                                          ambient_old_raw, Gb);
-	    double pre_object = mlx90632_preprocess_temp_object(object_new_raw, object_old_raw,
-	                                                        ambient_new_raw, ambient_old_raw,
-	                                                        Ka);
-	    /* Calculate object temperature */
-	    object = mlx90632_calc_temp_object(pre_object, pre_ambient, Ea, Eb, Ga, Fa, Fb, Ha, Hb);
-	    g_sensors.ambient = (uint16_t)(ambient*10)/2;
-	    g_sensors.object = (uint16_t )(object*10)/2;
-	    //g_sensors.infrared_temp1 = 321;
-		xSemaphoreGive(print_mux);
-		vTaskDelay(100/ portTICK_RATE_MS);
+			/* Get preprocessed temperatures needed for object temperature calculation */
+			double pre_ambient = mlx90632_preprocess_temp_ambient(ambient_new_raw,
+																  ambient_old_raw, Gb);
+			double pre_object = mlx90632_preprocess_temp_object(object_new_raw, object_old_raw,
+																ambient_new_raw, ambient_old_raw,
+																Ka);
+			/* Calculate object temperature */
+			object = mlx90632_calc_temp_object(pre_object, pre_ambient, Ea, Eb, Ga, Fa, Fb, Ha, Hb);
+			g_sensors.ambient = (uint16_t)(ambient*10)/2;
+			g_sensors.object = (uint16_t )(object*10)/2;
+			//g_sensors.infrared_temp1 = 321;
+			xSemaphoreGive(print_mux);
+			vTaskDelay(100/ portTICK_RATE_MS);
+		}
+
+		//-----------------tVOC
 		xSemaphoreTake(print_mux, portMAX_DELAY);
 		/*ret = sensirion_i2c_delayed_read_cmd(
 				SGP30_SENSOR_ADDR, sgp30_cmd_get_serial_id,
@@ -567,6 +691,7 @@ void i2c_task(void *arg)
 		xSemaphoreGive(print_mux);
 		vTaskDelay(500/portTICK_RATE_MS);
 
+		//------------------SCD40
 		xSemaphoreTake(print_mux, portMAX_DELAY);
 		//ret = i2c_master_sensor_scd40(I2C_MASTER_NUM,0x36,0x82,scd40_data);
 		//ret = sensirion_i2c_delayed_read_cmd(SCD40_SENSOR_ADDR, 0x3682,	200, scd40_data, 3);
@@ -614,8 +739,13 @@ void i2c_task(void *arg)
 		if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
 		{
 			xSemaphoreTake(print_mux, portMAX_DELAY);
-			ret = i2c_master_sensor_mlx90614(I2C_MASTER_NUM, mlx90614_data);
-
+			//ret = i2c_master_sensor_mlx90614(I2C_MASTER_NUM, mlx90614_data);
+			MLX90614_GetTa(MLX90614_SENSOR_ADDR, &mlx90614_ambient);
+			MLX90614_GetTo(MLX90614_SENSOR_ADDR, &mlx90614_object);
+			g_sensors.ambient = (uint16_t)(mlx90614_ambient*10);
+			g_sensors.object = (uint16_t )(mlx90614_object*10);
+			g_sensors.ambient += holding_reg_params.ambient_temp_offset;
+			g_sensors.object += holding_reg_params.object_temp_offset;
 			xSemaphoreGive(print_mux);
 			vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
 		}

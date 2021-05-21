@@ -52,7 +52,10 @@ static void setup_reg_data()
     holding_reg_params.version_number_lo = 26;
     holding_reg_params.version_number_hi = 0;
     //holding_reg_params.modbus_address = MB_DEV_ADDR;
-    holding_reg_params.product_model = 65;//74;//74;//
+    if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+    	holding_reg_params.product_model = 62;//97;
+    else
+    	holding_reg_params.product_model = 90;//74;//74;//
     holding_reg_params.hardware_version = 2;
     holding_reg_params.readyToUpdate = 0;
 

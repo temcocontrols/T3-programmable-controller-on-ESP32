@@ -355,7 +355,7 @@ void ble_mesh_task(void *arg)
 //    ESP_LOGI(TAG, "Initializing...");
 
 //    board_init();
-    debug_msg("ble_mesh_task....\r\n");
+//    debug_msg("ble_mesh_task....\r\n");
 /*    err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -364,7 +364,7 @@ void ble_mesh_task(void *arg)
     ESP_ERROR_CHECK(err);*/
 
     err = bluetooth_init();
-    debug_msg("bluetooth_init done....\r\n");
+//    debug_msg("bluetooth_init done....\r\n");
     if (err) {
         ESP_LOGE(TAG, "esp32_bluetooth_init failed (err %d)", err);
         return;
@@ -374,7 +374,7 @@ void ble_mesh_task(void *arg)
 
     /* Initialize the Bluetooth Mesh Subsystem */
     err = ble_mesh_init();
-    debug_msg("ble_mesh_init done....\r\n");
+//    debug_msg("ble_mesh_init done....\r\n");
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }

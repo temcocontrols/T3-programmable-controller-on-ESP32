@@ -7,6 +7,9 @@
 #include "freertos/queue.h"
 #include "esp_system.h"
 #include "wifi.h"
+#include "driver/pcnt.h"
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
 
 #define LEDC_HS_TIMER          LEDC_TIMER_0
 #define LEDC_HS_MODE           LEDC_HIGH_SPEED_MODE
@@ -40,7 +43,161 @@
 
 #define ESP_INTR_FLAG_DEFAULT 0
 
-static void periodic_timer_callback(void* arg);
+static void pcnt_task(void* arg);
+static void adc_task(void* arg);
+//static void periodic_timer_callback(void* arg);
+
+#define DEFAULT_VREF    3300        //Use adc2_vref_to_gpio() to obtain a better estimate
+#define NO_OF_SAMPLES   64          //Multisampling
+
+#define MIDDLE_RANGE     8
+#define NO_TABLE_RANGES 16
+
+const int16_t limit[10][2] = { { -400, 1500 }, { -400, 3020 },
+                            { -400, 1200 }, { -400, 2480 },
+                            { -400, 1200 }, { -400, 2480 },
+                            { -400, 1200 }, { -400, 2480 },
+                            { -500, 1100 }, { -580, 2300 }
+                      };
+
+uint16_t  def_tab[5][17] = {
+ /* 3k termistor YSI44005 -40 to 150 Deg.C or -40 to 302 Deg.F */
+	{ 233*4,  211*4, 179*4, 141*4, 103*4, 71*4, 48*4, 32*4,
+		21*4, 14*4, 10*4, 7*4, 5*4, 4*4, 3*4, 2*4, 1*4 },
+
+ /* 10k termistor GREYSTONE -40 to 120 Deg.C or -40 to 248 Deg.F */  // type2
+	{ 3918, 3818, 3650, 3408, 3050, 2670, 2218, 1772,
+	    1362, 1040, 758, 550, 406, 283, 200, 137, 91 },
+
+ /* 3k termistor GREYSTONE -40 to 120 Deg.C or -40 to 248 Deg.F */
+	{ 233*4, 215*4, 190*4, 160*4, 127*4, 96*4, 70*4, 50*4,
+		35*4, 25*4, 18*4, 13*4, 9*4, 7*4, 5*4, 4*4, 3*4 },
+
+ /* 10k termistor KM -40 to 120 Deg.C or -40 to 248 Deg.F */ // type3
+	{ 994, 971, 935, 880, 798, 714, 612, 510,
+		415, 339, 272, 224, 190, 161, 142, 127, 115 },
+
+ /* 3k termistor AK -40 to 150 Deg.C or -40 to 302 Deg.F */
+	{ 246*4, 238*4, 227*4, 211*4, 191*4, 167*4, 141*4, 115*4,
+		92*4, 72*4, 55*4, 42*4, 33*4, 25*4, 19*4, 15*4, 12*4 }
+};
+
+const int16_t tab_int[10] = { 119, 214, 100, 180, 100, 180,100, 180, 100, 180 };
+typedef enum { not_used_input, Y3K_40_150DegC, Y3K_40_300DegF, R10K_40_120DegC,
+ R10K_40_250DegF, R3K_40_150DegC, R3K_40_300DegF, KM10K_40_120DegC,
+ KM10K_40_250DegF, A10K_50_110DegC, A10K_60_200DegF, V0_5, I0_100Amps,
+ I0_20ma, I0_20psi, N0_2_32counts, N0_3000FPM_0_10V, P0_100_0_5V,
+ P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,
+ table5, HI_spd_count = 100 } Analog_input_range_equate;
+
+static esp_adc_cal_characteristics_t *adc_chars;
+static const adc_channel_t channel = ADC_CHANNEL_7;     //GPIO35 if ADC1
+static const adc_channel_t channel_0 = ADC_CHANNEL_0;   //GPIO36 if ADC1
+static const adc_atten_t atten = ADC_ATTEN_DB_11;
+static const adc_unit_t unit = ADC_UNIT_1;
+
+
+
+static int16_t get_input_value_by_range( int range, uint16_t raw )
+{
+	int index;
+	long val=0;
+	int work_var;
+	int ran_in;
+	int delta = MIDDLE_RANGE;
+	uint16_t *def_tbl;
+	uint8_t end = 0;
+	range--;
+	ran_in = range;
+	range >>= 1;
+	def_tbl = ( uint16_t * )&def_tab[range];
+
+	if( raw <= def_tbl[NO_TABLE_RANGES] )
+		return limit[ran_in][1];
+	if( raw >= def_tbl[0] )
+		return limit[ran_in][0];
+	index = MIDDLE_RANGE;
+
+	while( !end )
+	{
+		if( ( raw >= def_tbl[index] ) && ( raw <= def_tbl[index-1] ) )
+		{
+			index--;
+			delta = def_tbl[index] - def_tbl[index+1];
+			if( delta )
+			{
+				work_var = (int)( ( def_tbl[index] - raw ) * 100 );
+				work_var /= delta;
+				work_var += ( index * 100 );
+				val = tab_int[ran_in];
+				val *= work_var;
+				val /= 100;
+				val += limit[ran_in][0];
+			}
+			return val;
+		}
+		else
+		{
+			if( !delta )
+				end = 1;
+			delta /= 2;
+			if( raw < def_tbl[index] )
+				index += delta;
+			else
+				index -= delta;
+			if( index <= 0 )
+				return limit[ran_in][0];
+			if( index >= NO_TABLE_RANGES )
+				return limit[ran_in][1];
+		}
+	}
+        return 0;
+}
+
+void adc_init(void)
+{
+    //Configure ADC
+    if (unit == ADC_UNIT_1) {
+        adc1_config_width(ADC_WIDTH_BIT_12);
+        adc1_config_channel_atten(channel, atten);
+        adc1_config_channel_atten(channel_0, atten);
+    }
+
+    xTaskCreate(adc_task, "adc_task", 2048*2, NULL, 2, NULL);
+}
+
+static void adc_task(void* arg)
+{
+	uint32_t adc_reading = 0;
+	uint32_t adc_temp = 0;
+	uint32_t voltage =0;
+	int i = 0;
+    //Continuously sample ADC1//Characterize ADC
+	adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+	esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+
+    while (1) {
+        //Multisampling
+        for (i = 0; i < NO_OF_SAMPLES; i++) {
+            if (unit == ADC_UNIT_1) {
+                adc_reading += adc1_get_raw((adc1_channel_t)channel);
+                adc_temp += adc1_get_raw((adc1_channel_t)channel_0);
+            }
+        }
+        adc_reading /= NO_OF_SAMPLES;
+        adc_temp /= NO_OF_SAMPLES;
+        //Convert adc_reading to voltage in mV
+        if(adc_reading<100)
+        	voltage = 0;
+        else
+        	voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+        holding_reg_params.fan_module_10k_temp = get_input_value_by_range(R10K_40_120DegC, adc_temp);
+        holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
+        holding_reg_params.fan_module_input_voltage = (uint16_t)voltage*3;
+
+        vTaskDelay(1000 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
+    }
+}
 
 static void fan_led_task(void* arg)
 {
@@ -49,17 +206,17 @@ static void fan_led_task(void* arg)
 	holding_reg_params.led_rx485_tx = 0;
     for(;;) {
 		gpio_set_level(LED_HEART_BEAT, (cnt++) % 8);
-		if((holding_reg_params.fan_module_pwm1==0))//||(holding_reg_params.fan_module_pwm2==255))
+		if((holding_reg_params.fan_module_pulse==0))//||(holding_reg_params.fan_module_pwm2==255))
 			gpio_set_level(LED_FAN_SPEED, 1);
-		else if((holding_reg_params.fan_module_pwm1<50))//||(holding_reg_params.fan_module_pwm2>200))
+		else if((holding_reg_params.fan_module_pulse<50))//||(holding_reg_params.fan_module_pwm2>200))
 			gpio_set_level(LED_FAN_SPEED, (cnt) % 6);
-		else if((holding_reg_params.fan_module_pwm1<100))//||(holding_reg_params.fan_module_pwm2>150))
+		else if((holding_reg_params.fan_module_pulse<100))//||(holding_reg_params.fan_module_pwm2>150))
 			gpio_set_level(LED_FAN_SPEED, (cnt) % 5);
-		else if((holding_reg_params.fan_module_pwm1<150))//||(holding_reg_params.fan_module_pwm2>100))
+		else if((holding_reg_params.fan_module_pulse<150))//||(holding_reg_params.fan_module_pwm2>100))
 			gpio_set_level(LED_FAN_SPEED, (cnt) % 4);
-		else if((holding_reg_params.fan_module_pwm1<200))//||(holding_reg_params.fan_module_pwm2>50))
+		else if((holding_reg_params.fan_module_pulse<200))//||(holding_reg_params.fan_module_pwm2>50))
 			gpio_set_level(LED_FAN_SPEED, (cnt) % 3);
-		else if((holding_reg_params.fan_module_pwm1<256))//||(holding_reg_params.fan_module_pwm2>0))
+		else if((holding_reg_params.fan_module_pulse<256))//||(holding_reg_params.fan_module_pwm2>0))
 			gpio_set_level(LED_FAN_SPEED, (cnt) % 2);
 		if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
 			gpio_set_level(LED_WIFI, 0);
@@ -120,7 +277,7 @@ void led_init(void)
 
 	xTaskCreate(fan_led_task, "fan_led_task", 2048, NULL, 1, NULL);
 }
-
+#if 0
 static xQueueHandle gpio_evt_queue = NULL;
 static uint32_t pulseValue = 0;
 
@@ -164,6 +321,121 @@ void pulse_couter_init(void)
     gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(PULSE_COUNTER, pulse_isr_handler, (void*) PULSE_COUNTER);
+}
+#endif
+
+#define PCNT_INPUT_SIG_IO   5  // Pulse Input GPIO
+#define PCNT_TEST_UNIT      PCNT_UNIT_0
+#define PCNT_H_LIM_VAL      30000
+#define PCNT_L_LIM_VAL     -30000
+
+xQueueHandle pcnt_evt_queue;   // A queue to handle pulse counter events
+pcnt_isr_handle_t user_isr_handle = NULL; //user's ISR service handle
+/* A sample structure to pass events from the PCNT
+ * interrupt handler to the main program.
+ */
+typedef struct {
+    int unit;  // the PCNT unit that originated an interrupt
+    uint32_t status; // information on the event type that caused the interrupt
+} pcnt_evt_t;
+
+/* Decode what PCNT's unit originated an interrupt
+ * and pass this information together with the event type
+ * the main program using a queue.
+ */
+static void IRAM_ATTR pcnt_example_intr_handler(void *arg)
+{
+    uint32_t intr_status = PCNT.int_st.val;
+    int i;
+    pcnt_evt_t evt;
+    portBASE_TYPE HPTaskAwoken = pdFALSE;
+
+    for (i = 0; i < PCNT_UNIT_MAX; i++) {
+        if (intr_status & (BIT(i))) {
+            evt.unit = i;
+            /* Save the PCNT event type that caused an interrupt
+               to pass it to the main program */
+            evt.status = PCNT.status_unit[i].val;
+            PCNT.int_clr.val = BIT(i);
+            //xQueueSendFromISR(pcnt_evt_queue, &evt, &HPTaskAwoken);
+            //if (HPTaskAwoken == pdTRUE) {
+            //    portYIELD_FROM_ISR();
+            //}
+        }
+    }
+}
+
+/* Initialize PCNT functions:
+ *  - configure and initialize PCNT
+ *  - set up the input filter
+ *  - set up the counter events to watch
+ */
+void pcnt_init(void)
+{
+    /* Prepare configuration for the PCNT unit */
+    pcnt_config_t pcnt_config = {
+        // Set PCNT input signal and control GPIOs
+        .pulse_gpio_num = PCNT_INPUT_SIG_IO,
+        .ctrl_gpio_num = -1,
+        .channel = PCNT_CHANNEL_0,
+        .unit = PCNT_TEST_UNIT,
+        // What to do on the positive / negative edge of pulse input?
+        .pos_mode = PCNT_COUNT_INC,   // Count up on the positive edge
+        .neg_mode = PCNT_COUNT_DIS,   // Keep the counter value on the negative edge
+        // What to do when control input is low or high?
+        .lctrl_mode = PCNT_MODE_KEEP, // Reverse counting direction if low
+        .hctrl_mode = PCNT_MODE_KEEP,    // Keep the primary counter mode if high
+        // Set the maximum and minimum limit values to watch
+        .counter_h_lim = PCNT_H_LIM_VAL,
+        .counter_l_lim = PCNT_L_LIM_VAL,
+    };
+    /* Initialize PCNT unit */
+    pcnt_unit_config(&pcnt_config);
+
+    /* Configure and enable the input filter */
+    pcnt_set_filter_value(PCNT_TEST_UNIT, 100);
+    pcnt_filter_enable(PCNT_TEST_UNIT);
+
+    /* Initialize PCNT's counter */
+    pcnt_counter_pause(PCNT_TEST_UNIT);
+    pcnt_counter_clear(PCNT_TEST_UNIT);
+
+    /* Register ISR handler and enable interrupts for PCNT unit */
+	pcnt_isr_register(pcnt_example_intr_handler, NULL, 0, &user_isr_handle);
+	pcnt_intr_enable(PCNT_TEST_UNIT);
+
+	/* Everything is set up, now go to counting */
+	pcnt_counter_resume(PCNT_TEST_UNIT);
+	xTaskCreate(pcnt_task, "pcnt_task", 2048, NULL, 1, NULL);
+}
+
+static void pcnt_task(void* arg)
+{
+	/* Initialize PCNT event queue and PCNT functions */
+	//pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
+	//pcnt_init();
+
+    int16_t count = 0;
+    //pcnt_evt_t evt;
+    //portBASE_TYPE res;
+    while (1) {
+    	/* Wait for the event information passed from PCNT's interrupt handler.
+		 * Once received, decode the event type and print it on the serial monitor.
+		 */
+		//res = xQueueReceive(pcnt_evt_queue, &evt, 1000 / portTICK_PERIOD_MS);
+		//if (res == pdTRUE) {
+			pcnt_get_counter_value(PCNT_TEST_UNIT, &count);
+			holding_reg_params.fan_module_pulse = (uint16_t)count;
+			pcnt_counter_clear(PCNT_TEST_UNIT);
+		//}
+			//count = 0;
+			vTaskDelay(10000 / portTICK_RATE_MS);
+    }
+	if(user_isr_handle) {
+		//Free the ISR service handle.
+		esp_intr_free(user_isr_handle);
+		user_isr_handle = NULL;
+	}
 }
 
 void led_pwm_init(void)
