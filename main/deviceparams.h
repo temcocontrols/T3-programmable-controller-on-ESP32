@@ -200,7 +200,7 @@ typedef struct
     int16_t temp_10k_offset;
     int16_t ambient_temp_offset;
     int16_t object_temp_offset;
-    uint16_t register86;
+    uint16_t co2_frc;
     uint16_t register87;
     uint16_t register88;
     uint16_t register89;

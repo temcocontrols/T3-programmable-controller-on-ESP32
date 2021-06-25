@@ -197,7 +197,7 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model,
         if (set->op_en == false) {
             srv->state.onoff = set->onoff;
         } else {
-            /* TODO: Delay and state transition */
+            /*Delay and state transition */
             srv->state.onoff = set->onoff;
         }
         if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {

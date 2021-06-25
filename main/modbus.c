@@ -7,6 +7,7 @@
 #include "driver/gpio.h"
 #include "modbus.h"
 #include "i2c_task.h"
+#include "store.h"
 
 #define EEPROM_VERSION	  105
 
@@ -53,9 +54,9 @@ static void setup_reg_data()
     holding_reg_params.version_number_hi = 0;
     //holding_reg_params.modbus_address = MB_DEV_ADDR;
     if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-    	holding_reg_params.product_model = 62;//97;
+    	holding_reg_params.product_model = 97;//62;//
     else
-    	holding_reg_params.product_model = 90;//74;//74;//
+    	holding_reg_params.product_model = 62;//74;//74;//
     holding_reg_params.hardware_version = 2;
     holding_reg_params.readyToUpdate = 0;
 
@@ -228,7 +229,11 @@ void modbus_task(void *arg)
 				holding_reg_params.testBuf[i] = stm32_uart_rsv[i];
 			}
 			g_sensors.occ = stm32_uart_rsv[0];
-			g_sensors.sound = BUILD_UINT32(stm32_uart_rsv[1],stm32_uart_rsv[2],stm32_uart_rsv[3],stm32_uart_rsv[4]);
+			g_sensors.sound = BUILD_UINT16(stm32_uart_rsv[2],stm32_uart_rsv[1]);//BUILD_UINT32(stm32_uart_rsv[1],stm32_uart_rsv[2],stm32_uart_rsv[3],stm32_uart_rsv[4]);
+			if(!inputs[14].calibration_sign)
+				g_sensors.sound += (inputs[14].calibration_hi * 256 + inputs[14].calibration_lo)/10;
+			else
+				g_sensors.sound += -(inputs[14].calibration_hi * 256 + inputs[14].calibration_lo)/10;
 		}
 		//uart_write_bytes(uart_num, (const char *)uart_rsv, len);
 		//vTaskDelay(1000 / portTICK_RATE_MS);

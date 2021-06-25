@@ -34,9 +34,6 @@
 
 #include "sensirion_arch_config.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define STATUS_OK 0
 #define STATUS_FAIL (-1)
@@ -309,9 +306,22 @@ void sensirion_common_copy_bytes(const uint8_t* source, uint8_t* destination,
                                  uint16_t data_length);
 
 
+uint16_t sensirion_i2c_add_command_to_buffer(uint8_t* buffer, uint16_t offset,
+                                             uint16_t command);
 
-#ifdef __cplusplus
-}
-#endif
+int16_t sensirion_i2c_write_data(uint8_t address, const uint8_t* data,
+                                 uint16_t data_length);
 
+void sensirion_i2c_hal_sleep_usec(uint32_t useconds);
+
+int16_t sensirion_i2c_read_data_inplace(uint8_t address, uint8_t* buffer,
+                                        uint16_t expected_data_length);
+
+uint16_t sensirion_common_bytes_to_uint16_t(const uint8_t* bytes);
+
+uint16_t sensirion_i2c_add_uint16_t_to_buffer(uint8_t* buffer, uint16_t offset,
+                                              uint16_t data);
+
+int16_t sensirion_i2c_read_words_as_bytes(uint8_t address, uint8_t* data,
+                                          uint16_t num_words);
 #endif /* SENSIRION_COMMON_H */

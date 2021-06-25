@@ -25,6 +25,12 @@
 #define FLASH_10K_TEMP_OFFSET	"10K_TEMP_OFFSET"
 #define FLASH_AMBIENT_TEMP_OFFSET	"AMBIENT_TEMP_OFFSET"
 #define FLASH_OBJECT_TEMP_OFFSET	"OBJECT_TEMP_OFFSET"
+#define FLASH_CO2_CAL_DAYS	"EEP_CO2_CAL_DAYS"
+#define FLASH_CO2_NATURE_LEVEL	"EEP_CO2_NATURE_LEVEL"
+#define FLASH_CO2_LOWVALUE_REMAIN_TIME	"EEP_CO2_LOWVALUE_REMAIN_TIME"
+#define FLASH_CO2_MIN_ADJ	"EEP_CO2_MIN_ADJ"
+#define FLASH_CO2_BKCAL_ONOFF	"EEP_CO2_BKCAL_ONOFF"
+#define FLASH_CO2_BKCAL_VALUE	"EEP_CO2_BKCAL_VALUE"
 
 extern esp_err_t read_default_from_flash(void);
 extern esp_err_t save_wifi_info(void);
@@ -32,6 +38,7 @@ extern esp_err_t save_uint8_to_flash(const char* key, uint8_t value);
 extern esp_err_t save_uint16_to_flash(const char* key, uint16_t value);
 extern esp_err_t read_uint8_from_falsh(const char* key, uint8_t* value);
 extern esp_err_t read_uint16_from_falsh(const char* key, uint16_t* value);
+extern esp_err_t read_int16_from_falsh(const char* key, int16_t* value);
 extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_int16_to_flash(const char* key, int16_t value);

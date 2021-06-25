@@ -34,7 +34,8 @@ _Static_assert(sizeof(temco_product_desc_t) == 244, "temco_product_desc_t should
 const __attribute__((section(".rodata_desc"))) temco_product_desc_t pro_info = 
 {
     .vid = {'T','e','m','c','o'},
-    .pid = {'P', 'I', 'D', '9', '7', ' ', ' ', ' ', 0, 0},
+ //   .pid = {'P', 'I', 'D', '9', '7', ' ', ' ', ' ', 0, 0},
+	.pid = {'P', 'I', 'D', '9', '0', ' ', ' ', ' ', 0, 0},
     .ver = {FW_VER_HIGH, FW_VER_LOW},
 };
 

@@ -91,6 +91,23 @@ esp_err_t read_uint16_from_falsh(const char* key, uint16_t* value)
 	return ESP_OK;
 }
 
+esp_err_t read_int16_from_falsh(const char* key, int16_t* value)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	// Open
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+	err = nvs_get_i16(my_handle, key, value);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		return ESP_ERR_NVS_NOT_FOUND;
+	}
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
 esp_err_t read_default_from_flash(void)
 {
 	nvs_handle_t my_handle;

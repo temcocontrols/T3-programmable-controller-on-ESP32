@@ -187,13 +187,16 @@ static void adc_task(void* arg)
         adc_reading /= NO_OF_SAMPLES;
         adc_temp /= NO_OF_SAMPLES;
         //Convert adc_reading to voltage in mV
-        if(adc_reading<100)
+        if(adc_reading<50)
         	voltage = 0;
         else
         	voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+        voltage = voltage*33/10;
+        if(voltage>10000)
+        	voltage = 10000;
         holding_reg_params.fan_module_10k_temp = get_input_value_by_range(R10K_40_120DegC, adc_temp);
         holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
-        holding_reg_params.fan_module_input_voltage = (uint16_t)voltage*3;
+        holding_reg_params.fan_module_input_voltage = (uint16_t)voltage;
 
         vTaskDelay(1000 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
     }
@@ -502,7 +505,7 @@ void led_pwm_init(void)
 	}
 
 	ledc_set_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
-	ledc_set_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel, holding_reg_params.fan_module_pwm2);
+	ledc_set_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel, (255-holding_reg_params.fan_module_pwm2));
 	ledc_update_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel);
 	ledc_update_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel);
 }

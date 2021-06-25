@@ -44,7 +44,7 @@ typedef struct{
 	uint16_t voc_value;
 	uint16_t light_value;
 	uint8_t occ;
-	uint32_t sound;
+	uint16_t sound;
 	uint16_t ambient;
 	uint16_t object;
 	float original_temperature;

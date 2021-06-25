@@ -9,6 +9,9 @@
 #include "deviceparams.h"
 #include <string.h>
 #include "mlx90632.h"
+#include "co2_cal.h"
+#include "store.h"
+#include "scd4x_i2c.h"
 
 static const char *TAG = "i2c-task";
 
@@ -457,6 +460,8 @@ void i2c_task(void *arg)
     int16_t ambient_old_raw=0;
     int16_t object_new_raw=0;
     int16_t object_old_raw=0;
+    int32_t co2_temperature;
+    int32_t co2_humidity;
 
     g_sensors.co2_start_measure = false;
 //    uint8_t sensor_data_h, sensor_data_l;
@@ -527,12 +532,23 @@ void i2c_task(void *arg)
 	}
 	if(holding_reg_params.which_project == PROJECT_SAUTER){
 		ret = mlx90632_init();
-		holding_reg_params.testBuf[17] = 555;
-		holding_reg_params.testBuf[18] = ret;
-		if(ret == 0)
-		{
-			holding_reg_params.testBuf[16] = 1234;
+		//holding_reg_params.testBuf[17] = 555;
+		//holding_reg_params.testBuf[18] = ret;
+		//if(ret == 0)
+		//{
+		//	holding_reg_params.testBuf[16] = 1234;
+		//}
+		co2_cal_initial();
+		scd4x_wake_up();
+		scd4x_stop_periodic_measurement();
+		scd4x_reinit();
+		ret = scd4x_start_periodic_measurement();
+		if (ret) {
+			holding_reg_params.testBuf[17] = 789;
+			holding_reg_params.testBuf[18] = ret;
 		}
+		else
+			holding_reg_params.testBuf[16] = 890;
 	}
 
     while (1) {
@@ -559,6 +575,14 @@ void i2c_task(void *arg)
 			g_sensors.temperature = Filter(0,g_sensors.temperature);
 			g_sensors.humidity = Filter(9,g_sensors.humidity);
 			g_sensors.temperature += holding_reg_params.sht31_temp_offset;
+			if(!inputs[0].calibration_sign)
+				g_sensors.temperature += (inputs[0].calibration_hi * 256 + inputs[0].calibration_lo)/10;
+			else
+				g_sensors.temperature += -(inputs[0].calibration_hi * 256 + inputs[0].calibration_lo)/10;
+			if(!inputs[1].calibration_sign)
+				g_sensors.humidity += (inputs[1].calibration_hi * 256 + inputs[1].calibration_lo)/10;
+			else
+				g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo)/10;
             //printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
@@ -578,6 +602,10 @@ void i2c_task(void *arg)
 			// printf("data_l: %02x\n", light_data[0]);//sensor_data_l);
 			g_sensors.light_value = ((uint16_t)light_data[1]<<8)+light_data[0];
 			g_sensors.light_value = Filter(8,g_sensors.light_value);
+			if(!inputs[15].calibration_sign)
+				g_sensors.light_value += (inputs[15].calibration_hi * 256 + inputs[15].calibration_lo)/10;
+			else
+				g_sensors.light_value += -(inputs[15].calibration_hi * 256 + inputs[15].calibration_lo)/10;
 		}else {
 			ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
 		}
@@ -654,6 +682,10 @@ void i2c_task(void *arg)
 
 					g_sensors.voc_value = temp/5;
 					g_sensors.voc_value = Filter(7,g_sensors.voc_value);
+					if(!inputs[3].calibration_sign)
+						g_sensors.voc_value += (inputs[3].calibration_hi * 256 + inputs[3].calibration_lo)/10;
+					else
+						g_sensors.voc_value += -(inputs[3].calibration_hi * 256 + inputs[3].calibration_lo)/10;
 				 //TXEN = SEND;
 				//	printf("tVOC  Concentration: %dppb\n", tvoc_ppb);
 				 //TXEN = RECEIVE;
@@ -695,6 +727,8 @@ void i2c_task(void *arg)
 		xSemaphoreTake(print_mux, portMAX_DELAY);
 		//ret = i2c_master_sensor_scd40(I2C_MASTER_NUM,0x36,0x82,scd40_data);
 		//ret = sensirion_i2c_delayed_read_cmd(SCD40_SENSOR_ADDR, 0x3682,	200, scd40_data, 3);
+		scd4x_read_measurement(&g_sensors.co2, &co2_temperature, &co2_humidity);
+#if 0
 		ret = ESP_OK;
 		if (ret == ESP_ERR_TIMEOUT) {
 			ESP_LOGE(TAG, "I2C Timeout");
@@ -715,6 +749,12 @@ void i2c_task(void *arg)
 				//g_sensors.co2 = scd40_data[0];//(uint16_t)(scd40_data[0]<<8) + scd40_data[1];
 				g_sensors.co2 = BUILD_UINT16(tempBuf_CO2[1],tempBuf_CO2[0]);//(uint16_t)(tempBuf_CO2[0]<<8) + tempBuf_CO2[1];//tempBuf_CO2
 				g_sensors.co2 = Filter(2, g_sensors.co2);
+
+				if(!inputs[2].calibration_sign)
+					g_sensors.co2 += (inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
+				else
+					g_sensors.co2 += -(inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
+
 			}
 			// printf("*******************\n");
 			// printf("TASK[%d]  MASTER READ SENSOR( SCD40 )\n", task_idx);
@@ -733,6 +773,7 @@ void i2c_task(void *arg)
 		} else {
 			// ESP_LOGW(TAG, "%s: No ack, scd40 sensor not connected...skip...", esp_err_to_name(ret));
 		}
+#endif
 		xSemaphoreGive(print_mux);
 		vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
 

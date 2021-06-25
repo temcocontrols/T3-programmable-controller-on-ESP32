@@ -20,6 +20,10 @@ idf_component_register(SRCS "tcp_server.c"
 							"mlx90632.c"
 							"mlx90632_extended_meas.c"
 							"ble_mesh.c"
+							"co2_cal.c"
+							"scd40.c"
+							"scd4x_i2c.c"
+#							"veml7700.c"
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 

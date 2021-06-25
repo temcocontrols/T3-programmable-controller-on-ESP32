@@ -4,6 +4,8 @@
 #include "freertos/task.h"
 #include "i2c_task.h"
 #include "store.h"
+#include "co2_cal.h"
+#include "modbus.h"
 //#include "ud_str.h"
 //#include "controls.h"
 //#include "driver/uart.h"
@@ -61,8 +63,8 @@ const uint8_t Inputs_Description[MAX_AIS][21] = {
 	"TypicalParticleSize",
 	"Sound Level",
 	"Light Strength",
-	"Occupency",
-	"Ambient temprature",
+	"Occupancy",
+	"Ambient temperature",
 	"Object temperature"
 };
 
@@ -236,7 +238,7 @@ void control_input(void)
 			}
 			else if(point == 14)
 			{
-				sample = g_sensors.sound;
+				sample = g_sensors.sound*1000;
 			}
 			else if(point == 15)
 			{
@@ -254,10 +256,12 @@ void control_input(void)
 			{
 				sample = g_sensors.object*100;
 			}
+#if 0
 			if(!ins->calibration_sign)
 				sample += 100 * (ins->calibration_hi * 256 + ins->calibration_lo);
 			else
 				sample += -100 * (ins->calibration_hi * 256 + ins->calibration_lo);
+#endif
 			ins->value = sample;//swap_double(sample);
 			//inputs[point].value = sample;
 		}
@@ -319,6 +323,8 @@ void input_task(void *arg)
 		deal_input_trigger();
 		deal_trigger_timer();
 		//uart_write_bytes(UART_NUM_1, (const char *)holding_reg_params.testBuf, 20);
+		if(co2_bkcal_onoff == CO2_BKCAL_ON)
+			co2_background_calibration(g_sensors.co2);
 		vTaskDelay(1000 / portTICK_RATE_MS);
 	}
 }

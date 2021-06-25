@@ -42,6 +42,8 @@
 //#include "pyq1548.h"
 #include "led_pwm.h"
 #include "ble_mesh.h"
+#include "co2_cal.h"
+#include "scd4x_i2c.h"
 //#include "ud_str.h"
 //#include "controls.h"
 
@@ -347,7 +349,7 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 		{
 			holding_reg_params.fan_module_pwm2 = *(bufadd+5);
 			if(holding_reg_params.which_project == PROJECT_FAN_MODULE){
-				ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, holding_reg_params.fan_module_pwm2);
+				ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 255-holding_reg_params.fan_module_pwm2);
 				ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 			}
 		}
@@ -418,6 +420,58 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 		else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
 		{
 			save_uint16_to_flash(FLASH_INPUT_FLAG, 0);
+		}
+		//CO2 background calibration
+		else if(address ==  MODBUS_CO2_BKCAL_ONOFF)
+		{
+				if((*(bufadd+5) == 0)||(*(bufadd+5)==1))
+				{
+					co2_bkcal_onoff = *(bufadd+5);
+					save_uint8_to_flash(FLASH_CO2_BKCAL_ONOFF, co2_bkcal_onoff);
+				}
+		}
+		else if(address == MODBUS_CO2_NATURE_LEVEL)
+		{
+				uint16_t itemp;
+				itemp =((uint16_t)*(bufadd+4)<<8) + *(bufadd+5);
+				if((itemp >= 390)&&(itemp<=500))
+				{
+					co2_level = itemp;
+					save_uint16_to_flash(FLASH_CO2_NATURE_LEVEL, co2_level);
+				}
+		}
+		else if(address == MODBUS_CO2_MIN_ADJ)
+		{
+				if((*(bufadd+5)>=1)&&(*(bufadd+5)<=10))
+				{
+					min_co2_adj = *(bufadd+5);
+					save_uint8_to_flash(FLASH_CO2_MIN_ADJ, min_co2_adj);
+				}
+		}
+		else if(address == MODBUS_CO2_CAL_DAYS)
+		{
+				if((*(bufadd+5)>=2)&&(*(bufadd+5)<=30))
+				{
+					co2_bkcal_day = *(bufadd+5);
+					save_uint16_to_flash(FLASH_CO2_CAL_DAYS, co2_bkcal_day);
+				}
+		}
+		else if(address == MODBUS_CO2_LOWVALUE_REMAIN_TIME)
+		{
+				value_keep_time = *(bufadd+5);
+				save_uint8_to_flash(FLASH_CO2_LOWVALUE_REMAIN_TIME, value_keep_time);
+		}
+		else if(address == MODBUS_CO2_BKCAL_VALUE)
+		{
+				co2_bkcal_value = (int16_t)(((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+				save_int16_to_flash(FLASH_CO2_BKCAL_VALUE, co2_bkcal_value);
+
+		}
+		else if(address == CO2_FRC_VALUE)
+		{
+			uint16_t co2_frc_temp;
+			co2_frc_temp = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+			scd4x_perform_forced_recalibration( co2_frc_temp, &holding_reg_params.co2_frc);
 		}
 		else if (address == UPDATE_STATUS)
 		{
@@ -846,6 +900,47 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = (uint8_t)(occ_trigger.count_down>>8)&0xff;
 				temp2 = (uint8_t)occ_trigger.count_down;
 			}
+			//CO2 background calibration
+			else if(address == MODBUS_CO2_BKCAL_ONOFF)
+			{
+				temp1 = 0;
+				temp2 = co2_bkcal_onoff;
+			}
+			else if(address == MODBUS_CO2_NATURE_LEVEL)
+			{
+				temp1 = (uint8_t)(co2_level>>8)&0xff;;
+				temp2 = (uint8_t)co2_level;
+			}
+			else if(address == MODBUS_CO2_MIN_ADJ)
+			{
+				temp1 = 0;
+				temp2 = min_co2_adj;
+			}
+			else if(address == MODBUS_CO2_CAL_DAYS)
+			{
+				temp1 = 0;
+				temp2 = co2_bkcal_day;
+			}
+			else if(address == MODBUS_CO2_LOWVALUE_REMAIN_TIME)
+			{
+				temp1 = 0;
+				temp2 = value_keep_time;
+			}
+			else if(address == MODBUS_CO2_BKCAL_VALUE)
+			{
+				temp1 = (uint8_t)(co2_bkcal_value>>8)&0xff;
+				temp2 = (uint8_t)co2_bkcal_value;
+			}
+			else if(address == MODBUS_CO2_LOWVALUE)
+			{
+				temp1 = (uint8_t)(co2_lowest_value>>8)&0xff;
+				temp2 = (uint8_t)co2_lowest_value;
+			}
+			else if(address == CO2_FRC_VALUE)
+			{
+				temp1 = (uint8_t)(holding_reg_params.co2_frc>>8)&0xff;
+				temp2 = (uint8_t)holding_reg_params.co2_frc;
+			}
 			/*else if((address>= MODBUS_OUTPUT_BLOCK_FIRST)&&(address<=MODBUS_INPUT_BLOCK_LAST))
 			{
 				temp = read_user_data_by_block(address);
@@ -870,8 +965,21 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 			}
 			else if(address == MODBUS_EX_MOUDLE_FLAG12)
 			{
-				temp1 = 0x13;
-				temp2 = 0xff;
+				if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+				{
+					temp1 = 0x10;
+					temp2 = 0xc7;
+				}
+				else if(holding_reg_params.which_project == PROJECT_SAUTER)
+				{
+					temp1 = 0x13;
+					temp2 = 0xff;
+				}
+				else
+				{
+					temp1 = 0;
+					temp2 = 0;
+				}
 			}
 			else
 			{
@@ -1290,7 +1398,7 @@ void app_main()
 
     ethernet_init();
 
-    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
+    holding_reg_params.which_project = PROJECT_SAUTER;//PROJECT_FAN_MODULE;//
 	//tcpip_socket_init();
 	if(holding_reg_params.which_project == PROJECT_SAUTER)
 	{
@@ -1298,7 +1406,7 @@ void app_main()
 	}
 	else if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
 	{
-		holding_reg_params.fan_module_pwm2 = 255;
+		holding_reg_params.fan_module_pwm2 = 0;
 		led_pwm_init();
 		led_init();
 		pcnt_init();
