@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
@@ -8,6 +9,7 @@
 #include "wifi.h"
 #include "deviceparams.h"
 
+extern STR_SCAN_CMD Scan_Infor;
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -128,6 +130,7 @@ esp_err_t read_default_from_flash(void)
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 		debug_info("The value is not initialized yet!\n");
 	if (err != ESP_OK) return err;
+
 	err = nvs_get_u8(my_handle,FLASH_MODBUS_ID, &holding_reg_params.modbus_address);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -227,6 +230,18 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_i16(my_handle, FLASH_OBJECT_TEMP_OFFSET, holding_reg_params.object_temp_offset);
 	}
 
+	len = 20;
+	err = nvs_get_blob(my_handle, FLASH_PRODUCT_NAME, holding_reg_params.panelname, &len);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		holding_reg_params.testBuf[10] = 4321;
+		if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+			memcpy(holding_reg_params.panelname,(char*)"Fan-Module ",12);
+		else
+			memcpy(holding_reg_params.panelname,(char*)"AirLab-esp32",12);
+		holding_reg_params.testBuf[6] = nvs_set_blob(my_handle, FLASH_PRODUCT_NAME, (const void*)(holding_reg_params.panelname), len);
+		holding_reg_params.testBuf[7] = nvs_commit(my_handle);
+	}
 	debug_info("nvs_get_blob");
 	// Close
 	nvs_close(my_handle);

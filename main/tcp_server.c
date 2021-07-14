@@ -313,6 +313,17 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 			save_uint16_to_flash(FLASH_SERIAL_NUM_LO, holding_reg_params.serial_number_lo);
 			save_uint16_to_flash(FLASH_SERIAL_NUM_HI, holding_reg_params.serial_number_hi);
 		}
+		else if(temp_i  >= TSTAT_NAME1 && temp_i <= TSTAT_NAME10)
+		{
+			if((*(bufadd +6)) <= 20)
+			{
+				for(i=0;i<*(bufadd +6);i++)			//	(data_buffer[6]*2)
+				{
+					holding_reg_params.panelname[i] = *(bufadd + 7+i);
+				}
+				holding_reg_params.testBuf[5] = save_blob_info(FLASH_PRODUCT_NAME,(const void*)holding_reg_params.panelname, 20);
+			}
+		}
 	}
 	if(*(bufadd+1) == WRITE_VARIABLES)
 	{
@@ -471,7 +482,20 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 		{
 			uint16_t co2_frc_temp;
 			co2_frc_temp = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			scd4x_perform_forced_recalibration( co2_frc_temp, &holding_reg_params.co2_frc);
+			holding_reg_params.co2_frc = co2_frc_temp;
+		    scd4x_stop_periodic_measurement();
+			scd4x_perform_forced_recalibration( co2_frc_temp, &holding_reg_params.register100);
+			scd4x_start_periodic_measurement();
+		}
+		else if(address == CO2_ASC_ENABLE)
+		{
+			if(*(bufadd+5)<= 1)
+			{
+				holding_reg_params.co2_asc_enable =*(bufadd+5);
+				scd4x_stop_periodic_measurement();
+				scd4x_set_automatic_self_calibration(holding_reg_params.co2_asc_enable);
+				scd4x_start_periodic_measurement();
+			}
 		}
 		else if (address == UPDATE_STATUS)
 		{
@@ -941,6 +965,24 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 				temp1 = (uint8_t)(holding_reg_params.co2_frc>>8)&0xff;
 				temp2 = (uint8_t)holding_reg_params.co2_frc;
 			}
+			else if(address == CO2_ASC_VALUE)
+			{
+				temp1 = (uint8_t)(holding_reg_params.co2_asc_enable>>8)&0xff;
+				temp2 = (uint8_t)holding_reg_params.co2_asc_enable;
+			}
+			else if(address == TSTAT_NAME_ENABLE)
+			{
+				temp1 = 0;
+				temp2 = 0x56;
+			}
+			else if((address >= TSTAT_NAME1) && (address <= TSTAT_NAME10))
+			{
+				uint16_t temp_modbus_name = address - TSTAT_NAME1;
+				//temp1= Scan_Infor.panelname[temp_modbus_name * 2];
+				//temp2= Scan_Infor.panelname[temp_modbus_name * 2 + 1];
+				temp1= holding_reg_params.panelname[temp_modbus_name * 2];
+				temp2= holding_reg_params.panelname[temp_modbus_name * 2 + 1];
+			}
 			/*else if((address>= MODBUS_OUTPUT_BLOCK_FIRST)&&(address<=MODBUS_INPUT_BLOCK_LAST))
 			{
 				temp = read_user_data_by_block(address);
@@ -1120,11 +1162,12 @@ void UdpData(unsigned char type)
 	Scan_Infor.master_sn[1] = 0;
 	Scan_Infor.master_sn[2] = 0;
 	Scan_Infor.master_sn[3] = 0;
-	if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+	memcpy(Scan_Infor.panelname, holding_reg_params.panelname,20);
+/*	if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
 		memcpy(Scan_Infor.panelname,(char*)"Fan-Module ",12);
 	else
 		memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
-
+*/
 //	state = 1;
 //	scanstart = 0;
 
@@ -1249,29 +1292,29 @@ static void tcp_server_task(void *pvParameters)
 		// ^^^^^^^^^^^^^^^^^^^TCP^^^^^^^^^
 		my_listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
 		if (my_listen_sock < 0) {
-			holding_reg_params.testBuf[12] = 1000;
+			//holding_reg_params.testBuf[12] = 1000;
 			ESP_LOGE(TCP_TASK_TAG, "Unable to create TCP socket: errno %d", errno);
 			//break;
 		}
-		holding_reg_params.testBuf[12] ++;
+		//holding_reg_params.testBuf[12] ++;
 		ESP_LOGI(TCP_TASK_TAG, "Socket created");
 
 		int err = bind(my_listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
 		if (err != 0) {
-			holding_reg_params.testBuf[13] = 2000;
+			//holding_reg_params.testBuf[13] = 2000;
 			ESP_LOGE(TCP_TASK_TAG, "TCP Socket unable to bind: errno %d", errno);
 			//break;
 		}
 		ESP_LOGI(TCP_TASK_TAG, "TCP Socket bound, port %d", 502);
-		holding_reg_params.testBuf[13] ++;
+		//holding_reg_params.testBuf[13] ++;
 
 		err = listen(my_listen_sock, 1);
 		if (err != 0) {
-			holding_reg_params.testBuf[14] = 3000;
+			//holding_reg_params.testBuf[14] = 3000;
 			ESP_LOGE(TCP_TASK_TAG, "Error occurred during listen: errno %d", errno);
 			//break;
 		}
-		holding_reg_params.testBuf[14]++;
+		//holding_reg_params.testBuf[14]++;
 		ESP_LOGI(TCP_TASK_TAG, "Socket listening");
 	}
 
@@ -1283,11 +1326,11 @@ static void tcp_server_task(void *pvParameters)
 			addr_len = sizeof(source_addr);
 			sock = accept(my_listen_sock, (struct sockaddr *)&source_addr, &addr_len);
 			if (sock < 0) {
-				holding_reg_params.testBuf[15] = 4000;
+				//holding_reg_params.testBuf[15] = 4000;
 				ESP_LOGE(TCP_TASK_TAG, "Unable to accept connection: errno %d", errno);
 				break;
 			}
-			holding_reg_params.testBuf[15]++;
+			//holding_reg_params.testBuf[15]++;
 			ESP_LOGI(TCP_TASK_TAG, "Socket accepted");
 
 			while (1) {
@@ -1306,7 +1349,7 @@ static void tcp_server_task(void *pvParameters)
 					// Connection closed
 					else if (len == 0) {
 						ESP_LOGI(TCP_TASK_TAG, "Connection closed");
-						holding_reg_params.testBuf[10] = 100;
+						//holding_reg_params.testBuf[10] = 100;
 						break;
 					}
 					// Data received
@@ -1358,7 +1401,7 @@ static void tcp_server_task(void *pvParameters)
 			}
 
 			if (sock != -1) {
-				holding_reg_params.testBuf[11] = 215;
+				//holding_reg_params.testBuf[11] = 215;
 				ESP_LOGE(TCP_TASK_TAG, "Shutting down socket and restarting...");
 				shutdown(sock, 0);
 				close(sock);

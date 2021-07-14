@@ -986,6 +986,7 @@ enum {
 /******************END*******************************/
 	CO2_ASC_ENABLE = 1950,
 	CO2_FRC_VALUE = 1951,
+	CO2_ASC_VALUE = 1952,
 
 	MODBUS_CO2_BKCAL_ONOFF = 1960,
 	MODBUS_CO2_NATURE_LEVEL,

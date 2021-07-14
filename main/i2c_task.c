@@ -542,13 +542,16 @@ void i2c_task(void *arg)
 		scd4x_wake_up();
 		scd4x_stop_periodic_measurement();
 		scd4x_reinit();
+		scd4x_get_automatic_self_calibration(&holding_reg_params.co2_asc_enable);
 		ret = scd4x_start_periodic_measurement();
 		if (ret) {
 			holding_reg_params.testBuf[17] = 789;
 			holding_reg_params.testBuf[18] = ret;
 		}
 		else
-			holding_reg_params.testBuf[16] = 890;
+		{
+			holding_reg_params.testBuf[16] = 321;
+		}
 	}
 
     while (1) {
@@ -576,13 +579,13 @@ void i2c_task(void *arg)
 			g_sensors.humidity = Filter(9,g_sensors.humidity);
 			g_sensors.temperature += holding_reg_params.sht31_temp_offset;
 			if(!inputs[0].calibration_sign)
-				g_sensors.temperature += (inputs[0].calibration_hi * 256 + inputs[0].calibration_lo)/10;
+				g_sensors.temperature += (inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
 			else
-				g_sensors.temperature += -(inputs[0].calibration_hi * 256 + inputs[0].calibration_lo)/10;
+				g_sensors.temperature += -(inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
 			if(!inputs[1].calibration_sign)
-				g_sensors.humidity += (inputs[1].calibration_hi * 256 + inputs[1].calibration_lo)/10;
+				g_sensors.humidity += (inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
 			else
-				g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo)/10;
+				g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
             //printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
@@ -647,6 +650,14 @@ void i2c_task(void *arg)
 			object = mlx90632_calc_temp_object(pre_object, pre_ambient, Ea, Eb, Ga, Fa, Fb, Ha, Hb);
 			g_sensors.ambient = (uint16_t)(ambient*10)/2;
 			g_sensors.object = (uint16_t )(object*10)/2;
+			if(!inputs[17].calibration_sign)
+				g_sensors.ambient += (inputs[17].calibration_hi * 256 + inputs[17].calibration_lo);
+			else
+				g_sensors.ambient += -(inputs[17].calibration_hi * 256 + inputs[17].calibration_lo);
+			if(!inputs[18].calibration_sign)
+				g_sensors.object += (inputs[18].calibration_hi * 256 + inputs[18].calibration_lo);
+			else
+				g_sensors.object += -(inputs[18].calibration_hi * 256 + inputs[18].calibration_lo);
 			//g_sensors.infrared_temp1 = 321;
 			xSemaphoreGive(print_mux);
 			vTaskDelay(100/ portTICK_RATE_MS);
@@ -728,6 +739,10 @@ void i2c_task(void *arg)
 		//ret = i2c_master_sensor_scd40(I2C_MASTER_NUM,0x36,0x82,scd40_data);
 		//ret = sensirion_i2c_delayed_read_cmd(SCD40_SENSOR_ADDR, 0x3682,	200, scd40_data, 3);
 		scd4x_read_measurement(&g_sensors.co2, &co2_temperature, &co2_humidity);
+		if(!inputs[2].calibration_sign)
+			g_sensors.co2 += (inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
+		else
+			g_sensors.co2 += -(inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
 #if 0
 		ret = ESP_OK;
 		if (ret == ESP_ERR_TIMEOUT) {

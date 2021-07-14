@@ -31,6 +31,7 @@
 #define FLASH_CO2_MIN_ADJ	"EEP_CO2_MIN_ADJ"
 #define FLASH_CO2_BKCAL_ONOFF	"EEP_CO2_BKCAL_ONOFF"
 #define FLASH_CO2_BKCAL_VALUE	"EEP_CO2_BKCAL_VALUE"
+#define FLASH_PRODUCT_NAME	"PRODUCT_NAME"
 
 extern esp_err_t read_default_from_flash(void);
 extern esp_err_t save_wifi_info(void);

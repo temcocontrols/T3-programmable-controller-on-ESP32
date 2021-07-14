@@ -148,9 +148,9 @@ void stm32_uart_init(void)
 					.flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
 				};
 		// Configure UART parameters
-		holding_reg_params.testBuf[8]=uart_param_config(UART_NUM_1, &uart_config);
-		holding_reg_params.testBuf[9]=uart_set_pin(UART_NUM_1, GPIO_NUM_33, GPIO_NUM_32, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-		holding_reg_params.testBuf[10]=uart_driver_install(UART_NUM_1, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+		uart_param_config(UART_NUM_1, &uart_config);
+		uart_set_pin(UART_NUM_1, GPIO_NUM_33, GPIO_NUM_32, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+		uart_driver_install(UART_NUM_1, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
 		//uart_set_mode(UART_NUM_1, UART_MODE_UART);
 	}
 }
@@ -192,7 +192,7 @@ void modbus_task(void *arg)
 	uint8_t *stm32_uart_rsv = (uint8_t*)malloc(64);
 	if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
 	{
-		holding_reg_params.testBuf[6] = 0x55;
+		//holding_reg_params.testBuf[6] = 0x55;
 		memset(stm32_uart_rsv, 030,64);
 	}
 	for(i=0;i<5;i++)
@@ -225,9 +225,9 @@ void modbus_task(void *arg)
 		{
 			uart_read_bytes(UART_NUM_1, stm32_uart_rsv, 64, 20 / portTICK_RATE_MS);
 			//holding_reg_params.testBuf[7] = uart_write_bytes(UART_NUM_1, (const char *)holding_reg_params.testBuf, 20);
-			for(i=0;i<5;i++){
-				holding_reg_params.testBuf[i] = stm32_uart_rsv[i];
-			}
+			//for(i=0;i<5;i++){
+			//	holding_reg_params.testBuf[i] = stm32_uart_rsv[i];
+			//}
 			g_sensors.occ = stm32_uart_rsv[0];
 			g_sensors.sound = BUILD_UINT16(stm32_uart_rsv[2],stm32_uart_rsv[1]);//BUILD_UINT32(stm32_uart_rsv[1],stm32_uart_rsv[2],stm32_uart_rsv[3],stm32_uart_rsv[4]);
 			if(!inputs[14].calibration_sign)

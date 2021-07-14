@@ -186,13 +186,16 @@ int16_t scd4x_perform_forced_recalibration(uint16_t target_co2_concentration,
     int16_t error;
     uint8_t buffer[5];
     uint16_t offset = 0;
+    sensirion_i2c_hal_sleep_usec(500000);
     offset = sensirion_i2c_add_command_to_buffer(&buffer[0], offset, 0x362F);
 
     offset = sensirion_i2c_add_uint16_t_to_buffer(&buffer[0], offset,
                                                   target_co2_concentration);
 
     error = sensirion_i2c_write_data(SCD4X_I2C_ADDRESS, &buffer[0], offset);
+
     if (error) {
+
         return error;
     }
 
@@ -231,6 +234,7 @@ int16_t scd4x_set_automatic_self_calibration(uint16_t asc_enabled) {
     int16_t error;
     uint8_t buffer[5];
     uint16_t offset = 0;
+    sensirion_i2c_hal_sleep_usec(1000);
     offset = sensirion_i2c_add_command_to_buffer(&buffer[0], offset, 0x2416);
 
     offset =
