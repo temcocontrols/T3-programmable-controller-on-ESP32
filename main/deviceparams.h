@@ -27,6 +27,16 @@
 
 #define READ_REMOTE_INPUT		0x09
 
+#define STM32_UART_SEND_SIZE	16
+
+#define STM32_LED_485_TX	0
+#define STM32_LED_485_RX	1
+#define STM32_LED_WIFI_ON	2
+#define STM32_LED_WIFI_DATA	3
+#define STM32_LED_ETHERNET_ON	4
+#define STM32_LED_ETHERNET_DATA	5
+#define STM32_LED_BLUETOOTH_ON	6
+
 /* takes a byte out of a uint32 : var - uint32,  ByteNum - byte to take out (0 - 3) */
 #define BREAK_UINT32( var, ByteNum ) \
           (uint8_t)((uint32_t)(((var) >>((ByteNum) * 8)) & 0x00FF))
@@ -220,6 +230,7 @@ typedef struct
     uint16_t pid1_mode_operation;
 
     char panelname[20];
+    uint8_t stm32_uart_send[STM32_UART_SEND_SIZE];
     // Parameter: Modbus parity  : modbus_parity
     //uint16_t modbus_parity;
     // Parameter: Modbus stopbit  : modbus_stop_bits

@@ -321,7 +321,7 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 				{
 					holding_reg_params.panelname[i] = *(bufadd + 7+i);
 				}
-				holding_reg_params.testBuf[5] = save_blob_info(FLASH_PRODUCT_NAME,(const void*)holding_reg_params.panelname, 20);
+				save_blob_info(FLASH_PRODUCT_NAME,(const void*)holding_reg_params.panelname, 20);
 			}
 		}
 	}
@@ -1074,6 +1074,7 @@ static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
 		uart_send[send_cout++] = temp1 ;
 		uart_send[send_cout++] = temp2 ;
 		holding_reg_params.led_rx485_tx = 2;
+		holding_reg_params.stm32_uart_send[1] = 1;
 		uart_write_bytes(UART_NUM_0, (const char *)uart_send, send_cout);
 
 		free(uart_send);
@@ -1388,6 +1389,7 @@ static void tcp_server_task(void *pvParameters)
 							responseCmd(WIFI, (uint8_t *)rx_buffer, len);
 							if(modbus_wifi_len > 0)
 							{
+								holding_reg_params.stm32_uart_send[STM32_LED_WIFI_ON] = 2;
 								int err = send(sock, (uint8_t *)&modbus_wifi_buf, modbus_wifi_len, 0);
 								if (err < 0) {
 									ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);

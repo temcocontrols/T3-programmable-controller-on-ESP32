@@ -11,6 +11,7 @@
 #include "nvs_flash.h"
 #include "flash.h"
 #include "esp_log.h"
+#include "deviceparams.h"
 //#include "modbus.h"
 
 static const char *TAG = "WIFI";
@@ -136,14 +137,17 @@ void wifi_init_sta()
     if (bits & WIFI_CONNECTED_BIT) {
         //ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
         //         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+    	holding_reg_params.stm32_uart_send[STM32_LED_WIFI_ON] = 1;
     	SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
     } else if (bits & WIFI_FAIL_BIT) {
         //ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
         //         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
     	SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+    	holding_reg_params.stm32_uart_send[STM32_LED_WIFI_ON] = 0;
     } else {
         //ESP_LOGE(TAG, "UNEXPECTED EVENT");
     	SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
+    	holding_reg_params.stm32_uart_send[STM32_LED_WIFI_ON] = 0;
     }
 
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler));

@@ -28,6 +28,7 @@
 #define MAX_OUTS		64
 #define MAX_VARS				128
 
+
 // *******************modbus.h***********************************
 // Header file containing all of the register information for modbus
 // serial communications.

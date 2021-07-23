@@ -144,6 +144,11 @@ esp_err_t bluetooth_init(void)
         ESP_LOGE(TAG, "%s enable bluetooth failed", __func__);
         return ret;
     }
+    holding_reg_params.testBuf[8] = esp_bt_dev_set_device_name(holding_reg_params.panelname);
+    if(holding_reg_params.testBuf[8] == ESP_OK)
+    	holding_reg_params.testBuf[5] = 666;
+
+    bt_mesh_set_device_name(holding_reg_params.panelname);
 
     return ret;
 }
@@ -235,6 +240,7 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
         ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT");
         prov_complete(param->node_prov_complete.net_idx, param->node_prov_complete.addr,
             param->node_prov_complete.flags, param->node_prov_complete.iv_index);
+        holding_reg_params.stm32_uart_send[STM32_LED_BLUETOOTH_ON] = 1;
         break;
     case ESP_BLE_MESH_NODE_PROV_RESET_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_RESET_EVT");
@@ -297,6 +303,7 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
                 param->value.state_change.appkey_add.net_idx,
                 param->value.state_change.appkey_add.app_idx);
             ESP_LOG_BUFFER_HEX("AppKey", param->value.state_change.appkey_add.app_key, 16);
+            holding_reg_params.stm32_uart_send[STM32_LED_BLUETOOTH_ON] = 0;
             break;
         case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND");

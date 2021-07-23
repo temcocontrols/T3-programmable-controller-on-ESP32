@@ -31,10 +31,12 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
         //memcpy(mac_addr, )
         holding_reg_params.ethernet_status = ETHERNET_EVENT_CONNECTED;
+        holding_reg_params.stm32_uart_send[STM32_LED_ETHERNET_ON] = 1;
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "Ethernet Link Down");
         holding_reg_params.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
+        holding_reg_params.stm32_uart_send[STM32_LED_ETHERNET_ON] = 0;
         break;
     case ETHERNET_EVENT_START:
         ESP_LOGI(TAG, "Ethernet Started");
