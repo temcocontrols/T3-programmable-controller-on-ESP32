@@ -1,0 +1,5 @@
+menu "bacnet"
+config bacnet_ENABLE
+bool "Enable bacnet"
+default "y"
+endmenu

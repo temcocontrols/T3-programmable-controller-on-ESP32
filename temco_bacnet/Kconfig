@@ -1,0 +1,5 @@
+menu "MY_COM"
+config MY_COM_ENABLE
+bool "Enable my_com"
+default "y"
+endmenu
