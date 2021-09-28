@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "led_pwm.h"
-//#include "driver/ledc.h"
-#include "deviceparams.h"
+#include "driver/ledc.h"
+//#include "deviceparams.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -10,6 +10,7 @@
 #include "driver/pcnt.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "controls.h"
 
 #define LEDC_HS_TIMER          LEDC_TIMER_0
 #define LEDC_HS_MODE           LEDC_HIGH_SPEED_MODE
@@ -53,14 +54,15 @@ static void adc_task(void* arg);
 #define MIDDLE_RANGE     8
 #define NO_TABLE_RANGES 16
 
-const int16_t limit[10][2] = { { -400, 1500 }, { -400, 3020 },
+EXT_RAM_ATTR holding_reg_params_t holding_reg_params = {0};
+EXT_RAM_ATTR const int16_t led_limit[10][2] = { { -400, 1500 }, { -400, 3020 },
                             { -400, 1200 }, { -400, 2480 },
                             { -400, 1200 }, { -400, 2480 },
                             { -400, 1200 }, { -400, 2480 },
                             { -500, 1100 }, { -580, 2300 }
                       };
 
-uint16_t  def_tab[5][17] = {
+EXT_RAM_ATTR uint16_t  my_def_tab[5][17] = {
  /* 3k termistor YSI44005 -40 to 150 Deg.C or -40 to 302 Deg.F */
 	{ 233*4,  211*4, 179*4, 141*4, 103*4, 71*4, 48*4, 32*4,
 		21*4, 14*4, 10*4, 7*4, 5*4, 4*4, 3*4, 2*4, 1*4 },
@@ -82,13 +84,13 @@ uint16_t  def_tab[5][17] = {
 		92*4, 72*4, 55*4, 42*4, 33*4, 25*4, 19*4, 15*4, 12*4 }
 };
 
-const int16_t tab_int[10] = { 119, 214, 100, 180, 100, 180,100, 180, 100, 180 };
-typedef enum { not_used_input, Y3K_40_150DegC, Y3K_40_300DegF, R10K_40_120DegC,
- R10K_40_250DegF, R3K_40_150DegC, R3K_40_300DegF, KM10K_40_120DegC,
- KM10K_40_250DegF, A10K_50_110DegC, A10K_60_200DegF, V0_5, I0_100Amps,
- I0_20ma, I0_20psi, N0_2_32counts, N0_3000FPM_0_10V, P0_100_0_5V,
- P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,
- table5, HI_spd_count = 100 } Analog_input_range_equate;
+const int16_t my_tab_int[10] = { 119, 214, 100, 180, 100, 180,100, 180, 100, 180 };
+//typedef enum { not_used_input, Y3K_40_150DegC, Y3K_40_300DegF, R10K_40_120DegC,
+ //R10K_40_250DegF, R3K_40_150DegC, R3K_40_300DegF, KM10K_40_120DegC,
+ //KM10K_40_250DegF, A10K_50_110DegC, A10K_60_200DegF, V0_5, I0_100Amps,
+ //I0_20ma, I0_20psi, N0_2_32counts, N0_3000FPM_0_10V, P0_100_0_5V,
+ //P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,
+ //table5, HI_spd_count = 100 } Analog_input_range_equate;
 
 static esp_adc_cal_characteristics_t *adc_chars;
 static const adc_channel_t channel = ADC_CHANNEL_7;     //GPIO35 if ADC1
@@ -98,7 +100,7 @@ static const adc_unit_t unit = ADC_UNIT_1;
 
 
 
-static int16_t get_input_value_by_range( int range, uint16_t raw )
+static int16_t my_get_input_value_by_range( int range, uint16_t raw )
 {
 	int index;
 	long val=0;
@@ -110,12 +112,12 @@ static int16_t get_input_value_by_range( int range, uint16_t raw )
 	range--;
 	ran_in = range;
 	range >>= 1;
-	def_tbl = ( uint16_t * )&def_tab[range];
+	def_tbl = ( uint16_t * )&my_def_tab[range];
 
 	if( raw <= def_tbl[NO_TABLE_RANGES] )
-		return limit[ran_in][1];
+		return led_limit[ran_in][1];
 	if( raw >= def_tbl[0] )
-		return limit[ran_in][0];
+		return led_limit[ran_in][0];
 	index = MIDDLE_RANGE;
 
 	while( !end )
@@ -129,10 +131,10 @@ static int16_t get_input_value_by_range( int range, uint16_t raw )
 				work_var = (int)( ( def_tbl[index] - raw ) * 100 );
 				work_var /= delta;
 				work_var += ( index * 100 );
-				val = tab_int[ran_in];
+				val = my_tab_int[ran_in];
 				val *= work_var;
 				val /= 100;
-				val += limit[ran_in][0];
+				val += led_limit[ran_in][0];
 			}
 			return val;
 		}
@@ -146,9 +148,9 @@ static int16_t get_input_value_by_range( int range, uint16_t raw )
 			else
 				index -= delta;
 			if( index <= 0 )
-				return limit[ran_in][0];
+				return led_limit[ran_in][0];
 			if( index >= NO_TABLE_RANGES )
-				return limit[ran_in][1];
+				return led_limit[ran_in][1];
 		}
 	}
         return 0;
@@ -192,11 +194,27 @@ static void adc_task(void* arg)
         else
         	voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
         voltage = voltage*33/10;
+        voltage = voltage*10/8;
         if(voltage>10000)
         	voltage = 10000;
-        holding_reg_params.fan_module_10k_temp = get_input_value_by_range(R10K_40_120DegC, adc_temp);
-        holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
+        holding_reg_params.fan_module_10k_temp = my_get_input_value_by_range(R10K_40_120DegC, adc_temp);
+        //holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
         holding_reg_params.fan_module_input_voltage = (uint16_t)voltage;
+        inputs[2].range = 1;
+        if(!inputs[2].calibration_sign)
+        	holding_reg_params.fan_module_10k_temp += (inputs[2].calibration_hi * 256 + inputs[2].calibration_lo);
+		else
+			holding_reg_params.fan_module_10k_temp += -(inputs[2].calibration_hi * 256 + inputs[2].calibration_lo);
+        inputs[2].value = holding_reg_params.fan_module_10k_temp*100;
+
+        inputs[3].range = 19;
+        if(!inputs[3].calibration_sign)
+			holding_reg_params.fan_module_input_voltage += (inputs[3].calibration_hi * 256 + inputs[3].calibration_lo);
+		else
+			holding_reg_params.fan_module_input_voltage += -(inputs[3].calibration_hi * 256 + inputs[3].calibration_lo);
+        inputs[3].value = holding_reg_params.fan_module_input_voltage;
+
+
 
         vTaskDelay(1000 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
     }
@@ -207,6 +225,7 @@ static void fan_led_task(void* arg)
 	uint32_t cnt=0;
 	holding_reg_params.led_rx485_rx = 0;
 	holding_reg_params.led_rx485_tx = 0;
+
     for(;;) {
 		gpio_set_level(LED_HEART_BEAT, (cnt++) % 8);
 		if((holding_reg_params.fan_module_pulse==0))//||(holding_reg_params.fan_module_pwm2==255))
@@ -240,6 +259,30 @@ static void fan_led_task(void* arg)
 		}
 		else
 			gpio_set_level(LED_RS485_RX, 1);
+
+		//outputs[1].value = 200;
+        //holding_reg_params.fan_module_pwm1 = get_output_raw(0);
+        //holding_reg_params.fan_module_pwm2 = get_output_raw(1);
+        outputs[0].switch_status = 1;
+        outputs[1].switch_status = 1;
+        outputs[0].auto_manual = 1;
+        outputs[1].auto_manual = 1;
+        outputs[0].digital_analog = 1;
+        outputs[1].digital_analog = 1;
+        outputs[0].range = 1;
+        outputs[1].range = 1;
+        if((outputs[0].value<=10000)&&(outputs[1].value>=0))
+        	holding_reg_params.fan_module_pwm1 = outputs[0].value*10/391;
+        if((outputs[1].value<=10000)&&(outputs[1].value>=0))
+            holding_reg_params.fan_module_pwm2 = outputs[1].value*10/391;
+        Test[0] = holding_reg_params.fan_module_pwm1;
+        Test[1] = holding_reg_params.fan_module_pwm2;
+//        Test[2] = outputs[0].switch_status;
+//        Test[3] = outputs[1].switch_status;
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
+		ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, (255-holding_reg_params.fan_module_pwm2));
+		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 
 		vTaskDelay(100 / portTICK_RATE_MS);
 	}
@@ -277,6 +320,10 @@ void led_init(void)
 	io_conf.pull_up_en = 0;
 	//configure GPIO with the given settings
 	gpio_config(&io_conf);
+
+//	outputs[0].switch_status = 0;
+//	outputs[1].switch_status = 1;
+//	outputs[2].switch_status = 2;
 
 	xTaskCreate(fan_led_task, "fan_led_task", 2048, NULL, 1, NULL);
 }
@@ -373,7 +420,7 @@ static void IRAM_ATTR pcnt_example_intr_handler(void *arg)
  *  - set up the input filter
  *  - set up the counter events to watch
  */
-void pcnt_init(void)
+void my_pcnt_init(void)
 {
     /* Prepare configuration for the PCNT unit */
     pcnt_config_t pcnt_config = {
@@ -388,7 +435,7 @@ void pcnt_init(void)
         // What to do when control input is low or high?
         .lctrl_mode = PCNT_MODE_KEEP, // Reverse counting direction if low
         .hctrl_mode = PCNT_MODE_KEEP,    // Keep the primary counter mode if high
-        // Set the maximum and minimum limit values to watch
+        // Set the maximum and minimum led_limit values to watch
         .counter_h_lim = PCNT_H_LIM_VAL,
         .counter_l_lim = PCNT_L_LIM_VAL,
     };
@@ -430,6 +477,8 @@ static void pcnt_task(void* arg)
 			pcnt_get_counter_value(PCNT_TEST_UNIT, &count);
 			holding_reg_params.fan_module_pulse = (uint16_t)count;
 			pcnt_counter_clear(PCNT_TEST_UNIT);
+			inputs[4].range = 26;
+			inputs[4].value = holding_reg_params.fan_module_pulse*100;
 		//}
 			//count = 0;
 			vTaskDelay(10000 / portTICK_RATE_MS);

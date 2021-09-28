@@ -9,7 +9,7 @@
 #include "driver/gpio.h"
 #include "sdkconfig.h"
 #include "ethernet_task.h"
-#include "deviceparams.h"
+#include "define.h"
 #include "wifi.h"
 
 static const char *TAG = "ethernet_task";
@@ -25,26 +25,24 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
 
     switch (event_id) {
     case ETHERNET_EVENT_CONNECTED:
-        esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, holding_reg_params.mac_addr);
+        esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr);
         ESP_LOGI(TAG, "Ethernet Link Up");
         //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
         //memcpy(mac_addr, )
-        holding_reg_params.ethernet_status = ETHERNET_EVENT_CONNECTED;
-        holding_reg_params.stm32_uart_send[STM32_LED_ETHERNET_ON] = 1;
+        Modbus.ethernet_status = ETHERNET_EVENT_CONNECTED;
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "Ethernet Link Down");
-        holding_reg_params.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
-        holding_reg_params.stm32_uart_send[STM32_LED_ETHERNET_ON] = 0;
+        Modbus.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
         break;
     case ETHERNET_EVENT_START:
         ESP_LOGI(TAG, "Ethernet Started");
-        holding_reg_params.ethernet_status = ETHERNET_EVENT_START;
+        Modbus.ethernet_status = ETHERNET_EVENT_START;
         break;
     case ETHERNET_EVENT_STOP:
         ESP_LOGI(TAG, "Ethernet Stopped");
-        holding_reg_params.ethernet_status = ETHERNET_EVENT_STOP;
+        Modbus.ethernet_status = ETHERNET_EVENT_STOP;
         break;
     default:
         break;
@@ -60,21 +58,22 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 
     debug_info( "Ethernet Got IP Address");
     debug_info( "~~~~~~~~~~~");
-    holding_reg_params.ip_addr[0] = ip4_addr1(&ip_info->ip);
-    holding_reg_params.ip_addr[1] = ip4_addr2(&ip_info->ip);
-    holding_reg_params.ip_addr[2] = ip4_addr3(&ip_info->ip);
-    holding_reg_params.ip_addr[3] = ip4_addr4(&ip_info->ip);
-    holding_reg_params.ip_net_mask[0] = ip4_addr1(&ip_info->netmask);
-    holding_reg_params.ip_net_mask[1] = ip4_addr2(&ip_info->netmask);
-    holding_reg_params.ip_net_mask[2] = ip4_addr3(&ip_info->netmask);
-    holding_reg_params.ip_net_mask[3] = ip4_addr4(&ip_info->netmask);
-    holding_reg_params.ip_gateway[0] = ip4_addr1(&ip_info->gw);
-    holding_reg_params.ip_gateway[1] = ip4_addr2(&ip_info->gw);
-    holding_reg_params.ip_gateway[2] = ip4_addr3(&ip_info->gw);
-    holding_reg_params.ip_gateway[3] = ip4_addr4(&ip_info->gw);
+    Modbus.ip_addr[0] = ip4_addr1(&ip_info->ip);
+    Modbus.ip_addr[1] = ip4_addr2(&ip_info->ip);
+    Modbus.ip_addr[2] = ip4_addr3(&ip_info->ip);
+    Modbus.ip_addr[3] = ip4_addr4(&ip_info->ip);
+    Modbus.subnet[0] = ip4_addr1(&ip_info->netmask);
+    Modbus.subnet[1] = ip4_addr2(&ip_info->netmask);
+    Modbus.subnet[2] = ip4_addr3(&ip_info->netmask);
+    Modbus.subnet[3] = ip4_addr4(&ip_info->netmask);
+    Modbus.getway[0] = ip4_addr1(&ip_info->gw);
+    Modbus.getway[1] = ip4_addr2(&ip_info->gw);
+    Modbus.getway[2] = ip4_addr3(&ip_info->gw);
+    Modbus.getway[3] = ip4_addr4(&ip_info->gw);
     ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
+
     debug_info( "~~~~~~~~~~~");
 }
 
@@ -84,19 +83,15 @@ void ethernet_init(void)
 	tcpip_adapter_init(); // Commented by Evan: it is recommanded to be replaced by esp_netif_init();
 
 	ret = esp_event_loop_create_default();
-	holding_reg_params.testBuf[0] = ret;
 	if(ret == ESP_OK)
 		debug_info("esp_event_loop_create_default() finished^^^^^^^^");
 	ret =tcpip_adapter_set_default_eth_handlers();
-	holding_reg_params.testBuf[1] = ret;
 	if(ret == ESP_OK)
 		debug_info("tcpip_adapter_set_default_eth_handlers() finished^^^^^^^^");
 	ret = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);
-	holding_reg_params.testBuf[2] = ret;
 	if(ret == ESP_OK)
 		debug_info("esp_event_handler_register(ESP_EVENT_ANY_ID) finished^^^^^^^^");
 	ret = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL);
-	holding_reg_params.testBuf[3] = ret;
 	if(ret == ESP_OK)
 		debug_info("esp_event_handler_register(IP_EVENT_ETH_GOT_IP) finished^^^^^^^^");
 

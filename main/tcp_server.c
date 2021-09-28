@@ -29,7 +29,7 @@
 #include <store.h>
 
 
-#include "deviceparams.h"
+#include "define.h"
 #include "modbus.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
@@ -38,15 +38,23 @@
 #include "flash.h"
 
 #include "i2c_task.h"
-#include "microphone.h"
+//#include "microphone.h"
 //#include "pyq1548.h"
 #include "led_pwm.h"
-#include "ble_mesh.h"
-#include "co2_cal.h"
-#include "scd4x_i2c.h"
+//#include "ble_mesh.h"
 //#include "ud_str.h"
 //#include "controls.h"
+#include "bacnet.h"
+#include "ud_str.h"
+#include "user_data.h"
+#include "controls.h"
 
+//#include "point.h"
+#include "define.h"
+#include "rs485.h"
+#include "fifo.h"
+#include "freertos/event_groups.h"
+//#include "types.h"
 #define PORT CONFIG_EXAMPLE_PORT
 
 //static const char *TAG = "Example";
@@ -55,1123 +63,261 @@ static const char *UDP_TASK_TAG = "UDP_TASK";
 
 STR_SCAN_CMD Scan_Infor;
 //uint8_t tcp_send_packet[1024];
-uint8_t modbus_wifi_buf[500];
+EXT_RAM_ATTR uint8_t modbus_wifi_buf[500];
 uint16_t modbus_wifi_len;
 uint8_t reg_num;
-static bool isSocketCreated = false;
+/*static bool isSocketCreated = false;
 extern double ambient;
 extern double object;
 extern float mlx90614_ambient;
-extern float mlx90614_object;
+extern float mlx90614_object;*/
+extern uint32_t Instance;
+
+void modbus_task(void *arg);
+void Bacnet_Control(void) ;
+
+//计数信号量相关 信号量句柄 最大计数值，初始化计数值 （计数信号量管理是否有资源可用。）
+//MAX_COUNT 最大计数量，最多有几个资源
+xSemaphoreHandle CountHandle;
+
+#define INIT_SOC_COUNT	7
+
+#define MAX_SOC_COUNT	7
+int my_listen_sock;
+EXT_RAM_ATTR char addr_str[128];
+struct sockinfo{
+	int 		sock;
+	sa_family_t	sa_familyType;
+	char  		remoteIp[32];
+	u16_t		remotePort;
+};
+static void tcp_server_dealwith0(void *args);
+static void tcp_server_dealwith1(void *args);
+static void tcp_server_dealwith2(void *args);
+static void tcp_server_dealwith3(void *args);
+static void tcp_server_dealwith4(void *args);
+static void tcp_server_dealwith5(void *args);
+static void tcp_server_dealwith6(void *args);
+TaskFunction_t taskList[MAX_SOC_COUNT] = {tcp_server_dealwith0,
+		                                  tcp_server_dealwith1,
+										  tcp_server_dealwith2,
+										  tcp_server_dealwith3,
+										  tcp_server_dealwith4,
+										  tcp_server_dealwith5,
+										  tcp_server_dealwith6};
+TaskHandle_t Task_handle[MAX_SOC_COUNT] = {0};
+//WIFI事件标志组 也兼用于任务运行标志组（任务被创建就set 被删除就clean 相当于资源清单哪些资源是可用的）
+EventGroupHandle_t network_EventHandle = NULL;
+const int CONNECTED_BIT = BIT0;
+const int TASK1_BIT		= BIT1;
+const int TASK2_BIT		= BIT2;
+const int TASK3_BIT		= BIT3;
+const int TASK4_BIT		= BIT4;
+const int TASK5_BIT		= BIT5;
+const int TASK6_BIT		= BIT6;
+const int TASK7_BIT		= BIT7;
+int task_sock[MAX_SOC_COUNT] = {0};
 
 void start_fw_update(void)
 {
-	const esp_partition_t *factory = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
-	esp_ota_set_boot_partition(factory);
-	esp_restart();
+   const esp_partition_t *factory = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
+   esp_ota_set_boot_partition(factory);
+   esp_restart();
 }
 
-uint16_t read_user_data_by_block(uint16_t addr)
-{
-	uint8_t index,item=0;
-	uint16_t *block=NULL;
-	/*if( addr >= MODBUS_OUTPUT_BLOCK_FIRST && addr <= MODBUS_OUTPUT_BLOCK_LAST )
-	{
-		index = (addr - MODBUS_OUTPUT_BLOCK_FIRST) / ( (sizeof(Str_out_point) + 1) / 2);
-		block = (uint16_t *)&outputs[index];
-		item = (addr - MODBUS_OUTPUT_BLOCK_FIRST) % ((sizeof(Str_out_point) + 1) / 2);
-	}
-	else */if( addr >= MODBUS_INPUT_BLOCK_FIRST && addr <= MODBUS_INPUT_BLOCK_LAST )
-	{
-		index = (addr - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
-		block = (uint16_t *)&inputs[index];
-		item = (addr - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1) / 2);
-	}
-	return block[item];
-}
-
-uint16_t read_wifi_data_by_block(uint16_t addr)
-{
-	uint8_t item;
-	uint16_t *block;
-	uint8_t *block1;
-	uint8_t temp;
-	if(addr == MODBUS_WIFI_SSID_MANUAL_EN)
-	{
-		return SSID_Info.MANUEL_EN;
-	}
-	else if(addr == MODBUS_WIFI_MODE)
-	{
-		return SSID_Info.IP_Auto_Manual;
-	}
-	else if(addr == MODBUS_WIFI_STATUS)
-	{
-		return SSID_Info.IP_Wifi_Status;
-	}
-	else if(addr == MODBUS_WIFI_MODBUS_PORT)
-	{
-		return SSID_Info.modbus_port;
-	}
-	else if(addr == MODBUS_WIFI_BACNET_PORT)
-	{
-		return SSID_Info.bacnet_port;
-	}
-	else if(addr == MODBUS_WIFI_REV)
-	{
-		return SSID_Info.rev;
-	}
-	else if(addr == MODBUS_WIFI_WRITE_MAC)
-	{
-		//temp = read_eeprom(EEP_WRITE_WIFI_MAC);
-		temp = 0x55;
-		return temp;
-	}
-
-	else if(addr >= MODBUS_WIFI_SSID_START && addr <= MODBUS_WIFI_SSID_END)
-	{
-		block = (uint16_t *)&SSID_Info.name;
-		item = (addr - MODBUS_WIFI_SSID_START) % 32;  // size is 64
-		return block[item];
-	}
-	else if(addr >= MODBUS_WIFI_PASS_START && addr <= MODBUS_WIFI_PASS_END)
-	{
-		block = (uint16_t *)&SSID_Info.password;
-		item = (addr - MODBUS_WIFI_PASS_START) % 16;  // size is 32
-		return block[item];
-	}
-	else if((addr >= MODBUS_WIFI_IP1) && (addr <= MODBUS_WIFI_IP1 + 3))
-	{
-		block1 = (uint8_t *)&SSID_Info.ip_addr;
-		item = (addr - MODBUS_WIFI_IP1) % 4;
-		return block1[item];
-	}
-	else if((addr >= MODBUS_WIFI_NETMASK) && (addr <= MODBUS_WIFI_NETMASK + 3))
-	{
-		block1 = (uint8_t *)&SSID_Info.net_mask;
-		item = (addr - MODBUS_WIFI_NETMASK) % 4;
-		return block1[item];
-	}
-	else if((addr >= MODBUS_WIFI_GETWAY) && (addr <= MODBUS_WIFI_GETWAY + 3))
-	{
-		block1 = (uint8_t *)&SSID_Info.getway;
-		item = (addr - MODBUS_WIFI_GETWAY) % 4;
-		return block1[item];
-	}
-	else if((addr >= MDOBUS_WIFI_MACADDR) && (addr <= MDOBUS_WIFI_MACADDR + 5))
-	{
-		block1 = (uint8_t *)&SSID_Info.mac_addr;
-		item = (addr - MDOBUS_WIFI_MACADDR) % 6;
-		return block1[item];
-	}
-	else
-		return 0;
-
-}
-
-
-static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *pData,uint8_t type)
-{
-	//uint8_t i,j;
-	if(StartAdd == MODBUS_WIFI_SSID_MANUAL_EN)
-	{
-		SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
-		SSID_Info.MANUEL_EN = pData[HeadLen + 5];
-		//write_page_en[WIFI_TYPE] = 1;
-		//Flash_Write_Mass();
-		save_wifi_info();
-		//re_init_wifi = true;
-		esp_restart();
-	}
-	else if(StartAdd == MODBUS_WIFI_RESTORE)
-	{
-		//if(pData[HeadLen + 5] == 1)
-		//	Restore_WIFI();
-	}
-	else if(StartAdd == MODBUS_WIFI_MODE)
-	{
-		SSID_Info.IP_Auto_Manual = pData[HeadLen + 5];
-//		write_eeprom(WIFI_IP_AM,pData[HeadLen + 5]);
-	}
-	else if(StartAdd == MODBUS_WIFI_BACNET_PORT)
-	{
-		SSID_Info.bacnet_port = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
-	}
-	else if(StartAdd == MODBUS_WIFI_MODBUS_PORT)
-	{
-		SSID_Info.modbus_port = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
-//		write_eeprom(WIFI_MODBUS_PORT,SSID_Info.modbus_port);
-//		write_eeprom(WIFI_MODBUS_PORT + 1,SSID_Info.modbus_port >> 8);
-	}
-	else if(StartAdd == MODBUS_WIIF_START_SMART)
-	{
-		// write 1, start smart cofigure
-		//if(pData[HeadLen + 5] == 1)
-		//	Start_Smart_Config();
-		//else
-		//	Stop_Smart_Config();
-	}
-	else if(StartAdd == MODBUS_WIFI_WRITE_MAC)
-	{
-//		if(pData[HeadLen + 5] == 0)
-//			write_eeprom(EEP_WRITE_WIFI_MAC,0);
-	}
-	else if(StartAdd >= MODBUS_WIFI_SSID_START && StartAdd <= MODBUS_WIFI_SSID_END)
-	{
-		if((StartAdd - MODBUS_WIFI_SSID_START) % 32 == 0)
-		{
-			memset(&SSID_Info.name,'\0',64);
-			memcpy(&SSID_Info.name,&pData[HeadLen + 7],64);
-		}
-		//save_wifi_info();
-	}
-	else if(StartAdd >= MODBUS_WIFI_PASS_START && StartAdd <= MODBUS_WIFI_PASS_END)
-	{
-		if((StartAdd - MODBUS_WIFI_PASS_START) % 16 == 0)
-		{
-			memset(&SSID_Info.password,'\0',32);
-			memcpy(&SSID_Info.password,&pData[HeadLen + 7],32);
-		}
-		//save_wifi_info();
-	}
-	else if(StartAdd == MODBUS_WIFI_IP1)
-	{
-		if((StartAdd - MODBUS_WIFI_IP1) % 12 == 0)
-		{
-			SSID_Info.ip_addr[0] = pData[HeadLen + 8];
-			SSID_Info.ip_addr[1] = pData[HeadLen + 10];
-			SSID_Info.ip_addr[2] = pData[HeadLen + 12];
-			SSID_Info.ip_addr[3] = pData[HeadLen + 14];
-
-			SSID_Info.net_mask[0] = pData[HeadLen + 16];
-			SSID_Info.net_mask[1] = pData[HeadLen + 18];
-			SSID_Info.net_mask[2] = pData[HeadLen + 20];
-			SSID_Info.net_mask[3] = pData[HeadLen + 22];
-
-			SSID_Info.getway[0] = pData[HeadLen + 24];
-			SSID_Info.getway[1] = pData[HeadLen + 26];
-			SSID_Info.getway[2] = pData[HeadLen + 28];
-			SSID_Info.getway[3] = pData[HeadLen + 30];
-
-		}
-	}
-	else if(StartAdd == MDOBUS_WIFI_MACADDR)
-	{
-		if((StartAdd - MDOBUS_WIFI_MACADDR) % 6 == 0)
-		{
-			SSID_Info.mac_addr[0] = pData[HeadLen + 8];
-			SSID_Info.mac_addr[1] = pData[HeadLen + 10];
-			SSID_Info.mac_addr[2] = pData[HeadLen + 12];
-			SSID_Info.mac_addr[3] = pData[HeadLen + 14];
-			SSID_Info.mac_addr[4] = pData[HeadLen + 16];
-			SSID_Info.mac_addr[5] = pData[HeadLen + 18];
-
-			//ESP8266_Set_MAC(SSID_Info.mac_addr);
-			//ESP8266_Get_MAC(SSID_Info.mac_addr);
-		}
-	}
-
-}
-
-static void internalDeal(uint8_t  *bufadd,uint8_t type)
-{
-	uint16_t address;
-	uint16_t  temp_i;
-	uint8_t i;
-
-	if(type == SERIAL || type == BAC_TO_MODBUS)  // modbus packet
-	{
-		//HeadLen = 0;
-	}
-	else    // TCP packet or wifi
-	{
-	//	HeadLen = UIP_HEAD;
-		bufadd = bufadd + 6;
-	}
-
-	address = ((uint16_t)*(bufadd+2) <<8) + *(bufadd+3); //get modbus register number
-
-	if(*(bufadd+1) == MULTIPLE_WRITE_VARIABLES)
-	{
-		temp_i = (uint16_t)(*(bufadd+2) << 8) + *(bufadd+3);
-		if(temp_i >= MODBUS_WIFI_START && temp_i <= MODBUS_WIFI_END)
-		{
-			write_wifi_data_by_block(temp_i,0,bufadd,0);
-		}
-		else if(temp_i  >= MODBUS_INPUT_BLOCK_FIRST && temp_i  <= MODBUS_INPUT_BLOCK_LAST)
-		{
-			if((temp_i - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1   ) / 2) == 0)
-			{
-				i = (temp_i - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
-				memcpy(&inputs[i],&bufadd[7],sizeof(Str_in_point));
-				save_blob_info(FLASH_INPUT_INFO, (const void*)&inputs[0], INPUT_PAGE_LENTH);
-			}
-		}
-		else if(temp_i == SERIALNUMBER_LOWORD )
-		{
-			holding_reg_params.serial_number_lo = (uint16_t)(*(bufadd+10) << 8) + *(bufadd+8);
-			holding_reg_params.serial_number_hi = (uint16_t)(*(bufadd+14) << 8) + *(bufadd+12);//BUILD_UINT16(*(bufadd+12),*(bufadd+14));
-			save_uint16_to_flash(FLASH_SERIAL_NUM_LO, holding_reg_params.serial_number_lo);
-			save_uint16_to_flash(FLASH_SERIAL_NUM_HI, holding_reg_params.serial_number_hi);
-		}
-		else if(temp_i  >= TSTAT_NAME1 && temp_i <= TSTAT_NAME10)
-		{
-			if((*(bufadd +6)) <= 20)
-			{
-				for(i=0;i<*(bufadd +6);i++)			//	(data_buffer[6]*2)
-				{
-					holding_reg_params.panelname[i] = *(bufadd + 7+i);
-				}
-				save_blob_info(FLASH_PRODUCT_NAME,(const void*)holding_reg_params.panelname, 20);
-			}
-		}
-	}
-	if(*(bufadd+1) == WRITE_VARIABLES)
-	{
-		if(address >= MODBUS_WIFI_START && address <= MODBUS_WIFI_END)
-		{
-			write_wifi_data_by_block(address,0,bufadd,0);
-		}
-		else if(address == TSTAT_ADDRESS)
-		{
-			if((*(bufadd+5)!=0)&&(*(bufadd+5)!=0xff))
-			{
-				holding_reg_params.modbus_address = *(bufadd+5);
-				save_uint8_to_flash( FLASH_MODBUS_ID, holding_reg_params.modbus_address);
-			}
-		}
-		else if(address == BAUDRATE)
-		{
-			if(*(bufadd+5)<5)
-			{
-				holding_reg_params.baud_rate = *(bufadd+5);
-				save_uint8_to_flash( FLASH_BAUD_RATE, holding_reg_params.baud_rate);
-				modbus_init();
-			}
-		}
-		else if(address == FAN_MODULE_PWM1)
-		{
-			holding_reg_params.fan_module_pwm1 = *(bufadd+5);
-			if(holding_reg_params.which_project == PROJECT_FAN_MODULE){
-				ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);
-				ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-			}
-		}
-		else if(address == FAN_MODULE_PWM2)
-		{
-			holding_reg_params.fan_module_pwm2 = *(bufadd+5);
-			if(holding_reg_params.which_project == PROJECT_FAN_MODULE){
-				ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 255-holding_reg_params.fan_module_pwm2);
-				ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
-			}
-		}
-		else if(address == MODBUS_SOUND_TRIGGER)
-		{
-			sound_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_uint16_to_flash(FLASH_SOUND_TRIGGER_VALUE, sound_trigger.trigger);
-		}
-		else if(address == MODBUS_SOUND_TIMER)
-		{
-			sound_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			sound_trigger.count_down = 0;
-			save_uint16_to_flash(FLASH_SOUND_TRIGGER_TIMER, sound_trigger.timer);
-		}
-		else if(address == MODBUS_LIGHT_TRIGGER)
-		{
-			light_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_uint16_to_flash(FLASH_LIGHT_TRIGGER_VALUE, light_trigger.trigger);
-		}
-		else if(address == MODBUS_LIGHT_TIMER)
-		{
-			light_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			light_trigger.count_down = 0;
-			save_uint16_to_flash(FLASH_LIGHT_TRIGGER_TIMER, light_trigger.timer);
-		}
-		else if(address == MODBUS_CO2_TRIGGER)
-		{
-			co2_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_uint16_to_flash(FLASH_CO2_TRIGGER_VALUE, co2_trigger.trigger);
-		}
-		else if(address == MODBUS_CO2_TIMER)
-		{
-			co2_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			co2_trigger.count_down = 0;
-			save_uint16_to_flash(FLASH_CO2_TRIGGER_TIMER, co2_trigger.timer);
-		}
-		else if(address == MODBUS_OCC_TRIGGER)
-		{
-			occ_trigger.trigger = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_uint16_to_flash(FLASH_OCC_TRIGGER_VALUE, occ_trigger.trigger);
-		}
-		else if(address == MODBUS_OCC_TRIGGER_TIMER)
-		{
-			occ_trigger.timer = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			occ_trigger.count_down = 0;
-			save_uint16_to_flash(FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
-		}
-		else if(address == MODBUS_SHT31_TEMP_OFFSET)
-		{
-			holding_reg_params.sht31_temp_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_int16_to_flash(FLASH_SHT31_TEMP_OFFSET, holding_reg_params.sht31_temp_offset);
-		}
-		else if(address == MODBUS_TEMP_10K_OFFSET)
-		{
-			holding_reg_params.temp_10k_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_int16_to_flash(FLASH_10K_TEMP_OFFSET, holding_reg_params.temp_10k_offset);
-		}
-		else if(address == MODBUS_AMBIENT_TEMP_OFFSET)
-		{
-			holding_reg_params.ambient_temp_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_int16_to_flash(FLASH_AMBIENT_TEMP_OFFSET, holding_reg_params.ambient_temp_offset);
-		}
-		else if(address == MODBUS_OBJECT_TEMP_OFFSET)
-		{
-			holding_reg_params.object_temp_offset =  (((int16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			save_int16_to_flash(FLASH_OBJECT_TEMP_OFFSET, holding_reg_params.object_temp_offset);
-		}
-		else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
-		{
-			save_uint16_to_flash(FLASH_INPUT_FLAG, 0);
-		}
-		//CO2 background calibration
-		else if(address ==  MODBUS_CO2_BKCAL_ONOFF)
-		{
-				if((*(bufadd+5) == 0)||(*(bufadd+5)==1))
-				{
-					co2_bkcal_onoff = *(bufadd+5);
-					save_uint8_to_flash(FLASH_CO2_BKCAL_ONOFF, co2_bkcal_onoff);
-				}
-		}
-		else if(address == MODBUS_CO2_NATURE_LEVEL)
-		{
-				uint16_t itemp;
-				itemp =((uint16_t)*(bufadd+4)<<8) + *(bufadd+5);
-				if((itemp >= 390)&&(itemp<=500))
-				{
-					co2_level = itemp;
-					save_uint16_to_flash(FLASH_CO2_NATURE_LEVEL, co2_level);
-				}
-		}
-		else if(address == MODBUS_CO2_MIN_ADJ)
-		{
-				if((*(bufadd+5)>=1)&&(*(bufadd+5)<=10))
-				{
-					min_co2_adj = *(bufadd+5);
-					save_uint8_to_flash(FLASH_CO2_MIN_ADJ, min_co2_adj);
-				}
-		}
-		else if(address == MODBUS_CO2_CAL_DAYS)
-		{
-				if((*(bufadd+5)>=2)&&(*(bufadd+5)<=30))
-				{
-					co2_bkcal_day = *(bufadd+5);
-					save_uint16_to_flash(FLASH_CO2_CAL_DAYS, co2_bkcal_day);
-				}
-		}
-		else if(address == MODBUS_CO2_LOWVALUE_REMAIN_TIME)
-		{
-				value_keep_time = *(bufadd+5);
-				save_uint8_to_flash(FLASH_CO2_LOWVALUE_REMAIN_TIME, value_keep_time);
-		}
-		else if(address == MODBUS_CO2_BKCAL_VALUE)
-		{
-				co2_bkcal_value = (int16_t)(((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-				save_int16_to_flash(FLASH_CO2_BKCAL_VALUE, co2_bkcal_value);
-
-		}
-		else if(address == CO2_FRC_VALUE)
-		{
-			uint16_t co2_frc_temp;
-			co2_frc_temp = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
-			holding_reg_params.co2_frc = co2_frc_temp;
-		    scd4x_stop_periodic_measurement();
-			scd4x_perform_forced_recalibration( co2_frc_temp, &holding_reg_params.register100);
-			scd4x_start_periodic_measurement();
-		}
-		else if(address == CO2_ASC_ENABLE)
-		{
-			if(*(bufadd+5)<= 1)
-			{
-				holding_reg_params.co2_asc_enable =*(bufadd+5);
-				scd4x_stop_periodic_measurement();
-				scd4x_set_automatic_self_calibration(holding_reg_params.co2_asc_enable);
-				scd4x_start_periodic_measurement();
-			}
-		}
-		else if (address == UPDATE_STATUS)
-		{
-			if (*(bufadd+5) == 0x7f)
-			{
-				start_fw_update();
-			}
-		}
-		
-	}
-}
-
-static void responseData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size)
-{
-	uint8_t num, i, temp1, temp2;
-	uint16_t temp;
-	uint16_t send_cout = 0 ;
-	uint16_t address;
-	uint8_t headlen = 0;
-	uint16_t TransID;
-	uint8_t *uart_sendB,*uart_send;
-	//char test;
-
-	if(type == WIFI)
-	{
-		headlen = UIP_HEAD;
-		uart_sendB = malloc(512);
-	}
-	else{
-		headlen = 0;
-		uart_send = malloc(512);
-		//uart_write_bytes(UART_NUM_0, "responseDataSIZE=", sizeof("responseDataSIZE=")-1);
-		//test = (char)rece_size+0x30;
-		//uart_write_bytes(UART_NUM_0, &test, 1);
-	}
-	if(*(bufadd + 1 + headlen) == WRITE_VARIABLES){
-		if(type == WIFI){ // for wifi
-			for(i = 0; i < 6; i++)
-				uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
-
-			uart_sendB[0] = *bufadd;//0;			//	TransID
-			uart_sendB[1] = *(bufadd + 1);//TransID++;
-			uart_sendB[2] = 0;			//	ProtoID
-			uart_sendB[3] = 0;
-			uart_sendB[4] = 0;	//	Len
-			uart_sendB[5] = 6;
-
-			memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
-			modbus_wifi_len = UIP_HEAD + send_cout;
-		}else{
-			//uart_write_bytes(UART_NUM_0, "WRITE_VARIABLES\r\n", sizeof("WRITE_VARIABLES\r\n"));
-			for(i = 0; i < rece_size; i++)
-				uart_send[send_cout++] = *(bufadd+i);
-			if(type == BAC_TO_MODBUS){
-
-			}
-			else
-				uart_write_bytes(UART_NUM_0, (const char *)uart_send, send_cout);
-			return;
-		}
-	}else if(*(bufadd + 1 + headlen) == MULTIPLE_WRITE){
-		//init_crc16();
-		for(i = 0; i < 6; i++)
-		{
-			 if(type != WIFI)
-					uart_send[send_cout++] = *(bufadd+i) ;
-			 else//zigbee
-			 {
-					uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
-
-			 }
-			crc16_byte(*(bufadd+i));
-		}
-
-		if(type != WIFI){
-			if(type == BAC_TO_MODBUS){
-			//	memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
-			}
-			else{
-				uart_send[6] = CRChi;
-				uart_send[7] = CRClo;
-				uart_write_bytes(UART_NUM_0, (const char *)uart_send, 8);
-				return;
-			}
-		}else{
-			uart_sendB[0] = *bufadd;//0;			//	TransID
-			uart_sendB[1] = *(bufadd + 1);//TransID++;
-			uart_sendB[2] = 0;			//	ProtoID
-			uart_sendB[3] = 0;
-			uart_sendB[4] = 0;	//	Len
-			uart_sendB[5] = 6;
-			memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
-			modbus_wifi_len = UIP_HEAD + send_cout;
-		}
-	}else if(*(bufadd + 1 + headlen) == READ_VARIABLES){
-		num = *(bufadd+5 + headlen);
-		if(type!=WIFI)
-		{
-			uart_send[send_cout++] = *(bufadd) ;
-			uart_send[send_cout++] = *(bufadd+1) ;
-			uart_send[send_cout++] = (*(bufadd+5)<<1);
-		}
-		else//WIFI
-		{
-			uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + headlen);
-			uart_sendB[UIP_HEAD + send_cout++] = *(bufadd+1 + headlen) ;
-			uart_sendB[UIP_HEAD + send_cout++] = (*(bufadd +5 + headlen)<<1);
-		}
-		crc16_byte(*(bufadd + headlen));
-		crc16_byte(*(bufadd +1 + headlen));
-		crc16_byte((*(bufadd + 5 + headlen)<<1));
-		for(i = 0; i < num; i++)
-		{
-			address = (uint16_t)((*(bufadd+2 + headlen))<<8) + (*(bufadd+3 + headlen)) + i;
-			if(address == SERIALNUMBER_LOWORD )
-			{
-				temp1 = 0 ;
-				temp2 = (uint8_t)(holding_reg_params.serial_number_lo);//BREAK_UINT32(holding_reg_params.serial_number_lo,0);
-			}
-			else if(address == (SERIALNUMBER_LOWORD +1))
-			{
-				temp1 = 0 ;
-				temp2 = (uint8_t)(holding_reg_params.serial_number_lo>>8);
-			}
-			else if(address == SERIALNUMBER_HIWORD)
-			{
-				temp1 = 0 ;
-				temp2 = LO_UINT16(holding_reg_params.serial_number_hi);
-			}
-			else if(address == (SERIALNUMBER_HIWORD +1))
-			{
-				temp1 = 0 ;
-				temp2 = HI_UINT16(holding_reg_params.serial_number_hi);
-			}
-			else if(address == VERSION_NUMBER_LO)
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.version_number_lo & 0xff;
-			}
-
-			else if(address == VERSION_NUMBER_HI)
-			{
-				temp1 = 0;//(EEPROM_VERSION >> 8) & 0xff;
-				temp2 = 0;//FirmwareVersion_HI;
-			}
-			else if(address == TSTAT_ADDRESS)
-			{
-				temp1 = 0; ;
-				temp2 = holding_reg_params.modbus_address & 0xff;
-			}
-			else if(address == PRODUCT_MODEL)
-			{
-				temp1 = 0 ;
-				temp2 = holding_reg_params.product_model&0xff;
-			}
-			else if(address == HARDWARE_REV)
-			{
-				temp1 = 0 ;
-				temp2 = holding_reg_params.hardware_version ;
-			}
-			else if(address == BAUDRATE)
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.baud_rate;
-			}
-			else if(address == MODBUS_ETHERNET_STATUS)
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.ethernet_status;
-			}
-			else if((address>=MODBUS_TEST_BUF_1)&&(address<MODBUS_TEST_BUF_20))
-			{
-				temp1 = (holding_reg_params.testBuf[address-MODBUS_TEST_BUF_1]>>8)&0xff;
-				temp2 = holding_reg_params.testBuf[address-MODBUS_TEST_BUF_1]&0xff;
-			}
-			else if((address >= MAC_ADDR_1) && (address <= MAC_ADDR_6))
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.mac_addr[address - MAC_ADDR_1];
-			}
-			else if((address >= IP_ADDR_1) && (address <= IP_ADDR_4))
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.ip_addr[address - IP_ADDR_1];
-			}
-			else if((address >= IP_SUB_MASK_1)&& (address <= IP_SUB_MASK_4))
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.ip_net_mask[address - IP_SUB_MASK_1];
-			}
-
-			else if((address >= IP_GATE_WAY_1)&& (address <= IP_GATE_WAY_4))
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.ip_gateway[address - IP_GATE_WAY_1];
-			}
-			else if(address == WIFI_RSSI)
-			{
-				temp1 = 0xff;
-				temp2 = SSID_Info.rssi;
-			}
-			else if(address == FAN_MODULE_PWM1)
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.fan_module_pwm1;
-			}
-			else if(address == FAN_MODULE_PWM2)
-			{
-				temp1 = 0;
-				temp2 = holding_reg_params.fan_module_pwm2;
-			}
-			else if(address == FAN_MODULE_PULSE)
-			{
-				temp = holding_reg_params.fan_module_pulse*6;
-				//temp1 = ((uint8_t)(holding_reg_params.fan_module_pulse) >> 8) & 0xFF;;
-				//temp2 = (uint8_t)(holding_reg_params.fan_module_pulse) & 0xFF;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == FAN_MODULE_INPUT_VOLTAGE)
-			{
-				temp = holding_reg_params.fan_module_input_voltage;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == FAN_MODULE_10K_TEMP)
-			{
-				temp = holding_reg_params.fan_module_10k_temp;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == MODBUS_SHT31_TEMP_OFFSET)
-			{
-				temp = holding_reg_params.sht31_temp_offset;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == MODBUS_TEMP_10K_OFFSET)
-			{
-				temp = holding_reg_params.temp_10k_offset;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == MODBUS_AMBIENT_TEMP_OFFSET)
-			{
-				temp = holding_reg_params.ambient_temp_offset;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == MODBUS_OBJECT_TEMP_OFFSET)
-			{
-				temp = holding_reg_params.object_temp_offset;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == TEMPRATURE_CHIP)
-			{
-				temp = g_sensors.temperature;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == ANALOG_INPUT8_VALUE)
-			{
-				temp = g_sensors.voc_value;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == EXTERNAL_SENSOR1)
-			{
-				//temp = g_sensors.co2;
-				temp1 = (g_sensors.co2 >> 8) & 0xFF;
-				temp2 =(uint8_t) g_sensors.co2 & 0xFF;
-			}
-			else if(address == EXTERNAL_SENSOR2)
-			{
-				temp = g_sensors.humidity;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if( address == (EXTERNAL_SENSOR2+3))
-			{
-				//temp = 123;//g_sensors.infrared_temp1;
-				if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-				{
-					temp1 = ((uint8_t)(mlx90614_ambient*10) >> 8) & 0xFF;;
-					temp2 = (uint8_t)(mlx90614_ambient*10) & 0xFF;
-				}
-				else
-				{
-					temp1 = ((uint8_t)(ambient*10) >> 8) & 0xFF;;
-					temp2 = (uint8_t)(ambient*10) & 0xFF;
-				}
-			}
-			else if( address == (EXTERNAL_SENSOR2+4))
-			{
-				//temp = 123;//g_sensors.infrared_temp1;
-				if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-				{
-					temp1 = ((uint8_t)(mlx90614_object*10) >> 8) & 0xFF;;
-					temp2 = (uint8_t)(mlx90614_object*10) & 0xFF;
-				}
-				else
-				{
-					temp1 = ((uint8_t)(object*10) >> 8) & 0xFF;;
-					temp2 = (uint8_t)(object*10) & 0xFF;
-				}
-			}
-			else if( address == COOLHEATMODE)//(EXTERNAL_SENSOR2+3))
-			{
-				//temp = 123;//g_sensors.infrared_temp1;
-				temp1 = (g_sensors.ambient >> 8) & 0xFF;;
-				temp2 = (uint8_t)g_sensors.ambient & 0xFF;
-			}
-			else if( address == PID1_MODE_OPERATION)//(EXTERNAL_SENSOR2+4))
-			{
-				//temp = 123;//g_sensors.infrared_temp1;
-				temp1 = (g_sensors.object >> 8) & 0xFF;;
-				temp2 = (uint8_t)g_sensors.object & 0xFF;
-			}
-			else if(address == VOC_DATA)
-			{
-				//temp = g_sensors.voc_value;
-				temp1 = (g_sensors.voc_value >> 8) & 0xFF;
-				temp2 = (uint8_t)g_sensors.voc_value & 0xFF;
-			}
-			else if(address == PIR_SENSOR_VALUE)
-			{
-				temp1 = 0;
-				temp2 = g_sensors.occ & 0xFF;
-			}
-			else if(address == MIC_SOUND)
-			{
-				temp1 = (uint8_t) (g_sensors.sound >> 8) & 0xFF;
-				temp2 = (uint8_t)g_sensors.sound & 0xFF;
-			}
-			else if(address >= MODBUS_WIFI_START &&  address <= MODBUS_WIFI_END)
-			{
-				temp = read_wifi_data_by_block(address);
-
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == LIGHT_SENSOR)
-			{
-				temp = g_sensors.light_value;
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}
-			else if(address == MODBUS_SOUND_TRIGGER)
-			{
-				temp1 = (uint8_t)(sound_trigger.trigger>>8)&0xff;
-				temp2 = (uint8_t)sound_trigger.trigger;
-			}
-			else if(address == MODBUS_SOUND_TIMER)
-			{
-				temp1 = (uint8_t)(sound_trigger.timer>>8)&0xff;
-				temp2 = (uint8_t)sound_trigger.timer;
-			}
-			else if(address == MODBUS_SOUND_ALARM_ON)
-			{
-				temp1 = (uint8_t)(sound_trigger.alarmOn>>8)&0xff;
-				temp2 = (uint8_t)sound_trigger.alarmOn;
-			}
-			else if(address == MODBUS_SOUND_COUNT_DOWN)
-			{
-				temp1 = (uint8_t)(sound_trigger.count_down>>8)&0xff;
-				temp2 = (uint8_t)sound_trigger.count_down;
-			}
-			else if(address == MODBUS_LIGHT_TRIGGER)
-			{
-				temp1 = (uint8_t)(light_trigger.trigger>>8)&0xff;
-				temp2 = (uint8_t)light_trigger.trigger;
-			}
-			else if(address == MODBUS_LIGHT_TIMER)
-			{
-				temp1 = (uint8_t)(light_trigger.timer>>8)&0xff;
-				temp2 = (uint8_t)light_trigger.timer;
-			}
-			else if(address == MODBUS_LIGHT_ALARM_ON)
-			{
-				temp1 = (uint8_t)(light_trigger.alarmOn>>8)&0xff;
-				temp2 = (uint8_t)light_trigger.alarmOn;
-			}
-			else if(address == MODBUS_LIGHT_COUNT_DOWN)
-			{
-				temp1 = (uint8_t)(light_trigger.count_down>>8)&0xff;
-				temp2 = (uint8_t)light_trigger.count_down;
-			}
-			else if(address == MODBUS_CO2_TRIGGER)
-			{
-				temp1 = (uint8_t)(co2_trigger.trigger>>8)&0xff;
-				temp2 = (uint8_t)co2_trigger.trigger;
-			}
-			else if(address == MODBUS_CO2_TIMER)
-			{
-				temp1 = (uint8_t)(co2_trigger.timer>>8)&0xff;
-				temp2 = (uint8_t)co2_trigger.timer;
-			}
-			else if(address == MODBUS_CO2_ALARM_ON)
-			{
-				temp1 = (uint8_t)(co2_trigger.alarmOn>>8)&0xff;
-				temp2 = (uint8_t)co2_trigger.alarmOn;
-			}
-			else if(address == MODBUS_CO2_COUNT_DOWN)
-			{
-				temp1 = (uint8_t)(co2_trigger.count_down>>8)&0xff;
-				temp2 = (uint8_t)co2_trigger.count_down;
-			}
-			else if(address == MODBUS_OCC_TRIGGER)
-			{
-				temp1 = (uint8_t)(occ_trigger.trigger>>8)&0xff;
-				temp2 = (uint8_t)occ_trigger.trigger;
-			}
-			else if(address == MODBUS_OCC_TRIGGER_TIMER)
-			{
-				temp1 = (uint8_t)(occ_trigger.timer>>8)&0xff;
-				temp2 = (uint8_t)occ_trigger.timer;
-			}
-			else if(address == MODBUS_OCC_ALARM_ON)
-			{
-				temp1 = (uint8_t)(occ_trigger.alarmOn>>8)&0xff;
-				temp2 = (uint8_t)occ_trigger.alarmOn;
-			}
-			else if(address == MODBUS_OCC_COUNT_DOWN)
-			{
-				temp1 = (uint8_t)(occ_trigger.count_down>>8)&0xff;
-				temp2 = (uint8_t)occ_trigger.count_down;
-			}
-			//CO2 background calibration
-			else if(address == MODBUS_CO2_BKCAL_ONOFF)
-			{
-				temp1 = 0;
-				temp2 = co2_bkcal_onoff;
-			}
-			else if(address == MODBUS_CO2_NATURE_LEVEL)
-			{
-				temp1 = (uint8_t)(co2_level>>8)&0xff;;
-				temp2 = (uint8_t)co2_level;
-			}
-			else if(address == MODBUS_CO2_MIN_ADJ)
-			{
-				temp1 = 0;
-				temp2 = min_co2_adj;
-			}
-			else if(address == MODBUS_CO2_CAL_DAYS)
-			{
-				temp1 = 0;
-				temp2 = co2_bkcal_day;
-			}
-			else if(address == MODBUS_CO2_LOWVALUE_REMAIN_TIME)
-			{
-				temp1 = 0;
-				temp2 = value_keep_time;
-			}
-			else if(address == MODBUS_CO2_BKCAL_VALUE)
-			{
-				temp1 = (uint8_t)(co2_bkcal_value>>8)&0xff;
-				temp2 = (uint8_t)co2_bkcal_value;
-			}
-			else if(address == MODBUS_CO2_LOWVALUE)
-			{
-				temp1 = (uint8_t)(co2_lowest_value>>8)&0xff;
-				temp2 = (uint8_t)co2_lowest_value;
-			}
-			else if(address == CO2_FRC_VALUE)
-			{
-				temp1 = (uint8_t)(holding_reg_params.co2_frc>>8)&0xff;
-				temp2 = (uint8_t)holding_reg_params.co2_frc;
-			}
-			else if(address == CO2_ASC_VALUE)
-			{
-				temp1 = (uint8_t)(holding_reg_params.co2_asc_enable>>8)&0xff;
-				temp2 = (uint8_t)holding_reg_params.co2_asc_enable;
-			}
-			else if(address == TSTAT_NAME_ENABLE)
-			{
-				temp1 = 0;
-				temp2 = 0x56;
-			}
-			else if((address >= TSTAT_NAME1) && (address <= TSTAT_NAME10))
-			{
-				uint16_t temp_modbus_name = address - TSTAT_NAME1;
-				//temp1= Scan_Infor.panelname[temp_modbus_name * 2];
-				//temp2= Scan_Infor.panelname[temp_modbus_name * 2 + 1];
-				temp1= holding_reg_params.panelname[temp_modbus_name * 2];
-				temp2= holding_reg_params.panelname[temp_modbus_name * 2 + 1];
-			}
-			/*else if((address>= MODBUS_OUTPUT_BLOCK_FIRST)&&(address<=MODBUS_INPUT_BLOCK_LAST))
-			{
-				temp = read_user_data_by_block(address);
-
-				temp1 = (temp >> 8) & 0xFF;
-				temp2 = temp & 0xFF;
-			}*/
-			else if((address >= MODBUS_INPUT_BLOCK_FIRST)&&(address<= MODBUS_INPUT_BLOCK_LAST))
-			{
-				uint8_t index,item;
-				uint16_t *block;
-				index = (address-MODBUS_INPUT_BLOCK_FIRST)/((sizeof(Str_in_point)+1)/2);
-				block = (uint16_t *)&inputs[index];
-				item = (address-MODBUS_INPUT_BLOCK_FIRST)%((sizeof(Str_in_point)+1)/2);
-				temp1 = (block[item]>>8)&0xff;
-				temp2 = block[item]&0xff;
-			}
-			else if(address == MODBUS_EX_MOUDLE_EN)
-			{
-				temp1 = 0;
-				temp2 = 0x55;
-			}
-			else if(address == MODBUS_EX_MOUDLE_FLAG12)
-			{
-				if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-				{
-					temp1 = 0x10;
-					temp2 = 0xc7;
-				}
-				else if(holding_reg_params.which_project == PROJECT_SAUTER)
-				{
-					temp1 = 0x13;
-					temp2 = 0xff;
-				}
-				else
-				{
-					temp1 = 0;
-					temp2 = 0;
-				}
-			}
-			else
-			{
-				temp1 = 0 ;
-				temp2 = 0;
-			}
-			if(type!=WIFI)//
-			{
-				uart_send[send_cout++] = temp1 ;
-				uart_send[send_cout++] = temp2 ;
-				crc16_byte(temp1);
-				crc16_byte(temp2);
-			}
-			else
-			{
-				uart_sendB[UIP_HEAD + send_cout++] = temp1 ;
-				uart_sendB[UIP_HEAD + send_cout++] = temp2 ;
-				TransID =  (uint16_t)(*(bufadd) << 8) | (*(bufadd + 1));
-				uart_sendB[0] = TransID >> 8;			//	TransID
-				uart_sendB[1] = TransID;
-				uart_sendB[2] = 0;			//	ProtoID
-				uart_sendB[3] = 0;
-				uart_sendB[4] = (3 + num * 2) >> 8;	//	Len
-				uart_sendB[5] = (uint8_t)(3 + num * 2) ;
-			}
-		}
-	}else if(*(bufadd+1 + headlen) == CHECKONLINE){
-		if(type!=WIFI){
-			uart_send[send_cout++] = 0xff;
-			uart_send[send_cout++] = 0x19;
-			uart_send[send_cout++] = holding_reg_params.modbus_address;
-			uart_send[send_cout++] = LO_UINT16(holding_reg_params.serial_number_lo);
-			uart_send[send_cout++] = HI_UINT16(holding_reg_params.serial_number_lo);
-			uart_send[send_cout++] = LO_UINT16(holding_reg_params.serial_number_hi);
-			uart_send[send_cout++] = HI_UINT16(holding_reg_params.serial_number_hi);
-			for(i=0;i<send_cout;i++)
-				crc16_byte(uart_send[i]);
-		}
-	}else
-		return;
-
-	temp1 = CRChi ;
-	temp2 = CRClo;
-	if(type == WIFI)
-	{
-		memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
-		modbus_wifi_len = UIP_HEAD + send_cout;
-		free(uart_sendB);
-	}else{
-		uart_send[send_cout++] = temp1 ;
-		uart_send[send_cout++] = temp2 ;
-		holding_reg_params.led_rx485_tx = 2;
-		holding_reg_params.stm32_uart_send[1] = 1;
-		uart_write_bytes(UART_NUM_0, (const char *)uart_send, send_cout);
-
-		free(uart_send);
-	}
-}
-
-
-
-void responseCmd(uint8_t type, uint8_t *pData, uint16_t len)
-{
-	if(type == WIFI)
-	{
-		reg_num = pData[4]*256 + pData[5];
-		responseData(pData,WIFI, len);
-		internalDeal(pData,WIFI);
-	}
-	else if(type == BAC_TO_MODBUS)
-	{
-
-	}
-	else
-	{
-		reg_num = pData[4]*256 + pData[5];
-		//uart_write_bytes(UART_NUM_0, "responseCmd\r\n", sizeof("responseCmd\r\n"));
-		responseData(pData,SERIAL,len);
-		internalDeal(pData,SERIAL);
-	}
-}
 
 void UdpData(unsigned char type)
 {
-	// header 2 bytes
-	memset(&Scan_Infor,0,sizeof(STR_SCAN_CMD));
-	if(type == 0)
-		Scan_Infor.cmd = 0x0065;
-	else if(type == 1)
-		Scan_Infor.cmd = 0x0067;
+   // header 2 bytes
+   memset(&Scan_Infor,0,sizeof(STR_SCAN_CMD));
+   if(type == 0)
+      Scan_Infor.cmd = 0x0065;
+   else if(type == 1)
+      Scan_Infor.cmd = 0x0067;
 
-	Scan_Infor.len = 0x001d;
+   Scan_Infor.len = 0x001d;
 
-	//serialnumber 4 bytes
-	Scan_Infor.own_sn[0] = LO_UINT16(holding_reg_params.serial_number_lo);//BREAK_UINT32(holding_reg_params.serial_number_hi,1);//0;//SerialNumber(0);//(unsigned short int)Modbus.serialNum[0];
-	Scan_Infor.own_sn[1] = HI_UINT16(holding_reg_params.serial_number_lo);//BREAK_UINT32(holding_reg_params.serial_number_hi,0);//1;//SerialNumber(1);//(unsigned short int)Modbus.serialNum[1];
-	Scan_Infor.own_sn[2] = LO_UINT16(holding_reg_params.serial_number_hi);//BREAK_UINT32(holding_reg_params.serial_number_lo,1);//35;//SerialNumber(2);//(unsigned short int)Modbus.serialNum[2];
-	Scan_Infor.own_sn[3] = HI_UINT16(holding_reg_params.serial_number_hi);//BREAK_UINT32(holding_reg_params.serial_number_lo,0);//255;//SerialNumber(3);//(unsigned short int)Modbus.serialNum[3];
+   //serialnumber 4 bytes
+   Scan_Infor.own_sn[0] = (unsigned short int)Modbus.serialNum[0];
+   Scan_Infor.own_sn[1] = (unsigned short int)Modbus.serialNum[1];
+   Scan_Infor.own_sn[2] = (unsigned short int)Modbus.serialNum[2];
+   Scan_Infor.own_sn[3] = (unsigned short int)Modbus.serialNum[3];
 
-	Scan_Infor.product = holding_reg_params.product_model&0xff;//PM_TSTAT_AQ;//PRODUCT_MINI_ARM;  // only for test now
+   Scan_Infor.product = Modbus.product_model&0xff;//PM_TSTAT_AQ;//PRODUCT_MINI_ARM;  // only for test now
 
-	//modbus address
-	Scan_Infor.address = holding_reg_params.modbus_address;//laddress;//(unsigned short int)Modbus.address;
+   //modbus address
+   Scan_Infor.address = Modbus.address;//laddress;//(unsigned short int)Modbus.address;
 
-	//Ip
-	if(holding_reg_params.ethernet_status == 2)
-	{
-		Scan_Infor.ipaddr[0] = holding_reg_params.ip_addr[0];//(unsigned short int)SSID_Info.ip_addr[0];
-		Scan_Infor.ipaddr[1] = holding_reg_params.ip_addr[1];//(unsigned short int)SSID_Info.ip_addr[1];
-		Scan_Infor.ipaddr[2] = holding_reg_params.ip_addr[2];//(unsigned short int)SSID_Info.ip_addr[2];
-		Scan_Infor.ipaddr[3] = holding_reg_params.ip_addr[3];//(unsigned short int)SSID_Info.ip_addr[3];
-	}
-	else
-	{
-		Scan_Infor.ipaddr[0] = SSID_Info.ip_addr[0];
-		Scan_Infor.ipaddr[1] = SSID_Info.ip_addr[1];
-		Scan_Infor.ipaddr[2] = SSID_Info.ip_addr[2];
-		Scan_Infor.ipaddr[3] = SSID_Info.ip_addr[3];
-	}
+   //Ip
+   if(Modbus.ethernet_status == 2)
+   {
+      Scan_Infor.ipaddr[0] = Modbus.ip_addr[0];//(unsigned short int)SSID_Info.ip_addr[0];
+      Scan_Infor.ipaddr[1] = Modbus.ip_addr[1];//(unsigned short int)SSID_Info.ip_addr[1];
+      Scan_Infor.ipaddr[2] = Modbus.ip_addr[2];//(unsigned short int)SSID_Info.ip_addr[2];
+      Scan_Infor.ipaddr[3] = Modbus.ip_addr[3];//(unsigned short int)SSID_Info.ip_addr[3];
+   }
+   else
+   {
+      Scan_Infor.ipaddr[0] = SSID_Info.ip_addr[0];
+      Scan_Infor.ipaddr[1] = SSID_Info.ip_addr[1];
+      Scan_Infor.ipaddr[2] = SSID_Info.ip_addr[2];
+      Scan_Infor.ipaddr[3] = SSID_Info.ip_addr[3];
+   }
 
-	//port
-	Scan_Infor.modbus_port = 502;//SSID_Info.modbus_port;  //tbd :????????????????
+   //port
+   Scan_Infor.modbus_port = 502;//SSID_Info.modbus_port;  //tbd :????????????????
 
-	// software rev
-	Scan_Infor.firmwarerev = holding_reg_params.version_number_lo;//EEPROM_VERSION;
-	// hardware rev
-	Scan_Infor.hardwarerev = holding_reg_params.hardware_version;//HardwareVersion;
+   // software rev
+   Scan_Infor.firmwarerev = SW_REV;
+   // hardware rev
+   Scan_Infor.hardwarerev = Modbus.hardRev;//HardwareVersion;
 
-	Scan_Infor.instance_low = htons(23456); // hight byte first
-	Scan_Infor.panel_number = holding_reg_params.modbus_address;//laddress; //  36
-	Scan_Infor.instance_hi = htons(23456 >> 16); // hight byte first
+   Scan_Infor.instance_low = htons(Instance); // hight byte first
+   Scan_Infor.panel_number = Modbus.address;//laddress; //  36
+   Scan_Infor.instance_hi = htons(Instance >> 16); // hight byte first
 
-	Scan_Infor.bootloader = 0;  // 0 - app, 1 - bootloader, 2 - wrong bootloader
+   Scan_Infor.bootloader = 0;  // 0 - app, 1 - bootloader, 2 - wrong bootloader
 
-	Scan_Infor.BAC_port = 47808;//SSID_Info.bacnet_port;//((Modbus.Bip_port & 0x00ff) << 8) + (Modbus.Bip_port >> 8);  //
-	Scan_Infor.zigbee_exist = 0; // 0 - inexsit, 1 - exist
-	Scan_Infor.subnet_protocal = 0;
-	Scan_Infor.master_sn[0] = 0;
-	Scan_Infor.master_sn[1] = 0;
-	Scan_Infor.master_sn[2] = 0;
-	Scan_Infor.master_sn[3] = 0;
-	memcpy(Scan_Infor.panelname, holding_reg_params.panelname,20);
-/*	if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-		memcpy(Scan_Infor.panelname,(char*)"Fan-Module ",12);
-	else
-		memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
-*/
-//	state = 1;
-//	scanstart = 0;
+   Scan_Infor.BAC_port = 47808;//SSID_Info.bacnet_port;//((Modbus.Bip_port & 0x00ff) << 8) + (Modbus.Bip_port >> 8);  //
+   Scan_Infor.zigbee_exist = 0; // 0 - inexsit, 1 - exist
+   Scan_Infor.subnet_protocal = 0;
+   Scan_Infor.master_sn[0] = 0;
+   Scan_Infor.master_sn[1] = 0;
+   Scan_Infor.master_sn[2] = 0;
+   Scan_Infor.master_sn[3] = 0;
+   if(Modbus.product_model == 88)
+      memcpy(Scan_Infor.panelname,(char*)"T3-XB-ESP   ",12);
+   else
+      memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
 
+//   state = 1;
+//   scanstart = 0;
+
+}
+
+EXT_RAM_ATTR uint8_t PDUBuffer_BIP[MAX_APDU];
+uint16_t  bip_len;
+uint8_t * bip_Data;
+extern uint8_t far bip_send_buf[MAX_MPDU_IP];
+extern int bip_send_len;
+
+uint16_t Get_bip_len(void)
+{
+	return bip_len;
+}
+
+
+static void bip_task(void *pvParameters)
+{
+   // char rx_buffer[600];
+    char addr_str[128];
+    int addr_family;
+    int ip_protocol;
+
+    uint16_t pdu_len = 0;
+    BACNET_ADDRESS far src; /* source address */
+    bip_set_socket(47808);
+    while (1) {
+       //if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
+       {
+   #ifdef CONFIG_EXAMPLE_IPV4
+         struct sockaddr_in dest_addr;
+         dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+         dest_addr.sin_family = AF_INET;
+         dest_addr.sin_port = htons(47808);
+         addr_family = AF_INET;
+         ip_protocol = IPPROTO_IP;
+         inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+   #else // IPV6
+         struct sockaddr_in6 dest_addr;
+         bzero(&dest_addr.sin6_addr.un, sizeof(dest_addr.sin6_addr.un));
+         dest_addr.sin6_family = AF_INET6;
+         dest_addr.sin6_port = htons(PORT);
+         addr_family = AF_INET6;
+         ip_protocol = IPPROTO_IPV6;
+         inet6_ntoa_r(dest_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+   #endif
+
+         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+         if (sock < 0) {
+            ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
+            break;
+         }
+         ESP_LOGI(UDP_TASK_TAG, "Socket created");
+
+         int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+         if (err < 0) {
+            ESP_LOGE(UDP_TASK_TAG, "Socket unable to bind: errno %d", errno);
+         }
+         ESP_LOGI(UDP_TASK_TAG, "Socket bound, port %d", PORT);
+
+         while (1) {
+
+            ESP_LOGI(UDP_TASK_TAG, "Waiting for data");
+            struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
+            socklen_t socklen = sizeof(source_addr);
+            int len = recvfrom(sock, PDUBuffer_BIP, sizeof(PDUBuffer_BIP) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+
+            bip_len = len;
+            bip_Data = PDUBuffer_BIP;
+            // Error occurred during receiving
+            if (len < 0) {
+               ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
+               break;
+            }
+            // Data received
+            else
+            {
+               // Get the sender's ip address as string
+               if (source_addr.sin6_family == PF_INET) {
+                  inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
+                  ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
+               } else if (source_addr.sin6_family == PF_INET6) {
+                  inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+                  ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
+               }
+
+               //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
+               ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
+               ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, PDUBuffer_BIP, len);
+
+
+
+               pdu_len = datalink_receive(&src, &PDUBuffer_BIP[0], sizeof(PDUBuffer_BIP), 0,BAC_IP);
+				{
+					if(pdu_len)
+					{
+						npdu_handler(&src, &PDUBuffer_BIP[0], pdu_len, BAC_IP);
+						if(bip_send_len > 0)
+						{
+							sendto(sock, (uint8_t *)&bip_send_buf, bip_send_len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+							bip_send_len = 0;
+							memset(bip_send_buf,0,MAX_MPDU_IP);
+						}
+					}
+				}
+
+
+
+                 /* UdpData(0);
+                  ESP_LOGI(UDP_TASK_TAG, "receive data buffer[0] = 0x64");
+                  int err = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+                  if (err < 0) {
+                     ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+                     break;
+                  }*/
+               }
+
+         }
+
+         if (sock != -1) {
+            ESP_LOGE(UDP_TASK_TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+         }
+      }
+      vTaskDelete(NULL);
+    }
 }
 
 static void udp_server_task(void *pvParameters)
@@ -1182,249 +328,819 @@ static void udp_server_task(void *pvParameters)
     int ip_protocol;
 
     while (1) {
-    	//if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
-    	{
-	#ifdef CONFIG_EXAMPLE_IPV4
-			struct sockaddr_in dest_addr;
-			dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-			dest_addr.sin_family = AF_INET;
-			dest_addr.sin_port = htons(1234);
-			addr_family = AF_INET;
-			ip_protocol = IPPROTO_IP;
-			inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
-	#else // IPV6
-			struct sockaddr_in6 dest_addr;
-			bzero(&dest_addr.sin6_addr.un, sizeof(dest_addr.sin6_addr.un));
-			dest_addr.sin6_family = AF_INET6;
-			dest_addr.sin6_port = htons(PORT);
-			addr_family = AF_INET6;
-			ip_protocol = IPPROTO_IPV6;
-			inet6_ntoa_r(dest_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-	#endif
+       //if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
+       {
+   #ifdef CONFIG_EXAMPLE_IPV4
+         struct sockaddr_in dest_addr;
+         dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+         dest_addr.sin_family = AF_INET;
+         dest_addr.sin_port = htons(1234);
+         addr_family = AF_INET;
+         ip_protocol = IPPROTO_IP;
+         inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+   #else // IPV6
+         struct sockaddr_in6 dest_addr;
+         bzero(&dest_addr.sin6_addr.un, sizeof(dest_addr.sin6_addr.un));
+         dest_addr.sin6_family = AF_INET6;
+         dest_addr.sin6_port = htons(PORT);
+         addr_family = AF_INET6;
+         ip_protocol = IPPROTO_IPV6;
+         inet6_ntoa_r(dest_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+   #endif
 
-			int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
-			if (sock < 0) {
-				ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
-				break;
-			}
-			ESP_LOGI(UDP_TASK_TAG, "Socket created");
+         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+         if (sock < 0) {
+            ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
+            break;
+         }
+         ESP_LOGI(UDP_TASK_TAG, "Socket created");
 
-			int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-			if (err < 0) {
-				ESP_LOGE(UDP_TASK_TAG, "Socket unable to bind: errno %d", errno);
-			}
-			ESP_LOGI(UDP_TASK_TAG, "Socket bound, port %d", PORT);
+         int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+         if (err < 0) {
+            ESP_LOGE(UDP_TASK_TAG, "Socket unable to bind: errno %d", errno);
+         }
+         ESP_LOGI(UDP_TASK_TAG, "Socket bound, port %d", PORT);
 
-			while (1) {
+         while (1) {
 
-				ESP_LOGI(UDP_TASK_TAG, "Waiting for data");
-				struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
-				socklen_t socklen = sizeof(source_addr);
-				int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+            ESP_LOGI(UDP_TASK_TAG, "Waiting for data");
+            struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
+            socklen_t socklen = sizeof(source_addr);
+            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
 
-				// Error occurred during receiving
-				if (len < 0) {
-					ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
-					break;
-				}
-				// Data received
-				else 
-				{
-					// Get the sender's ip address as string
-					if (source_addr.sin6_family == PF_INET) {
-						inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-						ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
-					} else if (source_addr.sin6_family == PF_INET6) {
-						inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-						ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
-					}
+            // Error occurred during receiving
+            if (len < 0) {
+               ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
+               break;
+            }
+            // Data received
+            else 
+            {
+               // Get the sender's ip address as string
+               if (source_addr.sin6_family == PF_INET) {
+                  inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
+                  ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
+               } else if (source_addr.sin6_family == PF_INET6) {
+                  inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+                  ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
+               }
 
-					//rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-					ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
-					ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, rx_buffer, len);
+               //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
+               ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
+               ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, rx_buffer, len);
 
-					if(rx_buffer[0] == 0x64)
-					{
-						UdpData(0);
-						ESP_LOGI(UDP_TASK_TAG, "receive data buffer[0] = 0x64");
-						int err = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-						if (err < 0) {
-							ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
-							break;
-						}
-					}
-				}
-			}
+               if(rx_buffer[0] == 0x64)
+               {
+                  UdpData(0);
+                  ESP_LOGI(UDP_TASK_TAG, "receive data buffer[0] = 0x64");
+                  int err = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+                  if (err < 0) {
+                     ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+                     break;
+                  }
+               }
+            }
+         }
 
-			if (sock != -1) {
-				ESP_LOGE(UDP_TASK_TAG, "Shutting down socket and restarting...");
-				shutdown(sock, 0);
-				close(sock);
-			}
-		}
-		vTaskDelete(NULL);
+         if (sock != -1) {
+            ESP_LOGE(UDP_TASK_TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+         }
+      }
+      vTaskDelete(NULL);
     }
 }
 
-int my_listen_sock;
-static void tcp_server_task(void *pvParameters)
+//static uint8_t previousSock;
+#define MAX_TCP_CONN  7
+EXT_RAM_ATTR int sock[MAX_TCP_CONN];
+EXT_RAM_ATTR int Sock_table[MAX_TCP_CONN];
+//char len;
+EXT_RAM_ATTR char rx_buffer[MAX_TCP_CONN][512];
+xSemaphoreHandle sem_tcp_server;
+int Modbus_Tcp(uint16_t len,int sock,char* rx_buffer)
 {
-    char rx_buffer[512];
-    char addr_str[128];
-    int addr_family;
-    int ip_protocol;
-    uint16_t testCount = 0;
-    struct sockaddr_in dest_addr;
-	dest_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	dest_addr.sin_family = AF_INET;
-	dest_addr.sin_port = htons(502);
-	addr_family = AF_INET;
-	ip_protocol = IPPROTO_IP;
-
-	struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
-	uint addr_len;
-	int sock;
-	int len;
-
-	isSocketCreated = true;
-
-	//if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
+	uint8_t modbus_send_buf[500];
+	uint16_t modbus_send_len;
+	memset(modbus_send_buf,0,500);
+	modbus_send_len = 0;
+	if (len == 5)
 	{
-		// ^^^^^^^^^^^^^^^^^^^TCP^^^^^^^^^
-		my_listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
-		if (my_listen_sock < 0) {
-			//holding_reg_params.testBuf[12] = 1000;
-			ESP_LOGE(TCP_TASK_TAG, "Unable to create TCP socket: errno %d", errno);
-			//break;
-		}
-		//holding_reg_params.testBuf[12] ++;
-		ESP_LOGI(TCP_TASK_TAG, "Socket created");
-
-		int err = bind(my_listen_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
-		if (err != 0) {
-			//holding_reg_params.testBuf[13] = 2000;
-			ESP_LOGE(TCP_TASK_TAG, "TCP Socket unable to bind: errno %d", errno);
-			//break;
-		}
-		ESP_LOGI(TCP_TASK_TAG, "TCP Socket bound, port %d", 502);
-		//holding_reg_params.testBuf[13] ++;
-
-		err = listen(my_listen_sock, 1);
-		if (err != 0) {
-			//holding_reg_params.testBuf[14] = 3000;
-			ESP_LOGE(TCP_TASK_TAG, "Error occurred during listen: errno %d", errno);
-			//break;
-		}
-		//holding_reg_params.testBuf[14]++;
-		ESP_LOGI(TCP_TASK_TAG, "Socket listening");
+		ESP_LOGI(TCP_TASK_TAG, "Receive: %02x %02x %02x %02x %02x.", rx_buffer[0], rx_buffer[1], rx_buffer[2], rx_buffer[3], rx_buffer[4]);
 	}
 
-    while (1) {
+	ESP_LOG_BUFFER_HEX(TCP_TASK_TAG, rx_buffer, len);
 
-    	//if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
-    	{
-
-			addr_len = sizeof(source_addr);
-			sock = accept(my_listen_sock, (struct sockaddr *)&source_addr, &addr_len);
-			if (sock < 0) {
-				//holding_reg_params.testBuf[15] = 4000;
-				ESP_LOGE(TCP_TASK_TAG, "Unable to accept connection: errno %d", errno);
-				break;
-			}
-			//holding_reg_params.testBuf[15]++;
-			ESP_LOGI(TCP_TASK_TAG, "Socket accepted");
-
-			while (1) {
-				//if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
-				{
-					len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-					if(testCount++ < 60000)
-						holding_reg_params.testBuf[9] = testCount;
-					else
-						testCount = 0;
-					// Error occurred during receiving
-					if (len < 0) {
-						ESP_LOGE(TCP_TASK_TAG, "recv failed: errno %d", errno);
-						break;
-					}
-					// Connection closed
-					else if (len == 0) {
-						ESP_LOGI(TCP_TASK_TAG, "Connection closed");
-						//holding_reg_params.testBuf[10] = 100;
-						break;
-					}
-					// Data received
-					else 
-					{
-						// Get the sender's ip address as string
-						if (source_addr.sin6_family == PF_INET) {
-							inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-						} else if (source_addr.sin6_family == PF_INET6) {
-							inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-						}
-
-						//rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
-						ESP_LOGI(TCP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
-						// ESP_LOGI(TAG, "%s", rx_buffer);
-
-						if (len == 5)
-						{
-							ESP_LOGI(TCP_TASK_TAG, "Receive: %02x %02x %02x %02x %02x.", rx_buffer[0], rx_buffer[1], rx_buffer[2], rx_buffer[3], rx_buffer[4]);
-						}
-
-						ESP_LOG_BUFFER_HEX(TCP_TASK_TAG, rx_buffer, len);
-
-						{
-							if( (rx_buffer[0] == 0xee) && (rx_buffer[1] == 0x10) &&
-								(rx_buffer[2] == 0x00) && (rx_buffer[3] == 0x00) &&
-								(rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
-								(rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00) )
-							{
-								start_fw_update();
-							}
-						}
-
-						if( (rx_buffer[6]==holding_reg_params.modbus_address) || ((rx_buffer[6]==255) && (rx_buffer[7]!=0x19)))
-						{
-							responseCmd(WIFI, (uint8_t *)rx_buffer, len);
-							if(modbus_wifi_len > 0)
-							{
-								holding_reg_params.stm32_uart_send[STM32_LED_WIFI_ON] = 2;
-								int err = send(sock, (uint8_t *)&modbus_wifi_buf, modbus_wifi_len, 0);
-								if (err < 0) {
-									ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
-									break;
-								}
-								break;
-							}
-						}
-					}
-				}
-			}
-
-			if (sock != -1) {
-				//holding_reg_params.testBuf[11] = 215;
-				ESP_LOGE(TCP_TASK_TAG, "Shutting down socket and restarting...");
-				shutdown(sock, 0);
-				close(sock);
-			}
+	{
+		if( (rx_buffer[0] == 0xee) && (rx_buffer[1] == 0x10) &&
+			(rx_buffer[2] == 0x00) && (rx_buffer[3] == 0x00) &&
+			(rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
+			(rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00) )
+		{
+			start_fw_update();
 		}
-    	isSocketCreated = false;
-		// vTaskDelete(NULL);
-		//xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 5, NULL);
-    }
+	}
+
+	if( (rx_buffer[6]== Modbus.address) || ((rx_buffer[6]==255) && (rx_buffer[7]!=0x19)))
+	{
+		responseModbusCmd(WIFI, (uint8_t *)rx_buffer, len ,modbus_send_buf,&modbus_send_len);
+		if(modbus_send_len > 0)
+		{
+			int err = send(sock, (uint8_t *)&modbus_send_buf, modbus_send_len, 0);
+			if (err < 0)
+			{
+				return -1;
+				//ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+				//break;
+			}
+			return err;
+		}
+	}
+
+	return -2;
+
 }
 
-// static void detect_tcp_task(void *pvParameters)
-// {
-// 	while (1) {
-// 		if(isSocketCreated == false){
-// 			if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
-// 				xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 5, NULL);
-// 		}
-// 		vTaskDelay(300 / portTICK_RATE_MS);
-// 	}
-// }
+
+int readable__timeo(int fd, int sec)
+{
+	fd_set			rset;
+	struct timeval	tv;
+
+	FD_ZERO(&rset);
+	FD_SET(fd, &rset);
+
+	tv.tv_sec = sec;
+	tv.tv_usec = 0;
+	//debug_info("Timeout will occur after d sec");
+	return(select(fd+1, &rset, NULL, NULL, &tv));
+		/* > 0 if descriptor is readable */
+}
+/* end readable_timeo */
+
+int Readable_timeo(int fd, int sec)
+{
+	int		n;
+
+	if ( (n = readable__timeo(fd, sec)) < 0)
+	{
+		debug_info("readable_timeo error");
+	}
+	return(n);
+}
+
+
+
+void tcp_server_handle(void *args, int task_index)
+{
+
+	int ret = 0;
+
+	int shudown_ret = 0;
+	int close_ret = 0;
+	struct sockinfo remoteInfo = {0};
+	int nTask_Bit = 0;
+	switch(task_index)
+	{
+	case 0:
+		nTask_Bit = TASK1_BIT;
+		break;
+	case 1:
+		nTask_Bit = TASK2_BIT;
+		break;
+	case 2:
+		nTask_Bit = TASK3_BIT;
+		break;
+	case 3:
+		nTask_Bit = TASK4_BIT;
+		break;
+	case 4:
+		nTask_Bit = TASK5_BIT;
+		break;
+	case 5:
+		nTask_Bit = TASK6_BIT;
+		break;
+	case 6:
+		nTask_Bit = TASK7_BIT;
+		break;
+
+	default:
+		return;
+		break;
+
+	}
+
+	// 给remoteInfo.remoteIp 开辟一定的空间 且注意释放
+	//remoteInfo.remoteIp = (char *)heap_caps_malloc(32,MALLOC_CAP_8BIT);
+	memset(remoteInfo.remoteIp,0,32);
+
+	remoteInfo.sock			= ((struct sockinfo *)args)->sock;
+	remoteInfo.remotePort 	= ((struct sockinfo *)args)->remotePort;
+	memcpy(remoteInfo.remoteIp,((struct sockinfo *)args)->remoteIp,strlen(((struct sockinfo *)args)->remoteIp));
+
+	EventBits_t res = xEventGroupClearBits(network_EventHandle,nTask_Bit);
+	if((res & nTask_Bit) != 0)
+		debug_print("TASK _BIT cleared successfully",task_index);
+	else
+	{
+		debug_print("TASK _BIT clear failed",task_index);
+	}
+
+	int keepAlive = 1; // 开启keepalive属性
+	int keepIdle = 10; // 如该连接在10秒内没有任何数据往来,则进行探测
+	int keepInterval = 4; // 探测时发包的时间间隔为5 秒
+	int keepCount = 1; // 探测尝试的次数.如果第1次探测包就收到响应了,则后2次的不再发.
+
+	setsockopt(remoteInfo.sock,SOL_SOCKET,SO_KEEPALIVE,	(void *)&keepAlive,		sizeof(keepAlive));
+	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPIDLE,	(void *)&keepIdle,		sizeof(keepIdle));
+	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPINTVL,(void *)&keepInterval, 	sizeof(keepInterval));
+	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPCNT,	(void *)&keepCount, 	sizeof(keepCount));
+
+    //struct timeval tv_out;
+    //tv_out.tv_sec = 20;
+    //tv_out.tv_usec = 0;
+	//setsockopt(remoteInfo.sock, SOL_SOCKET, SO_RCVTIMEO, &tv_out, sizeof(tv_out));
+
+	char len;
+	for(;;)
+	{
+		if(task_index == 6)
+		{
+			vTaskDelay(50 / portTICK_RATE_MS);
+			taskYIELD();
+			debug_print("Close the last task when recv",task_index);
+			break;
+		}
+        //if(task_index == 4)
+        //{
+        //	debug_print("task_index = 4 running",task_index);
+        //}
+		debug_print("Readable_timeo ",task_index);
+
+		ret = Readable_timeo(remoteInfo.sock, 60);//一分钟无数据就关闭套接字 set timeout and add if
+        //if(task_index == 4)
+        //{
+        	char temp[20];
+        	sprintf(temp,"ret = %d",ret);
+        	debug_print(temp,task_index);
+        //}
+		if (ret > 0)
+		{
+			len = recv(remoteInfo.sock, rx_buffer[task_index], sizeof(rx_buffer) - 1, 0);
+			if(len > 0)
+			{
+				//Test[30]++;
+				ret = Modbus_Tcp(len,remoteInfo.sock,rx_buffer[task_index]);
+				if(ret < 0)
+				{
+					debug_print("Modbus_Tcp ret < 0 error! ",task_index);
+					break;
+				}
+                //Test[5] = len;
+			}
+			else if(len == 0)
+			{
+				debug_print("Connection closed",task_index);
+				break;
+			}
+			else
+			{
+				debug_print("Connection lost",task_index);
+				break;
+			}
+		}
+		else
+		{
+			debug_print("Read Timeout ",task_index);
+            break;
+		}
+
+		vTaskDelay(50 / portTICK_RATE_MS);
+		taskYIELD();
+		//xQueueGiveMutexRecursive(sem_tcp_server);
+	}
+	if (remoteInfo.sock != -1)
+	{
+		debug_print("Shutting down socket",task_index);
+		shudown_ret = shutdown(remoteInfo.sock, 0);
+		if(shudown_ret!= 0)
+		{
+			debug_print("shutdown error!",task_index);
+		}
+		close_ret = close(remoteInfo.sock);
+		if(close_ret!= 0)
+		{
+			debug_print("close error!",task_index);
+		}
+	}
+
+	if(CountHandle != NULL)
+	{
+		if(xSemaphoreGive(CountHandle) != pdTRUE)
+		{
+			debug_print("Try to Give semaphore and failed!",task_index);
+		}
+		else
+			debug_print("Give semaphore success!",task_index);
+	}
+
+	if(network_EventHandle != NULL)
+	{
+			EventBits_t uxBits = xEventGroupSetBits(network_EventHandle,nTask_Bit);
+			if((uxBits & nTask_Bit) != 0)
+				debug_print("set event bit ok",task_index);
+			else
+				debug_print("set event bit failed",task_index);
+	}
+	else
+		debug_print("network_EventHandle is NULL",task_index);
+
+	debug_print("vTaskDelete",task_index);
+	Task_handle[task_index] = 0;
+	vTaskDelete(NULL);
+
+}
+
+static void tcp_server_dealwith0(void *args)
+{
+	tcp_server_handle(args,0);
+}
+
+static void tcp_server_dealwith1(void *args)
+{
+	tcp_server_handle(args,1);
+}
+
+
+static void tcp_server_dealwith2(void *args)
+{
+	tcp_server_handle(args,2);
+}
+
+static void tcp_server_dealwith3(void *args)
+{
+	tcp_server_handle(args,3);
+}
+
+static void tcp_server_dealwith4(void *args)
+{
+	tcp_server_handle(args,4);
+}
+
+static void tcp_server_dealwith5(void *args)
+{
+	tcp_server_handle(args,5);
+}
+
+static void tcp_server_dealwith6(void *args)
+{
+	tcp_server_handle(args,6);
+}
+
+
+
+
+
+int check_sock_exist(int sock)
+{
+	uint8_t i;
+	if(sock == -1)
+		return -1;
+	for(i = 0;i < MAX_TCP_CONN;i++)
+	{
+		if(sock == Sock_table[i]) // sock is exist
+			return -1;
+		if(Sock_table[i] == -1)
+		{// table is not full, it is a new sock
+			Sock_table[i] = sock;
+			return i;
+		}
+	}
+	if(i == MAX_TCP_CONN)
+	{// table is full, replace the first sock
+		Sock_table[0] = sock;
+		return 0;
+	}
+	return -1;
+}
+
+
+static void tcp_server_task(void *pvParameters)
+{
+	EventBits_t uxBits;
+	UBaseType_t taskCount 	= 0;
+	char taskName[50];
+	struct hostent *hostP = NULL;
+	int ip_protocol;
+	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BIT这里还需要处理 wifi是否连接的信号量
+	while(1)
+	{
+			taskCount++;
+			debug_info("tcp_server_task is running\r");
+		    int addr_family;
+			addr_family 			 = AF_INET;
+			ip_protocol 			 = IPPROTO_IP;
+			// 本地IP设为0 应该底层会自动设置本地IP 端口固定到7681
+			struct sockaddr_in localAddr;
+			localAddr.sin_addr.s_addr 	= htonl(INADDR_ANY);
+			localAddr.sin_family		= AF_INET;
+			localAddr.sin_port			=htons(502);
+			//新建一个 socket
+			int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
+			if (listen_sock < 0)
+			{
+				debug_info("Unable to create socket\r");
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5秒钟后再重新执行
+				continue;
+			}
+			int err = bind(listen_sock, (struct sockaddr *)&localAddr, sizeof(localAddr));
+			if (err < 0) {
+				debug_info("Socket unable to bind: errno\r");
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5秒钟后再重新执行
+				continue;
+			}
+			debug_info( "Socket created\r");
+
+			//开启监听 监听7681端口
+			err = listen(listen_sock,0);
+			if(err != 0)
+			{
+				debug_info("Socket unable to connect: errno\r");
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5秒钟后再重新执行
+				continue;
+			}
+			debug_info("Socket is listening\r");
+			//为accpet连接传入参数初始化
+			struct sockaddr_in6 sourceAddr;
+			uint addrLen = sizeof(sourceAddr);
+            char debug_buffer[100] =  {0};
+			while (1)
+			{
+				debug_info("ready to accept %d\r");
+
+				//获取信号量，这里先阻滞portMAX_DELAY
+				if(CountHandle != NULL)
+				{
+					xSemaphoreTake(CountHandle,portMAX_DELAY);
+					UBaseType_t semapCount = uxSemaphoreGetCount(CountHandle);
+					sprintf(debug_buffer,"Semaphore take success semapCount is:%d",semapCount);
+					debug_info(debug_buffer);
+				}
+				else
+					debug_info("SemaphoreHandle is NULL");
+
+				//accept是会阻滞任务的  如果SemaphorTake 也一直阻滞不知道行不行。
+				int sock = accept(listen_sock, (struct sockaddr *)&sourceAddr, &addrLen);
+				if (sock < 0)
+				{
+					ESP_ERROR_CHECK(sock);
+					debug_info("Unable to accept connection\r");
+					break;
+				}
+				debug_info("Socket accepted\r");
+
+
+				//获取到accept的IP sock 端口信息保存
+				struct sockinfo remoteInfo;
+
+				remoteInfo.sock = sock;
+				if(sourceAddr.sin6_family == PF_INET)
+				{
+					memcpy(remoteInfo.remoteIp ,inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr,addr_str,sizeof(addr_str) - 1),32);
+					//remoteInfo.remoteIp = inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr,addr_str,sizeof(addr_str) - 1);
+					remoteInfo.sa_familyType = PF_INET;
+
+				}else if(sourceAddr.sin6_family == PF_INET6)
+				{
+					memcpy(remoteInfo.remoteIp,inet6_ntoa_r(sourceAddr.sin6_addr,addr_str,sizeof(addr_str) - 1),32);
+					//remoteInfo.remoteIp = inet6_ntoa_r(sourceAddr.sin6_addr,addr_str,sizeof(addr_str) - 1);
+					remoteInfo.sa_familyType = PF_INET6;
+				}
+				remoteInfo.remotePort = ntohs(sourceAddr.sin6_port);
+				sprintf(debug_buffer,"ip:%s,port:%d ,sock:%d connected\r",remoteInfo.remoteIp,remoteInfo.remotePort,remoteInfo.sock);
+				debug_info(debug_buffer);
+				uxBits = xEventGroupWaitBits(network_EventHandle,TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT,false,false,portMAX_DELAY);
+				debug_info("tcp_server_task get  xEventGroupWaitBits success\r");
+				for(int i = 0; i < MAX_SOC_COUNT; i++)
+				{
+					if((uxBits & (1 << (i + 1))) != 0)
+					{ //这里i + 1是因为 事件标志组的最后一位是由CONNECT_BIT所占用 TASK2_BIT是从第BIT1开始
+						sprintf(taskName,"tcp_server_dealwith%d",i);
+						//打印remoteInfo的内容然后再建立任务
+						//ESP_LOGI(TAG,"Currently socket NO:%d IP is:%s PORT is:%d",sock,remoteInfo.remoteIp,remoteInfo.remotePort);
+						task_sock[i] = remoteInfo.sock;
+						int res1 = xTaskCreate(taskList[i], taskName,	4096, (void *)&remoteInfo,7, &Task_handle[i]);
+						//assert(res1 == pdTRUE);
+						sprintf(debug_buffer,"xTaskCreate %d\r",i);
+						debug_info(debug_buffer);
+						break; //如果成功的创建了一个任务就应该结束本次查找了
+					}
+				}
+				vTaskDelay(200 / portTICK_PERIOD_MS);
+
+			}
+			if (listen_sock != -1)
+			{
+				debug_info("Shutting down listen_socket and restarting...");
+				shutdown(listen_sock, 0);
+				close(listen_sock);
+			}
+
+			vTaskDelay(5000 / portTICK_PERIOD_MS); //5秒钟后再重新执行
+	}
+	vTaskDelete(NULL);
+}
+
+
+
+EXT_RAM_ATTR uint8_t  PDUBuffer[MAX_APDU];
+uint8_t Station_NUM;
+uint32_t Instance;
+uint8_t MAX_MASTER;
+extern U8_T base_in;
+extern U8_T base_out;
+void Bacnet_Initial_Data(void);
+void Inital_Bacnet_Server(void)
+{
+	uint32 ltemp = 0;
+	Set_Object_Name((char *)"ESP-TEST");
+	Device_Init();
+
+	//Instance = 1000;
+/*	ltemp = 0;
+	ltemp |= AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD);
+	ltemp |= (uint32)AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD+1)<<8;
+	ltemp |= (uint32)AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD+2)<<16;
+	ltemp |= (uint32)AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD+3)<<24;*/
+	if((ltemp == 0xffffffff)||(ltemp == 0))
+		Instance = ((uint32)Modbus.serialNum[3]<<24)|((uint32)Modbus.serialNum[2]<<16)|((uint32)Modbus.serialNum[1]<<8) | Modbus.serialNum[0];
+	else
+		Instance = ltemp;
+
+	// tbd:
+	Station_NUM = Modbus.address;//AT24CXX_ReadOneByte(EEP_STATION_NUMBER);
+	MAX_MASTER = 254;
+	Modbus.mini_type = 6;
+	memset(panelname,"T3-XB_ESP",15);
+	panel_number = Station_NUM;
+	Bacnet_Initial_Data();
+
+	Device_Set_Object_Instance_Number(Instance);
+	address_init();
+	bip_set_broadcast_addr(0xffffffff);
+
+
+	AIS = MAX_INS + 1;
+	AOS = MAX_AOS + 1;
+	//AVS = MAX_AVS + 1;
+	BOS = 0;
+	base_in = MAX_INS + 1;
+	base_out = MAX_AOS + 1;
+
+//	Count_VAR_Object_Number();
+	Count_IN_Object_Number();
+	Count_OUT_Object_Number();
+
+}
+EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer2;
+EXT_RAM_ATTR uint8_t Receive_Buffer_Data2[512];
+void Master_Node_task(void)
+{
+
+	uint16_t pdu_len = 0;
+	uint8_t *uart_rsv = (uint8_t*)malloc(512);
+		//uint8_t *stm32_uart_rsv = (uint8_t*)malloc(512);
+		BACNET_ADDRESS  src;
+	//	static u16 protocal_timer = SWITCH_TIMER;
+		//modbus.protocal_timer_enable = 0;
+	//	bacnet_inital();
+		Inital_Bacnet_Server();
+		dlmstp_init(NULL);
+		//Recievebuf_Initialize(0);
+		FIFO_Init(&Receive_Buffer2, &Receive_Buffer_Data2[0],
+		         sizeof(Receive_Buffer_Data2));
+	//	print("MSTP Task\r\n");
+		//delay_ms(100);
+		//Modbus.com_config[0] = BACNET_MASTER;
+
+		for (;;)
+	    {
+			if(Modbus.com_config[0] == BACNET_MASTER)
+			{
+				pdu_len = datalink_receive(&src, &PDUBuffer[0], sizeof(PDUBuffer), 0,	0);
+				if(pdu_len)
+				{
+					npdu_handler(&src, &PDUBuffer[0], pdu_len,0/* BAC_MSTP*/);
+				}
+			}
+	// 		stack_detect(&test[1]);
+			/*SilenceTime = SilenceTime + 5;
+			if(SilenceTime > 10000)
+			{
+				SilenceTime = 0;
+			}*/
+			vTaskDelay(10 / portTICK_RATE_MS);
+	    }
+
+
+}
+
+
+uint8_t get_protocal(void)
+{
+	return Modbus.com_config[0];
+}
+
+void uart_rx_task(void)
+{
+	uint8_t i;
+	uint8_t *uart_rsv = (uint8_t*)malloc(512);
+
+		for (;;)
+	    {
+			if(Modbus.com_config[0] == BACNET_MASTER)
+			{
+				int len = uart_read_bytes(UART_NUM_0, uart_rsv, 200, 100 / portTICK_RATE_MS);
+
+				if(len > 0)
+				{					/*for(i = 0;i < len;i++)
+					{
+						FIFO_Put(&Receive_Buffer2, uart_rsv[i]);
+
+					}*/
+					Timer_Silence_Reset();
+				}
+
+			}
+			else
+				vTaskDelay(5000 / portTICK_RATE_MS);
+	    }
+		free(uart_rsv);
+
+
+}
+
+#define CONFIG_FREERTOS_HZ 1000
+uint32_t system_timer = 0;
+void Timer_task(void)
+{
+	for (;;)
+	{
+		SilenceTime = SilenceTime + 10;
+		if(SilenceTime > 10000)
+		{
+			SilenceTime = 0;
+		}
+		system_timer = system_timer + 10;
+		vTaskDelay(10 / portTICK_RATE_MS);
+	}
+
+}
+
+// for control task
+S16_T exec_program(S16_T current_prg, U8_T *prog_code);
+void Check_All_WR(void);
+void pid_controller( S16_T p_number );
+U8_T check_whehter_running_code(void);
+
+
+#define PID_SAMPLE_COUNT 20
+#define PID_SAMPLE_TIME 10
+void Bacnet_Control(void)
+{
+	U16_T i,j;
+	U8_T decom;
+	static U8_T count_wait_sample = 0;
+	static U8_T count_PID;
+	static U16_T count_schedule;
+	check_graphic_element();
+	for(i = 0;i < MAX_OUTS;i++)
+	{
+		check_output_priority_array(i,0);
+#if OUTPUT_DEATMASTER
+			clear_dead_master();
+#endif
+	}
+
+	Check_All_WR();
+	for(;;)
+  {
+		control_input();
+
+		if(check_whehter_running_code() == 1)
+		for( i = 0; i < MAX_PRGS; i++/*, ptr++*/ )
+		{
+			if( programs[i].bytes )
+			{
+				if(programs[i].on_off	== 1)
+				{
+					uint32_t t1 = 0;
+					uint32_t t2 = 0;
+					// add checking running time of program
+
+					t1 = system_timer;
+					exec_program( i, prg_code[i]);
+					t2 = system_timer;
+					programs[i].costtime = (t2 - t1) + 1;
+
+
+				}
+				else
+					programs[i].costtime = 0;
+			}
+			else
+					programs[i].costtime = 0;
+
+		}
+
+		//control_output();
+// check whether external IO are on line
+		/*for(i = 0;i < sub_no;i++)
+		{
+			if(current_online[sub_map[i].id / 8] & (1 << (sub_map[i].id % 8)))
+			{
+				decom = 0;
+			}
+			else  // off line
+			{
+				decom = 1;
+			}
+
+			for(j = 0; j < sub_map[i].do_len;j++)
+			{
+					outputs[sub_map[i].do_start + j].decom = decom;
+			}
+			for(j = 0; j < sub_map[i].ao_len;j++)
+			{
+					outputs[sub_map[i].ao_start + j].decom = decom;
+			}
+		}*/
+		count_PID++;  // 1s
+		if(count_PID >= PID_SAMPLE_COUNT) // 500MS * PID_SAMPLE_COUNT == PID_SAMPLE_TIME 10S
+		{
+	   // dealwith controller roution per 1 sec
+			for(i = 0;i < MAX_CONS; i++)
+			{
+				pid_controller( i );
+			}
+			count_PID = 0;
+#if (ARM_MINI || ARM_TSTAT_WIFI)
+			Store_Pulse_Counter(0);
+			calculate_RPM();
+#endif
+		}
+		// dealwith check_weekly_routines per 1 min
+
+		if(count_schedule < 5) 	count_schedule++;
+		else
+		{
+			count_schedule = 0;
+			check_weekly_routines();
+			check_annual_routines();
+		}
+#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
+		CheckIdRoutines();
+#endif
+
+#if (ARM_MINI || ASIX_MINI)
+		if(Modbus.com_config[1] == 7)
+		{
+			if(count_reset_zigbee < 30) 	count_reset_zigbee++;
+			else
+			{
+				last_reset_zigbee++;
+				count_reset_zigbee = 0;
+
+	//  only for big minipanel, com1 must select rs232 jumper
+
+				Check_Zigbee();
+
+			}
+
+		}
+
+#endif
+
+		// count monitor task
+		if(just_load)
+			just_load = 0;
+
+		//if( count_1s++  >= 1)
+		{
+			miliseclast_cur = miliseclast;
+			miliseclast = 0;
+    }
+//		else
+//			count_1s = 0;
+
+		//check_trendlog_1s(20);
+
+		vTaskDelay(500 / portTICK_RATE_MS);
+	//	taskYIELD();
+	}
+
+}
 
 void app_main()
 {
@@ -1434,45 +1150,81 @@ void app_main()
      * examples/protocols/README.md for more information about this function.
      */
     //ESP_ERROR_CHECK(example_connect());
-	read_default_from_flash();
-	mass_flash_init();
-	modbus_init();
-	debug_info("modbus init finished^^^^^^^^");
+	esp_err_t ret;
+	Test[10] = 11;
+   read_default_from_flash();
+   mass_flash_init();
+   modbus_init();
+   //debug_info("modbus init finished^^^^^^^^");
 
-    ESP_ERROR_CHECK(i2c_master_init());
+   ethernet_init();
+   ret = i2c_master_init();
 
-    ethernet_init();
-
-    holding_reg_params.which_project = PROJECT_SAUTER;//PROJECT_FAN_MODULE;//
-	//tcpip_socket_init();
-	if(holding_reg_params.which_project == PROJECT_SAUTER)
-	{
-		stm32_uart_init();
-	}
-	else if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-	{
+    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
+  // tcpip_socket_init();
+   /*if(holding_reg_params.which_project == PROJECT_SAUTER)
+   {
+      stm32_uart_init();
+   }
+   else if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+   {
 		holding_reg_params.fan_module_pwm2 = 0;
 		led_pwm_init();
 		led_init();
-		pcnt_init();
+		my_pcnt_init();
 		adc_init();
-	}
+   }*/
     //microphone_init();
     //SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
     //connect_wifi();
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, NULL);
-    xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 5, NULL);
-    xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
 
+    if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+    {
+   		holding_reg_params.fan_module_pwm2 = 0;
+   		led_pwm_init();
+   		led_init();
+   		my_pcnt_init();
+   		adc_init();
+    }
+    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, NULL);
+    network_EventHandle = xEventGroupCreate();
+    xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 2, NULL);
+    xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
+    xTaskCreate(bip_task, "bacnet ip", 4096, NULL, 5, NULL);
     //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
-    	xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
+    xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
     xTaskCreate(modbus_task,"modbus_task",4096, NULL, 3, NULL);
     //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
     {
-    	xTaskCreate(input_task,"input_task",1024, NULL, 4, NULL);
+       //xTaskCreate(input_task,"input_task",1024, NULL, 4, NULL);
     }
-    xTaskCreate(ble_mesh_task,"ble_mesh_task",4096*2, NULL, 7, NULL);
-	// xTaskCreate(detect_tcp_task, "detect_tcp_task", 1024,NULL, 6,NULL);
-	// xTaskCreate(pyq1548_task,"pyq1548_task",1024*2, NULL, 10, NULL);
-	// xTaskCreate(&ota_task, "ota_example_task", 8192, NULL, 5, NULL);
+//    xTaskCreate(ble_mesh_task,"ble_mesh_task",4096*2, NULL, 7, NULL);
+    xTaskCreate(Master_Node_task,"mstp_task",2048, NULL, 4, NULL);
+    xTaskCreate(uart_rx_task,"uart_rx_task",2048, NULL, 6, NULL);
+	xTaskCreate(Timer_task,"timer_task",1024, NULL, 7, NULL);
+	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL, tskIDLE_PRIORITY + 8,NULL);
+
+	debug_info("App finished test1^^^^^^^^");
+   // xTaskCreate(detect_tcp_task, "detect_tcp_task", 1024,NULL, 6,NULL);
+   // xTaskCreate(pyq1548_task,"pyq1548_task",1024*2, NULL, 10, NULL);
+   // xTaskCreate(&ota_task, "ota_example_task", 8192, NULL, 5, NULL);
 }
+
+// for bacnet lib
+void uart_send_string(U8_T *p, U16_T length,U8_T port)
+{
+	uart_write_bytes(UART_NUM_0, (const char *)p, length);
+}
+
+/*char get_current_mstp_port(void)
+{
+
+		return -1;
+}*/
+
+U8_T RS485_Get_Baudrate(void)
+{
+	return 9;//uart2_baudrate;
+}
+
+

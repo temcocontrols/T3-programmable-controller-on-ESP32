@@ -1,11 +1,12 @@
 #include "controls.h"
+#include "esp_attr.h"
 
 
 
 #ifdef INPUT
 
-Str_table_point			far				 custom_tab[MAX_TBLS];
-Str_in_point        far        inputs[MAX_INS];
+EXT_RAM_ATTR Str_table_point			far				 custom_tab[MAX_TBLS];
+EXT_RAM_ATTR Str_in_point        far        inputs[MAX_INS];
 
 uint8_t far input_type[32];
 uint8_t far input_type1[32];
@@ -167,7 +168,7 @@ int16_t swap_word( int16_t dat ) 	//	  swap_word
 }
 
 
-uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
+U32_T get_input_value_by_range( U8_T range, U16_T raw )
 {
 	int index;
 	S32_T val=0;
@@ -292,7 +293,6 @@ uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
 							val /= step;
 							val += limit[ran_in][0];
 						}
-						Test[9] = val / 1000;
 						return val;
 					}
 				}

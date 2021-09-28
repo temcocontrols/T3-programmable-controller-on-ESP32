@@ -40,6 +40,7 @@ extern bool re_init_wifi;
 extern STR_SSID	SSID_Info;
 extern void wifi_init_sta();
 extern void debug_info(char *string);
+extern void debug_print(char *string,char task_index);
 extern void wifi_task(void *pvParameters);
 extern void connect_wifi(void);
 

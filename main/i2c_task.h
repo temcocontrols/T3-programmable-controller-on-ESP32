@@ -32,6 +32,20 @@
 #define BUILD_UINT16(loByte, hiByte) \
           ((uint16_t)(((loByte) & 0x00FF) + (((hiByte) & 0x00FF) << 8)))
 
+#define HI_UINT16(a) (((a) >> 8) & 0xFF)
+#define LO_UINT16(a) ((a) & 0xFF)
+
+#define BUILD_UINT8(hiByte, loByte) \
+          ((uint8_t)(((loByte) & 0x0F) + (((hiByte) & 0x0F) << 4)))
+
+#define HI_UINT8(a) (((a) >> 4) & 0x0F)
+#define LO_UINT8(a) ((a) & 0x0F)
+
+typedef enum{
+	PROJECT_SAUTER,
+	PROJECT_FAN_MODULE,
+}project_e;
+
 #pragma pack(push, 1)
 typedef struct{
 	uint16_t temperature;
@@ -44,7 +58,7 @@ typedef struct{
 	uint16_t voc_value;
 	uint16_t light_value;
 	uint8_t occ;
-	uint16_t sound;
+	uint32_t sound;
 	uint16_t ambient;
 	uint16_t object;
 	float original_temperature;

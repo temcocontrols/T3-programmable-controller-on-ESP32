@@ -1,5 +1,7 @@
 #include "controls.h"
 #include "product.h"
+#include "define.h"
+#include "esp_attr.h"
 
 U8_T base_in;
 U8_T base_out;
@@ -55,83 +57,38 @@ typedef struct
 	U8_T add_in_map;
 }STR_MAP_table;
 
-typedef struct
-{
-	U8_T serialNum[4];
-	U8_T address;
-	U8_T protocal;
-	U8_T product_model;
-	U8_T hardRev;
-	U8_T baudrate;
-	U8_T unit;
-//	U8_T switch_tstat_val;
-	U8_T IspVer;
-	U8_T PicVer;
-	U8_T update_status;
-	U8_T  base_addr;
-	U8_T  tcp_type;   /* 0 -- DHCP, 1-- STATIC */
-	U8_T  ip_addr[4];
-	U8_T  mac_addr[6];
-	U8_T  	subnet[4];
-	U8_T  	getway[4];
-	U16_T 	tcp_port;
-	U8_T  mini_type;
-	U8_T  sub_port;
-//	U8_T zigbee_or_gsm;
-	U8_T point_sequence;
-	U8_T main_port;
-	U8_T external_nodes_plug_and_play;
-	U8_T com_config[3];
-	U16_T start_adc[11];
-	U8_T refresh_flash_timer;
 
-	U8_T network_number;
-	U8_T  en_username;
-	U8_T  cus_unit;
 
-	U8_T  usb_mode;
-	U8_T en_dyndns;
-	U8_T en_sntp;
+EXT_RAM_ATTR U32_T far high_spd_counter[HI_COMMON_CHANNEL];
+EXT_RAM_ATTR U32_T far high_spd_counter_tempbuf[HI_COMMON_CHANNEL];
+EXT_RAM_ATTR U8_T far high_spd_en[HI_COMMON_CHANNEL];
 
-	U16_T Bip_port;
-	U16_T vcc_adc; //
-	U8_T network_master;
 
-	U8_T fix_com_config;
-	U8_T backlight;
-	U8_T en_time_sync_with_pc;
+EXT_RAM_ATTR U16_T Test[50];
 
-	U8_T uart_parity[3];
-	U8_T uart_stopbit[3];
-//	U8_T network_ID[3]; // 3 RS485 port
-	U16_T zigbee_module_id;
-}STR_MODBUS;
-
-U32_T far high_spd_counter[HI_COMMON_CHANNEL];
-U32_T far high_spd_counter_tempbuf[HI_COMMON_CHANNEL];
-U8_T far high_spd_en[HI_COMMON_CHANNEL];
-
-STR_MODBUS far Modbus;
+U8_T base_in;
+U8_T base_out;
+U8_T base_var;
 
 U8_T far sub_no;
 STR_MAP_table far sub_map[SUB_NO];
 U8_T current_online[32]; // Added/subtracted by co2 request command
 SCAN_DB far scan_db[MAX_ID];// _at_ 0x8000;
 
-U16_T far Test[50];
+EXT_RAM_ATTR U16_T far Test[50];
 U16_T far input_raw[MAX_INS];
 
-uint8_t change_value_by_range(U8_T channel)
+U8_T change_value_by_range(U8_T channel)
 {
 	return 0;
 }
 
-uint32_t get_rpm(uint8_t point)
+U32_T get_rpm(U8_T point)
 {
 	return 0;
 }
 
-void Set_Input_Type(uint8_t point)
+void Set_Input_Type(U8_T point)
 {
 #if !(ARM_TSTAT_WIFI)
 		if((Modbus.mini_type == MINI_BIG)  || (Modbus.mini_type == MINI_BIG_ARM)
@@ -161,23 +118,23 @@ void Set_Input_Type(uint8_t point)
 #endif
 }
 
-uint16_t get_input_raw(uint8_t point)
+U16_T get_input_raw(U8_T point)
 {
 	return input_raw[point];
 }
 
-void set_output_raw(uint8_t point,uint16_t value)
+void set_output_raw(U8_T point,U16_T value)
 {
 	output_raw[point] = value;
 }
 
-uint16_t get_output_raw(uint8_t point)
+U16_T get_output_raw(U8_T point)
 {
 	return output_raw[point];
 }
 
 
-uint32_t conver_by_unit_5v(uint32_t sample)
+U32_T conver_by_unit_5v(U32_T sample)
 {
 
 	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
@@ -211,7 +168,7 @@ uint32_t conver_by_unit_5v(uint32_t sample)
 	}
 }
 
-uint32_t conver_by_unit_10v(uint32_t sample)
+U32_T conver_by_unit_10v(U32_T sample)
 {
 
 		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
@@ -245,7 +202,7 @@ uint32_t conver_by_unit_10v(uint32_t sample)
 		}
 }
 
-uint32_t conver_by_unit_custable(uint8_t point,uint32_t sample)
+U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 {
 	if(input_type[point] == INPUT_V0_5)
 	{
@@ -319,23 +276,22 @@ uint32_t conver_by_unit_custable(uint8_t point,uint32_t sample)
 	}
 	else if(input_type[point] == INPUT_THERM || input_type[point] == INPUT_NOUSED)
 	{
-		//Test[25 + point] = get_input_value_by_range( inputs[point].range, sample );
 		return ( 3000L  * sample ) >> 10;//get_input_value_by_range( inputs[point].range, sample );
 	}
 	return 0;
 }
 
-uint8_t get_max_input(void)
+U8_T get_max_input(void)
 {
 	return base_in;
 }
 
-uint8_t get_max_output(void)
+U8_T get_max_output(void)
 {
 	return base_out;
 }
 
-uint8_t get_max_internal_input(void)
+U8_T get_max_internal_input(void)
 {
 	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 	{
@@ -368,7 +324,7 @@ uint8_t get_max_internal_input(void)
 	return 0;
 }
 
-uint8_t get_max_internal_output(void)
+U8_T get_max_internal_output(void)
 {
 	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 	{
@@ -402,18 +358,18 @@ uint8_t get_max_internal_output(void)
 }
 
 
-uint32_t get_high_spd_counter(uint8_t point)
+U32_T get_high_spd_counter(U8_T point)
 {
 	inputs[point].value = swap_double((high_spd_counter[point] + high_spd_counter_tempbuf[point]) * 1000);
 	return (high_spd_counter[point] + high_spd_counter_tempbuf[point]) * 1000;
 }
 
 // old io.lib run it
-void map_extern_output(uint8_t point)
+void map_extern_output(U8_T point)
 {
 }
 
-//void map_extern_output(uint8_t point)
+//void map_extern_output(U8_T point)
 //{
 //	U16_T reg;
 //	U8_T sub_index;

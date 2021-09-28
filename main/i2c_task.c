@@ -6,12 +6,10 @@
 #include "unistd.h"
 #include "sgp30.h"
 #include "driver/uart.h"
-#include "deviceparams.h"
+//#include "deviceparams.h"
 #include <string.h>
 #include "mlx90632.h"
-#include "co2_cal.h"
-#include "store.h"
-#include "scd4x_i2c.h"
+#include "controls.h"
 
 static const char *TAG = "i2c-task";
 
@@ -50,6 +48,7 @@ uint8_t light_data[2];
 uint8_t temp_data[2];
 g_sensor_t g_sensors;
 uint8_t mlx90614_data[3];
+uint8_t which_project= PROJECT_FAN_MODULE;
 double ambient; /**< Ambient temperature in degrees Celsius */
 double object; /**< Object temperature in degrees Celsius */
 float mlx90614_ambient;
@@ -460,13 +459,12 @@ void i2c_task(void *arg)
     int16_t ambient_old_raw=0;
     int16_t object_new_raw=0;
     int16_t object_old_raw=0;
-    int32_t co2_temperature;
-    int32_t co2_humidity;
 
     g_sensors.co2_start_measure = false;
 //    uint8_t sensor_data_h, sensor_data_l;
     int cnt = 0;
     g_sensors.co2_ready = false;
+#if 0
     g_sensors.voc_baseline[0] = 0;
     g_sensors.voc_baseline[1] = 0;
     g_sensors.voc_baseline[2] = 0;
@@ -530,37 +528,26 @@ void i2c_task(void *arg)
 			ESP_LOGW(TAG, "%s: No ack, SGP30 sensor not connected...skip...", esp_err_to_name(ret));
 		}
 	}
-	if(holding_reg_params.which_project == PROJECT_SAUTER){
+
+	if(which_project == PROJECT_SAUTER){
 		ret = mlx90632_init();
-		//holding_reg_params.testBuf[17] = 555;
-		//holding_reg_params.testBuf[18] = ret;
-		//if(ret == 0)
-		//{
-		//	holding_reg_params.testBuf[16] = 1234;
-		//}
-		co2_cal_initial();
-		scd4x_wake_up();
-		scd4x_stop_periodic_measurement();
-		scd4x_reinit();
-		scd4x_get_automatic_self_calibration(&holding_reg_params.co2_asc_enable);
-		ret = scd4x_start_periodic_measurement();
-		if (ret) {
-			holding_reg_params.testBuf[17] = 789;
-			holding_reg_params.testBuf[18] = ret;
-		}
-		else
+		if(ret == 0)
 		{
-			holding_reg_params.testBuf[16] = 321;
+
 		}
 	}
-
+#endif
     while (1) {
 #if 1
         // ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
         ret = i2c_master_sensor_sht31(I2C_MASTER_NUM, sht31_data);//&sensor_data_h, &sensor_data_l);
+
+		inputs[0].range = 1;
+		inputs[1].range = 27;
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
+            //Test[0] = 120;
         } else if (ret == ESP_OK) {
             // printf("*******************\n");
             // printf("TASK[%d]  MASTER READ SENSOR( SHT31 )\n", task_idx);
@@ -575,9 +562,6 @@ void i2c_task(void *arg)
 			g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
 			g_sensors.temperature = (uint16_t)(g_sensors.original_temperature*10);
 			g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
-			g_sensors.temperature = Filter(0,g_sensors.temperature);
-			g_sensors.humidity = Filter(9,g_sensors.humidity);
-			g_sensors.temperature += holding_reg_params.sht31_temp_offset;
 			if(!inputs[0].calibration_sign)
 				g_sensors.temperature += (inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
 			else
@@ -586,13 +570,18 @@ void i2c_task(void *arg)
 				g_sensors.humidity += (inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
 			else
 				g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
+			inputs[0].value = g_sensors.temperature*100;
+			inputs[1].value = g_sensors.humidity*100;
+			//g_sensors.temperature = Filter(0,g_sensors.temperature);
+			//g_sensors.humidity = Filter(9,g_sensors.humidity);
+			//g_sensors.temperature += holding_reg_params.sht31_temp_offset;
             //printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
         xSemaphoreGive(print_mux);
         vTaskDelay(100 / portTICK_RATE_MS);
-
+#if 0
 		xSemaphoreTake(print_mux, portMAX_DELAY);
         ret = i2c_master_sensor_veml7700(I2C_MASTER_NUM,&light_data[0], &light_data[1]);
 		if (ret == ESP_ERR_TIMEOUT) {
@@ -604,11 +593,7 @@ void i2c_task(void *arg)
 			// printf("data_h: %02x\n", light_data[1]);//sensor_data_h);
 			// printf("data_l: %02x\n", light_data[0]);//sensor_data_l);
 			g_sensors.light_value = ((uint16_t)light_data[1]<<8)+light_data[0];
-			g_sensors.light_value = Filter(8,g_sensors.light_value);
-			if(!inputs[15].calibration_sign)
-				g_sensors.light_value += (inputs[15].calibration_hi * 256 + inputs[15].calibration_lo)/10;
-			else
-				g_sensors.light_value += -(inputs[15].calibration_hi * 256 + inputs[15].calibration_lo)/10;
+			//g_sensors.light_value = Filter(8,g_sensors.light_value);
 		}else {
 			ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
 		}
@@ -631,7 +616,7 @@ void i2c_task(void *arg)
 		/* Read sensor EEPROM registers needed for calcualtions */
 
 		/* Now we read current ambient and object temperature */
-		if(holding_reg_params.which_project == PROJECT_SAUTER){
+		if(which_project == PROJECT_SAUTER){
 			xSemaphoreTake(print_mux, portMAX_DELAY);
 			ret = mlx90632_read_temp_raw(&ambient_new_raw, &ambient_old_raw,
 										 &object_new_raw, &object_old_raw);
@@ -650,14 +635,6 @@ void i2c_task(void *arg)
 			object = mlx90632_calc_temp_object(pre_object, pre_ambient, Ea, Eb, Ga, Fa, Fb, Ha, Hb);
 			g_sensors.ambient = (uint16_t)(ambient*10)/2;
 			g_sensors.object = (uint16_t )(object*10)/2;
-			if(!inputs[17].calibration_sign)
-				g_sensors.ambient += (inputs[17].calibration_hi * 256 + inputs[17].calibration_lo);
-			else
-				g_sensors.ambient += -(inputs[17].calibration_hi * 256 + inputs[17].calibration_lo);
-			if(!inputs[18].calibration_sign)
-				g_sensors.object += (inputs[18].calibration_hi * 256 + inputs[18].calibration_lo);
-			else
-				g_sensors.object += -(inputs[18].calibration_hi * 256 + inputs[18].calibration_lo);
 			//g_sensors.infrared_temp1 = 321;
 			xSemaphoreGive(print_mux);
 			vTaskDelay(100/ portTICK_RATE_MS);
@@ -692,11 +669,7 @@ void i2c_task(void *arg)
 						temp += voc_buf[i];
 
 					g_sensors.voc_value = temp/5;
-					g_sensors.voc_value = Filter(7,g_sensors.voc_value);
-					if(!inputs[3].calibration_sign)
-						g_sensors.voc_value += (inputs[3].calibration_hi * 256 + inputs[3].calibration_lo)/10;
-					else
-						g_sensors.voc_value += -(inputs[3].calibration_hi * 256 + inputs[3].calibration_lo)/10;
+					//g_sensors.voc_value = Filter(7,g_sensors.voc_value);
 				 //TXEN = SEND;
 				//	printf("tVOC  Concentration: %dppb\n", tvoc_ppb);
 				 //TXEN = RECEIVE;
@@ -735,15 +708,10 @@ void i2c_task(void *arg)
 		vTaskDelay(500/portTICK_RATE_MS);
 
 		//------------------SCD40
+
 		xSemaphoreTake(print_mux, portMAX_DELAY);
 		//ret = i2c_master_sensor_scd40(I2C_MASTER_NUM,0x36,0x82,scd40_data);
 		//ret = sensirion_i2c_delayed_read_cmd(SCD40_SENSOR_ADDR, 0x3682,	200, scd40_data, 3);
-		scd4x_read_measurement(&g_sensors.co2, &co2_temperature, &co2_humidity);
-		if(!inputs[2].calibration_sign)
-			g_sensors.co2 += (inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
-		else
-			g_sensors.co2 += -(inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
-#if 0
 		ret = ESP_OK;
 		if (ret == ESP_ERR_TIMEOUT) {
 			ESP_LOGE(TAG, "I2C Timeout");
@@ -763,13 +731,7 @@ void i2c_task(void *arg)
 				//sensirion_i2c_write_cmd(SCD40_SENSOR_ADDR, 0x3F86);
 				//g_sensors.co2 = scd40_data[0];//(uint16_t)(scd40_data[0]<<8) + scd40_data[1];
 				g_sensors.co2 = BUILD_UINT16(tempBuf_CO2[1],tempBuf_CO2[0]);//(uint16_t)(tempBuf_CO2[0]<<8) + tempBuf_CO2[1];//tempBuf_CO2
-				g_sensors.co2 = Filter(2, g_sensors.co2);
-
-				if(!inputs[2].calibration_sign)
-					g_sensors.co2 += (inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
-				else
-					g_sensors.co2 += -(inputs[2].calibration_hi * 256 + inputs[2].calibration_lo)/10;
-
+				//g_sensors.co2 = Filter(2, g_sensors.co2);
 			}
 			// printf("*******************\n");
 			// printf("TASK[%d]  MASTER READ SENSOR( SCD40 )\n", task_idx);
@@ -788,11 +750,10 @@ void i2c_task(void *arg)
 		} else {
 			// ESP_LOGW(TAG, "%s: No ack, scd40 sensor not connected...skip...", esp_err_to_name(ret));
 		}
-#endif
 		xSemaphoreGive(print_mux);
 		vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
-
-		if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+#endif
+		//if(which_project == PROJECT_FAN_MODULE)
 		{
 			xSemaphoreTake(print_mux, portMAX_DELAY);
 			//ret = i2c_master_sensor_mlx90614(I2C_MASTER_NUM, mlx90614_data);
@@ -800,8 +761,8 @@ void i2c_task(void *arg)
 			MLX90614_GetTo(MLX90614_SENSOR_ADDR, &mlx90614_object);
 			g_sensors.ambient = (uint16_t)(mlx90614_ambient*10);
 			g_sensors.object = (uint16_t )(mlx90614_object*10);
-			g_sensors.ambient += holding_reg_params.ambient_temp_offset;
-			g_sensors.object += holding_reg_params.object_temp_offset;
+			//g_sensors.ambient += holding_reg_params.ambient_temp_offset;
+			//g_sensors.object += holding_reg_params.object_temp_offset;
 			xSemaphoreGive(print_mux);
 			vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
 		}

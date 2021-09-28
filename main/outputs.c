@@ -36,8 +36,8 @@ void control_output(void)
 				outs->value = 0L;
 				val = 0;
 			}
-//			else
-//			{	
+			else
+			{
 //					if( outs->digital_analog == 1 ) //  analog
 //					{	
 //						if(point >= get_max_internal_output())  // // external ouput 					

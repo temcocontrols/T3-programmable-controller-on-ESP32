@@ -1,0 +1,139 @@
+#ifndef	DEFINE_H
+#define	DEFINE_H
+
+#include "types.h"
+
+#define SW_REV 1
+
+#define UIP_HEAD 6
+typedef struct
+{
+	U8_T serialNum[4];
+	U8_T address; 	
+	U8_T protocal;
+	U8_T product_model;
+	U8_T hardRev;
+	U8_T baudrate;
+	//U8_T unit;
+//	U8_T switch_tstat_val;
+	U8_T IspVer;
+	U8_T PicVer;
+	U8_T update_status;
+	U8_T  base_addr;
+	U8_T  tcp_type;   /* 0 -- DHCP, 1-- STATIC */
+	U8_T  ip_addr[4];
+	U8_T  mac_addr[6];
+	U8_T  	subnet[4];
+	U8_T  	getway[4];
+	U8_T  ethernet_status;
+	U16_T 	tcp_port;
+	U8_T  mini_type;
+	U8_T  sub_port;
+//	U8_T zigbee_or_gsm;
+	U8_T point_sequence;
+	U8_T main_port;
+	U8_T external_nodes_plug_and_play;
+	U8_T com_config[3];
+	U16_T start_adc[11];
+	U8_T refresh_flash_timer;
+
+	U8_T network_number;
+	U8_T  en_username;
+	U8_T  cus_unit;
+
+	U8_T  usb_mode;
+	U8_T en_dyndns;
+	U8_T en_sntp;	
+	
+	U16_T Bip_port;
+	U16_T vcc_adc; // 
+	U8_T network_master;
+	
+	U8_T fix_com_config;
+//	U8_T backlight;
+	U8_T LCD_time_off_delay;
+	U8_T en_time_sync_with_pc;
+	
+	U8_T uart_parity[3];
+	U8_T uart_stopbit[3];
+//	U8_T network_ID[3]; // 3 RS485 port
+	U16_T zigbee_module_id;
+	U8_T dead_master;
+	U8_T disable_tstat10_display;  // display icons and scrolling string
+//	lcdconfig display_lcd;
+	U8_T start_month;
+	U8_T start_day;
+	U8_T end_month;
+	U8_T end_day;
+
+	U8_T led_rx485_tx;
+	U8_T led_rx485_rx;
+
+}STR_MODBUS;
+
+typedef struct
+{
+	U16_T cmd;   // low byte first
+	U16_T len;   // low byte first
+	U16_T own_sn[4]; // low byte first
+	U16_T product;   // low byte first
+	U16_T address;   // low byte first
+	U16_T ipaddr[4]; // low byte first
+	U16_T modbus_port; // low byte first
+	U16_T firmwarerev; // low byte first
+	U16_T hardwarerev;  // 28 29	// low byte first
+
+	U8_T master_sn[4];  // master's SN 30 31 32 33
+	U16_T instance_low; // 34 35 hight byte first
+	U8_T panel_number; //  36
+	U8_T panelname[20]; // 37 - 56
+	U16_T instance_hi; // 57 58 hight byte first
+
+	U8_T bootloader;  // 0 - app, 1 - bootloader, 2 - wrong bootloader , 3 - mstp device
+	U16_T BAC_port;  //  hight byte first
+	U8_T zigbee_exist; // BIT0: 0 - inexsit, 1 - exist
+										 // BIT1: 0 - NO WIFI, 1 - WIFI
+
+	U8_T subnet_protocal; // 0 - modbus, 12 - bip to mstp
+
+	U8_T  command_version; //65 version number
+  U8_T  subnet_port;  //1- MainPort      2-ZigbeePort      3-SubPort
+  U8_T  subnet_baudrate;   //
+}STR_SCAN_CMD;
+
+
+typedef	enum
+{
+	NOUSE = 0,
+	BACNET_SLAVE,
+	MODBUS_SLAVE,
+	PTP_RS232_GSM,
+	SUB_GSM,
+	MAIN_ZIG,
+	SUB_ZIG,
+	MODBUS_MASTER,
+	RS232_METER,
+	BACNET_MASTER,
+	MAX_COM_TYPE
+}E_UART_TYPE;
+
+
+#define SERIAL  0
+#define TCP		1
+#define USB		2
+#define GSM		3
+#define BAC_TO_MODBUS 4
+#define WIFI  5
+
+
+extern STR_MODBUS Modbus;
+extern U16_T Test[50];
+extern uint8_t modbus_wifi_buf[500];
+extern uint16_t modbus_wifi_len;
+extern uint8_t reg_num;
+
+
+void modbus_task(void *arg);
+void start_fw_update(void);
+void internalDeal(uint8_t  *bufadd,uint8_t type);
+#endif

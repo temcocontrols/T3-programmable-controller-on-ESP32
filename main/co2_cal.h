@@ -1,7 +1,7 @@
 #ifndef _CO2_CAL_H_
 #define _CO2_CAL_H_
 
-#include "deviceparams.h"
+//#include "deviceparams.h"
 
 #define CO2_BKCAL_ON 		1
 #define CO2_BKCAL_OFF		0
