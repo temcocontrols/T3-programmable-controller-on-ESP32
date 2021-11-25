@@ -10,9 +10,10 @@
 #include "flash.h"
 #include "wifi.h"
 #include "bacnet.h"
+#include "commsub.h"
+#include "scan.h"
 #include "user_data.h"
-//#include "deviceparams.h"
-
+#include "led_pwm.h"
 
 #define EEPROM_VERSION	  105
 
@@ -38,15 +39,128 @@
 
 #define MB_BUF_SIZE (512)
 
-#define GPIO_MODBUS_EN_PIN		GPIO_NUM_13
-#define MODBUS_EN_PIN_SEL	(1ULL<<GPIO_MODBUS_EN_PIN)
+#define GPIO_SUB_EN_PIN		GPIO_NUM_13
+#define GPIO_MAIN_EN_PIN 	GPIO_NUM_2
+
+#define SUB_EN_PIN_SEL	(1ULL<<GPIO_SUB_EN_PIN)
+#define MAIN_EN_PIN_SEL	(1ULL<<GPIO_MAIN_EN_PIN)
 //static const char *TAG = "MODBUS_SLAVE_APP";
 //uint8_t uart_sendB[512];
-const int uart_num = UART_NUM_0;
+const int uart_num_sub = UART_NUM_0;
+const int uart_num_main = UART_NUM_2;
 STR_MODBUS Modbus;
-extern U32_T Instance;
+//extern U32_T Instance;
 U8_T CRChi = 0xff;
 U8_T CRClo = 0xff;
+
+void dealwith_write_setting(Str_Setting_Info * ptr);
+uint16_t read_user_data_by_block(uint16_t addr);
+extern U8_T 	bacnet_to_modbus[300];
+#define MAX_REG 50
+char reg_name[MAX_REG][15] = {
+		/*"MAC_ADDR_1",// = 60,
+		"MAC_ADDR_2",//,
+		"MAC_ADDR_3",
+		"MAC_ADDR_4",
+		"MAC_ADDR_5",
+		"MAC_ADDR_6", //65
+		"IP_MODE", //66*/
+		"IP_ADDR_1",
+		"IP_ADDR_2",
+		"IP_ADDR_3",
+		"IP_ADDR_4",
+		"IP_SUB_MASK_1",//71
+		"IP_SUB_MASK_2",
+		"IP_SUB_MASK_3",
+		"IP_SUB_MASK_4",
+		"IP_GATE_WAY_1",
+		"IP_GATE_WAY_2",
+		"IP_GATE_WAY_3",
+		"IP_GATE_WAY_4",
+
+};
+
+
+uint16_t get_reg_value(uint16_t index)
+{
+	uint16_t value = 0;
+	index = index + 7;
+	switch(index)
+	{
+	/*case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		value = SSID_Info.mac_addr[index];
+		break;
+	case 6:
+		break;*/
+	case 7:
+	case 8:
+	case 9:
+	case 10:
+		value = SSID_Info.ip_addr[index - 7];
+		break;
+	case 11:
+	case 12:
+	case 13:
+	case 14:
+		value = SSID_Info.net_mask[index - 11];
+		break;
+	case 15:
+	case 16:
+	case 17:
+	case 18:
+		value = SSID_Info.getway[index - 15];
+		break;
+	default:
+		break;
+	}
+	return value;
+};
+
+
+uint16_t Write_reg_value(uint16_t index,uint16_t value)
+{
+	//uint16_t value = 0;
+	index = index + 7;
+	switch(index)
+	{
+	/*case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+		value = SSID_Info.mac_addr[index];
+		break;
+	case 6:
+		break;*/
+	case 7:
+	case 8:
+	case 9:
+	case 10:
+		SSID_Info.ip_addr[index - 7] = value;
+		break;
+	case 11:
+	case 12:
+	case 13:
+	case 14:
+		SSID_Info.net_mask[index - 11] = value;
+		break;
+	case 15:
+	case 16:
+	case 17:
+	case 18:
+		SSID_Info.getway[index - 15] = value;
+		break;
+	default:
+		break;
+	}
+	return value;
+};
 
 uint16_t read_wifi_data_by_block(uint16_t addr);
 // Table of CRC values for high??order byt
@@ -138,10 +252,6 @@ static void setup_reg_data()
 //    	Modbus.product_model = 97;//62;//
  //   else
     	Modbus.product_model = 88;
-    //if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-    //	holding_reg_params.product_model = 97;//62;//
-    //else
-    //	holding_reg_params.product_model = 62;//74;//74;//
     Modbus.hardRev = 2;
    // Modbus.readyToUpdate = 0;
 
@@ -163,25 +273,46 @@ static void setup_reg_data()
 //mb_register_area_descriptor_t reg_area; // Modbus register area descriptor structure
 //mb_communication_info_t tcp_info;
 
-void modbus_init(void)
+void uart_init(uint8_t uart)
 {
 	int baud;
-	switch(Modbus.baudrate)
+	switch(Modbus.baudrate[uart])
 	{
-	case 0:
+	case UART_1200:
+		baud = 1200;
+		break;
+	case UART_2400:
+		baud = 2400;
+		break;
+	case UART_3600:
+		baud = 3600;
+		break;
+	case UART_4800:
+		baud = 4800;
+		break;
+	case UART_7200:
+		baud = 7200;
+		break;
+	case UART_9600:
 		baud = 9600;
 		break;
-	case 1:
+	case UART_19200:
 		baud = 19200;
 		break;
-	case 2:
+	case UART_38400:
 		baud = 38400;
 		break;
-	case 3:
+	case UART_57600:
 		baud = 57600;
 		break;
-	case 4:
+	case UART_76800:
+		baud = 76800;
+		break;
+	case UART_115200:
 		baud = 115200;
+		break;
+	case UART_921600:
+		baud = 921600;
 		break;
 	default:
 		baud = 115200;
@@ -190,7 +321,7 @@ void modbus_init(void)
 //	mb_communication_info_t tcp_info; // Modbus communication parameters
 
 	    uart_config_t uart_config = {
-	        .baud_rate = 115200,//
+	        .baud_rate = 115200,//baud,
 	        .data_bits = UART_DATA_8_BITS,
 	        .parity = UART_PARITY_DISABLE,
 	        .stop_bits = UART_STOP_BITS_1,
@@ -198,44 +329,23 @@ void modbus_init(void)
 	       // .rx_flow_ctrl_thresh = 122,
 	    };
 // Configure UART parameters
-	uart_param_config(uart_num, &uart_config);
-	uart_set_pin(uart_num, GPIO_NUM_1, GPIO_NUM_3, GPIO_MODBUS_EN_PIN, UART_PIN_NO_CHANGE);
-	//uart_set_pin(uart_num, GPIO_NUM_1, GPIO_NUM_3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-	uart_driver_install(uart_num, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
-
-	/*gpio_config_t io_conf;
-	//disable interrupt
-	io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-	//set as output mode
-	io_conf.mode = GPIO_MODE_OUTPUT;
-	//bit mask of the pins that you want to set
-	io_conf.pin_bit_mask = MODBUS_EN_PIN_SEL;
-	//disable pull-down mode
-	io_conf.pull_down_en = 0;
-	//disable pull-up mode
-	io_conf.pull_up_en = 0;
-	//configure GPIO with the given settings
-	gpio_config(&io_conf);
-	gpio_set_level(GPIO_MODBUS_EN_PIN,0);*/
-// Set RS485 half duplex mode
-	uart_set_mode(uart_num, UART_MODE_RS485_HALF_DUPLEX);
-}
-
-void stm32_uart_init(void)
-{
-	//if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
+	if(uart == 0) // sub port
 	{
-		uart_config_t uart_config = {
-					.baud_rate = 19200,
-					.data_bits = UART_DATA_8_BITS,
-					.parity = UART_PARITY_DISABLE,
-					.stop_bits = UART_STOP_BITS_1,
-					.flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-				};
-		// Configure UART parameters
-		//uart_set_mode(UART_NUM_1, UART_MODE_UART);
+		uart_param_config(uart_num_sub, &uart_config);
+		uart_set_pin(uart_num_sub, GPIO_NUM_1, GPIO_NUM_3, GPIO_SUB_EN_PIN, UART_PIN_NO_CHANGE);
+		uart_driver_install(uart_num_sub, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+		uart_set_mode(uart_num_sub, UART_MODE_RS485_HALF_DUPLEX);
+	}
+	else if(uart == 2)//  (uart == 1) main port
+	{
+		uart_param_config(uart_num_main, &uart_config);
+		uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
+		uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+		uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
 	}
 }
+
+
 
 bool checkdata(uint8_t* data)
 {
@@ -244,7 +354,11 @@ bool checkdata(uint8_t* data)
 	if((data[0] != 255) && (data[0] != Modbus.address) && (data[0] != 0))
 		return false;
 
-	if(data[1] != READ_VARIABLES && data[1] != WRITE_VARIABLES && data[1] != MULTIPLE_WRITE_VARIABLES && data[1] != CHECKONLINE)
+	if(data[1] != READ_VARIABLES
+			&& data[1] != WRITE_VARIABLES
+			&& data[1] != MULTIPLE_WRITE_VARIABLES && data[1] != CHECKONLINE
+			&& data[1] != TEMCO_MODBUS
+			)
 		return false;
 
 	if(data[1] == CHECKONLINE)
@@ -258,14 +372,21 @@ bool checkdata(uint8_t* data)
 	return true;
 }
 void debug_info(char *string);
-void modbus_task(void *arg)
+
+
+
+extern uint8 led_sub_tx;
+extern uint8 led_sub_rx;
+extern uint8 led_main_tx;
+extern uint8 led_main_rx;
+void modbus0_task(void *arg)
 {
 	uint8_t modbus_send_buf[500];
 	uint16_t modbus_send_len;
 	memset(modbus_send_buf,0,500);
 	modbus_send_len = 0;
-	uint8_t testCmd[8] = {0xff,0x03,0x00,0x00,0x00,0x64,0x51,0xff};
-	uint8_t i;
+	//uint8_t testCmd[8] = {0xff,0x03,0x00,0x00,0x00,0x64,0x51,0xff};
+	//uint8_t i;
 	//mb_param_info_t reg_info; // keeps the Modbus registers access information
 	//printf("MODBUS_TASK&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\r\n");
 	// Configure a temporary buffer for the incoming data
@@ -274,40 +395,95 @@ void modbus_task(void *arg)
 //	char prefix[] = "RS485 Received: [";
 	//modbus_init();
 	setup_reg_data();
-	uint8_t *uart_rsv = (uint8_t*)malloc(MB_BUF_SIZE);
-	uint8_t *stm32_uart_rsv = (uint8_t*)malloc(64);
+	uint8_t* uart_rsv = (uint8_t*)malloc(512);
 
-	for(i=0;i<5;i++)
-	{
-		init_crc16();
-		//responseCmd(SERIAL, testCmd, 8);
-		vTaskDelay(300 / portTICK_RATE_MS);
-	}
+
 	debug_info("modbous initial \r\n");
-	Modbus.com_config[0] = MODBUS_SLAVE;
+	//Modbus.com_config[0] = MODBUS_SLAVE;
 	while (1) {
-		if(Modbus.com_config[0] == MODBUS_SLAVE)
+		//Test[21] = inputs[0].range + 5;
+
+			if(Modbus.com_config[0] == MODBUS_SLAVE)
+			{
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 100 / portTICK_RATE_MS);
+
+				if(len>0)
+				{led_sub_rx++;holding_reg_params.led_rx485_rx = 1;
+					if(checkdata(uart_rsv))
+					{
+						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
+						{
+							handler_private_transfer(uart_rsv,0,NULL,0xa0);
+						}
+						init_crc16();
+						responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
+					}
+				}
+
+			}
+			else
+			{
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 100 / portTICK_RATE_MS);
+
+				if(len>0)
+				{
+					if(checkdata(uart_rsv))
+					{
+						Modbus.com_config[0] = MODBUS_SLAVE;
+					}
+				}
+				vTaskDelay(500 / portTICK_RATE_MS);
+			}
+
+		}
+
+}
+
+void modbus2_task(void *arg)
+{
+	uint8_t modbus_send_buf[500];
+	uint16_t modbus_send_len;
+	memset(modbus_send_buf,0,500);
+	modbus_send_len = 0;
+	setup_reg_data();
+	uint8_t* uart_rsv = (uint8_t*)malloc(512);
+	//Test[2] = 100;
+	while (1) {
+		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num, uart_rsv, MB_BUF_SIZE, 20 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 			if(len>0)
-			{//debug_info(" modbus rcv \r\n");
+			{led_sub_rx++;holding_reg_params.led_rx485_rx = 1;
 				if(checkdata(uart_rsv))
 				{
+					if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
+					{
+						handler_private_transfer(uart_rsv,0,NULL,0xa2);
+					}
 					init_crc16();
-					//debug_info(" modbus send \r\n");
-					responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len);
+					responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,2);
 				}
 			}
 
 		}
 		else
-			vTaskDelay(5000 / portTICK_RATE_MS);
+		{
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 100 / portTICK_RATE_MS);
+
+			if(len>0)
+			{
+				if(checkdata(uart_rsv))
+				{
+					Modbus.com_config[2] = MODBUS_SLAVE;
+				}
+			}
+			vTaskDelay(500 / portTICK_RATE_MS);
+		}
 	}
 }
 
-
-void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8_t *resData ,uint16_t *modbus_send_len)
+void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
    uint8_t num, i, temp1, temp2;
    uint16_t temp;
@@ -327,9 +503,6 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
    else{
       headlen = 0;
       uart_send = malloc(512);
-      //uart_write_bytes(UART_NUM_0, "responseDataSIZE=", sizeof("responseDataSIZE=")-1);
-      //test = (char)rece_size+0x30;
-      //uart_write_bytes(UART_NUM_0, &test, 1);
    }
    if(*(bufadd + 1 + headlen) == WRITE_VARIABLES){
       if(type == WIFI){ // for wifi
@@ -343,17 +516,20 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_sendB[4] = 0;   //   Len
          uart_sendB[5] = 6;
 
-         memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
-         modbus_wifi_len = UIP_HEAD + send_cout;
+         //memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
+         //modbus_wifi_len = UIP_HEAD + send_cout;
       }else{
          //uart_write_bytes(UART_NUM_0, "WRITE_VARIABLES\r\n", sizeof("WRITE_VARIABLES\r\n"));
          for(i = 0; i < rece_size; i++)
             uart_send[send_cout++] = *(bufadd+i);
          if(type == BAC_TO_MODBUS){
-
+        	// memcpy(&bacnet_to_modbus,&sendbuf[3],RegNum * 2);
          }
          else
-            uart_write_bytes(UART_NUM_0, (const char *)uart_send, send_cout);
+         {
+        	led_sub_tx++;
+            uart_send_string((const char *)uart_send, send_cout,port);
+         }
          return;
       }
    }else if(*(bufadd + 1 + headlen) == MULTIPLE_WRITE){
@@ -372,12 +548,13 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 
       if(type != WIFI){
          if(type == BAC_TO_MODBUS){
-         //   memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
+           ;// memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
          }
          else{
             uart_send[6] = CRChi;
             uart_send[7] = CRClo;
-            uart_write_bytes(UART_NUM_0, (const char *)uart_send, 8);
+            uart_send_string((const char *)uart_send, 8,port);
+            led_sub_tx++;
             return;
          }
       }else{
@@ -387,8 +564,8 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_sendB[3] = 0;
          uart_sendB[4] = 0;   //   Len
          uart_sendB[5] = 6;
-         memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
-         modbus_wifi_len = UIP_HEAD + send_cout;
+         //memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
+         //modbus_wifi_len = UIP_HEAD + send_cout;
       }
    }else if(*(bufadd + 1 + headlen) == READ_VARIABLES){
       num = *(bufadd+5 + headlen);
@@ -397,6 +574,10 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_send[send_cout++] = *(bufadd) ;
          uart_send[send_cout++] = *(bufadd+1) ;
          uart_send[send_cout++] = (*(bufadd+5)<<1);
+         if(type == BAC_TO_MODBUS)
+		{
+			memcpy(&bacnet_to_modbus,&uart_send[3],*(bufadd+5) * 2);
+		}
       }
       else//WIFI
       {
@@ -432,14 +613,14 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          }
          else if(address == VERSION_NUMBER_LO)
          {
-            temp1 = 0;
-            temp2 = SW_REV % 0xff;
+            temp1 = 1;//SW_REV % 0xff;
+            temp2 = 1;//SW_REV % 0xff;
          }
 
          else if(address == VERSION_NUMBER_HI)
          {
-            temp1 = 0;
-            temp2 = SW_REV / 0xff;
+            temp1 = 1;//SW_REV / 0xff;
+            temp2 = 1;//SW_REV / 0xff;
          }
          else if(address == MODBUS_ADDRESS)
          {
@@ -456,11 +637,16 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             temp1 = 0 ;
             temp2 = Modbus.hardRev ;
          }
-         else if(address == BAUDRATE)
+         else if(address == MODBUS_UART0_BAUDRATE)
          {
             temp1 = 0;
-            temp2 = Modbus.baudrate;
+            temp2 = Modbus.baudrate[0];
          }
+         else if(address == MODBUS_UART2_BAUDRATE)
+		  {
+			 temp1 = 0;
+			 temp2 = Modbus.baudrate[2];
+		  }
          else if(address == MODBUS_ETHERNET_STATUS)
          {
             temp1 = 0;
@@ -471,10 +657,20 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             temp1 = (Test/*holding_reg_params.testBuf*/[address-MODBUS_TEST_1]>>8)&0xff;
             temp2 = Test/*holding_reg_params.testBuf*/[address-MODBUS_TEST_1]&0xff;
          }
-         else if(address == MODBUS_BACNET_SWITCH)
+         else if(address == MODBUS_COM0_TYPE)
 		{
         	 temp1 = 0;
         	 temp2 = Modbus.com_config[0];
+		}
+        /* else if(address == MODBUS_COM1_TYPE)
+		{
+			 temp1 = 0;
+			 temp2 = Modbus.com_config[1];
+		}*/
+         else if(address == MODBUS_COM2_TYPE)
+		{
+			 temp1 = 0;
+			 temp2 = Modbus.com_config[2];
 		}
 		else if(address == MODBUS_INSTANCE_LO)
 		{
@@ -484,7 +680,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		else if(address == MODBUS_MINI_TYPE)
 		{
 			temp1 = 0;
-			temp2 = 13;//T3_FAN_MODULE;6;//MINI_SMALL_ARM;
+			temp2 = 6;//MINI_SMALL_ARM;
 		}
 		else if(address == MODBUS_INSTANCE_HI)
 		{
@@ -522,34 +718,39 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             temp1 = 0;
             temp2 = Modbus.getway[address - IP_GATE_WAY_1];
          }
+         else if(address == MODBUS_TOTAL_NO)
+		{
+        	 temp1 = 0;
+        	 temp2 =  sub_no;
+		}
+		else if(address >= MODBUS_SUBADDR_FIRST && address <= MODBUS_SUBADDR_LAST)
+		{
+			temp1 = (current_online[scan_db[address  - MODBUS_SUBADDR_FIRST].id / 8] & (1 << (scan_db[address  - MODBUS_SUBADDR_FIRST].id % 8))) ? 1 : 0;
+			temp2 =  scan_db[address  - MODBUS_SUBADDR_FIRST].id;
+		}
+
          else if(address == WIFI_RSSI)
          {
             temp1 = 0xff;
             temp2 = SSID_Info.rssi;
          }
+
          else if((address >= MODBUS_WIFI_START)&& (address <= MODBUS_WIFI_END))
 		 {
         	 temp = read_wifi_data_by_block(address);
 			 temp1 = (temp >> 8) & 0xFF;
 			 temp2 = temp & 0xFF;
 		 }
-         /*else if((address>= MODBUS_OUTPUT_BLOCK_FIRST)&&(address<=MODBUS_INPUT_BLOCK_LAST))
-         {
-            temp = read_user_data_by_block(address);
+/******************* read IN OUT by block start ******************************************/
+		else if( address >= MODBUS_USER_BLOCK_FIRST && address <= MODBUS_USER_BLOCK_LAST)
+		{
+			U16_T temp;
+			temp = read_user_data_by_block(address);
+			temp2 = temp & 0xFF;
+			temp1 = (temp >> 8) & 0xFF;
+		}
+/*********************read IN OUT by block endf ***************************************/
 
-            temp1 = (temp >> 8) & 0xFF;
-            temp2 = temp & 0xFF;
-         }
-         else if((address >= MODBUS_INPUT_BLOCK_FIRST)&&(address<= MODBUS_INPUT_BLOCK_LAST))
-         {
-            uint8_t index,item;
-            uint16_t *block;
-            index = (address-MODBUS_INPUT_BLOCK_FIRST)/((sizeof(Str_in_point)+1)/2);
-            block = (uint16_t *)&inputs[index];
-            item = (address-MODBUS_INPUT_BLOCK_FIRST)%((sizeof(Str_in_point)+1)/2);
-            temp1 = (block[item]>>8)&0xff;
-            temp2 = block[item]&0xff;
-         }*/
          else if(address == MODBUS_EX_MOUDLE_EN)
          {
             temp1 = 0;
@@ -611,54 +812,224 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
    }else{
       uart_send[send_cout++] = temp1 ;
       uart_send[send_cout++] = temp2 ;
-      //holding_reg_params.led_rx485_tx = 2;
-      uart_write_bytes(UART_NUM_0, (const char *)uart_send, send_cout);
-
+      uart_send_string((const char *)uart_send, send_cout,port);
+      led_sub_tx++;
       free(uart_send);
    }
 }
 
 
-void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resData ,uint16_t *modbus_send_len)
+void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
 
    if(type == WIFI)
    {
       reg_num = pData[4]*256 + pData[5];
-      responseModbusData(pData,WIFI, len,resData,modbus_send_len);
+      responseModbusData(pData,WIFI, len,resData,modbus_send_len,port);
       internalDeal(pData,WIFI);
    }
-   else if(type == BAC_TO_MODBUS)
+  /* else if(type == BAC_TO_MODBUS)
    {
 
-   }
+   }*/
    else
    {
       reg_num = pData[4]*256 + pData[5];
-      //uart_write_bytes(UART_NUM_0, "responseCmd\r\n", sizeof("responseCmd\r\n"));
-      responseModbusData(pData,SERIAL,len,resData,modbus_send_len);
+      responseModbusData(pData,SERIAL,len,resData,modbus_send_len,port);
       internalDeal(pData,SERIAL);
    }
 }
 
 
+void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
+{
+	U8_T far i,j;
+
+	if(StartAdd  >= MODBUS_SETTING_BLOCK_FIRST && StartAdd  <= MODBUS_SETTING_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_SETTING_BLOCK_FIRST) % 100 == 0)
+		{
+			i = (StartAdd - MODBUS_SETTING_BLOCK_FIRST) / 100;
+			memcpy(&Setting_Info.all[i * 200],&pData[HeadLen + 7],200);
+
+
+			if(i == 1)
+			{
+				dealwith_write_setting(&Setting_Info);
+			}
+		}
+
+	}
+	else if(StartAdd  >= MODBUS_OUTPUT_BLOCK_FIRST && StartAdd  <= MODBUS_OUTPUT_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_OUTPUT_BLOCK_FIRST) % ((sizeof(Str_out_point) + 1) / 2) == 0)
+		{
+			S32_T old_value;
+			i = (StartAdd - MODBUS_OUTPUT_BLOCK_FIRST) / ((sizeof(Str_out_point) + 1) / 2);
+			memcpy(&outputs[i],&pData[HeadLen + 7],sizeof(Str_out_point));
+
+			check_output_priority_array(i,0);
+
+		}
+	}
+	else if(StartAdd  >= MODBUS_INPUT_BLOCK_FIRST && StartAdd  <= MODBUS_INPUT_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1	) / 2) == 0)
+		{
+			i = (StartAdd - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
+			memcpy(&inputs[i],&pData[HeadLen + 7],sizeof(Str_in_point));
+
+		}
+	}
+	else if(StartAdd  >= MODBUS_VAR_BLOCK_FIRST && StartAdd  <= MODBUS_VAR_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_VAR_BLOCK_FIRST) % ((sizeof(Str_variable_point) + 1	) / 2) == 0)
+		{
+			i = (StartAdd - MODBUS_VAR_BLOCK_FIRST) / ((sizeof(Str_variable_point) + 1) / 2);
+			memcpy(&vars[i],&pData[HeadLen + 7],sizeof(Str_variable_point));
+
+		}
+	}
+	else if(StartAdd  >= MODBUS_PRG_BLOCK_FIRST && StartAdd  <= MODBUS_PRG_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_PRG_BLOCK_FIRST) % ((sizeof(Str_program_point) + 1	) / 2) == 0)
+		{
+			i = (StartAdd - MODBUS_PRG_BLOCK_FIRST) / ((sizeof(Str_program_point) + 1) / 2);
+			memcpy(&programs[i],&pData[HeadLen + 7],sizeof(Str_program_point));
+		}
+
+	}
+	else if(StartAdd  >= MODBUS_WR_BLOCK_FIRST && StartAdd  <= MODBUS_WR_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_WR_BLOCK_FIRST) % ((sizeof(Str_weekly_routine_point) + 1	) / 2) == 0)
+		{
+			i = (StartAdd - MODBUS_WR_BLOCK_FIRST) / ((sizeof(Str_weekly_routine_point) + 1) / 2);
+			memcpy(&weekly_routines[i],&pData[HeadLen + 7],sizeof(Str_weekly_routine_point));
+		}
+
+	}
+	else if(StartAdd  >= MODBUS_AR_BLOCK_FIRST && StartAdd  <= MODBUS_AR_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_AR_BLOCK_FIRST) % ((sizeof(Str_annual_routine_point) + 1	) / 2) == 0)
+		{
+			i = (StartAdd - MODBUS_AR_BLOCK_FIRST) / ((sizeof(Str_annual_routine_point) + 1) / 2);
+			memcpy(&annual_routines[i],&pData[HeadLen + 7],sizeof(Str_annual_routine_point));
+		}
+	}
+	else if(StartAdd  >= MODBUS_WR_TIME_FIRST && StartAdd  <= MODBUS_WR_TIME_LAST)
+	{
+		if((StartAdd - MODBUS_WR_TIME_FIRST) % (sizeof(Wr_one_day) * MAX_SCHEDULES_PER_WEEK / 2) == 0)
+		{
+			i = (StartAdd - MODBUS_WR_TIME_FIRST) / (sizeof(Wr_one_day) * MAX_SCHEDULES_PER_WEEK / 2);
+			memcpy(&wr_times[i],&pData[HeadLen + 7],(sizeof(Wr_one_day) * MAX_SCHEDULES_PER_WEEK));
+		}
+	}
+	else if(StartAdd  >= MODBUS_AR_TIME_FIRST && StartAdd  <= MODBUS_AR_TIME_LAST)
+	{
+		if((StartAdd - MODBUS_AR_TIME_FIRST) % (AR_DATES_SIZE / 2) == 0)
+		{
+			i = ((StartAdd - MODBUS_AR_TIME_FIRST) / (AR_DATES_SIZE / 2));
+			memcpy(&ar_dates[i],&pData[HeadLen + 7],AR_DATES_SIZE);
+		}
+	}
+	else if(StartAdd  >= MODBUS_CONTROLLER_BLOCK_FIRST && StartAdd  <= MODBUS_CONTROLLER_BLOCK_LAST)
+	{
+		if((StartAdd - MODBUS_CONTROLLER_BLOCK_FIRST) % (sizeof(Str_controller_point) / 2) == 0)
+		{
+			i = ((StartAdd - MODBUS_CONTROLLER_BLOCK_FIRST) / (sizeof(Str_controller_point) / 2));
+			memcpy(&controllers[i],&pData[HeadLen + 7],sizeof(Str_controller_point));
+		}
+	}
+	else if (StartAdd >= MODBUS_WR_FLAG_FIRST && StartAdd <= MDOBUS_WR_FLAG_LAST)
+	{
+		if ((StartAdd - MODBUS_WR_FLAG_FIRST) % ((MAX_SCHEDULES_PER_WEEK * 8 + 1) / 2) == 0)
+		{
+			i = (StartAdd - MODBUS_WR_FLAG_FIRST) / ((MAX_SCHEDULES_PER_WEEK * 8 + 1) / 2);
+			memcpy(&wr_time_on_off[i], &pData[HeadLen + 7], MAX_SCHEDULES_PER_WEEK * 8);
+		}
+
+	}
+}
+
+
 uint16_t read_user_data_by_block(uint16_t addr)
 {
-   uint8_t index,item=0;
-   uint16_t *block=NULL;
-   /*if( addr >= MODBUS_OUTPUT_BLOCK_FIRST && addr <= MODBUS_OUTPUT_BLOCK_LAST )
-   {
-      index = (addr - MODBUS_OUTPUT_BLOCK_FIRST) / ( (sizeof(Str_out_point) + 1) / 2);
-      block = (uint16_t *)&outputs[index];
-      item = (addr - MODBUS_OUTPUT_BLOCK_FIRST) % ((sizeof(Str_out_point) + 1) / 2);
-   }
-   else if( addr >= MODBUS_INPUT_BLOCK_FIRST && addr <= MODBUS_INPUT_BLOCK_LAST )
-   {
-      index = (addr - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
-      block = (uint16_t *)&inputs[index];
-      item = (addr - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1) / 2);
-   }*/
-   return block[item];
+	U8_T  index = 0,item = 0;
+	U16_T *block = NULL;
+	if( addr >= MODBUS_SETTING_BLOCK_FIRST && addr <= MODBUS_SETTING_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_SETTING_BLOCK_FIRST) / 100;
+		block = (U16_T *)&Setting_Info.all[index * 200];
+		item = (addr - MODBUS_SETTING_BLOCK_FIRST) % 100;
+	}
+	else if( addr >= MODBUS_OUTPUT_BLOCK_FIRST && addr <= MODBUS_OUTPUT_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_OUTPUT_BLOCK_FIRST) / ( (sizeof(Str_out_point) + 1) / 2);
+		block = (U16_T *)&outputs[index];
+		item = (addr - MODBUS_OUTPUT_BLOCK_FIRST) % ((sizeof(Str_out_point) + 1) / 2);
+	}
+	else if( addr >= MODBUS_INPUT_BLOCK_FIRST && addr <= MODBUS_INPUT_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
+		block = (U16_T *)&inputs[index];
+		item = (addr - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1) / 2);
+	}
+	else if( addr >= MODBUS_VAR_BLOCK_FIRST && addr <= MODBUS_VAR_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_VAR_BLOCK_FIRST) / ((sizeof(Str_variable_point) + 1) / 2);
+		block = (U16_T *)&vars[index];
+		item = (addr - MODBUS_VAR_BLOCK_FIRST) % ((sizeof(Str_variable_point) + 1) / 2);
+	}
+	else if( addr >= MODBUS_PRG_BLOCK_FIRST && addr <= MODBUS_PRG_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_PRG_BLOCK_FIRST) / ((sizeof(Str_program_point) + 1) / 2);
+		block = (U16_T *)&programs[index];
+		item = (addr - MODBUS_PRG_BLOCK_FIRST) % ((sizeof(Str_program_point) + 1) / 2);
+	}
+	else if( addr >= MODBUS_CODE_BLOCK_FIRST && addr <= MODBUS_CODE_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_CODE_BLOCK_FIRST) / 100;
+		block = (U16_T *)&prg_code[index / (CODE_ELEMENT * MAX_CODE / 200)][CODE_ELEMENT * MAX_CODE % 200];
+		item = (addr - MODBUS_CODE_BLOCK_FIRST) % 100;
+	}
+	else if( addr >= MODBUS_WR_BLOCK_FIRST && addr <= MODBUS_WR_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_WR_BLOCK_FIRST) / ((sizeof(Str_weekly_routine_point) + 1) / 2);
+		block = (U16_T *)&weekly_routines[index];
+		item = (addr - MODBUS_WR_BLOCK_FIRST) % ((sizeof(Str_weekly_routine_point) + 1) / 2);
+	}
+	else if( addr >= MODBUS_WR_TIME_FIRST && addr <= MODBUS_WR_TIME_LAST )
+	{
+		index = (addr - MODBUS_WR_TIME_FIRST) / ((sizeof(Wr_one_day) * MAX_SCHEDULES_PER_WEEK + 1) / 2);
+		block = (U16_T *)&wr_times[index];
+		item = (addr - MODBUS_WR_TIME_FIRST) % ((sizeof(Wr_one_day) * MAX_SCHEDULES_PER_WEEK + 1) / 2);
+	}
+	else if( addr >= MODBUS_AR_BLOCK_FIRST && addr <= MODBUS_AR_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_AR_BLOCK_FIRST) / ((sizeof(Str_annual_routine_point) + 1) / 2);
+		block = (U16_T *)&annual_routines[index];
+		item = (addr - MODBUS_AR_BLOCK_FIRST) % ((sizeof(Str_annual_routine_point) + 1) / 2);
+
+	}
+	else if( addr >= MODBUS_AR_TIME_FIRST && addr <= MODBUS_AR_TIME_LAST )
+	{
+		index = (addr - MODBUS_AR_TIME_FIRST) / (AR_DATES_SIZE / 2);
+		block = (U16_T *)&ar_dates[index];
+		item = (addr - MODBUS_AR_TIME_FIRST) % (AR_DATES_SIZE / 2);
+	}
+	else if( addr >= MODBUS_CONTROLLER_BLOCK_FIRST && addr <= MODBUS_CONTROLLER_BLOCK_LAST )
+	{
+		index = (addr - MODBUS_CONTROLLER_BLOCK_FIRST) / (sizeof(Str_controller_point) / 2);
+		block = (U16_T *)&controllers[index];
+		item = (addr - MODBUS_CONTROLLER_BLOCK_FIRST) % (sizeof(Str_controller_point) / 2);
+	}
+	else if (addr >= MODBUS_WR_FLAG_FIRST && addr <= MDOBUS_WR_FLAG_LAST)
+	{
+		index = (addr - MODBUS_WR_FLAG_FIRST) / ((MAX_SCHEDULES_PER_WEEK * 8 + 1) / 2);
+		block = (U16_T *)&wr_time_on_off[index];
+		item = (addr - MODBUS_WR_FLAG_FIRST) % ((MAX_SCHEDULES_PER_WEEK * 8 + 1) / 2);
+	}
+	return block[item];
 }
 
 uint16_t read_wifi_data_by_block(uint16_t addr)
@@ -743,14 +1114,13 @@ uint16_t read_wifi_data_by_block(uint16_t addr)
 static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *pData,uint8_t type)
 {
    //uint8_t i,j;
-	Test[10]++;
    if(StartAdd == MODBUS_WIFI_SSID_MANUAL_EN)
    {
       SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
       SSID_Info.MANUEL_EN = pData[HeadLen + 5];
       //write_page_en[WIFI_TYPE] = 1;
       //Flash_Write_Mass();
-      save_wifi_info();
+      save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
       //re_init_wifi = true;
       esp_restart();
    }
@@ -794,7 +1164,7 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
          memset(&SSID_Info.name,'\0',64);
          memcpy(&SSID_Info.name,&pData[HeadLen + 7],64);
       }
-      save_wifi_info();
+      save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
    }
    else if(StartAdd >= MODBUS_WIFI_PASS_START && StartAdd <= MODBUS_WIFI_PASS_END)
    {
@@ -803,7 +1173,7 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
          memset(&SSID_Info.password,'\0',32);
          memcpy(&SSID_Info.password,&pData[HeadLen + 7],32);
       }
-      save_wifi_info();
+      save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
    }
    else if(StartAdd == MODBUS_WIFI_IP1)
    {
@@ -849,14 +1219,14 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
    uint16_t address;
    uint16_t  temp_i;
    uint8_t i;
-
+   //uint8_t  HeadLen;
    if(type == SERIAL || type == BAC_TO_MODBUS)  // modbus packet
    {
       //HeadLen = 0;
    }
    else    // TCP packet or wifi
    {
-   //   HeadLen = UIP_HEAD;
+      //HeadLen = UIP_HEAD;
       bufadd = bufadd + 6;
    }
 
@@ -868,47 +1238,37 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
       {
          write_wifi_data_by_block(temp_i,0,bufadd,0);
       }
-      /*else if(temp_i  >= MODBUS_INPUT_BLOCK_FIRST && temp_i  <= MODBUS_INPUT_BLOCK_LAST)
-      {
-         if((temp_i - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1   ) / 2) == 0)
-         {
-            i = (temp_i - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
-            memcpy(&inputs[i],&bufadd[7],sizeof(Str_in_point));
-            save_blob_info(FLASH_INPUT_INFO, (const void*)&inputs[0], INPUT_PAGE_LENTH);
-         }
-      }*/
+      /******************* write IN OUT by block start ******************************************/
+	 else if(temp_i  >= MODBUS_USER_BLOCK_FIRST && temp_i  <= MODBUS_USER_BLOCK_LAST)
+	 {
+		 // dealwith_block
+		 write_user_data_by_block(temp_i,0,bufadd);
+		 save_point_info(0);
+	 }
+      /*********************read IN OUT by block endf ***************************************/
       else if(temp_i == SERIALNUMBER_LOWORD )
       {
-         Modbus.serialNum[0] = *(bufadd+8);
-         Modbus.serialNum[1] = *(bufadd+10);
-         Modbus.serialNum[2] = *(bufadd+12);
-         Modbus.serialNum[3] = *(bufadd+13);
+         Modbus.serialNum[0] = *(bufadd + 8);
+         Modbus.serialNum[1] = *(bufadd + 10);
+         Modbus.serialNum[2] = *(bufadd + 12);
+         Modbus.serialNum[3] = *(bufadd + 13);
          save_uint8_to_flash(FLASH_SERIAL_NUM1,Modbus.serialNum[0]);
          save_uint8_to_flash(FLASH_SERIAL_NUM2,Modbus.serialNum[1]);
          save_uint8_to_flash(FLASH_SERIAL_NUM3,Modbus.serialNum[2]);
          save_uint8_to_flash(FLASH_SERIAL_NUM4,Modbus.serialNum[3]);
-         //save_uint16_to_flash(FLASH_SERIAL_NUM_LO, Modbus.serialNum[0] + (uint16_t)Modbus.serialNum[1] << 8);
-         //save_uint16_to_flash(FLASH_SERIAL_NUM_HI, Modbus.serialNum[2] + (uint16_t)Modbus.serialNum[3] << 8);
-      }
+       }
    }
    if(*(bufadd+1) == WRITE_VARIABLES)
    {
-      if(address >= MODBUS_WIFI_START && address <= MODBUS_WIFI_END)
+      if(address == MODBUS_ADDRESS)
       {
-         write_wifi_data_by_block(address,0,bufadd,0);
-      }
-      else if(address == MODBUS_ADDRESS)
-      {
-         if((*(bufadd+5)!=0)&&(*(bufadd+5)!=0xff))
+         if((*(bufadd + 5)!=0)&&(*(bufadd + 5)!=0xff))
          {
-        	 Modbus.address = *(bufadd+5);
+        	 Modbus.address = *(bufadd + 5);
             save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
          }
       }
-      else if(address ==  MODBUS_BACNET_SWITCH)
-      {
-    	  Modbus.com_config[0] = *(bufadd+5);
-      }
+
       else if(address == MODBUS_INSTANCE_LO)
       {
 		U32_T		temp;
@@ -933,34 +1293,70 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				Device_Set_Object_Instance_Number(Instance);
 			}
 		}
-      else if(address == BAUDRATE)
+      else if(address == MODBUS_UART0_BAUDRATE)
       {
-         if(*(bufadd+5)<5)
+         if(*(bufadd + 5)<10)
          {
-            Modbus.baudrate = *(bufadd+5);
-            save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate);
-            modbus_init();
+            Modbus.baudrate[0] = *(bufadd + 5);
+            save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate[0]);
+            uart_init(0);
          }
       }
+      else if(address == MODBUS_UART2_BAUDRATE)
+		{
+		   if(*(bufadd + 5)<10)
+		   {
+			  Modbus.baudrate[2] = *(bufadd + 5);
+			  save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate[2]);
+			  uart_init(2);
+		   }
+		}
 
+	  else if(address == MODBUS_COM0_TYPE)
+		{
+		   if(*(bufadd + 5) < MAX_COM_TYPE)
+		   {
+			  Modbus.com_config[0] = *(bufadd + 5);
+			  save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+			 // uart_init(0);
+			  Count_com_config();
+		   }
+		}
+		else if(address == MODBUS_COM2_TYPE)
+		{
+		   if(*(bufadd + 5) < MAX_COM_TYPE)
+		   {
+			  Modbus.com_config[2] = *(bufadd + 5);
+			  save_uint8_to_flash( FLASH_UART2_CONFIG, Modbus.com_config[2]);
+			 // uart_init(2);
+			  Count_com_config();
+		   }
+		}
       else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
       {
          //save_uint16_to_flash(FLASH_INPUT_FLAG, 0);
       }
       else if (address == UPDATE_STATUS)
       {
-         if (*(bufadd+5) == 0x7f)
+         if (*(bufadd + 5) == 0x7f)
          {
             start_fw_update();
          }
       }
       else if(address >= MODBUS_TEST_1 && address <= MODBUS_TEST_50)
       {
-    	  Test[address - MODBUS_TEST_1] = (((uint16_t)*(bufadd+4)<<8) + *(bufadd+5));
+    	  Test[address - MODBUS_TEST_1] = (((uint16_t)*(bufadd+0 + 4)<<8) + *(bufadd + 5));
       }
+
+
+
    }
 }
-#if 0
+
+
+void set_default_parameters(void);
+
+
 void dealwith_write_setting(Str_Setting_Info * ptr)
 {
 // compare sn to check whether it is current panel
@@ -1069,16 +1465,14 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		memcpy(Modbus.mac_addr,ptr->reg.mac_addr,6);
 		if(Modbus.com_config[0] != ptr->reg.com_config[0])
 		{
-			/*Modbus.com_config[0] = ptr->reg.com_config[0];
-			if((Modbus.com_config[0] == MODBUS_SLAVE) || (Modbus.com_config[0] == 0))
-				uart_serial_restart(0);
-			if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
-				Recievebuf_Initialize(0);
+			Modbus.com_config[0] = ptr->reg.com_config[0];
+			//if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
+			//	Recievebuf_Initialize(0);
 
-				Count_com_config();
-			E2prom_Write_Byte(EEP_COM0_CONFIG, Modbus.com_config[0]);*/
+			Count_com_config();
+			save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
 		}
-		if(Modbus.com_config[1] != ptr->reg.com_config[1])
+		/*if(Modbus.com_config[1] != ptr->reg.com_config[1])
 		{
 			Modbus.com_config[1] = ptr->reg.com_config[1];
 			if((Modbus.com_config[1] == MODBUS_SLAVE) || (Modbus.com_config[1] == 0))
@@ -1103,20 +1497,12 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 #endif
 #endif
 			//E2prom_Write_Byte(EEP_COM1_CONFIG, Modbus.com_config[1]);
-		}
+		}*/
 		if(Modbus.com_config[2] != ptr->reg.com_config[2])
 		{
 			Modbus.com_config[2] = ptr->reg.com_config[2];
-            if ((Modbus.com_config[2] == MODBUS_SLAVE) || (Modbus.com_config[2] == 0))
-            {
-                ;//uart_serial_restart(2);
-            }
-			if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
-				;//Recievebuf_Initialize(2);
-			//if(Modbus.com_config[2] == MODBUS_MASTER)
-				Count_com_config();
-
-			//E2prom_Write_Byte(EEP_COM2_CONFIG, Modbus.com_config[2]);
+            Count_com_config();
+           	save_uint8_to_flash( FLASH_UART2_CONFIG, Modbus.com_config[2]);
 		}
 
 		if(Modbus.uart_parity[0] != ptr->reg.uart_parity[0])
@@ -1181,6 +1567,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
 			dlmstp_init(NULL);
 #endif
+			save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
 		}
 
 		if(panel_number != ptr->reg.panel_number)
@@ -1191,6 +1578,9 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				//E2prom_Write_Byte(EEP_PANEL_NUMBER,panel_number);
 				change_panel_number_in_code(Setting_Info.reg.panel_number,panel_number);
 				Setting_Info.reg.panel_number	= panel_number;
+				Modbus.address = panel_number;
+				Station_NUM = panel_number;
+				save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
 			}
 		}
 
@@ -1216,20 +1606,26 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		{
 			Modbus.baudrate[0] = ptr->reg.com_baudrate[0];
 			/*if((Modbus.com_config[0] == MODBUS_SLAVE) || (Modbus.com_config[0] == NOUSE) || (Modbus.com_config[0] == MODBUS_MASTER)
-				|| (Modbus.com_config[0] == BACNET_SLAVE) || (Modbus.com_config[0] == BACNET_MASTER))
-				E2prom_Write_Byte(EEP_UART0_BAUDRATE, uart0_baudrate);
-			UART_Init(0);*/
+				|| (Modbus.com_config[0] == BACNET_SLAVE) || (Modbus.com_config[0] == BACNET_MASTER))*/
+			save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
+			Count_com_config();
+		}
+		if(Modbus.baudrate[2] != ptr->reg.com_baudrate[2]) // com_baudrate[2]??T3000
+		{
+			Modbus.baudrate[2] = ptr->reg.com_baudrate[2];
+			/*if((Modbus.com_config[2] == MODBUS_SLAVE) || (Modbus.com_config[2] == NOUSE) || (Modbus.com_config[2] == MODBUS_MASTER)
+				|| (Modbus.com_config[2] == BACNET_SLAVE) || (Modbus.com_config[2] == BACNET_MASTER))*/
+			save_uint8_to_flash(FLASH_BAUD_RATE2, Modbus.baudrate[2]);
+			Count_com_config();
 		}
 
-
-
-
-#if 0
 		if(ptr->reg.reset_default == 88)	// reset default
 		{
-			flag_reset_default = 1;
-			ptr->reg.reset_default = 0;
+			//flag_reset_default = 1;
+			//ptr->reg.reset_default = 0;
+			set_default_parameters();
 		}
+#if 0
 		if(ptr->reg.reset_default == 111)	 // reboot
 		{
 #if ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI
@@ -1403,4 +1799,11 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 #endif
 	 }
 }
-#endif
+
+void responseCmd(uint8 type,uint8* pData)
+{
+	//uint16_t ptr16[10];
+	//uint8_t ptr8[10];
+	responseModbusCmd(BAC_TO_MODBUS, pData, 0,NULL,NULL,0);
+}
+

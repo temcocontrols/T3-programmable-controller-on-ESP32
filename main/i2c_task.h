@@ -43,7 +43,9 @@
 
 typedef enum{
 	PROJECT_SAUTER,
-	PROJECT_FAN_MODULE,
+	PROJECT_FAN_MODULE=13,
+	PROJECT_POWER_METER=14,
+	PROJECT_AIRLAB=15,
 }project_e;
 
 #pragma pack(push, 1)

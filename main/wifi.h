@@ -2,7 +2,7 @@
 #define __WIFI_H
 
 
-#define DEBUG_INFO_UART0	true//
+#define DEBUG_INFO_UART0	0//
 
 typedef enum
 {

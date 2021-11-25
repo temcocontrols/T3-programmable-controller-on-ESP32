@@ -1,19 +1,21 @@
 //#include "controls.h"
-#include "point.h"
+#include "bac_point.h"
 #include "user_data.h"
 #include "e2prom.h"
 #include "bo.h"
 #include "ao.h"
  
-
+void control_input(void);
+void control_output(void);
 S16_T exec_program(S16_T current_prg, U8_T *prog_code);
 void update_comport_health(void);
 extern void check_output_priority_array(U8_T i,U8_T HOA);
 extern void Set_AO_raw(uint8 i,float value);
 void set_output_raw(uint8_t point,uint16_t value);
-/*{
-	
-}*/
+void sample_points( void );
+//extern S16_T get_point_value( Point *point, S32_T *val_ptr );
+extern U16_T Test[50];
+
 uint8_t get_max_internal_output(void);
 /*{
 	return MAX_INS;
@@ -25,6 +27,7 @@ Con_aux				 			con_aux[MAX_CONS];
 #define PID_SAMPLE_TIME 10
 
 
+
 void pid_controller( S16_T p_number )   // 10s 
 {
  /* The setpoint and input point can only be local to the panel even
@@ -34,8 +37,9 @@ void pid_controller( S16_T p_number )   // 10s
 /*  err = percent of error = ( input_value - setpoint_value ) * 100 /
 					proportional_band	*/
 //	U8_T sample_time = 10L;       /* seconds */
+	Point *pt1 = NULL;
+	S32_T value = 0;
 
-#if 1
 	U16_T prop;
 	S32_T l1;
 	Str_controller_point *con;
@@ -48,8 +52,12 @@ void pid_controller( S16_T p_number )   // 10s
 
 	if(con->auto_manual == 1)  // manual - 1 , 0 - auto
 		return;
+
 	conx = &con_aux[p_number];
-	get_point_value( (Point*)&con->input, &con->input_value );
+
+#if 1
+	//
+	get_point_value( (Point*)&con->input, &con->input_value);
 	get_point_value( (Point*)&con->setpoint, &con->setpoint_value );
 	od = oi = op = 0;
 //	con->proportional = 20;
@@ -646,37 +654,15 @@ extern U16_T output_raw[MAX_OUTS];
 #define		SW_OFF 	 0
 #define 	SW_HAND	 2
 #define		SW_AUTO	 1
-		
+void vTaskDelay( const uint32_t xTicksToDelay );	
+
 #if 0
 void Bacnet_Control(void) 
 {
 	U16_T i,j;
 	U8_T decom;
-//	Str_program_point *ptr;
-//	S32_T ttt1,ttt2;
 	static U8_T count_wait_sample;
-//	U8_T test_prg_code[50] = {
-////          01     0a 00     09 9c    02   03   9e   01   03   c8   0e   ff  fe
-// 0x19,0x00,0x01,0x0A,0x00,0x09,0x9C,0x00,0x03,0x9d,0x00,0x7c,0x92,0x00,
-//0x9d,0xe8,0x03,0x00,0x00, 0x9d, 0x52,0x00,0x00,0x00,0x33,0x03,0xfe};
-// VAR1 = 15-1-VAR2;  ID
-	
-//	U8_T test_prg_code[50] = {
-//0x0A,0x00,0x01,0x0A,0x00,0x25,0x9E,0x0C,0x00,0x0F,
-//0x00,0x01,0xfe};	
-//	U8_T test_prg_code[50] = {
-//          01     0a 00     09 9c    02   03   9e   01   03   c8   0e   ff  fe
-//0x0e,0x00,0x01,0x0A,0x00,0x09,0x9C,0x00,0x03,0x9e,0x04,0x03,0x01,0x0e,0x00,0xfe};
-// VAR1 = 15-1-VAR2;  ID
 
-//	U8_T test_prg_code[50] = {
-//	0x0b,0x00,0x01,0x0A,0x00,0x25,0x9E,0x00,0x01,0x01,0x0E,0x00,0x00,0xfe};
-
-//	Str_points_ptr sptr, xptr;
-//	U16_T xDelayPeriod  = ( U16_T ) 1000 / portTICK_RATE_MS; // 1000#endif
-	//U16_T xLastWakeTime = xTaskGetTickCount();
-
-//	task_test.enable[9] = 1;
 	count_reset_zigbee = 0;
 //	count_1s = 0;
 	count_10s = 0;
@@ -693,63 +679,26 @@ void Bacnet_Control(void)
 			clear_dead_master();
 #endif	
 	}
-// check reboot counter
- 
-	E2prom_Read_Byte(EEP_REBOOT_COUNTER,&reboot_counter);
-	E2prom_Write_Byte(EEP_REBOOT_COUNTER,++reboot_counter);
 
-	if(reboot_counter > 5)
-	{
-		for( i = 0; i < MAX_PRGS; i++/*, ptr++*/ )
-		{
-			programs[i].on_off = 0;
-		}
-		E2prom_Write_Byte(EEP_REBOOT_COUNTER,0);
-	}
 	flag_writing_code = 1;
 	count_wring_code = 5;
 	Check_All_WR();
 	for(;;)
   {
-		vTaskDelay(500);
+		
+		
 		//vTaskDelayUntil( &xLastWakeTime,500 );
 		/* deal with exec_program roution per 1s */	
 			
 		control_input();
-#if ARM_TSTAT_WIFI
-		if(Check_sensor_exist(E_FLAG_HUM))
-		{
-			if(Modbus.mini_type == MINI_T10P)
-			{
-				inputs[HI_COMMON_CHANNEL + 2].range = 27;
-			}
-			else
-			{
-				inputs[COMMON_CHANNEL + 2].range = 27;
-			}
-		}
-		else
-		{
-			if(Modbus.mini_type == MINI_T10P)
-			{
-				inputs[HI_COMMON_CHANNEL + 2].range = 0;
-			}
-			else
-			{
-				inputs[COMMON_CHANNEL + 2].range = 0;
-			}
-		}
-		check_trendlog_1s(2); // T3 里面该函数因为一些特殊放在outputtask
-#endif
-		current_task = 9;
-		//task_test.count[9]++;
 
-	  #ifdef ETHERNET_DEBUG
-			Ethernet_Debug_Task();
-		#endif
+
+#ifdef ETHERNET_DEBUG
+		Ethernet_Debug_Task();
+#endif
 
 #if (ARM_MINI || ARM_TSTAT_WIFI)
-	Check_spd_count_led();
+		Check_spd_count_led();
 #endif
 		
 		/*if((run_time > 60) && (reboot_counter != 0))
@@ -766,28 +715,19 @@ void Bacnet_Control(void)
 			{
 				if(programs[i].on_off	== 1)  
 				{ 
-					u32 t1,t2;
+					uint32_t t1 = 0;
+					uint32_t t2 = 0;
 					// add checking running time of program			
 
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )					
 					t1 = uip_timer;
-#else
-					t1 = (U16_T)SWTIMER_Tick();	
 #endif
 					exec_program( i, prg_code[i]);
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )							
 					t2 = uip_timer;
 					programs[i].costtime = (t2 - t1) + 1;
-#else
-					t2 = (U16_T)SWTIMER_Tick();	
-					//programs[i].costtime = (t2 - t1) + 1;?????????????
-#endif
-					
-//					if(t2 - t1 > 200)	// avoid dead cycle	, turn off program once the program code is wrong	
-//					{				
-//						generate_program_alarm(2,i + 1);
-//						programs[i].on_off = 0;
-//					}
+#endif					
+
 				}
 				else
 					programs[i].costtime = 0;
@@ -799,7 +739,7 @@ void Bacnet_Control(void)
 
 		control_output();
 // check whether external IO are on line
-		for(i = 0;i < sub_no;i++)
+		/*for(i = 0;i < sub_no;i++)
 		{
 			if(current_online[sub_map[i].id / 8] & (1 << (sub_map[i].id % 8)))			
 			{
@@ -818,7 +758,7 @@ void Bacnet_Control(void)
 			{
 					outputs[sub_map[i].ao_start + j].decom = decom;
 			}
-		}			
+		}*/			
 		count_10s++;  // 1s
 		if(count_10s >= PID_SAMPLE_COUNT) // 500MS * PID_SAMPLE_COUNT == PID_SAMPLE_TIME 10S
 		{
@@ -880,7 +820,7 @@ void Bacnet_Control(void)
 
 
 		
-		taskYIELD();
+	//	taskYIELD();
 	}		
 	
 }
@@ -888,26 +828,29 @@ void Bacnet_Control(void)
 
 void check_trendlog_1s(unsigned char count)
 {
-	static U16_T count_wait_sample = 0;
+	//static U16_T count_wait_sample = 0;
 	static U8_T count_1s = 0;
-	// wait 5 second, after input value is ready	
-	if(count_wait_sample >= 100)
+	// wait 5 second, after input value is ready
+
+	//if(count_wait_sample >= 100)
 	{
-		count_wait_sample = 0;
-		
-		if(count_1s++ % count == 0)
+		//count_wait_sample = 0;
+
+		//if(count_1s++ % count == 0)
 		{
 			count_1s = 0;
+			// tbd: sample
+
 		sample_points();	
 #if BAC_TRENDLOG
 		trend_log_timer(0);
 #endif
-		update_comport_health();
+		//update_comport_health();
 		}
 		
 	}
-	else
-		count_wait_sample++;
+	//else
+	//	count_wait_sample++;
 }
 
 void Set_AO_raw(uint8 i,float value)

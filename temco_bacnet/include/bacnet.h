@@ -4,7 +4,7 @@
 #include <string.h>
 #include "types.h"
 #include "stdint.h"
-
+#include "esp_attr.h"
 
 #define BAC_MSTP 0
 #define BAC_IP 1
@@ -143,6 +143,7 @@
 #include "whois.h"
 #include "address.h"
 #include "client.h"
+
 
 
 #ifndef MAX_AVS
@@ -349,8 +350,8 @@ extern UN_Time Rtc;//时钟结构体
 #endif	
 U32_T Rtc_Set(U16_T syear, U8_T smon, U8_T sday, U8_T hour, U8_T min, U8_T sec, U8_T flag);
 
-extern BACNET_DATE Local_Date;
-extern BACNET_TIME Local_Time;
+extern  BACNET_DATE Local_Date;
+extern  BACNET_TIME Local_Time;
 void Set_Daylight_Saving_Status(bool);
 bool Get_Daylight_Savings_Status();
 BACNET_DATE * Get_Local_Date();

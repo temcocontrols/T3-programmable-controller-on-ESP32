@@ -1,5 +1,5 @@
-#include "bacnet.h"
-#include "point.h"
+//#include "bacnet.h"
+#include "bac_point.h"
 #include <string.h>
 #include "basic.h"
 #include <stdlib.h>
@@ -8,7 +8,7 @@
 //#include "define.h"
 #include <math.h>
 
-#if BAC_PRIVATE
+#if 1// BAC_PRIVATE
 
 S32_T veval_exp(U8_T *local);
 void put_local_var(U8_T *p, S32_T value, U8_T *local);
@@ -31,8 +31,8 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code);
 
 
 S8_T                         just_load = 0;
-U32_T  far                     miliseclast_cur = 0;
-U32_T  far                     miliseclast = 0;
+U32_T                       miliseclast_cur = 0;
+U32_T                       miliseclast = 0;
 S16_T isdelimit(S8_T c)
 {
 	static U16_T count = 0;
@@ -190,6 +190,7 @@ U32_T convert_pointer_to_double( U8_T *iAddr )	  // DoulbemGetPointWord
 //extern u32 uip_timer;
 S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 {
+
 	Point p_var;
 	Point_Net point_net;
 	S32_T val1 = 0;
@@ -209,7 +210,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	S32_T value, v1, v2;
 	U8_T *local = NULL;
 	static U16_T temp = 0;
-	
+#if 1
 //	u32 t1,t2;
 	// S16_T r_ind_remote;
 //	Program_remote_points /**r_remote,*/ *remote_local_list;
@@ -291,7 +292,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	if(temp >= 2000) 
 	{
 // generate a alarm		
-		generate_program_alarm(0,current_prg + 1);
+		//generate_program_alarm(0,current_prg + 1);
 		return 0;
 	}
 	
@@ -314,7 +315,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 //	alarm_at_all = OFF;
 	ind_alarm_panel = 0;
 //	timeout = 0;
-#if 1
+
 	temp = 0;
 
 /*#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
@@ -584,7 +585,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 											if ( v1 < v2 )
 											{
 												//*(prog - 1) = 1;
-												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
+												//generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
 												alarm_flag = 1;
 												//alarm();
 											}
@@ -593,7 +594,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 											{
 												//*(prog - 1) = 1;
 												alarm_flag = 1;
-												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
+												//generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
 												//alarm();
 											}
 									 }
@@ -654,7 +655,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 										}
 										if (v1<=0)      /* delayed time elapsed */
 										{
-											 i = generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
+											 //i = generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
 											 if ( i > 0 )    /* new alarm message*/
 											 {
 												 alarm_flag = 1;
@@ -668,7 +669,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 										{
 										 memcpy(message, prog, len);
 										 message[len]=0;
-										 dalarmrestore(message,current_prg+1,Station_NUM);
+										 //dalarmrestore(message,current_prg+1,Station_NUM);
 										 new_alarm_flag |= 0x01;  /* send the alarm to the destination panels*/
 										 //resume(ALARMTASK);
 										}
@@ -841,10 +842,11 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	if(temp >= 2000) 
 	{
 // generate a alarm		
-		generate_program_alarm(1,current_prg + 1);
+		//generate_program_alarm(1,current_prg + 1);
 	}
 	
 #endif
+
 	return 0;
 }
 
@@ -934,13 +936,14 @@ S32_T veval_exp(U8_T *local)
 	U8_T time_sign; 
 	
 	/* S32_T timer;*/
-	U32_T temp1,temp2;
+	U32_T temp1,temp2 = 0;
+
 	Str_points_ptr sptr;
 	if(*prog >= LOCAL_VARIABLE && *prog <= REMOTE_POINT_PRG )
 	{
 		push((operand(0,local)));
 	}
-	
+
 	while( !isdelimit(*prog))         /* && code < )*/
 	{	
 		switch (*prog++) {	
@@ -1442,7 +1445,7 @@ S32_T veval_exp(U8_T *local)
 	if (*prog==0xFF) 	{ prog++;  }
 	temp1 = pop();
 	temp2 = temp1;
-	
+
 	return (temp2);
 }
 
@@ -1461,6 +1464,7 @@ S32_T operand(U8_T **buf,U8_T *local)
 	U8_T *p;
 	S16_T num;
 	value = 0;
+
 	if (*prog >= LOCAL_VARIABLE && *prog <= BYTE_TYPE)    /* local var */
 	{
 		prog += 3;
@@ -1513,6 +1517,7 @@ S32_T operand(U8_T **buf,U8_T *local)
 		if(buf)		*buf=0;
 		return *((S32_T *)(prog-4));
 	}
+
 	return 0;
 }
 

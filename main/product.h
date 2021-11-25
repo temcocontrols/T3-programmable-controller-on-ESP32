@@ -2,6 +2,7 @@
 #define PRODUCT_H
 
 #include "types.h"
+//#include "esp_attr.h"
 
 #define SW_REV	5102
 
@@ -181,12 +182,12 @@ void uart_send_string(unsigned char *p, unsigned int length,unsigned char port);
 
 #define PING  0
 
-extern U16_T far input_raw[MAX_INS];
-extern U16_T far input_raw_back[MAX_INS];
-extern U16_T far output_raw[MAX_OUTS];
-extern U16_T far output_raw_back[MAX_OUTS];
-extern U16_T far chip_info[6];
-extern U32_T far Instance;
+extern  U16_T  input_raw[MAX_INS];
+extern  U16_T  input_raw_back[MAX_INS];
+extern  U16_T  output_raw[MAX_OUTS];
+extern  U16_T  output_raw_back[MAX_OUTS];
+extern  U16_T  chip_info[6];
+//extern  U32_T  Instance;
 
 #endif
 

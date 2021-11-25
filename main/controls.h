@@ -2,38 +2,24 @@
 #define	CONTROLS_H
 
 
-//#define ASIX_CON
-#define ARM_CON 
-
 
 
 //#define MANUAL_JUMPER	
 #define AUTO_JUMPER
 
 
-#ifdef ARM_CON
 
 #define far 
 #define xdata 
 #define code 
 
-#define MAX_INS     	64	  	
-#define MAX_OUTS        64  
 
 #pragma pack(1) 
 
-#endif
 
 
-#include "ud_str.h"
+#include "user_data.h"
 
-#ifdef ASIX_CON
-#define MAX_INS     	64	  	
-#define MAX_OUTS        64  
-#endif
-
-#define INPUT
-#define OUTPUT
 
 typedef enum
 {
@@ -46,14 +32,10 @@ typedef enum
 }E_IN_TYPE;
 
 extern U8_T far input_type[32];
-extern Str_in_point  far  inputs[MAX_INS];
-extern Str_out_point far	outputs[MAX_OUTS];
 extern U8_T far control_auto[MAX_OUTS];
 extern U8_T far switch_status_back[MAX_OUTS];
 void control_input(void);
 void control_output(void);
-int32_t swap_double( int32_t dat );
-int16_t swap_word( int16_t dat );
 U32_T get_input_value_by_range(U8_T range, U16_T raw);
 
 

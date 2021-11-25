@@ -1,31 +1,34 @@
-#include "bacnet.h"
+//#include "bacnet.h"
 //#include "main.h"
 #include "monitor.h"
-#include "point.h"
-#include "e2prom.h"
+#include "bac_point.h"
+//#include "e2prom.h"
 #include "user_data.h"
+#include <string.h>
 
-#if BAC_PRIVATE
+#if 1//BAC_PRIVATE
 
 #define IN_SVAR_SAMPLE 20
 
 
+U8_T SD_exist = 2; // dont use SD card in ESP
 U8_T Read_Picture_from_SD(U8_T file,U16_T index);
 void update_comport_health(void);
-U32_T 				far 		SD_block_num[MAX_MONITORS * 2];
+//U32_T 				 		SD_block_num[MAX_MONITORS * 2];
 
-Str_mon_element     far     read_mon_point_buf[MAX_MON_POINT];
-Str_mon_element     far     write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
+Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
+Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
 
-Monitor_Block		far			mon_block[2 * MAX_MONITORS];
+Monitor_Block					mon_block[2 * MAX_MONITORS];
 
 void monitor_reboot(void);
-u8 Get_start_end_packet_by_time(u8 file_index,u32 start_time,u32 end_time, u32 * start_seg, u32 * end_seg,u32);
+U8_T Get_start_end_packet_by_time(U8_T file_index,U32_T start_time,U32_T end_time, U32_T * start_seg, U32_T * end_seg,U32_T block_no)
+{
+// tbd:
+	return 0;
+}
 
-#if 1//ASIX
-xSemaphoreHandle sem_SPI;
-#endif
-xSemaphoreHandle sem_monitor;
+
 
 
 void init_new_analog_block( int mon_number, Str_monitor_point *mon_ptr/*, Monitor_Block *block_ptr*/ )
@@ -36,8 +39,8 @@ void init_new_analog_block( int mon_number, Str_monitor_point *mon_ptr/*, Monito
 	sample_time += mon_ptr->minute_interval_time * 60;
 	sample_time += mon_ptr->second_interval_time;
 
-	memcpy( (void*)mon_block[mon_number * 2].inputs, (void*)mon_ptr->inputs,
-			                mon_ptr->an_inputs*sizeof(Point_Net)  );
+	//memcpy( (void*)mon_block[mon_number * 2].inputs, (void*)mon_ptr->inputs,  ???????????????????
+	//		                mon_ptr->an_inputs*sizeof(Point_Net)  );
 
 	mon_block[mon_number * 2].second_interval_time = mon_ptr->second_interval_time;
 	mon_block[mon_number * 2].minute_interval_time = mon_ptr->minute_interval_time;
@@ -73,14 +76,10 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 	Str_points_ptr ptr;
 	S32_T value;
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	U8_T temp[4];
-#endif
+
 	
-//	if(cSemaphoreTake(sem_monitor, 5) == pdFALSE)
-//	{
-//		return ;
-//	}
+
 	time = 3600L * mon_ptr->hour_interval_time;
 	time += 60 * mon_ptr->minute_interval_time;
 	time += mon_ptr->second_interval_time;	
@@ -102,7 +101,6 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].point.network_number = ptr.pnet->network_number;
 		
 		
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 		temp[0] = get_current_time();	
 		temp[1] = get_current_time() >> 8;	
 		temp[2] = get_current_time() >> 16;	
@@ -112,18 +110,13 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 	 + ((U32_T)temp[1] << 16) + ((U32_T)temp[0] << 24);
 		
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].mark = 0x0a0d;
-#endif
-		
-#if (ASIX_MINI || ASIX_CM5)
-		write_mon_point_buf[i * 2][mon_block[i * 2].index].time = get_current_time();	
-		write_mon_point_buf[i * 2][mon_block[i * 2].index].mark = 0x0d0a;
-#endif
+
 
 
 		if(get_net_point_value( ptr.pnet, &value,0,0 ) == 1)  // get rid of default value 0x55555555				
 		{
-			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  swap_double(value);	
-	#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  value;
+
 			temp[0] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value);	
 			temp[1] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value) >> 8;	
 			temp[2] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value) >> 16;	
@@ -132,7 +125,6 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 			write_mon_point_buf[i * 2][mon_block[i * 2].index].value = temp[3] + (U16_T)(temp[2] << 8)
 						+ ((U32_T)temp[1] << 16) + ((U32_T)temp[0] << 24);
 
-	#endif
 			mon_block[i * 2].index++;
 		}
 		
@@ -145,13 +137,13 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		// clear no used point
 		for(k = mon_block[i * 2].index;k < MAX_MON_POINT;k++)
 		{
-			memcpy(&write_mon_point_buf[i * 2][k],0,sizeof(Str_mon_element));
+			memset(&write_mon_point_buf[i * 2][k],0,sizeof(Str_mon_element));
 		}
 #if STORE_TO_SD	
 		if(Write_SD(((SD_block_num[i * 2]) >> 8 & 0xfff),i,1,(U32_T)LOW_BYTE(SD_block_num[i * 2]) * MAX_MON_POINT * sizeof(Str_mon_element)) == 1)  // write ok
 #endif
 		{
-			if(SD_exist == 2) // exist
+			/*if(SD_exist == 2) // exist ???????????????
 			{
 				U8_T temp;
 				//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + i,&temp);
@@ -173,30 +165,29 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 					//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + i,temp & 0xf0);							
 					SD_block_num[i * 2] = 0;
 				}
-			}			
+			}*/
 		}
 
 
 		init_new_analog_block( i, mon_ptr);
 	}
-//	cSemaphoreGive(sem_monitor);
+
 }
 
-U8_T far last_digital_index[12];
-U32_T far last_digital_sample_time[12];
-void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_ptr*/ )
+
+U8_T  last_digital_index[12];
+U32_T  last_digital_sample_time[12];
+void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_ptr*/ )
 {
 	int j,k;//,A,B;
 	S32_T value;
 	Str_points_ptr ptr;
-	static U8_T far first = 0;
-	static U16_T far count_write_sd = 0;
-  U8_T temp[4];
+	static U8_T  first = 0;
+//	static U16_T  count_write_sd = 0;
+    U8_T temp[4];
 	monitor_reboot();
-	if(SD_exist == 2) 
-		count_write_sd++;
-//	if(cSemaphoreTake(sem_monitor, 0) == pdFALSE)
-//		return ;
+//	if(SD_exist == 2)
+//		count_write_sd++;
 
 	if( !mon_block[i * 2 + 1].index )
 	{
@@ -209,8 +200,8 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 		{ 
 			// store the points changed
 			ptr.pnet = mon_block[i * 2 + 1].inputs + j;		
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )			
-			if(get_current_time() >= last_digital_sample_time[i] + 250)   // record digital points if no change in 250s
+
+			if(get_current_time() >= last_digital_sample_time[i] + 250l)   // record digital points if no change in 250s
 			{  
 				if(j == mon_block[i * 2 + 1].no_points - 1)
 					last_digital_sample_time[i] = get_current_time();
@@ -222,16 +213,11 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.sub_id = ptr.pnet->sub_id;
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.network_number = ptr.pnet->network_number;
 					
-					if(swap_double(value))
+					if(value)
 					{		
 							mon_block[i * 2 + 1].last_digital_state |= (1<<j);						
-#if (ASIX_MINI || ASIX_CM5)
-					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = get_current_time();		
-					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 1;//get_input_sample( ptr.pnet->number );
-					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0d0a;	
-#endif
-					
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
+
 					temp[0] = get_current_time();	
 					temp[1] = get_current_time() >> 8;	
 					temp[2] = get_current_time() >> 16;	
@@ -241,18 +227,12 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 					+ ((U16_T)temp[2] << 8) + temp[3];
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 0x01000000;
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0a0d;	
-#endif				
+
 						
 					}
 					else
 					{
-#if (ASIX_MINI || ASIX_CM5)
-					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = get_current_time();		
-					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 0;
-					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0d0a;	
-#endif
-					
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 					temp[0] = get_current_time();	
 					temp[1] = get_current_time() >> 8;	
 					temp[2] = get_current_time() >> 16;	
@@ -262,12 +242,12 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 					+ ((U16_T)temp[2] << 8) + temp[3];
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 0;
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0a0d;	
-#endif						
+
 					}
 					mon_block[i * 2 + 1].index++;
 			}
 			else
-#endif
+
 			{			
 //					if(first == 0)  
 //					{
@@ -277,14 +257,12 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 					{	
 						if( 1 << j & mon_block[i * 2 + 1].last_digital_state )	
 						{
-							if(!swap_double(value))
+							if(!value)
 							{
 								
 								mon_block[i * 2 + 1].last_digital_state &= ~(1<<j);				
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].index = mon_block[i * 2 + 1].monitor;
-								
-								
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 								temp[0] = get_current_time();	
 								temp[1] = get_current_time() >> 8;	
 								temp[2] = get_current_time() >> 16;	
@@ -293,12 +271,9 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = ((U32_T)temp[0] << 24) + ((U32_T)temp[1] << 16)\
 										+ ((U16_T)temp[2] << 8) + temp[3];
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0a0d;
-#endif
+
 				
-#if (ASIX_MINI || ASIX_CM5)
-								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = get_current_time();	
-								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0d0a;
-#endif							
+
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.number = ptr.pnet->number;
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.point_type = ptr.pnet->point_type;
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.panel = ptr.pnet->panel;
@@ -321,13 +296,8 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 										write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.sub_id = ptr.pnet->sub_id;
 										write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.network_number = ptr.pnet->network_number;
 								
-		#if (ASIX_MINI || ASIX_CM5)
-										write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = get_current_time();		
-										write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 1;//get_input_sample( ptr.pnet->number );
-										write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0d0a;	
-		#endif
 										
-		#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 										temp[0] = get_current_time();	
 										temp[1] = get_current_time() >> 8;	
 										temp[2] = get_current_time() >> 16;	
@@ -337,7 +307,7 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 										+ ((U16_T)temp[2] << 8) + temp[3];
 										write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 0x01000000;
 										write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0a0d;	
-		#endif
+
 										mon_block[i * 2 + 1].index++;
 									}
 									
@@ -345,7 +315,7 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 						}
 						else
 						{
-							if( swap_double(value) )
+							if( value)
 							{
 								mon_block[i * 2 + 1].last_digital_state |= (1<<j);
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].index = mon_block[i * 2 + 1].monitor;
@@ -354,13 +324,8 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.panel = ptr.pnet->panel;
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.sub_id = ptr.pnet->sub_id;
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.network_number = ptr.pnet->network_number;
-		#if (ASIX_MINI || ASIX_CM5)
-								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = get_current_time();	
-								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 1;//get_input_sample( ptr.pnet->number );
-								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0d0a;
 
-		#endif
-		#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 								temp[0] = get_current_time();	
 								temp[1] = get_current_time() >> 8;	
 								temp[2] = get_current_time() >> 16;	
@@ -370,7 +335,7 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								+ ((U16_T)temp[2] << 8) + temp[3];
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 0x01000000;
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0a0d;	
-		#endif						
+
 								mon_block[i * 2 + 1].index++;
 							}
 							else
@@ -389,12 +354,9 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.sub_id = ptr.pnet->sub_id;
 									write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.network_number = ptr.pnet->network_number;
 									write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].value = 0;//get_input_sample( ptr.pnet->number );
-#if (ASIX_MINI || ASIX_CM5)
-									write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = get_current_time();			
-									write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0d0a;				
-#endif
+
 									
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 									temp[0] = get_current_time();	
 									temp[1] = get_current_time() >> 8;	
 									temp[2] = get_current_time() >> 16;	
@@ -403,7 +365,7 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].time = ((U32_T)temp[0] << 24) + ((U32_T)temp[1] << 16)\
 									+ ((U16_T)temp[2] << 8) + temp[3];
 									write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].mark = 0x0a0d;	
-#endif
+
 									mon_block[i * 2 + 1].index++;
 								}
 							}
@@ -417,13 +379,13 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
   }
 
 	// exceed 1 min, if packet is not full
-		if( (mon_block[i * 2 + 1].index + mon_block[i * 2 + 1].no_points > MAX_MON_POINT) || \
-			( (count_write_sd >= 300) /*&& (last_digital_index[i] != mon_block[i * 2 + 1].index)*/) )
+		if( (mon_block[i * 2 + 1].index + mon_block[i * 2 + 1].no_points > MAX_MON_POINT) /*|| \
+			( (count_write_sd >= 300) && (last_digital_index[i] != mon_block[i * 2 + 1].index))*/ )
   	{
-			count_write_sd = 0;
+//			count_write_sd = 0;
 			for(k = mon_block[i * 2 + 1].index;k < MAX_MON_POINT;k++)
 			{				
-				memcpy(&write_mon_point_buf[i * 2 + 1][k],0,sizeof(Str_mon_element));
+				memset(&write_mon_point_buf[i * 2 + 1][k],0,sizeof(Str_mon_element));
 			}
 #if STORE_TO_SD	
 			if(Write_SD(HIGH_BYTE(SD_block_num[i * 2 + 1]) + ((SD_block_num[i * 2 + 1] >> 24) << 16),i,0,(U32_T)LOW_BYTE(SD_block_num[i * 2 + 1]) * MAX_MON_POINT * sizeof(Str_mon_element))==1)
@@ -459,7 +421,7 @@ void sample_digital_points( char i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 					init_new_digital_block( i, mon_ptr);
 		}	
 		last_digital_index[i] = mon_block[i * 2 + 1].index;
-//		cSemaphoreGive(sem_monitor);
+
 }
 
 
@@ -474,14 +436,14 @@ void sample_points( void  )
 	for( i = 0; i < MAX_MONITORS; i++, mon_ptr++)
 	{		
 		if((mon_ptr->status > 0) /*&& (max_monitor_time[i] > 0)*/)
-		{
+		{Test[30]++;
 			//if(count_max_time[i] > 0)
 			{
 				//count_max_time[i]--;
 				if( mon_ptr->an_inputs > 0)
-				{
+				{Test[31]++
 					if( mon_ptr->next_sample_time <= get_current_time() )
-					{	
+					{	Test[32]++
 						sample_analog_points(i, mon_ptr);
 					}
 				}
@@ -534,7 +496,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 		block_no = SD_block_num[PTRtable->index * 2 + 1] + 1;
 	}
 	
-	if(SD_exist != 2) // inexist
+	if(SD_exist != 2) // inexist  ?????????????????
 		block_no = 1;
 	
 // current packet from T3000
@@ -715,7 +677,7 @@ void monitor_init(void)
 	}	
 
 	// fix monitor1 for store network health
-	memcpy(monitors[NET_HEALTH_INDEX].label,"NETWORK",9);
+	memcpy(monitors[NET_HEALTH_INDEX].label,"NETWORK ",9);
 
 
 	for(i = 0;i < 8;i++)
@@ -756,25 +718,14 @@ void monitor_init(void)
 	init_new_analog_block(NET_HEALTH_INDEX,&monitors[NET_HEALTH_INDEX]);
 	init_new_digital_block(NET_HEALTH_INDEX,&monitors[NET_HEALTH_INDEX]);
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-#if ARM_MINI
-	sem_SPI = vSemaphoreCreateBinary(0);
-#endif
-	sem_monitor = vSemaphoreCreateBinary(0);
-	
-	
-#else
 
-#if ASIX_MINI
-	 vSemaphoreCreateBinary(sem_SPI);
-#endif
-	 vSemaphoreCreateBinary(sem_monitor);
-
-#endif
 	boot = 0;
 	
 }
 
+#if TEST
+U32_T far com_rx[3] = {0 , 0, 0};
+U32_T far com_tx[3] = {0 , 0, 0};
 
 void update_comport_health(void)
 {
@@ -800,10 +751,10 @@ void update_comport_health(void)
 	for(i = 0;i < 3;i++)
 	{
 		if(((com_tx[i] - com_tx_back[i]) < 1000) && (com_tx[i] > com_tx_back[i]))		
-			vars[NET_HEALTH_VAR_BASE + i * 2].value = swap_double((com_tx[i] - com_tx_back[i]) * 1000l / IN_SVAR_SAMPLE);
+			vars[NET_HEALTH_VAR_BASE + i * 2].value = ((com_tx[i] - com_tx_back[i]) * 1000l / IN_SVAR_SAMPLE);
 		
 		if(((com_rx[i] - com_rx_back[i]) < 1000) && (com_rx[i] > com_rx_back[i]))
-			vars[NET_HEALTH_VAR_BASE + i * 2 + 1].value = swap_double((com_rx[i] - com_rx_back[i]) * 1000l/ IN_SVAR_SAMPLE);		
+			vars[NET_HEALTH_VAR_BASE + i * 2 + 1].value = ((com_rx[i] - com_rx_back[i]) * 1000l/ IN_SVAR_SAMPLE);
 		
 		if(com_rx_back[i] != com_rx[i])
 			com_rx_back[i] = com_rx[i];
@@ -812,31 +763,16 @@ void update_comport_health(void)
 	}
 	
 	
-	if(((ether_rx_packet - etr_rx) < 1000) && (ether_rx_packet > etr_rx))		
-			vars[NET_HEALTH_VAR_BASE + 6].value = swap_double((ether_rx_packet - etr_rx) * 1000l / IN_SVAR_SAMPLE);
+	/*if(((ether_rx_packet - etr_rx) < 1000) && (ether_rx_packet > etr_rx))
+			vars[NET_HEALTH_VAR_BASE + 6].value = ((ether_rx_packet - etr_rx) * 1000l / IN_SVAR_SAMPLE);
 		
 	if(((ether_tx_packet - etr_tx) < 1000) && (ether_tx_packet > etr_tx))
-		vars[NET_HEALTH_VAR_BASE + 7].value = swap_double((ether_tx_packet - etr_tx) * 1000l/ IN_SVAR_SAMPLE);		
+		vars[NET_HEALTH_VAR_BASE + 7].value = ((ether_tx_packet - etr_tx) * 1000l/ IN_SVAR_SAMPLE);
 	
 	if(etr_rx != ether_rx_packet)
 		etr_rx = ether_rx_packet;
 	if(com_tx_back[i] != ether_tx_packet)
-		etr_tx = ether_tx_packet;
-		
-		
-	
-//	// BOOT
-//	//vars[base + 6].control = boot;
-
-//	if(boot <= 30)
-//	{
-//		boot++;
-//		if(boot % 2 == 0)		
-//			vars[NET_HEALTH_VAR_BASE + 8].control = 1;		
-//		else
-//			vars[NET_HEALTH_VAR_BASE + 8].control = 0;
-
-//	}
+		etr_tx = ether_tx_packet;*/
 	
 }
 
@@ -855,7 +791,7 @@ void monitor_reboot(void)
 
 	}
 }
-
+#endif
 	
 void dealwithMonitor(uint8_t bank)
 {

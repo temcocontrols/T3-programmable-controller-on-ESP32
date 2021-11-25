@@ -1,7 +1,6 @@
 //#include "main.h"
 #include "bacnet.h"
 #include "user_data.h"
-//#include "controls.h"
 #include "bactimevalue.h"
 #include "bacdevobjpropref.h"
 #include <string.h>
@@ -22,18 +21,18 @@ UN_Time Rtc;
 U8_T flag_mstp_source;
 char * itoa( int value, char *string, int radix );
 
-U8_T Get_AOx_by_index(uint8_t index,uint8_t *ao_index);
+/*U8_T Get_AOx_by_index(uint8_t index,uint8_t *ao_index);
 U8_T Get_BOx_by_index(uint8_t index,uint8_t *bo_index);
 U8_T Get_index_by_AVx(uint8_t av_index,uint8_t *var_index);
 U8_T Get_index_by_BVx(uint8_t bv_index,uint8_t *var_index);
 U8_T Get_index_by_AIx(uint8_t ai_index,uint8_t *in_index);
 U8_T Get_index_by_BIx(uint8_t bi_index,uint8_t *in_index);
 U8_T Get_index_by_AOx(uint8_t ao_index,uint8_t *out_index);
-U8_T Get_index_by_BOx(uint8_t do_index,uint8_t *out_index);
+U8_T Get_index_by_BOx(uint8_t do_index,uint8_t *out_index);*/
 
 
-extern BACNET_DATE Local_Date;
-extern BACNET_TIME Local_Time;
+//extern BACNET_DATE Local_Date;
+//extern BACNET_TIME Local_Time;
 extern uint8_t count_lcd_time_off_delay;
 extern uint8_t count_hold_on_bip_to_mstp;
 
@@ -51,8 +50,8 @@ extern U8_T max_aos;
 extern U8_T max_dos;
 extern S16_T timezone;
 extern U8_T BVS;
-extern U16_T input_raw[64];
-extern U16_T output_raw[64];
+//extern U16_T input_raw[64];
+//extern U16_T output_raw[64];
 //extern S8_T panelname[20];
 U16_T Test[50]; 
 #if 1//BAC_COMMON 
@@ -1638,15 +1637,6 @@ void write_bacnet_name_to_buf(uint8_t type,uint8_t priority,uint8_t i,char* str)
 
 
 
-void Set_Object_Name(char * name)
-{	
-	//ChangeFlash = 1;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-	//write_page_en[24] = 1;
-#endif
-	// store it to flash memory
-	memcpy(panelname,name,20);	
-}
 
 
 void Clear_Time_Value(uint8_t index,uint8_t day)

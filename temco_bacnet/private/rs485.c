@@ -34,7 +34,7 @@
 /*#include "mstp.h" */
 //#include "uart.h"
 #include <fifo.h>
-
+#include "define.h"
 //uint8_t Rec_Mstp_Byte;
 //uint8_t Rec_Mstp_Err;
 
@@ -50,7 +50,7 @@ extern uint16_t Test[50];
 /* Timers for turning off the TX,RX LED indications */
 /*static uint8_t LED1_Off_Timer;
 static uint8_t LED3_Off_Timer; */
-
+extern STR_MODBUS Modbus;
 /* baud rate */
 //static uint32_t RS485_Baud = 9600;
 
@@ -252,9 +252,13 @@ void RS485_Send_Data(
 //	        nbytes--;
 //	    }
 //	}
-//	else if(Modbus.com_config[2] == MAIN_MSTP)
-	{
+	if(Modbus.com_config[2] == 9 || Modbus.com_config[2] == 1)
+	{Test[0]++;
 		uart_send_string(buffer,nbytes,2);
+	}
+	else if(Modbus.com_config[0] == 9 || Modbus.com_config[0] == 1)
+	{Test[1]++;
+		uart_send_string(buffer,nbytes,0);
 	}
     /* per MSTP spec */
   Timer_Silence_Reset();

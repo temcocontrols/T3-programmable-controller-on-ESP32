@@ -2,10 +2,14 @@
 #define	DEFINE_H
 
 #include "types.h"
+#include "esp_attr.h"
+
+#pragma pack(1)
 
 #define SW_REV 1
 
 #define UIP_HEAD 6
+// must change library if change it
 typedef struct
 {
 	U8_T serialNum[4];
@@ -13,7 +17,7 @@ typedef struct
 	U8_T protocal;
 	U8_T product_model;
 	U8_T hardRev;
-	U8_T baudrate;
+	U8_T baudrate[3];
 	//U8_T unit;
 //	U8_T switch_tstat_val;
 	U8_T IspVer;
@@ -125,15 +129,39 @@ typedef	enum
 #define BAC_TO_MODBUS 4
 #define WIFI  5
 
+/*#define MINI_CM5  0
+#define MINI_BIG	 1
+#define MINI_SMALL  2
+#define MINI_TINY	 3			// ASIX CORE
+#define MINI_NEW_TINY	 4  // ARM CORE*/
+#define MINI_BIG_ARM	 	5
+#define MINI_SMALL_ARM  6
+#define MINI_TINY_ARM		7
+#define MINI_NANO    8
+#define MINI_TSTAT10 9
+#define MINI_T10P	 11
+#define MINI_VAV	 10   // no used
+#define MINI_TINY_11I		12
+
+#define MAX_MINI_TYPE 12
+
 
 extern STR_MODBUS Modbus;
 extern U16_T Test[50];
-extern uint8_t modbus_wifi_buf[500];
-extern uint16_t modbus_wifi_len;
+//extern uint8_t modbus_wifi_buf[500];
+//extern uint16_t modbus_wifi_len;
 extern uint8_t reg_num;
 
+extern uint8 led_sub_tx;
+extern uint8 led_sub_rx;
+extern uint8 led_main_tx;
+extern uint8 led_main_rx;
 
-void modbus_task(void *arg);
+
+
+
+void modbus_task0(void *arg);
+void modbus_task2(void *arg);
 void start_fw_update(void);
 void internalDeal(uint8_t  *bufadd,uint8_t type);
 #endif

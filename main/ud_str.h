@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "types.h"
-
+#include "esp_attr.h"
 
 
 
@@ -23,7 +23,7 @@
 #define  MAX_IO_POINTS	64
 
 
-#define MAX_INS     		64	  	
+#define MAX_INS     	64
 #define MAX_OUTS        64  	
 #define MAX_CONS        16 	
 #define MAX_VARS				128
@@ -102,7 +102,7 @@ typedef enum
 	{
 		OUT=0, IN, VAR, CON, WRT, AR, PRG,/* TBL,*/  TZ = 8,
 		AMON = 9, GRP, ARRAY, ALARMM = 12,
-		UNIT, USER_NAME, ALARM_SET = 15, WR_TIME, AR_DATA, 
+		UNIT, USER_NAME, PRG_CODE/*ALARM_SET = 15*/, WR_TIME, AR_DATA,
 		TSTAT, GRP_POINT = 19,/*20???*/
 		TBL = 22,ID_ROUTION,
 		MAX_POINT_TYPE
@@ -1440,7 +1440,7 @@ typedef struct
 		unsigned short msv_value;
 }multiple_struct;
 
-extern multiple_struct msv_data[MAX_MSV][STR_MSV_MULTIPLE_COUNT];
+extern EXT_RAM_ATTR multiple_struct msv_data[MAX_MSV][STR_MSV_MULTIPLE_COUNT];
 
 
 #endif

@@ -378,9 +378,9 @@ void MSTP_Receive_Frame_FSM(
 	uint8_t port = 0;
 	U16_T crc_val = 0;
    uint8_t DataRegister = 0;
-Test[21]++;
+
 	switch (Receive_State) {   
-        case MSTP_RECEIVE_STATE_IDLE: Test[22]++;
+        case MSTP_RECEIVE_STATE_IDLE:
             /* In the IDLE state, the node waits for the beginning of a frame. */
             if (RS485_ReceiveError()) 
 			{	
@@ -402,11 +402,9 @@ Test[21]++;
 				Receive_State = MSTP_RECEIVE_STATE_PREAMBLE;
 				modbus_frame[0] = DataRegister;
             }
-            else
-            	Test[23]++;
 					
             break;
-        case MSTP_RECEIVE_STATE_PREAMBLE: Test[24]++;
+        case MSTP_RECEIVE_STATE_PREAMBLE:
             /* In the PREAMBLE state, the node waits for the
                second octet of the preamble. */
             if (Timer_Silence() > Tframe_abort) {
@@ -736,7 +734,7 @@ static bool MSTP_Master_Node_FSM(
     next_poll_station = (Poll_Station + 1) % (Nmax_master + 1);
     next_this_station = (This_Station + 1) % (Nmax_master + 1);
     next_next_station = (Next_Station + 1) % (Nmax_master + 1);
-    Test[20]++;
+
     switch (Master_State) {
         case MSTP_MASTER_STATE_INITIALIZE:	
             /* DoneInitializing */

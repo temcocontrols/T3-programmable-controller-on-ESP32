@@ -52,7 +52,7 @@ typedef struct
     int16_t object_temp_offset;
     uint16_t co2_frc;
     uint16_t co2_asc_enable;
-    uint16_t register88;
+    uint16_t wifi_led;
     uint16_t register89;
     uint16_t register90;
     uint16_t register91;

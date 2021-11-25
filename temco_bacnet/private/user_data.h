@@ -147,7 +147,7 @@ typedef	union
 	 uint8_t reset_default;	  // write 88
 	 uint8_t com_baudrate[3]; 
 
-		uint8_t  en_username;  // 2-enalbe  1 - disable 0: unused
+	 uint8_t  en_username;  // 2-enalbe  1 - disable 0: unused
 	 uint8_t  cus_unit;
 
 	 uint8_t usb_mode; 
@@ -158,9 +158,9 @@ typedef	union
 	 uint8_t en_panel_name;
 	 uint8_t panel_number;
 	 
-	//uint8_t dyndns_user[MAX_USERNAME_SIZE];
-	//uint8_t dyndns_pass[MAX_PASSWORD_SIZE];
-	//uint8_t dyndns_domain[MAX_DOMAIN_SIZE];
+	uint8_t dyndns_user[32]; // no used
+	uint8_t dyndns_pass[32]; // no used
+	uint8_t dyndns_domain[32]; // no used
 	uint8_t en_dyndns;  			// 0 - no  1 - disable 2 - enable
 	uint8_t dyndns_provider;  // 0- www.3322.org 1-www.dyndns.com  2 - www.no-ip.com 3 - temco server
 	uint16_t dyndns_update_time;  // xx min
@@ -299,7 +299,7 @@ extern uint8_t  temcovar_panel_invoke;
 //extern uint8_t  temcoreg_panel_invoke;
 extern uint8_t  flag_receive_netp_modbus;	// network points 
 extern uint8_t  flag_receive_rmbp;  // remote bacnet points
-extern bool Send_Whois_Flag;
+extern U8_T Send_Whois_Flag;
 extern U8_T Send_Time_Sync;
 extern U8_T  count_send_bip;
 //extern U8_T count_bip_connect;
@@ -317,8 +317,8 @@ extern U8_T remote_mstp_panel_index;
 
 extern uint8_t Send_Private_Flag;
 extern uint16_t count_Private;
-extern bool Send_I_Am_Flag;
-extern bool Send_Read_Property;
+extern U8_T Send_I_Am_Flag;
+extern U8_T Send_Read_Property;
 extern U8_T  MSTP_Send_buffer[600];
 extern U16_T MSTP_buffer_len;
 extern STR_MSTP_REV_HEADER  MSTP_Rec_Header;
@@ -565,6 +565,6 @@ U32_T get_current_time(void);
 
 int GetPrivateBacnetToModbusData(uint32_t deviceid, uint16_t start_reg, int16_t readlength, uint16_t *data_out,uint8_t protocal);
 int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_t writelength, uint32_t data_in);
-
+void Bacnet_Initial_Data(void);
 #endif
 

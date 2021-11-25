@@ -39,7 +39,7 @@
 
 // for temoc private application
 #include "bacnet.h"
-#include "point.h"
+#include "bac_point.h"
 //#include "clock.h"
 //#include "rs485.h"
 #include "user_data.h"
@@ -49,6 +49,7 @@
 #include "stdlib.h"
 //#include "sntpc.h"
 //#include "flash.h"
+#include "esp_err.h"
 
 
 extern STR_MODBUS Modbus;
@@ -72,13 +73,14 @@ U16_T Test[50];
 void Check_Pulse_Counter(void);
 #endif
 
-#if BAC_PRIVATE
+#if 1// BAC_PRIVATE
 
 
 #ifndef MAX_CODE_SIZE 
 #define MAX_CODE_SIZE 10200
 #endif
 
+extern esp_err_t save_point_info(uint8_t point_type);
 
 void dealwith_write_setting(Str_Setting_Info * ptr);
 
@@ -134,7 +136,7 @@ void refresh_zone(void);
 void udpate_zone_table(uint8 i);
 U16_T crc16(U8_T *p, U8_T length);
 
-
+void responseCmd(uint8 type,uint8* pData);
 U8_T 	far bacnet_to_modbus[300];
 void Get_Pkt_Bac_to_Modbus(Str_user_data_header * header)
 {  
@@ -175,84 +177,15 @@ void Get_Pkt_Bac_to_Modbus(Str_user_data_header * header)
 	crc_check = crc16(buf, len);
 	buf[len] = (crc_check >> 8);
 	buf[len + 1] = (U8_T)(crc_check);
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 	responseCmd(4/*BAC_TO_MODBUS*/,buf);	// get bacnet_to_modbus
-#endif
-	
-#if ASIX_MINI || ASIX_CM5
-	responseCmd(4,buf,NULL);	// get bacnet_to_modbus
-#endif
 
 }
 
 
 #endif
 
-//U8_T pic_packet_index;
-// for storing picture
-#if 0
-#if STORE_TO_SD
-U8_T Write_Picture(U8_T file,U8_T * buf,U16_T index);
 
-
-STR_STORE_PIC far store_pic[PIC_PACKET_STACK];
-
-U8_T store_PIC_to_buffer(U8_T* buf,U8_T file,U16_T seg)
-{	
-	U8_T i;
-	for(i = 0;i < PIC_PACKET_STACK;i++)
-	{
-		if(store_pic[i].flag == WRITE_SD_OK)
-			break;
-	}
-	
-	if(i == PIC_PACKET_STACK)		
-	{  // stack full
-	// tbd
-		return 0;	
-	}
-	else
-	{
-		store_pic[i].flag = WAIT_FOR_SD;
-		memcpy(store_pic[i].buf , buf , PIC_PACKET_LEN);
-		store_pic[i].retry = 0;
-		store_pic[i].file = file;
-		store_pic[i].index = seg;
-		return 1;
-	}
-}
-
-
-void store_buffer_to_SD(void)
-{
-	U8_T i;
-	for(i = 0;i < PIC_PACKET_STACK;i++)
-	{
-		if(store_pic[i].flag == WAIT_FOR_SD) //	get current index, 1 -- WAIT_FOR_WRITE, 0 -- WRITE_OK
-		{
-			if(store_pic[i].retry < 5)
-			{
-				store_pic[i].retry++;
-				break;
-			}
-			else
-			{  	// retry 5 time, give up
-				store_pic[i].flag = WRITE_SD_OK; 
-			}
-		}
-	}
-	if(i == PIC_PACKET_STACK)		// no WAIT_FOR_WRITE
-	{	
-		return;	
-	}
-	Write_Picture(store_pic[i].file,store_pic[i].buf,store_pic[i].index);
-	store_pic[i].flag = WRITE_SD_OK; 
-	
-}
-
-#endif
-
-#endif
 
 void change_panel_number_in_code(U8_T old, U8_T new_panel)
 {
@@ -466,7 +399,7 @@ uint8_t count_hold_on_bip_to_mstp;  // 当yabe或者T3000软件正在访问时，不要读写下
 // BIP TO MSTP
 void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
 {
-#if (ARM_MINI || ASIX_MINI || ARM_CM5)
+#if 0// (ARM_MINI || ASIX_MINI || ARM_CM5)
 	U8_T i;
 	U8_T start = 0;
 	if(pdu_len < 7) 
@@ -512,7 +445,7 @@ void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
 
 void Transfer_Mstp_To_Bip_pdu(uint8_t src,uint8_t * pdu,uint16_t pdu_len)
 {
-#if (ARM_MINI || ASIX_MINI || ARM_CM5)
+#if 0// (ARM_MINI || ASIX_MINI || ARM_CM5)
 	MSTP_Send_buffer[0] = 0x81;
 	MSTP_Send_buffer[1] = 0x0a;
 	MSTP_Send_buffer[2] = (uint8_t)((pdu_len - 2) >> 8);
@@ -846,7 +779,7 @@ U8_T Get_current_panel(void)
 }
 
 
-//extern xSemaphoreHandle sem_mstp;
+
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 
 uint16_t get_reg_from_list(uint8_t type,uint8_t index,uint8_t * len)
@@ -1354,9 +1287,8 @@ void handler_private_transfer(
 	 uint32_t len_value_type;
 //   decode ptransfer
 		delay_write_setting = 0;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 		if(protocal < 0xa0)  // mstp or bip
-#endif
 		{
 			len = ptransfer_decode_apdu(&apdu[0], apdu_len, &invoke_id, &rec_data);
 			iLen = 0;
@@ -1376,7 +1308,6 @@ void handler_private_transfer(
 			private_data.vendorID =  rec_data.vendorID;
 			private_data.serviceNumber = rec_data.serviceNumber;
 		}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 		else  // TEMCO modbus private
 		{
 			if((apdu[7] + apdu[8] * 256) > (MAX_APDU - 6)) 
@@ -1384,10 +1315,11 @@ void handler_private_transfer(
 			memcpy(&Temp_CS.value[0],&apdu[7],apdu[7] + apdu[8] * 256);	
 
 		}
-#endif
-			 //bacapp_decode_application_data(rec_data.serviceParameters,
+
+		 //bacapp_decode_application_data(rec_data.serviceParameters,
 			 //    rec_data.serviceParametersLen, &rec_data_value);	
 		command = Temp_CS.value[2];
+
 		if( command  == READMONITORDATA_T3000 || command  == UPDATEMEMMONITOR_T3000
 			|| command == READPIC_T3000 || command == WRITEPIC_T3000)
 		{
@@ -1426,18 +1358,18 @@ void handler_private_transfer(
 			header_len = USER_DATA_HEADER_LEN;			
 		}
 	
-		
+
 	if(command > 100)   // write command
 	{
 		transfer_len = 0;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 		if(protocal < 0xa0)  // mstp or bip
 		{}
 		else
 		{
 			memcpy(&temp,&apdu[0],14);
 		}
-#endif
+
 		if(command ==  WRITEPRGFLASH_COMMAND)   // other commad
 		{		
 			//ChangeFlash = 2;
@@ -1450,10 +1382,12 @@ void handler_private_transfer(
 				//ChangeFlash = 1;	
 			}
 		// TBD: add more write command
+			save_point_info(command - WRITEOUTPUT_T3000);
 #if 0//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			if(command - WRITEOUTPUT_T3000 < MAX_POINT_TYPE)
 			{
 				write_page_en[command - WRITEOUTPUT_T3000] = 1;	
+
 			}
 			if(command == WRITE_ZONE_T3000)
 			{
@@ -1479,11 +1413,9 @@ void handler_private_transfer(
 #endif	
 			switch(command)
 			{
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 				case WRITE_BACNET_TO_MDOBUS:
 					ptr = (uint8_t *)(&bacnet_to_modbus);				
 					break;
-#endif
 				case WRITEINPUT_T3000:
 					if(private_header.point_end_instance <= MAX_INS)
 					ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);				
@@ -1675,14 +1607,15 @@ void handler_private_transfer(
 				if(private_header.total_length  == private_header.entitysize * (private_header.point_end_instance - private_header.point_start_instance + 1) + header_len)
 				{	// check is length is correct 
 					if(command != WRITEOUTPUT_T3000)
+					{
 						memcpy(ptr,&Temp_CS.value[header_len],private_header.total_length - header_len);
+					}
 					if(command == WRITEVARIABLE_T3000)
 					{
 //						Count_Object_Number(OBJECT_ANALOG_VALUE);
 //						Count_Object_Number(OBJECT_BINARY_VALUE);
 						//Count_VAR_Object_Number();
-					}	
-					
+					}
 					if(command == WRITEWEEKLYROUTINE_T3000)          /* write weekly routines*/	
 					{		
 						check_weekly_routines();						
@@ -1724,7 +1657,7 @@ void handler_private_transfer(
 						check_weekly_routines();
 					if(command == WRITEINPUT_T3000)
 					{	 
-						char i;			
+						uint8 i;
 						i = private_header.point_start_instance;
 						if(private_header.point_start_instance == private_header.point_end_instance)							
 						{							
@@ -1777,7 +1710,7 @@ void handler_private_transfer(
 						//vTaskSuspend(xHandler_Output);  // do not control local io
 #endif
 						memcpy(ptr,&Temp_CS.value[header_len],private_header.total_length - header_len);
-				
+
 						for(i = private_header.point_start_instance;i <= private_header.point_end_instance;i++)
 						//i = private_header.point_start_instance;
 						//if(private_header.point_start_instance == private_header.point_end_instance)
@@ -1859,7 +1792,7 @@ void handler_private_transfer(
 						
 					}
 					
-#if 0//STORE_TO_SD
+#if 1//STORE_TO_SD
 					else if(command == WRITEMONITOR_T3000)
 					{ 
 //						char i;	
@@ -1913,7 +1846,7 @@ void handler_private_transfer(
 						// deal with writen_setting
 						// 如果当前是串口，延时操作波特率的修改
 						//if(protocal < 0xa0)
-							//dealwith_write_setting(&Setting_Info);
+							dealwith_write_setting(&Setting_Info);
 //						else
 //						{
 //							// delay_write_setting
@@ -2019,7 +1952,7 @@ void handler_private_transfer(
 		}
 	}
 	else  // read
-	{	 
+	{
 		if( Temp_CS.value[2]  == READMONITORDATA_T3000 || Temp_CS.value[2]  == UPDATEMEMMONITOR_T3000
 			|| command == READPIC_T3000)
 		{
@@ -2069,7 +2002,7 @@ void handler_private_transfer(
 				if(private_header.point_end_instance <= MAX_OUTS)
 				ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
 				break;
-			case READINPUT_T3000:					
+			case READINPUT_T3000:
 				if(private_header.point_end_instance <= MAX_INS)
 				ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
 				break;
@@ -2148,7 +2081,8 @@ void handler_private_transfer(
 				break;	 
 			case READMONITORDATA_T3000:				
 			// check whether get correct data, if fail no response
-				//flag_read_monitor = ReadMonitor(Graphi_data);	
+				//flag_read_monitor = ReadMonitor(Graphi_data);
+
 				transfer_len = 400;
 				temp[22] = (U8_T)(Graphi_data->total_seg);
 				temp[23] = (Graphi_data->total_seg >> 8);
@@ -2186,19 +2120,16 @@ void handler_private_transfer(
 //				UpdateMonitor(Graphi_data);
 //				ptr = (char *)(Graphi_data->asdu);
 //				break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 			case GET_PANEL_INFO:   // other commad
 				Sync_Panel_Info();	
 				Panel_Info.reg.protocal = protocal;
 				ptr = (uint8_t *)(Panel_Info.all);	
 				break;
-#endif
+
 			case READ_SETTING:	
 				Sync_Panel_Info(); 
-#if ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI
-				//check_SD_PnP();
-#endif
-				
+				//Test[12]++;
 			  ptr = (uint8_t *)(Setting_Info.all);
 				break;
 			case READVARUNIT_T3000:
@@ -2274,17 +2205,14 @@ void handler_private_transfer(
 
 		if(ptr != NULL)	
 		{
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			if(protocal < 0xa0)  // mstp or bip
-#endif
 				memcpy(&temp[header_len],ptr,transfer_len);
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			else
 			{
 				memcpy(&temp,&apdu[0],14);
 				memcpy(&temp[14],ptr,transfer_len);
 			}
-#endif
+
 		}
 		status = bacapp_parse_application_data(BACNET_APPLICATION_TAG_OCTET_STRING,	&temp, &data_value);
 	} 
@@ -2300,19 +2228,20 @@ void handler_private_transfer(
 	{
 		status = true;
 	}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 	if(protocal < 0xa0)  // mstp or bip
-#endif
 	{
 		if(status == true)
 		{
-				memset(temp,0,MAX_APDU);
-				private_data_len = 
-						bacapp_encode_application_data(&temp[0],&data_value);
-			
-				private_data.serviceParameters = &temp[0];
-				private_data.serviceParametersLen = private_data_len;
-				len = uptransfer_encode_apdu(&apdu[0], &private_data);
+			memset(temp,0,MAX_APDU);
+			private_data_len =
+			bacapp_encode_application_data(&temp[0],&data_value);
+
+			private_data.serviceParameters = &temp[0];
+			private_data.serviceParametersLen = private_data_len;
+
+
+			len = uptransfer_encode_apdu(&apdu[0], &private_data);
 #if 0		
 			if(command == WRITEPIC_T3000)
 			{
@@ -2338,12 +2267,11 @@ void handler_private_transfer(
 			}
 		}
 	}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	else  // Temco private modbus
 	{
 		U16_T crc_check;
 		// send data via temco private modbus
-		uart_init_send_com(protocal - 0xa0);
+		//uart_init_send_com(protocal - 0xa0);
 		crc_check = crc16(temp, transfer_len + 14);
 		temp[transfer_len + 14] = (crc_check >> 8);
 		temp[transfer_len + 15] = (U8_T)crc_check;
@@ -2353,7 +2281,6 @@ void handler_private_transfer(
 //		if(delay_write_setting == 1)
 //			dealwith_write_setting(&Setting_Info);
 	}
-#endif
 
   return;
 

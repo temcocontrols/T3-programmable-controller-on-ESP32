@@ -48,6 +48,8 @@
 #include "ud_str.h"
 #include "user_data.h"
 #include "controls.h"
+#include "commsub.h"
+#include "scan.h"
 
 //#include "point.h"
 #include "define.h"
@@ -63,8 +65,8 @@ static const char *UDP_TASK_TAG = "UDP_TASK";
 
 STR_SCAN_CMD Scan_Infor;
 //uint8_t tcp_send_packet[1024];
-EXT_RAM_ATTR uint8_t modbus_wifi_buf[500];
-uint16_t modbus_wifi_len;
+//uint8_t modbus_wifi_buf[500];
+//uint16_t modbus_wifi_len;
 uint8_t reg_num;
 /*static bool isSocketCreated = false;
 extern double ambient;
@@ -73,7 +75,8 @@ extern float mlx90614_ambient;
 extern float mlx90614_object;*/
 extern uint32_t Instance;
 
-void modbus_task(void *arg);
+void modbus0_task(void *arg);
+void modbus2_task(void *arg);
 void Bacnet_Control(void) ;
 
 //计数信号量相关 信号量句柄 最大计数值，初始化计数值 （计数信号量管理是否有资源可用。）
@@ -185,10 +188,10 @@ void UdpData(unsigned char type)
    Scan_Infor.master_sn[1] = 0;
    Scan_Infor.master_sn[2] = 0;
    Scan_Infor.master_sn[3] = 0;
-   if(Modbus.product_model == 88)
-      memcpy(Scan_Infor.panelname,(char*)"T3-XB-ESP   ",12);
-   else
-      memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
+   //if(Modbus.product_model == 88)
+      memcpy(Scan_Infor.panelname,panelname,12);
+   //else
+   //   memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
 
 //   state = 1;
 //   scanstart = 0;
@@ -320,7 +323,7 @@ static void bip_task(void *pvParameters)
     }
 }
 
-static void udp_server_task(void *pvParameters)
+static void udp_scan_task(void *pvParameters)
 {
     char rx_buffer[600];
     char addr_str[128];
@@ -388,7 +391,7 @@ static void udp_server_task(void *pvParameters)
                //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
                ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
                ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, rx_buffer, len);
-
+               holding_reg_params.wifi_led = 1;
                if(rx_buffer[0] == 0x64)
                {
                   UdpData(0);
@@ -398,6 +401,56 @@ static void udp_server_task(void *pvParameters)
                      ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
                      break;
                   }
+
+  				//serialnumber 4 bytes
+  				Scan_Infor.master_sn[0] = 0;
+  				Scan_Infor.master_sn[1] = 0;
+  				Scan_Infor.master_sn[2] = 0;
+  				Scan_Infor.master_sn[3] = 0;
+
+  			// for MODBUS device
+  				for(u8 i = 0;i < sub_no;i++)
+  				{
+  					if((scan_db[i].product_model >= CUSTOMER_PRODUCT) || (current_online[scan_db[i].id / 8] & (1 << (scan_db[i].id % 8))))	  	 // in database but not on_line
+  					{
+  						if(scan_db[i].product_model != 74)
+  						{
+  						if(scan_db[i].sn !=
+  							Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8)	+ ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24))
+  							{
+
+  								Scan_Infor.own_sn[0] = (unsigned short int)scan_db[i].sn & 0x00ff;
+  								Scan_Infor.own_sn[1] = (unsigned short int)(scan_db[i].sn >> 8) & 0x00ff;
+  								Scan_Infor.own_sn[2] = (unsigned short int)(scan_db[i].sn >> 16) & 0x00ff;
+  								Scan_Infor.own_sn[3] = (unsigned short int)(scan_db[i].sn >> 24) & 0x00ff;
+
+  								Scan_Infor.product = (unsigned short int)scan_db[i].product_model & 0x00ff;
+  								Scan_Infor.address = (unsigned short int)scan_db[i].id & 0x00ff;
+
+  								Scan_Infor.instance_low = 0;
+  								Scan_Infor.instance_hi = 0;
+  								Scan_Infor.subnet_protocal = 1;  // modbus device
+
+  								Scan_Infor.master_sn[0] = Modbus.serialNum[0];
+  								Scan_Infor.master_sn[1] = Modbus.serialNum[1];
+  								Scan_Infor.master_sn[2] = Modbus.serialNum[2];
+  								Scan_Infor.master_sn[3] = Modbus.serialNum[3];
+
+  								Scan_Infor.subnet_port = (scan_db[i].port & 0x0f) - 1;
+  								Scan_Infor.subnet_baudrate = ((scan_db[i].port & 0xf0) >> 4);
+
+  								memcpy(&Scan_Infor.panelname,tstat_name[i],20);
+
+  								int err = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+								  if (err < 0) {
+									 ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+									 break;
+								  }
+
+  							}
+  						}
+  					}
+  				}
                }
             }
          }
@@ -412,17 +465,29 @@ static void udp_server_task(void *pvParameters)
     }
 }
 
+
+void Set_transaction_ID(U8_T *str, U16_T id, U16_T num)
+{
+	str[0] = (U8_T)(id >> 8);		//transaction id
+	str[1] = (U8_T)id;
+
+	str[2] = 0;						//protocol id, modbus protocol = 0
+	str[3] = 0;
+
+	str[4] = (U8_T)(num >> 8);
+	str[5] = (U8_T)num;
+}
 //static uint8_t previousSock;
 #define MAX_TCP_CONN  7
 EXT_RAM_ATTR int sock[MAX_TCP_CONN];
 EXT_RAM_ATTR int Sock_table[MAX_TCP_CONN];
 //char len;
-EXT_RAM_ATTR char rx_buffer[MAX_TCP_CONN][512];
+U8_T rx_buffer[MAX_TCP_CONN][512];
 xSemaphoreHandle sem_tcp_server;
-int Modbus_Tcp(uint16_t len,int sock,char* rx_buffer)
+uint16_t modbus_send_len;
+u8 modbus_send_buf[500];
+int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 {
-	uint8_t modbus_send_buf[500];
-	uint16_t modbus_send_len;
 	memset(modbus_send_buf,0,500);
 	modbus_send_len = 0;
 	if (len == 5)
@@ -444,7 +509,7 @@ int Modbus_Tcp(uint16_t len,int sock,char* rx_buffer)
 
 	if( (rx_buffer[6]== Modbus.address) || ((rx_buffer[6]==255) && (rx_buffer[7]!=0x19)))
 	{
-		responseModbusCmd(WIFI, (uint8_t *)rx_buffer, len ,modbus_send_buf,&modbus_send_len);
+		responseModbusCmd(WIFI, (uint8_t *)rx_buffer, len ,modbus_send_buf,&modbus_send_len,0);
 		if(modbus_send_len > 0)
 		{
 			int err = send(sock, (uint8_t *)&modbus_send_buf, modbus_send_len, 0);
@@ -457,9 +522,72 @@ int Modbus_Tcp(uint16_t len,int sock,char* rx_buffer)
 			return err;
 		}
 	}
+	else
+	{
+		// transfer data to sub ,TCP TO RS485
+		U8_T header[6];
+		U8_T i;
+		if((rx_buffer[UIP_HEAD] == 0x00) ||
+		((rx_buffer[UIP_HEAD + 1] != READ_VARIABLES)
+		&& (rx_buffer[UIP_HEAD + 1] != WRITE_VARIABLES)
+		&& (rx_buffer[UIP_HEAD + 1] != MULTIPLE_WRITE)
+		&& (rx_buffer[UIP_HEAD + 1] != CHECKONLINE)
+		&& (rx_buffer[UIP_HEAD + 1] != READ_COIL)
+		&& (rx_buffer[UIP_HEAD + 1] != READ_DIS_INPUT)
+		&& (rx_buffer[UIP_HEAD + 1] != READ_INPUT)
+		&& (rx_buffer[UIP_HEAD + 1] != WRITE_COIL)
+		&& (rx_buffer[UIP_HEAD + 1] != WRITE_MULTI_COIL)
+		&& (rx_buffer[UIP_HEAD + 1] != CHECKONLINE_WIHTCOM)
+		&& (rx_buffer[UIP_HEAD + 1] != TEMCO_MODBUS)
+		))
+		{
+			return -2;
+		}
+		if((rx_buffer[UIP_HEAD + 1] == MULTIPLE_WRITE) && ((len - UIP_HEAD) != (rx_buffer[UIP_HEAD + 6] + 7)))
+		{
+			return -3;
+		}
 
+		if(Modbus.com_config[0] == MODBUS_MASTER)
+			Modbus.sub_port = 0;
+		else if(Modbus.com_config[1] == MODBUS_MASTER)
+			Modbus.sub_port = 1;
+		else
+		{
+			return -4;
+		}
+
+		for(i = 0;i <  sub_no ;i++)
+		{
+			if(rx_buffer[UIP_HEAD] == uart0_sub_addr[i])
+			{
+				 Modbus.sub_port = 0;
+				 continue;
+			}
+			else if(rx_buffer[UIP_HEAD] == uart1_sub_addr[i])
+			{
+				Modbus.sub_port = 1;
+				continue;
+			}
+		}
+
+		Set_transaction_ID(header, ((U16_T)rx_buffer[0] << 8) | rx_buffer[1], 2 * rx_buffer[UIP_HEAD + 5] + 3);
+		Response_TCPIP_To_SUB(rx_buffer + UIP_HEAD,len - UIP_HEAD,Modbus.sub_port,header);
+
+
+		if(modbus_send_len > 0)
+		{
+			int err = send(sock, (uint8_t *)&modbus_send_buf, modbus_send_len, 0);
+			if (err < 0) {
+				//ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+				//break;
+			}
+			return err;
+		}
+
+		return -2;
+	}
 	return -2;
-
 }
 
 
@@ -856,61 +984,82 @@ static void tcp_server_task(void *pvParameters)
 
 EXT_RAM_ATTR uint8_t  PDUBuffer[MAX_APDU];
 uint8_t Station_NUM;
-uint32_t Instance;
 uint8_t MAX_MASTER;
 extern U8_T base_in;
 extern U8_T base_out;
 void Bacnet_Initial_Data(void);
+void set_default_parameters(void)
+{
+
+	Bacnet_Initial_Data();
+	save_point_info(0);
+
+}
+
 void Inital_Bacnet_Server(void)
 {
 	uint32 ltemp = 0;
-	Set_Object_Name((char *)"ESP-TEST");
-	Device_Init();
 
-	//Instance = 1000;
-/*	ltemp = 0;
-	ltemp |= AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD);
-	ltemp |= (uint32)AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD+1)<<8;
-	ltemp |= (uint32)AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD+2)<<16;
-	ltemp |= (uint32)AT24CXX_ReadOneByte(EEP_INSTANCE_LOWORD+3)<<24;*/
-	if((ltemp == 0xffffffff)||(ltemp == 0))
-		Instance = ((uint32)Modbus.serialNum[3]<<24)|((uint32)Modbus.serialNum[2]<<16)|((uint32)Modbus.serialNum[1]<<8) | Modbus.serialNum[0];
+	if(((panelname[0] == 0) && (panelname[1] == 0) && (panelname[2] == 0))  ||
+			((panelname[0] == 255) && (panelname[1] == 255) && (panelname[2] == 255)) )
+	{
+
+			Set_Object_Name("T3-XB-ESP");
+	}
 	else
-		Instance = ltemp;
+		Set_Object_Name(panelname);
 
-	// tbd:
-	Station_NUM = Modbus.address;//AT24CXX_ReadOneByte(EEP_STATION_NUMBER);
-	MAX_MASTER = 254;
-	Modbus.mini_type = 6;
-	memset(panelname,"T3-XB_ESP",15);
-	panel_number = Station_NUM;
+	Device_Init();
 	Bacnet_Initial_Data();
+	Modbus.mini_type = PROJECT_FAN_MODULE;//MINI_NANO;//
+	Initial_Panel_Info(); // read panel name, must read flash first
+	Instance = ((uint32)Modbus.serialNum[3]<<24)|((uint32)Modbus.serialNum[2]<<16)|((uint32)Modbus.serialNum[1]<<8) | Modbus.serialNum[0];
+		// tbd:
+	Station_NUM = Modbus.address;
+	MAX_MASTER = 254;
+	Modbus.mini_type = PROJECT_FAN_MODULE;
+	//memset(panelname,"T3-XB_ESP",15);
+	panel_number = Station_NUM;
+
+	Sync_Panel_Info();
+	read_point_info();
+	Comm_Tstat_Initial_Data();
+	init_scan_db();
 
 	Device_Set_Object_Instance_Number(Instance);
 	address_init();
 	bip_set_broadcast_addr(0xffffffff);
 
-
-	AIS = MAX_INS + 1;
-	AOS = MAX_AOS + 1;
-	//AVS = MAX_AVS + 1;
-	BOS = 0;
-	base_in = MAX_INS + 1;
-	base_out = MAX_AOS + 1;
+	if(Modbus.mini_type == PROJECT_FAN_MODULE)
+	{
+		AIS = 6;
+		AOS = 2;
+		AVS = 0;
+		BOS = 0;
+	}
+	else
+	{
+		AIS = MAX_INS + 1;
+		AOS = MAX_AOS + 1;
+		AVS = MAX_AVS + 1;
+		BOS = 0;
+	}
 
 //	Count_VAR_Object_Number();
 	Count_IN_Object_Number();
 	Count_OUT_Object_Number();
-
 }
-EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer2;
-EXT_RAM_ATTR uint8_t Receive_Buffer_Data2[512];
-void Master_Node_task(void)
+EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer0;
+EXT_RAM_ATTR uint8_t Receive_Buffer_Data0[512];
+uint16_t dlmstp_receive(
+    BACNET_ADDRESS * src,       /* source address */
+    uint8_t * pdu,      /* PDU data */
+    uint16_t max_pdu,   /* amount of space available in the PDU  */
+    unsigned port);
+void Master0_Node_task(void)
 {
 
 	uint16_t pdu_len = 0;
-	uint8_t *uart_rsv = (uint8_t*)malloc(512);
-		//uint8_t *stm32_uart_rsv = (uint8_t*)malloc(512);
 		BACNET_ADDRESS  src;
 	//	static u16 protocal_timer = SWITCH_TIMER;
 		//modbus.protocal_timer_enable = 0;
@@ -918,20 +1067,17 @@ void Master_Node_task(void)
 		Inital_Bacnet_Server();
 		dlmstp_init(NULL);
 		//Recievebuf_Initialize(0);
-		FIFO_Init(&Receive_Buffer2, &Receive_Buffer_Data2[0],
-		         sizeof(Receive_Buffer_Data2));
-	//	print("MSTP Task\r\n");
-		//delay_ms(100);
-		//Modbus.com_config[0] = BACNET_MASTER;
+		FIFO_Init(&Receive_Buffer0, &Receive_Buffer_Data0[0],
+		         sizeof(Receive_Buffer_Data0));
 
 		for (;;)
 	    {
-			if(Modbus.com_config[0] == BACNET_MASTER)
+			if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
 			{
-				pdu_len = datalink_receive(&src, &PDUBuffer[0], sizeof(PDUBuffer), 0,	0);
+				pdu_len = dlmstp_receive(&src, &PDUBuffer[0], sizeof(PDUBuffer), 0);
 				if(pdu_len)
 				{
-					npdu_handler(&src, &PDUBuffer[0], pdu_len,0/* BAC_MSTP*/);
+					npdu_handler(&src, &PDUBuffer[0], pdu_len,BAC_MSTP);
 				}
 			}
 	// 		stack_detect(&test[1]);
@@ -946,54 +1092,243 @@ void Master_Node_task(void)
 
 }
 
+EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer2;
+EXT_RAM_ATTR uint8_t Receive_Buffer_Data2[512];
 
-uint8_t get_protocal(void)
-{
-	return Modbus.com_config[0];
-}
 
-void uart_rx_task(void)
+void Master2_Node_task(void)
 {
-	uint8_t i;
-	uint8_t *uart_rsv = (uint8_t*)malloc(512);
+
+	uint16_t pdu_len = 0;
+	BACNET_ADDRESS  src;
+		FIFO_Init(&Receive_Buffer2, &Receive_Buffer_Data2[0],
+		         sizeof(Receive_Buffer_Data2));
 
 		for (;;)
 	    {
-			if(Modbus.com_config[0] == BACNET_MASTER)
+			if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
 			{
-				int len = uart_read_bytes(UART_NUM_0, uart_rsv, 200, 100 / portTICK_RATE_MS);
-
-				if(len > 0)
-				{					/*for(i = 0;i < len;i++)
-					{
-						FIFO_Put(&Receive_Buffer2, uart_rsv[i]);
-
-					}*/
-					Timer_Silence_Reset();
+				pdu_len = dlmstp_receive(&src, &PDUBuffer[0], sizeof(PDUBuffer), 2);
+				if(pdu_len)
+				{
+					npdu_handler(&src, &PDUBuffer[0], pdu_len, BAC_MSTP);
 				}
-
 			}
-			else
-				vTaskDelay(5000 / portTICK_RATE_MS);
+			vTaskDelay(10 / portTICK_RATE_MS);
 	    }
-		free(uart_rsv);
 
 
 }
 
-#define CONFIG_FREERTOS_HZ 1000
-uint32_t system_timer = 0;
-void Timer_task(void)
+uint8_t get_protocal(uint8 port)
 {
+	return Modbus.com_config[port];
+}
+
+void uart0_rx_task(void)
+{
+	uint8_t i;
+
 	for (;;)
 	{
-		SilenceTime = SilenceTime + 10;
+		if(Modbus.com_config[0] == BACNET_MASTER)
+		{
+			uint8_t *uart_rsv = (uint8_t*)malloc(512);
+			int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
+
+			if(len > 0)
+			{					/*for(i = 0;i < len;i++)
+				{
+					FIFO_Put(&Receive_Buffer2, uart_rsv[i]);
+
+				}*/
+				Timer_Silence_Reset();
+			}
+			free(uart_rsv);
+		}
+		else
+			vTaskDelay(5000 / portTICK_RATE_MS);
+	}
+
+}
+
+void uart2_rx_task(void)
+{
+	uint8_t i;
+
+	for (;;)
+	{
+		if(Modbus.com_config[2] == BACNET_MASTER)
+		{
+			uint8_t *uart_rsv = (uint8_t*)malloc(512);
+			int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_RATE_MS);
+
+			if(len > 0)
+			{					/*for(i = 0;i < len;i++)
+				{
+					FIFO_Put(&Receive_Buffer2, uart_rsv[i]);
+
+				}*/
+				Timer_Silence_Reset();
+			}
+			free(uart_rsv);
+		}
+		else
+			vTaskDelay(5000 / portTICK_RATE_MS);
+	}
+
+}
+
+uint32_t system_timer = 0;
+
+#if 1 // NANO led
+#define GPIO_LED_0    32
+#define GPIO_LED_1    33
+#define GPIO_LED_2    14
+#define GPIO_OUTPUT_PIN_SEL  ((1ULL<<GPIO_LED_0) | (1ULL<<GPIO_LED_1) | (1ULL<<GPIO_LED_2))
+
+void Nano_LED_Init(void)
+{
+    gpio_config_t io_conf;
+    //disable interrupt
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    //set as output mode
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //bit mask of the pins that you want to set,e.g.GPIO18/19
+    io_conf.pin_bit_mask = GPIO_OUTPUT_PIN_SEL;
+    //disable pull-down mode
+    io_conf.pull_down_en = 0;
+    //disable pull-up mode
+    io_conf.pull_up_en = 0;
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);
+}
+
+//
+uint8 led_sub_tx;
+uint8 led_sub_rx;
+uint8 led_main_tx;
+uint8 led_main_rx;
+
+void LED_roution(uint16 interval)
+{
+	static u8 led_buf = 0;
+	static u16 count = 0;
+
+	if(count > 1000 / interval)
+		count = 0;
+	else
+		count++;
+	// heartbeat
+	if(count <= 500 / interval)
+	{// heart 1
+		//led_buf &= 0xfe;
+		//led_buf |= 0x01;Test[30]++;
+		led_buf = 0;
+	}
+	else
+	{// heart 0
+		//led_buf &= 0xfe;Test[31]++;
+		led_buf = 7;
+	}
+
+	// SUB RXTX
+	/*if(led_sub_tx)
+	{
+		led_sub_tx = 0;
+		led_buf &= 0xfd;
+		led_buf |= 0x02;
+	}
+	if(led_sub_rx)
+	{
+		led_sub_rx = 0;
+		led_buf &= 0xfb;
+		led_buf |= 0x04;
+	}
+
+	if(led_main_tx)
+	{
+		led_main_tx = 0;
+		led_buf &= 0xf7;
+		led_buf |= 0x08;
+	}
+	if(led_main_rx)
+	{
+		led_main_rx = 0;
+		led_buf &= 0xef;
+		led_buf |= 0x10;
+	}*/
+
+
+	switch(led_buf)
+	{
+	case 0:
+		gpio_set_level(GPIO_LED_0, 0);
+		gpio_set_level(GPIO_LED_1, 0);
+		gpio_set_level(GPIO_LED_2, 0);
+		break;
+	case 1:
+		gpio_set_level(GPIO_LED_0, 1);
+		gpio_set_level(GPIO_LED_1, 0);
+		gpio_set_level(GPIO_LED_2, 0);
+		break;
+	case 2:
+		gpio_set_level(GPIO_LED_0, 0);
+		gpio_set_level(GPIO_LED_1, 1);
+		gpio_set_level(GPIO_LED_2, 0);
+		break;
+	case 3:
+		gpio_set_level(GPIO_LED_0, 1);
+		gpio_set_level(GPIO_LED_1, 1);
+		gpio_set_level(GPIO_LED_2, 0);
+		break;
+	case 4:
+		gpio_set_level(GPIO_LED_0, 0);
+		gpio_set_level(GPIO_LED_1, 0);
+		gpio_set_level(GPIO_LED_2, 1);
+		break;
+	case 5:
+		gpio_set_level(GPIO_LED_0, 1);
+		gpio_set_level(GPIO_LED_1, 0);
+		gpio_set_level(GPIO_LED_2, 1);
+		break;
+	case 6:
+		gpio_set_level(GPIO_LED_0, 0);
+		gpio_set_level(GPIO_LED_1, 1);
+		gpio_set_level(GPIO_LED_2, 1);
+		break;
+	case 7:
+		gpio_set_level(GPIO_LED_0, 1);
+		gpio_set_level(GPIO_LED_1, 1);
+		gpio_set_level(GPIO_LED_2, 1);
+		break;
+	default:
+		break;
+	}
+
+}
+#endif
+#define TIMER_INTERVAL 10
+#define TIMER_LED_INTERVAL 100
+void Timer_task(void)
+{
+	update_timers();
+	Nano_LED_Init();
+	for (;;)
+	{
+		SilenceTime = SilenceTime + TIMER_INTERVAL;
 		if(SilenceTime > 10000)
 		{
 			SilenceTime = 0;
 		}
-		system_timer = system_timer + 10;
-		vTaskDelay(10 / portTICK_RATE_MS);
+
+		if(system_timer % TIMER_LED_INTERVAL == 0)
+		{
+			LED_roution(TIMER_LED_INTERVAL);
+		}
+
+		system_timer = system_timer + TIMER_INTERVAL;
+		vTaskDelay(TIMER_INTERVAL / portTICK_RATE_MS);
 	}
 
 }
@@ -1003,10 +1338,12 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code);
 void Check_All_WR(void);
 void pid_controller( S16_T p_number );
 U8_T check_whehter_running_code(void);
-
+void Check_Net_Point_Table(void);
 
 #define PID_SAMPLE_COUNT 20
 #define PID_SAMPLE_TIME 10
+
+
 void Bacnet_Control(void)
 {
 	U16_T i,j;
@@ -1022,18 +1359,17 @@ void Bacnet_Control(void)
 			clear_dead_master();
 #endif
 	}
-
 	Check_All_WR();
 	for(;;)
-  {
+	{
 		control_input();
 
-		if(check_whehter_running_code() == 1)
+		//if(check_whehter_running_code() == 1)
 		for( i = 0; i < MAX_PRGS; i++/*, ptr++*/ )
 		{
 			if( programs[i].bytes )
 			{
-				if(programs[i].on_off	== 1)
+				if(programs[i].on_off == 1)
 				{
 					uint32_t t1 = 0;
 					uint32_t t2 = 0;
@@ -1054,7 +1390,8 @@ void Bacnet_Control(void)
 
 		}
 
-		//control_output();
+		control_output();
+
 // check whether external IO are on line
 		/*for(i = 0;i < sub_no;i++)
 		{
@@ -1099,28 +1436,6 @@ void Bacnet_Control(void)
 			check_weekly_routines();
 			check_annual_routines();
 		}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		CheckIdRoutines();
-#endif
-
-#if (ARM_MINI || ASIX_MINI)
-		if(Modbus.com_config[1] == 7)
-		{
-			if(count_reset_zigbee < 30) 	count_reset_zigbee++;
-			else
-			{
-				last_reset_zigbee++;
-				count_reset_zigbee = 0;
-
-	//  only for big minipanel, com1 must select rs232 jumper
-
-				Check_Zigbee();
-
-			}
-
-		}
-
-#endif
 
 		// count monitor task
 		if(just_load)
@@ -1133,15 +1448,17 @@ void Bacnet_Control(void)
     }
 //		else
 //			count_1s = 0;
+		check_trendlog_1s(2);
 
-		//check_trendlog_1s(20);
-
+		Check_Net_Point_Table();
 		vTaskDelay(500 / portTICK_RATE_MS);
-	//	taskYIELD();
+
 	}
 
 }
-
+#define FAN 1
+void TEST_FLASH(void);
+void vStartScanTask(unsigned char uxPriority);
 void app_main()
 {
 
@@ -1150,17 +1467,22 @@ void app_main()
      * examples/protocols/README.md for more information about this function.
      */
     //ESP_ERROR_CHECK(example_connect());
-	esp_err_t ret;
-	Test[10] = 11;
+#if FAN
+   Modbus.mini_type = PROJECT_FAN_MODULE;
+    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
+#endif
    read_default_from_flash();
    mass_flash_init();
-   modbus_init();
+   uart_init(0);
+   uart_init(2);
    //debug_info("modbus init finished^^^^^^^^");
-
+  // TEST_FLASH();
    ethernet_init();
-   ret = i2c_master_init();
-
+ //  ret = i2c_master_init();
+#if FAN
+   Modbus.mini_type = PROJECT_FAN_MODULE;
     holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
+#endif
   // tcpip_socket_init();
    /*if(holding_reg_params.which_project == PROJECT_SAUTER)
    {
@@ -1177,43 +1499,48 @@ void app_main()
     //microphone_init();
     //SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
     //connect_wifi();
-
-    if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
+   //Modbus.com_config[0] = MODBUS_SLAVE;
+#if FAN
+    if(Modbus.mini_type == PROJECT_FAN_MODULE)
     {
    		holding_reg_params.fan_module_pwm2 = 0;
    		led_pwm_init();
    		led_init();
    		my_pcnt_init();
    		adc_init();
+   		i2c_master_init();
     }
+#endif
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, NULL);
     network_EventHandle = xEventGroupCreate();
-    xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 2, NULL);
-    xTaskCreate(udp_server_task, "udp_server", 4096, NULL, 5, NULL);
+    xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 7, NULL);
+    xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 5, NULL);
     xTaskCreate(bip_task, "bacnet ip", 4096, NULL, 5, NULL);
     //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
-    xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
-    xTaskCreate(modbus_task,"modbus_task",4096, NULL, 3, NULL);
-    //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
-    {
-       //xTaskCreate(input_task,"input_task",1024, NULL, 4, NULL);
-    }
-//    xTaskCreate(ble_mesh_task,"ble_mesh_task",4096*2, NULL, 7, NULL);
-    xTaskCreate(Master_Node_task,"mstp_task",2048, NULL, 4, NULL);
-    xTaskCreate(uart_rx_task,"uart_rx_task",2048, NULL, 6, NULL);
-	xTaskCreate(Timer_task,"timer_task",1024, NULL, 7, NULL);
+#if FAN
+    if(Modbus.mini_type == PROJECT_FAN_MODULE)
+    	xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
+#endif
+    xTaskCreate(modbus0_task,"modbus0_task",4096, NULL, 3, NULL);
+    xTaskCreate(modbus2_task,"modbus2_task",4096, NULL, 3, NULL);
+    xTaskCreate(Master0_Node_task,"mstp0_task",2048, NULL, 4, NULL);
+    xTaskCreate(Master2_Node_task,"mstp2_task",2048, NULL, 4, NULL);
+    xTaskCreate(uart0_rx_task,"uart0_rx_task",2048, NULL, 6, NULL);
+    xTaskCreate(uart2_rx_task,"uart2_rx_task",2048, NULL, 6, NULL);
+	xTaskCreate(Timer_task,"timer_task",2048, NULL, 7, NULL);
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL, tskIDLE_PRIORITY + 8,NULL);
-
-	debug_info("App finished test1^^^^^^^^");
-   // xTaskCreate(detect_tcp_task, "detect_tcp_task", 1024,NULL, 6,NULL);
-   // xTaskCreate(pyq1548_task,"pyq1548_task",1024*2, NULL, 10, NULL);
-   // xTaskCreate(&ota_task, "ota_example_task", 8192, NULL, 5, NULL);
+	vStartScanTask(5);
 }
 
 // for bacnet lib
 void uart_send_string(U8_T *p, U16_T length,U8_T port)
 {
-	uart_write_bytes(UART_NUM_0, (const char *)p, length);
+	holding_reg_params.led_rx485_tx = 2;
+	if(port == 0)
+		uart_write_bytes(UART_NUM_0, (const char *)p, length);
+	else if(port == 2)
+		uart_write_bytes(UART_NUM_2, (const char *)p, length);
+	led_sub_tx++;
 }
 
 /*char get_current_mstp_port(void)

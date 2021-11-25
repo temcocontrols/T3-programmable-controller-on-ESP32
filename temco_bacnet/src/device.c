@@ -89,6 +89,11 @@ uint32_t Object_Instance_Number = 260001;
 static BACNET_DEVICE_STATUS System_Status = STATUS_OPERATIONAL;
 //char text_string[20]; /* okay for single thread */
 char far object_name[20];
+
+#define MAX_REG 50
+extern char reg_name[MAX_REG][15];//char* reg_name[MAX_REG];
+uint16_t get_reg_value(uint16_t index);
+
 static struct my_object_functions {
     BACNET_OBJECT_TYPE Object_Type;
     object_init_function Object_Init;
@@ -281,9 +286,11 @@ int Properties_Required[] = {
     PROP_NUMBER_OF_APDU_RETRIES,
     PROP_DEVICE_ADDRESS_BINDING,
     PROP_DATABASE_REVISION,
-		PROP_LOCAL_DATE,
-		PROP_LOCAL_TIME,
-
+	PROP_LOCAL_DATE,
+	PROP_LOCAL_TIME,
+	//TEMCO_REG1,
+	//TEMCO_REG2,
+	//TEMCO_REG3,
     -1
 };
 
@@ -536,7 +543,7 @@ uint16_t Device_Vendor_Identifier(
 }
 
 
-#if BAC_COMMON
+#if 1
 
 unsigned Device_Object_List_Count( void)
 {
@@ -1001,7 +1008,7 @@ int Device_Encode_Property_APDU(
             /* FIXME: encode the list here, if it exists */
 						apdu_len = address_list_encode(&apdu[0], MAX_APDU);
             break;
-				case PROP_DESCRIPTION:
+		case PROP_DESCRIPTION:
             characterstring_init_ansi(&char_string, "Bacnet Product");
             apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
@@ -1017,7 +1024,7 @@ int Device_Encode_Property_APDU(
 						apdu_len = encode_application_time(&apdu[0],&Local_Time);
 						break;
 #endif
-#if ARM
+#if 1
         case PROP_MAX_INFO_FRAMES:
             apdu_len =
                 encode_application_unsigned(&apdu[0],
@@ -1028,32 +1035,55 @@ int Device_Encode_Property_APDU(
             apdu_len = 
                 encode_application_unsigned(&apdu[0], dlmstp_max_master());	// tbd: changed by chelsea
             break;
-        case TEMCO_REG1:
-						for (i = 0; i <= 5; i++) 
-						{
-							len =
-									encode_application_unsigned(&apdu[apdu_len],
-									Test[0] * i);
-							apdu_len += len;
-							/* assume next one is the same size as this one */
-							/* can we all fit into the APDU? */
-							if ((apdu_len + len) >= MAX_APDU) { 
-									/* Abort response */
-									*error_code =
-											ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;
-									apdu_len = BACNET_STATUS_ABORT;
-									break;
-							}
-						}
+        case TEMCO_REG1:  // REGISTER NAME
+        	for(i = 0; i <= MAX_REG; i++)
+			{
+        		Test[30]++;
+
+        		//characterstring_init_ansi(&char_string, Get_Object_Name());
+        		//apdu_len = encode_application_character_string(&apdu[0], &char_string);
+
+
+        		characterstring_init_ansi(&char_string, reg_name[i]);
+        		len = encode_application_character_string(&apdu[apdu_len],&char_string);
+        		apdu_len += len;
+				/* assume next one is the same size as this one */
+				/* can we all fit into the APDU? */
+				if ((apdu_len + len) >= MAX_APDU) {Test[31]++;
+						/* Abort response */
+						*error_code =
+								ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;
+						apdu_len = BACNET_STATUS_ABORT;
+						break;
+				}
+			}
+        	break;
+        case TEMCO_REG2:  // VALUE
+       // case TEMCO_REG3:
+			for (i = 0; i <= MAX_REG; i++)
+			{Test[32]++;
+				len = encode_application_unsigned(&apdu[apdu_len],
+								get_reg_value(i));
+				apdu_len += len;
+				/* assume next one is the same size as this one */
+				/* can we all fit into the APDU? */
+				if ((apdu_len + len) >= MAX_APDU) { Test[33]++;
+						/* Abort response */
+						*error_code =
+								ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;
+						apdu_len = BACNET_STATUS_ABORT;
+						break;
+				}
+			}
             break;
-        case TEMCO_REG2:
+        /*case TEMCO_REG2:
             apdu_len = 
 							encode_application_unsigned(&apdu[0], Test[1]);	// tbd: changed by chelsea
-            break;
+            break;*/
         case TEMCO_REG3:
             apdu_len = 
 							encode_application_unsigned(&apdu[0], Test[19]);   // tbd: changed by chelsea
-            break; 
+            break;
 #endif			
 	/*	cas#e PROP_PRESENT_VALUE:
 			apdu_len = encode_application_real(&apdu[0], 33.3);
@@ -1270,14 +1300,12 @@ bool Device_Write_Property_Local(
 				case TEMCO_REG2:
 					if (value.tag == BACNET_APPLICATION_TAG_UNSIGNED_INT)
 					{
-						Test[1] = value.type.Unsigned_Int;
 						status = true;
 					}
 					break;
 				case TEMCO_REG3:
 					if (value.tag == BACNET_APPLICATION_TAG_UNSIGNED_INT)
 					{
-						Test[19] = value.type.Unsigned_Int;
 						status = true;
 					}
 					

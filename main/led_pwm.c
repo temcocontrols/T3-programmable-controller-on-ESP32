@@ -55,14 +55,14 @@ static void adc_task(void* arg);
 #define NO_TABLE_RANGES 16
 
 EXT_RAM_ATTR holding_reg_params_t holding_reg_params = {0};
-EXT_RAM_ATTR const int16_t led_limit[10][2] = { { -400, 1500 }, { -400, 3020 },
+const int16_t led_limit[10][2] = { { -400, 1500 }, { -400, 3020 },
                             { -400, 1200 }, { -400, 2480 },
                             { -400, 1200 }, { -400, 2480 },
                             { -400, 1200 }, { -400, 2480 },
                             { -500, 1100 }, { -580, 2300 }
                       };
 
-EXT_RAM_ATTR uint16_t  my_def_tab[5][17] = {
+uint16_t  my_def_tab[5][17] = {
  /* 3k termistor YSI44005 -40 to 150 Deg.C or -40 to 302 Deg.F */
 	{ 233*4,  211*4, 179*4, 141*4, 103*4, 71*4, 48*4, 32*4,
 		21*4, 14*4, 10*4, 7*4, 5*4, 4*4, 3*4, 2*4, 1*4 },
@@ -197,17 +197,22 @@ static void adc_task(void* arg)
         voltage = voltage*10/8;
         if(voltage>10000)
         	voltage = 10000;
+        Test[2] = adc_temp;
         holding_reg_params.fan_module_10k_temp = my_get_input_value_by_range(R10K_40_120DegC, adc_temp);
+        Test[3] = holding_reg_params.fan_module_10k_temp;
         //holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
         holding_reg_params.fan_module_input_voltage = (uint16_t)voltage;
-        inputs[2].range = 1;
+        //inputs[2].range = 1;
         if(!inputs[2].calibration_sign)
         	holding_reg_params.fan_module_10k_temp += (inputs[2].calibration_hi * 256 + inputs[2].calibration_lo);
 		else
 			holding_reg_params.fan_module_10k_temp += -(inputs[2].calibration_hi * 256 + inputs[2].calibration_lo);
-        inputs[2].value = holding_reg_params.fan_module_10k_temp*100;
+        if(inputs[2].range == 3)
+        	inputs[2].value = holding_reg_params.fan_module_10k_temp*100;
+        if(inputs[2].range == 4)
+        	inputs[2].value = (holding_reg_params.fan_module_10k_temp*9/5)*100+32000;
 
-        inputs[3].range = 19;
+        //inputs[3].range = 19;
         if(!inputs[3].calibration_sign)
 			holding_reg_params.fan_module_input_voltage += (inputs[3].calibration_hi * 256 + inputs[3].calibration_lo);
 		else
@@ -223,11 +228,24 @@ static void adc_task(void* arg)
 static void fan_led_task(void* arg)
 {
 	uint32_t cnt=0;
+	uint8_t heart_stat=0;
 	holding_reg_params.led_rx485_rx = 0;
 	holding_reg_params.led_rx485_tx = 0;
 
     for(;;) {
-		gpio_set_level(LED_HEART_BEAT, (cnt++) % 8);
+		//gpio_set_level(LED_HEART_BEAT, (cnt++) % 8);
+    	heart_stat++;
+    	if(heart_stat==5)
+    	{
+    		//heart_stat = 0;
+    		gpio_set_level(LED_HEART_BEAT, 1);
+    	}
+    	if(heart_stat == 10)
+    	{
+    		//heart_stat = 1;
+    		heart_stat = 0;
+    		gpio_set_level(LED_HEART_BEAT, 0);
+    	}
 		if((holding_reg_params.fan_module_pulse==0))//||(holding_reg_params.fan_module_pwm2==255))
 			gpio_set_level(LED_FAN_SPEED, 1);
 		else if((holding_reg_params.fan_module_pulse<50))//||(holding_reg_params.fan_module_pwm2>200))
@@ -241,7 +259,16 @@ static void fan_led_task(void* arg)
 		else if((holding_reg_params.fan_module_pulse<256))//||(holding_reg_params.fan_module_pwm2>0))
 			gpio_set_level(LED_FAN_SPEED, (cnt) % 2);
 		if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
-			gpio_set_level(LED_WIFI, 0);
+		{
+			//gpio_set_level(LED_WIFI, 0);
+			if(holding_reg_params.wifi_led > 0)
+			{
+				gpio_set_level(LED_WIFI, 1);
+				holding_reg_params.wifi_led --;
+			}
+			else
+				gpio_set_level(LED_WIFI, 0);
+		}
 		else
 			gpio_set_level(LED_WIFI, 1);
 
@@ -263,20 +290,28 @@ static void fan_led_task(void* arg)
 		//outputs[1].value = 200;
         //holding_reg_params.fan_module_pwm1 = get_output_raw(0);
         //holding_reg_params.fan_module_pwm2 = get_output_raw(1);
-        outputs[0].switch_status = 1;
+        /*outputs[0].switch_status = 1;
         outputs[1].switch_status = 1;
         outputs[0].auto_manual = 1;
         outputs[1].auto_manual = 1;
         outputs[0].digital_analog = 1;
         outputs[1].digital_analog = 1;
         outputs[0].range = 1;
-        outputs[1].range = 1;
-        if((outputs[0].value<=10000)&&(outputs[1].value>=0))
-        	holding_reg_params.fan_module_pwm1 = outputs[0].value*10/391;
-        if((outputs[1].value<=10000)&&(outputs[1].value>=0))
-            holding_reg_params.fan_module_pwm2 = outputs[1].value*10/391;
-        Test[0] = holding_reg_params.fan_module_pwm1;
-        Test[1] = holding_reg_params.fan_module_pwm2;
+        outputs[1].range = 1;*/
+		if(outputs[0].range == 1)
+			if((outputs[0].value<=10000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm1 = outputs[0].value*10/391;
+		if(outputs[1].range == 1)
+			if((outputs[1].value<=10000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm2 = outputs[1].value*10/391;
+		if((outputs[0].range == 4)||(outputs[0].range == 7))
+			if((outputs[0].value<=100000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm1 = outputs[0].value/391;
+		if((outputs[1].range == 4)||(outputs[1].range == 7))
+			if((outputs[1].value<=100000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm2 = outputs[1].value/391;
+        //Test[0] = holding_reg_params.fan_module_pwm1;
+        //Test[1] = holding_reg_params.fan_module_pwm2;
 //        Test[2] = outputs[0].switch_status;
 //        Test[3] = outputs[1].switch_status;
         ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
@@ -284,7 +319,7 @@ static void fan_led_task(void* arg)
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 
-		vTaskDelay(100 / portTICK_RATE_MS);
+		vTaskDelay(50 / portTICK_RATE_MS);
 	}
 }
 
@@ -477,8 +512,13 @@ static void pcnt_task(void* arg)
 			pcnt_get_counter_value(PCNT_TEST_UNIT, &count);
 			holding_reg_params.fan_module_pulse = (uint16_t)count;
 			pcnt_counter_clear(PCNT_TEST_UNIT);
-			inputs[4].range = 26;
-			inputs[4].value = holding_reg_params.fan_module_pulse*100;
+			//inputs[4].range = 26;
+			//if(inputs[4].range == 26)
+
+			if(inputs[4].range == 29)
+				inputs[4].value = holding_reg_params.fan_module_pulse*100*60;
+			else
+				inputs[4].value = holding_reg_params.fan_module_pulse*100;
 		//}
 			//count = 0;
 			vTaskDelay(10000 / portTICK_RATE_MS);

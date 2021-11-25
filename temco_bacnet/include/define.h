@@ -2,8 +2,7 @@
 #define	DEFINE_H
 
 #include "types.h"
-
-
+#pragma pack(1)
 typedef struct
 {
 	U8_T serialNum[4];
@@ -11,8 +10,8 @@ typedef struct
 	U8_T protocal;
 	U8_T product_model;
 	U8_T hardRev;
-	U8_T baudrate;
-	U8_T unit;
+	U8_T baudrate[3];
+	//U8_T unit;
 //	U8_T switch_tstat_val;
 	U8_T IspVer;
 	U8_T PicVer;
@@ -23,6 +22,7 @@ typedef struct
 	U8_T  mac_addr[6];
 	U8_T  	subnet[4];
 	U8_T  	getway[4];
+	U8_T  ethernet_status;
 	U16_T 	tcp_port;
 	U8_T  mini_type;
 	U8_T  sub_port;
@@ -67,7 +67,6 @@ typedef struct
 	U8_T led_rx485_rx;
 
 }STR_MODBUS;
-
 
 
 #endif

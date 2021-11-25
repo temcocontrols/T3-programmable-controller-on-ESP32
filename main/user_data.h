@@ -2,9 +2,8 @@
 #define USER_DATA_H
 
 #include "ud_str.h"
-//#include "monitor.h"
-//#include "dyndns_app.h"
-//#include "datetime.h"
+#include "monitor.h"
+#include "esp_attr.h"
 
 typedef struct
 {
@@ -158,9 +157,9 @@ typedef	union
 	 uint8_t en_panel_name;
 	 uint8_t panel_number;
 	 
-	//uint8_t dyndns_user[MAX_USERNAME_SIZE];
-	//uint8_t dyndns_pass[MAX_PASSWORD_SIZE];
-	//uint8_t dyndns_domain[MAX_DOMAIN_SIZE];
+	uint8_t dyndns_user[32]; // no used
+	uint8_t dyndns_pass[32]; // no used
+	uint8_t dyndns_domain[32]; // no used
 	uint8_t en_dyndns;  			// 0 - no  1 - disable 2 - enable
 	uint8_t dyndns_provider;  // 0- www.3322.org 1-www.dyndns.com  2 - www.no-ip.com 3 - temco server
 	uint16_t dyndns_update_time;  // xx min
@@ -345,14 +344,14 @@ extern U8_T  boot;
 //extern U32_T  changed_index;
 //extern U32_T  changed_index2;
 
-extern Str_Remote_TstDB        Remote_tst_db;
-extern Str_Panel_Info 	    		Panel_Info;
-extern Str_Setting_Info     		Setting_Info;
-extern Str_MISC  						 	MISC_Info;
-extern Str_Special  Write_Special;
+extern EXT_RAM_ATTR Str_Remote_TstDB        Remote_tst_db;
+extern EXT_RAM_ATTR Str_Panel_Info 	    		Panel_Info;
+extern EXT_RAM_ATTR Str_Setting_Info     		Setting_Info;
+extern EXT_RAM_ATTR Str_MISC  						 	MISC_Info;
+extern EXT_RAM_ATTR Str_Special  Write_Special;
 
-extern Str_in_point  inputs[MAX_INS];
-extern Str_out_point  	outputs[MAX_OUTS];
+extern EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];
+extern EXT_RAM_ATTR Str_out_point  	outputs[MAX_OUTS];
 //extern Str_out_point   	*outputs;
 extern uint8_t				 				 no_outs;
 //extern Str_in_point    	*inputs;
@@ -368,17 +367,17 @@ extern Con_aux				 							 con_aux[MAX_CONS];
 //extern Mon_aux                      mon_aux[MAX_MONITORS];
 extern Monitor_Block		 			mon_block[2 * MAX_MONITORS];
 //extern S8_T 				         mon_data_buf[sizeof(Monitor_Block) * 2 * MAX_MONITORS];
-//extern Mon_Data 			 		*Graphi_data;
-//extern S8_T 				 			Garphi_data_buf[sizeof(Mon_Data)];
+extern Mon_Data 			 		*Graphi_data;
+extern S8_T 				 			Garphi_data_buf[sizeof(Mon_Data)];
 
-extern S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
-extern Str_Extio_point  extio_points[MAX_EXTIO];
+extern EXT_RAM_ATTR S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
+extern EXT_RAM_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
 
 //extern S16_T                          MAX_MONITOR_BLOCKS;
 //extern U8_T                         free_mon_blocks;
 
  
-extern S8_T  panelname[20];
+extern char  panelname[20];
 //extern U8_T 	client_ip[4];
 //extern U8_T newsocket;
 
@@ -389,17 +388,17 @@ extern U8_T 			     							 ind_alarms_set;
 extern U16_T                 alarm_id;
 extern S8_T                         new_alarm_flag;
 
-extern Units_element		     				 digi_units[MAX_DIG_UNIT];
+extern EXT_RAM_ATTR Units_element		     				 digi_units[MAX_DIG_UNIT];
 extern U8_T 					 		ind_passwords;
-extern Password_point			 			passwords[ MAX_PASSW ];
+extern EXT_RAM_ATTR Password_point			 			passwords[ MAX_PASSW ];
 
 extern Str_Email_point Email_Setting;
 
-extern Str_variable_point		 		 vars[MAX_VARS + 12];
-extern Str_controller_point 	 			 controllers[MAX_CONS];
-extern Str_totalizer_point           totalizers[MAX_TOTALIZERS];
-extern Str_monitor_point		 				 monitors[MAX_MONITORS];   
-extern Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;	
+extern EXT_RAM_ATTR Str_variable_point		 		 vars[MAX_VARS + 12];
+extern EXT_RAM_ATTR Str_controller_point 	 			 controllers[MAX_CONS];
+extern EXT_RAM_ATTR Str_totalizer_point           totalizers[MAX_TOTALIZERS];
+extern EXT_RAM_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];
+extern EXT_RAM_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;
 //extern Aux_group_point        	 		 aux_groups[MAX_GRPS];
 //extern S8_T                     		 Icon_names[MAX_ICONS][14];
 extern Control_group_point  	 		 control_groups[MAX_GRPS];
@@ -419,7 +418,7 @@ extern Str_annual_routine_point	 	 annual_routines[MAX_AR];
 extern U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];	
 extern U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
  /* Assume bit0 from octet0 = Jan 1st */
-extern Str_program_point	     			 programs[MAX_PRGS];
+extern EXT_RAM_ATTR Str_program_point	     			 programs[MAX_PRGS];
 extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
 extern U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
@@ -565,6 +564,6 @@ U32_T get_current_time(void);
 
 int GetPrivateBacnetToModbusData(uint32_t deviceid, uint16_t start_reg, int16_t readlength, uint16_t *data_out,uint8_t protocal);
 int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_t writelength, uint32_t data_in);
-
+void clear_dead_master(void);
 #endif
 

@@ -1,7 +1,6 @@
 #include "controls.h"
 #include "product.h"
 #include "define.h"
-#include "esp_attr.h"
 
 U8_T base_in;
 U8_T base_out;
@@ -59,12 +58,12 @@ typedef struct
 
 
 
-EXT_RAM_ATTR U32_T far high_spd_counter[HI_COMMON_CHANNEL];
-EXT_RAM_ATTR U32_T far high_spd_counter_tempbuf[HI_COMMON_CHANNEL];
-EXT_RAM_ATTR U8_T far high_spd_en[HI_COMMON_CHANNEL];
+U32_T far high_spd_counter[HI_COMMON_CHANNEL];
+U32_T far high_spd_counter_tempbuf[HI_COMMON_CHANNEL];
+U8_T far high_spd_en[HI_COMMON_CHANNEL];
 
 
-EXT_RAM_ATTR U16_T Test[50];
+U16_T Test[50];
 
 U8_T base_in;
 U8_T base_out;
@@ -75,8 +74,8 @@ STR_MAP_table far sub_map[SUB_NO];
 U8_T current_online[32]; // Added/subtracted by co2 request command
 SCAN_DB far scan_db[MAX_ID];// _at_ 0x8000;
 
-EXT_RAM_ATTR U16_T far Test[50];
-U16_T far input_raw[MAX_INS];
+U16_T far Test[50];
+//U16_T far input_raw[MAX_INS];
 
 U8_T change_value_by_range(U8_T channel)
 {
@@ -360,8 +359,8 @@ U8_T get_max_internal_output(void)
 
 U32_T get_high_spd_counter(U8_T point)
 {
-	inputs[point].value = swap_double((high_spd_counter[point] + high_spd_counter_tempbuf[point]) * 1000);
-	return (high_spd_counter[point] + high_spd_counter_tempbuf[point]) * 1000;
+	//inputs[point].value = (int32_t)((high_spd_counter[point] + high_spd_counter_tempbuf[point]) * 1000);
+	return 0;//(high_spd_counter[point] + high_spd_counter_tempbuf[point]) * 1000;
 }
 
 // old io.lib run it
