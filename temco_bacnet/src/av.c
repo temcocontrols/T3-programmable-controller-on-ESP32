@@ -157,11 +157,9 @@ unsigned Analog_Value_Count(
 uint32_t Analog_Value_Index_To_Instance(
     unsigned index)
 {
-#ifdef T3_CON
-		return AV_Index_To_Instance[index] + OBJECT_BASE;
-#else
-    return index + OBJECT_BASE;
-#endif
+
+	return AV_Index_To_Instance[index] + OBJECT_BASE;
+
 }
 
 /* we simply have 0-n object instances.  Yours might be */
@@ -170,11 +168,8 @@ uint32_t Analog_Value_Index_To_Instance(
 unsigned Analog_Value_Instance_To_Index(
     uint32_t object_instance)
 {   
-#ifdef T3_CON
-		return AV_Instance_To_Index[object_instance - OBJECT_BASE];
-#else
-    return object_instance - OBJECT_BASE;
-#endif
+	return AV_Instance_To_Index[object_instance - OBJECT_BASE];
+
 }
 
 float Analog_Value_Present_Value(
@@ -418,10 +413,8 @@ bool Analog_Value_Write_Property(
     int len = 0;
     BACNET_APPLICATION_DATA_VALUE far value;
 
-		object_index = Analog_Value_Instance_To_Index(wp_data->object_instance);
-		Test[10]++;
-		Test[11] = object_index;
-    if (!Analog_Value_Valid_Instance(object_index)) {Test[12]++;
+	object_index = Analog_Value_Instance_To_Index(wp_data->object_instance);
+    if (!Analog_Value_Valid_Instance(object_index)) {
         *error_class = ERROR_CLASS_OBJECT;
         *error_code = ERROR_CODE_UNKNOWN_OBJECT;
         return false;

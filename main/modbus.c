@@ -13,7 +13,10 @@
 #include "commsub.h"
 #include "scan.h"
 #include "user_data.h"
-#include "led_pwm.h"
+#include "rtc.h"
+
+
+
 
 #define EEPROM_VERSION	  105
 
@@ -49,6 +52,8 @@
 const int uart_num_sub = UART_NUM_0;
 const int uart_num_main = UART_NUM_2;
 STR_MODBUS Modbus;
+U8_T SNWriteflag;
+U8_T update_flash;
 //extern U32_T Instance;
 U8_T CRChi = 0xff;
 U8_T CRClo = 0xff;
@@ -321,7 +326,7 @@ void uart_init(uint8_t uart)
 //	mb_communication_info_t tcp_info; // Modbus communication parameters
 
 	    uart_config_t uart_config = {
-	        .baud_rate = 115200,//baud,
+	        .baud_rate = baud,
 	        .data_bits = UART_DATA_8_BITS,
 	        .parity = UART_PARITY_DISABLE,
 	        .stop_bits = UART_STOP_BITS_1,
@@ -408,7 +413,9 @@ void modbus0_task(void *arg)
 				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 				if(len>0)
-				{led_sub_rx++;holding_reg_params.led_rx485_rx = 1;
+				{led_sub_rx++;
+					com_rx[0]++;
+
 					if(checkdata(uart_rsv))
 					{
 						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
@@ -423,10 +430,13 @@ void modbus0_task(void *arg)
 			}
 			else
 			{
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 100 / portTICK_RATE_MS);
+				
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 				if(len>0)
 				{
+					led_sub_rx++;
+					com_rx[0]++;
 					if(checkdata(uart_rsv))
 					{
 						Modbus.com_config[0] = MODBUS_SLAVE;
@@ -454,7 +464,9 @@ void modbus2_task(void *arg)
 			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 			if(len>0)
-			{led_sub_rx++;holding_reg_params.led_rx485_rx = 1;
+			{
+				led_main_rx++;
+				com_rx[2]++;
 				if(checkdata(uart_rsv))
 				{
 					if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
@@ -468,11 +480,13 @@ void modbus2_task(void *arg)
 
 		}
 		else
-		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 100 / portTICK_RATE_MS);
+		{		
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 			if(len>0)
 			{
+				led_main_rx++;
+				com_rx[2]++;
 				if(checkdata(uart_rsv))
 				{
 					Modbus.com_config[2] = MODBUS_SLAVE;
@@ -485,7 +499,7 @@ void modbus2_task(void *arg)
 
 void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
-   uint8_t num, i, temp1, temp2;
+   uint8_t num = 0, i, temp1, temp2;
    uint16_t temp;
    uint16_t send_cout = 0 ;
    uint16_t address;
@@ -523,11 +537,12 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          for(i = 0; i < rece_size; i++)
             uart_send[send_cout++] = *(bufadd+i);
          if(type == BAC_TO_MODBUS){
-        	// memcpy(&bacnet_to_modbus,&sendbuf[3],RegNum * 2);
+        	
+        	 memcpy(&bacnet_to_modbus,&bufadd[3],bufadd[5] * 2);
          }
          else
          {
-        	led_sub_tx++;
+        	
             uart_send_string((const char *)uart_send, send_cout,port);
          }
          return;
@@ -548,13 +563,14 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 
       if(type != WIFI){
          if(type == BAC_TO_MODBUS){
-           ;// memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
+           
+            memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
          }
          else{
             uart_send[6] = CRChi;
             uart_send[7] = CRClo;
             uart_send_string((const char *)uart_send, 8,port);
-            led_sub_tx++;
+            
             return;
          }
       }else{
@@ -574,10 +590,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_send[send_cout++] = *(bufadd) ;
          uart_send[send_cout++] = *(bufadd+1) ;
          uart_send[send_cout++] = (*(bufadd+5)<<1);
-         if(type == BAC_TO_MODBUS)
-		{
-			memcpy(&bacnet_to_modbus,&uart_send[3],*(bufadd+5) * 2);
-		}
+
       }
       else//WIFI
       {
@@ -608,19 +621,22 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          }
          else if(address == (SERIALNUMBER_HIWORD +1))
          {
-            temp1 = 0 ;
+            
+            temp1 = 0;
             temp2 = Modbus.serialNum[3];
          }
          else if(address == VERSION_NUMBER_LO)
          {
-            temp1 = 1;//SW_REV % 0xff;
-            temp2 = 1;//SW_REV % 0xff;
+            
+            temp1 = 0;
+            temp2 = SW_REV % 100;
          }
 
          else if(address == VERSION_NUMBER_HI)
          {
-            temp1 = 1;//SW_REV / 0xff;
-            temp2 = 1;//SW_REV / 0xff;
+            
+            temp1 = 0;
+            temp2 = SW_REV / 100;
          }
          else if(address == MODBUS_ADDRESS)
          {
@@ -680,7 +696,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		else if(address == MODBUS_MINI_TYPE)
 		{
 			temp1 = 0;
-			temp2 = 6;//MINI_SMALL_ARM;
+			temp2 = Modbus.mini_type;
 		}
 		else if(address == MODBUS_INSTANCE_HI)
 		{
@@ -718,6 +734,54 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             temp1 = 0;
             temp2 = Modbus.getway[address - IP_GATE_WAY_1];
          }
+         else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)
+		 {
+        	if(address - MODBUS_TIMER_ADDRESS == 0)  // hour
+			{
+				temp1 = 0;
+				temp2 =  rtc_date.second;
+			}
+        	else if(address - MODBUS_TIMER_ADDRESS == 1)  // hour
+			{
+				temp1 = 0;
+				temp2 =  rtc_date.minute;
+			}
+        	else if(address - MODBUS_TIMER_ADDRESS == 2)  // hour
+			{
+				temp1 = 0;
+				temp2 =  rtc_date.hour;
+			}
+        	else if(address - MODBUS_TIMER_ADDRESS == 3)  // hour
+			{
+				temp1 = 0;
+				temp2 =  rtc_date.day;
+			}
+			else if(address - MODBUS_TIMER_ADDRESS == 4)  // hour
+			{
+				temp1 = 0;
+				temp2 =  rtc_date.weekday;
+			}
+			else if(address - MODBUS_TIMER_ADDRESS == 5)  // hour
+			{
+				temp1 = 0;
+				temp2 =  rtc_date.month;
+			}
+        	else if(address - MODBUS_TIMER_ADDRESS == 6)
+			{ // day of year
+        		temp1 = rtc_date.year >> 8;
+				temp2 =  rtc_date.year;
+			}
+		}
+         else if(address == MODBUS_RUN_TIME_LO)
+		{
+        	 temp1 = (system_timer / 1000) >> 8;
+        	 temp2 = (system_timer / 1000);
+		}
+		else if(address == MODBUS_RUN_TIME_HI)
+		{
+			temp1 = (system_timer / 1000) >> 24;
+			temp2 = (system_timer / 1000) >> 16;
+		}
          else if(address == MODBUS_TOTAL_NO)
 		{
         	 temp1 = 0;
@@ -750,6 +814,13 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = (temp >> 8) & 0xFF;
 		}
 /*********************read IN OUT by block endf ***************************************/
+		else if( address >= MODBUS_IO_REG_START && address <= MODBUS_IO_REG_END)
+		{
+			U16_T temp;
+			temp = read_IO_reg(address);
+			temp2 = temp & 0xFF;
+			temp1 = (temp >> 8) & 0xFF;
+		}
 
          else if(address == MODBUS_EX_MOUDLE_EN)
          {
@@ -804,6 +875,10 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 
    temp1 = CRChi ;
    temp2 = CRClo;
+   if(type == BAC_TO_MODBUS){
+
+          memcpy(&bacnet_to_modbus,&uart_send[3],num*2);
+           }
    if(type == WIFI)
    {
       memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
@@ -813,9 +888,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
       uart_send[send_cout++] = temp1 ;
       uart_send[send_cout++] = temp2 ;
       uart_send_string((const char *)uart_send, send_cout,port);
-      led_sub_tx++;
+     
       free(uart_send);
    }
+
+
 }
 
 
@@ -828,10 +905,13 @@ void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resDa
       responseModbusData(pData,WIFI, len,resData,modbus_send_len,port);
       internalDeal(pData,WIFI);
    }
-  /* else if(type == BAC_TO_MODBUS)
+  
+   else if(type == BAC_TO_MODBUS)
    {
-
-   }*/
+   
+   	   responseModbusData(pData,BAC_TO_MODBUS,len,resData,modbus_send_len,port);
+        internalDeal(pData,BAC_TO_MODBUS);
+   }
    else
    {
       reg_num = pData[4]*256 + pData[5];
@@ -1257,9 +1337,55 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
          save_uint8_to_flash(FLASH_SERIAL_NUM3,Modbus.serialNum[2]);
          save_uint8_to_flash(FLASH_SERIAL_NUM4,Modbus.serialNum[3]);
        }
+      else if(temp_i >= MODBUS_IO_REG_START && temp_i <= MODBUS_IO_REG_END)
+      {
+
+    	  MulWrite_IO_reg(address,bufadd);
+      }
    }
    if(*(bufadd+1) == WRITE_VARIABLES)
    {
+	   if (address >= SERIALNUMBER_LOWORD && address <= SERIALNUMBER_LOWORD + 3 )
+		{
+			if((address == SERIALNUMBER_LOWORD) && (SNWriteflag & 0x01) == 0)
+			{
+				 Modbus.serialNum[0] = *(bufadd + 5);
+				 Modbus.serialNum[1] = *(bufadd + 4);
+				save_uint8_to_flash(FLASH_SERIAL_NUM1,Modbus.serialNum[0]);
+				save_uint8_to_flash(FLASH_SERIAL_NUM2,Modbus.serialNum[1]);
+
+				SNWriteflag |= 0x01;
+				if(SNWriteflag & 0x02)
+					update_flash = 0;
+			}
+			else if((address == SERIALNUMBER_HIWORD) && (SNWriteflag & 0x02) == 0)
+			{
+				Modbus.serialNum[2] = *(bufadd + 5);
+				Modbus.serialNum[3] = *(bufadd + 4);
+		        save_uint8_to_flash(FLASH_SERIAL_NUM3,Modbus.serialNum[2]);
+		        save_uint8_to_flash(FLASH_SERIAL_NUM4,Modbus.serialNum[3]);
+				SNWriteflag |= 0x02;
+				if(SNWriteflag & 0x01)
+					update_flash = 0;
+			}
+			save_uint8_to_flash(FLASH_SN_WRITE,SNWriteflag);
+		}
+	  if(address == MODBUS_WIFI_START)
+	  {
+		  if(*(bufadd + 5)== 2)
+		  {
+			  SSID_Info.MANUEL_EN = 2;
+			  save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
+			  SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+			  esp_wifi_stop();
+		  }
+		  if(*(bufadd + 5)== 1)
+		  {
+			  SSID_Info.MANUEL_EN = 1;
+			  save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
+			  wifi_init_sta();
+		  }
+	  }
       if(address == MODBUS_ADDRESS)
       {
          if((*(bufadd + 5)!=0)&&(*(bufadd + 5)!=0xff))
@@ -1332,28 +1458,972 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			  Count_com_config();
 		   }
 		}
+		else if(address == MODBUS_MINI_TYPE)
+		{
+			if(*(bufadd + 5) <= MAX_MINI_TYPE && *(bufadd + 5) >= MINI_BIG_ARM)
+			{
+				Modbus.mini_type = *(bufadd + 5);
+				save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
+			}
+		}
       else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
       {
          //save_uint16_to_flash(FLASH_INPUT_FLAG, 0);
       }
       else if (address == UPDATE_STATUS)
       {
-         if (*(bufadd + 5) == 0x7f)
-         {
-            start_fw_update();
-         }
+    	 update_flash = *(bufadd + 5);
+		 if (update_flash == 0x7f)
+		 {
+			start_fw_update();
+		 }
+		 else if((update_flash == 0x8E) || (update_flash == 0x8F))
+		 {
+			if(update_flash == 0x8e)
+			{
+				SNWriteflag = 0x00;
+				//E2prom_Write_Byte(EEP_SERIALNUMBER_WRITE_FLAG, SNWriteflag);
+			}
+		 }
       }
       else if(address >= MODBUS_TEST_1 && address <= MODBUS_TEST_50)
       {
     	  Test[address - MODBUS_TEST_1] = (((uint16_t)*(bufadd+0 + 4)<<8) + *(bufadd + 5));
       }
+      else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)
+     {
+		if(address - MODBUS_TIMER_ADDRESS == 0)
+			rtc_date.second = *(bufadd + 5);// sec
+		else if(address - MODBUS_TIMER_ADDRESS == 1)
+			rtc_date.minute = *(bufadd + 5);
+		else if(address - MODBUS_TIMER_ADDRESS == 2)  // sec
+			rtc_date.hour = *(bufadd + 5);
+		else if(address - MODBUS_TIMER_ADDRESS == 3)  // sec
+			rtc_date.day = *(bufadd + 5);
+		else if(address - MODBUS_TIMER_ADDRESS == 4)  // sec
+			rtc_date.weekday = *(bufadd + 5);
+		else if(address - MODBUS_TIMER_ADDRESS == 5)  // sec
+			rtc_date.month = *(bufadd + 5);
+		else if(address - MODBUS_TIMER_ADDRESS == 6)  // sec
+			rtc_date.year = (((uint16_t)*(bufadd+0 + 4)<<8) + *(bufadd + 5));
 
-
+		PCF_SetDateTime(&rtc_date);
+	  }
+      else if(address >= MODBUS_IO_REG_START && address <= MODBUS_IO_REG_END)
+      {
+    	  Write_IO_reg(address,bufadd);
+      }
 
    }
 }
 
 
+uint16_t read_IO_reg(uint16_t addr)
+{
+	uint8_t sendbuf[2];
+	if(addr >= MODBUS_OUTPUT_FIRST && addr <= MODBUS_OUTPUT_LAST)
+	{
+		U8_T index;
+
+		index = (addr - MODBUS_OUTPUT_FIRST) / 2;
+		if((addr - MODBUS_OUTPUT_FIRST) % 2 == 0)  // high word
+		{
+			if(outputs[index].digital_analog == 0) // digtial
+			{
+				sendbuf[0] = 0;
+				sendbuf[1] = 0;
+			}
+			else
+			{
+				sendbuf[0] = (U8_T)(outputs[index].value >> 24);
+				sendbuf[1] = (U8_T)(outputs[index].value >> 16);
+			}
+		}
+		else // low word
+		{
+			if(outputs[index].digital_analog == 0) // digtial
+			{
+				if((outputs[index].range >= ON_OFF  && outputs[index].range <= HIGH_LOW)
+					||(outputs[index].range >= custom_digital1 // customer digital unit
+					&& outputs[index].range <= custom_digital8
+					&& digi_units[outputs[index].range - custom_digital1].direct == 1))
+				{  // inverse logic
+					if(outputs[index].control == 1)
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 0;
+					}
+					else
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 1;
+					}
+				}
+				else
+				{
+					if(outputs[index].control == 1)
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 1;
+					}
+					else
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 0;
+					}
+				}
+			}
+			else  // analog
+			{
+				sendbuf[0] = (U8_T)(outputs[index].value >> 8);
+				sendbuf[1] = (U8_T)(outputs[index].value);
+			}
+		}
+	}
+	else if(addr >= MODBUS_OUTPUT_SWICH_FIRST && addr <= MODBUS_OUTPUT_SWICH_LAST)
+	{
+		U8_T index;
+		index = (addr - MODBUS_OUTPUT_SWICH_FIRST);
+		sendbuf[0] = 0;
+		sendbuf[1] = outputs[index].switch_status;
+	}
+	else if(addr >= MODBUS_OUTPUT_RANGE_FIRST && addr <= MODBUS_OUTPUT_RANGE_LAST)
+	{
+		U8_T index;
+		index = (addr - MODBUS_OUTPUT_RANGE_FIRST);
+		sendbuf[0] = 0;
+		sendbuf[1] = outputs[index].range;
+	}
+	else if(addr >= MODBUS_OUTPUT_AM_FIRST && addr <= MODBUS_OUTPUT_AM_LAST)
+	{
+		U8_T index;
+		index = (addr - MODBUS_OUTPUT_AM_FIRST);
+		sendbuf[0] = 0;
+		sendbuf[1] = outputs[index].auto_manual;
+	}
+	else if(addr >= MODBUS_OUTPUT_AD_FIRST && addr <= MODBUS_OUTPUT_AD_LAST)
+	{
+		U8_T index;
+		index = (addr - MODBUS_OUTPUT_AD_FIRST);
+		sendbuf[0] = 0;
+		sendbuf[1] = outputs[index].digital_analog;
+	}
+		// end output
+		// start input
+	else if((addr >= MODBUS_INPUT_FIRST && addr <= MODBUS_INPUT_LAST)
+	 /*|| (addr >= MODBUS_RI_FIRST && addr <= MODBUS_RI_LAST)*/)
+	{
+		U8_T index;
+		U16_T base;
+		if((addr >= MODBUS_INPUT_FIRST && addr <= MODBUS_INPUT_LAST))
+			base = MODBUS_INPUT_FIRST;
+		//else
+		//	base = MODBUS_RI_FIRST;
+
+		index = (addr - base) / 2;
+		if((addr - base) % 2 == 0)
+		{
+			if(inputs[index].digital_analog == 0)  // digital
+			{
+				sendbuf[0] = 0;
+				sendbuf[1] = 0;
+			}
+			else
+			{
+				sendbuf[0] = (U8_T)(inputs[index].value >> 24);
+				sendbuf[1] = (U8_T)(inputs[index].value >> 16);
+			}
+		}
+		else
+		{
+			if(inputs[index].digital_analog == 0)  // digital
+			{
+				if((inputs[index].range >= ON_OFF  && inputs[index].range <= HIGH_LOW)
+					||(inputs[index].range >= custom_digital1 // customer digital unit
+					&& inputs[index].range <= custom_digital8
+					&& digi_units[inputs[index].range - custom_digital1].direct == 1))
+				{  // inverse logic
+					if(inputs[index].control == 1)
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 0;
+					}
+					else
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 1;
+					}
+				}
+				else
+				{
+					if(inputs[index].control == 1)
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 1;
+					}
+					else
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 0;
+					}
+				}
+			}
+			else  // analog
+			{
+				sendbuf[0] = (U8_T)(inputs[index].value >> 8);
+				sendbuf[1] = (U8_T)(inputs[index].value);
+			}
+		}
+
+	 }
+	 else if(addr >= MODBUS_INPUT_FILTER_FIRST && addr <= MODBUS_INPUT_FILTER_LAST)
+	 {
+			U8_T index;
+			index = (addr - MODBUS_INPUT_FILTER_FIRST);
+			sendbuf[0] = 0;
+			sendbuf[1] = inputs[index].filter;
+	 }
+	 else if(addr >= MODBUS_INPUT_CAL_FIRST && addr <= MODBUS_INPUT_CAL_LAST)
+	 {
+			U8_T index;
+			index = (addr - MODBUS_INPUT_CAL_FIRST);
+			sendbuf[0] = inputs[index].calibration_hi;
+			sendbuf[1] = inputs[index].calibration_lo;
+	 }
+	 else if(addr >= MODBUS_INPUT_RANGE_FIRST && addr <= MODBUS_INPUT_RANGE_LAST)
+	 {
+			U8_T index;
+			index = (addr - MODBUS_INPUT_RANGE_FIRST);
+			sendbuf[0] = inputs[index].digital_analog;
+			sendbuf[1] = inputs[index].range;
+	 }
+	 else if(addr >= MODBUS_INPUT_AM_FIRST && addr <= MODBUS_INPUT_AM_LAST)
+	 {
+			U8_T index;
+			index = (addr - MODBUS_INPUT_AM_FIRST);
+			sendbuf[0] = 0;
+			sendbuf[1] = inputs[index].auto_manual;
+	 }
+	 else if(addr >= MODBUS_INPUT_CAL_SIGN_FIRST && addr <= MODBUS_INPUT_CAL_SIGN_LAST)
+	 {
+			U8_T index;
+			index = (addr - MODBUS_INPUT_CAL_SIGN_FIRST);
+			sendbuf[0] = 0;
+			sendbuf[1] = inputs[index].calibration_sign;
+
+	 }
+	 /*else if(addr >= MODBUS_INPUT_HI_SPD_COUNTER_FIRST && addr <= MODBUS_INPUT_HI_SPD_COUNTER_LAST)
+	 {
+			U8_T index;
+			index = (addr - MODBUS_INPUT_HI_SPD_COUNTER_FIRST) / 2;
+			if((addr - MODBUS_INPUT_HI_SPD_COUNTER_FIRST) % 2 == 0)
+			{
+				sendbuf[0] = (U8_T)((get_high_spd_counter(index) / 1000) >> 24);
+				sendbuf[1] = (U8_T)((get_high_spd_counter(index) / 1000) >> 16);
+			}
+			else
+			{
+				sendbuf[0] = (U8_T)((get_high_spd_counter(index) / 1000) >> 8);
+				sendbuf[1] = (U8_T)(get_high_spd_counter(index) / 1000);
+			}
+	 }
+	 else if(addr >= MODBUS_INPUT_HI_SPD_EN_FIRST && addr <= MODBUS_INPUT_HI_SPD_EN_LAST)
+	 {
+			sendbuf[0] = 0;
+			sendbuf[1] = high_spd_en[addr - MODBUS_INPUT_HI_SPD_EN_FIRST];
+	 }
+	 else if(addr >= MODBUS_INPUT_TYPE_FIRST && addr <= MODBUS_INPUT_TYPE_LAST)
+	 {
+			sendbuf[0] = 0;
+			sendbuf[1] = input_type[StartAdd + loop - MODBUS_INPUT_TYPE_FIRST];
+	 }*/
+// end input
+// start variable
+	 else if((addr >= MODBUS_VAR_FIRST && addr <= MODBUS_VAR_LAST)/* ||
+		(addr >= MODBUS_RV_FIRST && addr <= MODBUS_RV_LAST)*/)
+	 {
+		U8_T index;
+		U16_T base;
+		 if(addr >= MODBUS_VAR_FIRST && addr <= MODBUS_VAR_LAST)
+			 base = MODBUS_VAR_FIRST;
+		 //else
+		//	 base = MODBUS_RV_FIRST;
+
+		index = (addr - base) / 2;
+		if((addr - base) % 2 == 0)   // high word
+		{
+			if(vars[index].digital_analog == 0)  // digital
+			{
+				sendbuf[0] = 0;
+				sendbuf[1] = 0;
+			}
+			else
+			{
+				sendbuf[0] = (U8_T)(vars[index].value >> 24);
+				sendbuf[1] = (U8_T)(vars[index].value >> 16);
+			}
+		}
+		else   // low word
+		{
+			if(vars[index].digital_analog == 0)  // digital
+			{
+				if((vars[index].range >= ON_OFF  && vars[index].range <= HIGH_LOW)
+					||(vars[index].range >= custom_digital1 // customer digital unit
+					&& vars[index].range <= custom_digital8
+					&& digi_units[vars[index].range - custom_digital1].direct == 1))
+				{  // inverse logic
+					if(vars[index].control == 1)
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 0;
+					}
+					else
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 1;
+					}
+				}
+				else
+				{
+					if(vars[index].control == 1)
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 1;
+					}
+					else
+					{
+						sendbuf[0] = 0;
+						sendbuf[1] = 0;
+					}
+				}
+			}
+			else  // analog
+			{
+				sendbuf[0] = (U8_T)(vars[index].value >> 8);
+				sendbuf[1] = (U8_T)(vars[index].value);
+			}
+		}
+	}
+	else if(addr >= MODBUS_VAR_AM_FIRST && addr <= MODBUS_VAR_AM_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = vars[addr - MODBUS_VAR_AM_FIRST].auto_manual;
+	}
+	else if(addr >= MODBUS_VAR_RANGE_FIRST && addr <= MODBUS_VAR_RANGE_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = vars[addr - MODBUS_VAR_RANGE_FIRST].range;
+	}
+	else if(addr >= MODBUS_VAR_AD_FIRST && addr <= MODBUS_VAR_AD_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = vars[addr - MODBUS_VAR_AD_FIRST].digital_analog;
+	}
+// end variable
+// start weekly
+	else if(addr >= MODBUS_WR_AM_FIRST && addr <= MODBUS_WR_AM_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = weekly_routines[addr - MODBUS_WR_AM_FIRST].auto_manual;
+	}
+	else if(addr >= MODBUS_WR_OUT_FIRST && addr <= MODBUS_WR_OUT_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = weekly_routines[addr - MODBUS_WR_OUT_FIRST].value;
+	}
+	else if(addr >= MODBUS_WR_HOLIDAY1_FIRST && addr <= MODBUS_WR_HOLIDAY1_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = weekly_routines[addr - MODBUS_WR_HOLIDAY1_FIRST].override_1.number;
+	}
+	else if(addr >= MODBUS_WR_STATE1_FIRST && addr <= MODBUS_WR_STATE1_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = weekly_routines[addr - MODBUS_WR_STATE1_FIRST].override_1_value;
+	}
+	else if(addr >= MODBUS_WR_HOLIDAY2_FIRST && addr <= MODBUS_WR_HOLIDAY2_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = weekly_routines[addr - MODBUS_WR_HOLIDAY2_FIRST].override_2.number;
+	}
+	else if(addr >= MODBUS_WR_STATE2_FIRST && addr <= MODBUS_WR_STATE2_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = weekly_routines[addr - MODBUS_WR_STATE2_FIRST].override_2_value;
+	}
+// weekly_time
+//					else if(StartAdd + loop >= MODBUS_WR_TIME_FIRST && StartAdd + loop <= MODBUS_WR_TIME_LAST)
+//					{
+//						U8_T i,j,k;
+//						i = (StartAdd + loop - MODBUS_WR_TIME_FIRST) / (MAX_SCHEDULES_PER_WEEK * 8); // week index
+//						j = (StartAdd + loop - MODBUS_WR_TIME_FIRST) %(MAX_SCHEDULES_PER_WEEK * 8) / 8; // day index
+//						k = (StartAdd + loop - MODBUS_WR_TIME_FIRST) % (MAX_SCHEDULES_PER_WEEK * 8) % 8;  // seg index
+//						sendbuf[HeadLen + 3 + loop * 2] = wr_times[i][j].time[k].hours;
+//						sendbuf[HeadLen + 3 + loop * 2 + 1] = wr_times[i][j].time[k].minutes;
+//					}
+// end weekly
+
+// start annual
+	else if(addr >= MODBUS_AR_AM_FIRST && addr <= MODBUS_AR_AM_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = annual_routines[addr - MODBUS_AR_AM_FIRST].auto_manual;
+	}
+	else if(addr >= MODBUS_AR_OUT_FIRST && addr <= MODBUS_AR_OUT_LAST)
+	{
+		sendbuf[0] = 0;
+		sendbuf[1] = annual_routines[addr - MODBUS_AR_OUT_FIRST].value;
+	}
+	else if(addr >= MODBUS_AR_TIME_FIRST && addr <= MODBUS_AR_TIME_LAST)
+	{
+		U8_T i,j;
+		i = (addr - MODBUS_AR_TIME_FIRST) / AR_DATES_SIZE;
+		j = (addr - MODBUS_AR_TIME_FIRST) % AR_DATES_SIZE;
+		sendbuf[0] = 0;
+		sendbuf[1] = ar_dates[i][j];
+	}
+	return sendbuf[0] * 256 + sendbuf[1];
+}
+
+void Write_IO_reg(uint16_t StartAdd,uint8_t * pData)
+{
+	uint8_t i = 0;
+	if(StartAdd  >= MODBUS_OUTPUT_FIRST && StartAdd  <= MODBUS_OUTPUT_LAST)
+	{
+		int32_t tempval;
+		i = (StartAdd - MODBUS_OUTPUT_FIRST) / 2;
+		tempval = outputs[i].value;
+		if((StartAdd - MODBUS_OUTPUT_FIRST) % 2 == 0)  // high word
+		{
+			tempval &= 0x0000ffff;
+			tempval += 65536L * (pData[5] +  256 * pData[4]);
+		}
+		else  // low word
+		{
+			S32_T old_value;
+
+			tempval &= 0xffff0000;
+			tempval += (pData[5] + 256 * pData[4]);
+
+			if(outputs[i].digital_analog == 0)  // digital
+			{
+			//	if(i < get_max_internal_output())
+				{
+					if(( outputs[i].range >= ON_OFF && outputs[i].range <= HIGH_LOW )
+						||(outputs[i].range >= custom_digital1 // customer digital unit
+						&& outputs[i].range <= custom_digital8
+						&& digi_units[outputs[i].range - custom_digital1].direct == 1))
+					{ // inverse
+						if(output_priority[i][9] == 0xff)
+							output_priority[i][7] = (pData[5]+ (U16_T)(pData[4] << 8)) ? 0 : 1;
+						else
+							output_priority[i][10] = (pData[5]+ (U16_T)(pData[4] << 8)) ? 0 : 1;
+						outputs[i].control = Binary_Output_Present_Value(i) ? 0 : 1;
+					}
+					else
+					{
+						if(output_priority[i][9] == 0xff)
+							output_priority[i][7] = (pData[5]+ (U16_T)(pData[4] << 8)) ? 1 : 0;
+						else
+							output_priority[i][10] = (pData[5]+ (U16_T)(pData[4] << 8)) ? 1 : 0;
+						outputs[i].control = Binary_Output_Present_Value(i) ? 1 : 0;
+					}
+				}
+#if 0
+				else
+				{
+					old_value = outputs[i].control;
+
+					if(( outputs[i].range >= ON_OFF && outputs[i].range <= HIGH_LOW )
+						||(outputs[i].range >= custom_digital1 // customer digital unit
+						&& outputs[i].range <= custom_digital8
+						&& digi_units[outputs[i].range - custom_digital1].direct == 1))
+					{// inverse
+						outputs[i].control = (pData[5]+ (U16_T)(pData[4] << 8)) ? 0 : 1;
+					}
+					else
+					{
+						outputs[i].control =  (pData[5]+ (U16_T)(pData[4] << 8)) ? 1 : 0;
+					}
+				}
+#endif
+				if(outputs[i].control)
+					;//set_output_raw(i,1000);
+				else
+					;//set_output_raw(i,0);
+#if  T3_MAP
+			if(i >= get_max_internal_output())
+			{
+					if(old_value != outputs[i].control)
+					{
+						if(i < base_out)
+						{
+					vTaskSuspend(Handle_Scan);	// dont not read expansion io
+#if (ARM_MINI || ASIX_MINI)
+					vTaskSuspend(xHandler_Output);  // do not control local io
+#endif
+					push_expansion_out_stack(&outputs[i],i,0);
+#if (ARM_MINI || ASIX_MINI)
+						// resume output task
+					vTaskResume(xHandler_Output);
+#endif
+					vTaskResume(Handle_Scan);
+						}
+					}
+			}
+#endif
+				outputs[i].value = Binary_Output_Present_Value(i) * 1000;
+
+			}
+			else if(outputs[i].digital_analog)
+			{
+				//if(i < get_max_internal_output())
+				{
+					if(output_priority[i][9] == 0xff)
+						output_priority[i][7] = (float)(pData[5]+ (U16_T)(pData[4] << 8)) / 1000;
+					else
+						output_priority[i][10] = (float)(pData[5]+ (U16_T)(pData[4] << 8)) / 1000;
+				}
+					// if external io
+#if  T3_MAP
+					if(i >= get_max_internal_output())
+					{
+						old_value = outputs[i].value;
+
+						output_raw[i] = (float)(pData[HeadLen + 5]+ (U16_T)(pData[HeadLen + 4] << 8));
+						if(old_value != (float)(pData[HeadLen + 5]+ (U16_T)(pData[HeadLen + 4] << 8)))
+						{
+							if(i < base_out)
+							{
+							vTaskSuspend(Handle_Scan);	// dont not read expansion io
+#if (ARM_MINI || ASIX_MINI)
+							vTaskSuspend(xHandler_Output);  // do not control local io
+#endif
+							push_expansion_out_stack(&outputs[i],i,0);
+#if (ARM_MINI || ASIX_MINI)
+								// resume output task
+							vTaskResume(xHandler_Output);
+#endif
+							vTaskResume(Handle_Scan);
+							}
+						}
+					}
+
+#endif
+//						outputs[i].value = Analog_Output_Present_Value(i) * 1000;
+//						Set_AO_raw(i,swap_double(outputs[i].value) * 1000);
+					outputs[i].value = Analog_Output_Present_Value(i) * 1000;
+				// set output_raw
+					//Set_AO_raw(i,(float)outputs[i].value);  tbd:
+
+			}
+		}
+
+//			check_output_priority_array(i);
+#if OUTPUT_DEATMASTER
+		clear_dead_master();
+#endif
+#if  T3_MAP
+		if(i >= get_max_internal_output())
+		{
+			if( outputs[i].range >= OFF_ON && outputs[i].range <= LOW_HIGH )
+			{
+				if(pData[HeadLen + 5]+ (U16_T)(pData[HeadLen + 4] << 8) == 1)
+						outputs[i].control = 1;
+					else
+						outputs[i].control = 0;
+			}
+			outputs[i].value = swap_double(tempval);
+			push_expansion_out_stack(&outputs[i],i,0);
+		}
+#endif
+		ChangeFlash = 1;
+	}
+	else if(StartAdd  >= MODBUS_OUTPUT_RANGE_FIRST && StartAdd  <= MODBUS_OUTPUT_RANGE_LAST)
+	{
+		i = (StartAdd - MODBUS_OUTPUT_RANGE_FIRST);
+		outputs[i].range = pData[5];
+		ChangeFlash = 1;
+
+		push_expansion_out_stack(&outputs[i],i,1);
+	}
+	else if(StartAdd  >= MODBUS_OUTPUT_AM_FIRST && StartAdd  <= MODBUS_OUTPUT_AM_LAST)
+	{
+		i = (StartAdd - MODBUS_OUTPUT_AM_FIRST);
+		if(outputs[i].switch_status == SW_AUTO)
+			outputs[i].auto_manual = pData[5];
+		ChangeFlash = 1;
+
+		push_expansion_out_stack(&outputs[i],i,1);
+	}
+	else if(StartAdd  >= MODBUS_OUTPUT_AD_FIRST && StartAdd  <= MODBUS_OUTPUT_AD_LAST)
+	{
+		i = (StartAdd - MODBUS_OUTPUT_AD_FIRST);
+		outputs[i].digital_analog = pData[5];
+		ChangeFlash = 1;
+		push_expansion_out_stack(&outputs[i],i,1);
+	}
+	else if(StartAdd  >= MODBUS_INPUT_FIRST && StartAdd  <= MODBUS_INPUT_LAST)
+	{
+		int32_t tempval;
+		i = (StartAdd - MODBUS_INPUT_FIRST) / 2;
+		tempval = inputs[i].value;
+		if((StartAdd - MODBUS_INPUT_FIRST) % 2 == 0)  // high word
+		{
+			tempval &= 0x0000ffff;
+			tempval += 65536L * (pData[5] +  256 * pData[4]);
+		}
+		else  // low word
+		{
+			tempval &= 0xffff0000;
+			tempval += (pData[5] + 256 * pData[4]);
+
+			if(inputs[i].digital_analog == 0)  // digital
+			{
+				if(( inputs[i].range >= ON_OFF && inputs[i].range <= HIGH_LOW )
+				||(inputs[i].range >= custom_digital1 // customer digital unit
+				&& inputs[i].range <= custom_digital8
+				&& digi_units[inputs[i].range - custom_digital1].direct == 1))
+				{ // inverse
+					if(pData[5]+ (U16_T)(pData[4] << 8) == 1)
+						inputs[i].control = 0;
+					else
+						inputs[i].control = 1;
+				}
+				else
+				{
+					if(pData[5]+ (U16_T)(pData[4] << 8) == 1)
+						inputs[i].control = 1;
+					else
+						inputs[i].control = 0;
+				}
+			}
+			else if(inputs[i].digital_analog == 1)
+			{
+				 inputs[i].value = 1000l * (pData[5]+ (U16_T)(pData[4] << 8));
+			}
+
+			if(inputs[i].auto_manual == 1)  // manual
+			{
+				/*if((inputs[i].range == HI_spd_count) || (inputs[i].range == N0_2_32counts)
+					|| (inputs[i].range == RPM)
+				)
+				{
+					if(swap_double(inputs[i].value) == 0)
+					{
+						high_spd_counter[i] = 0; // clear high spd count
+						clear_high_spd[i] = 1;
+
+					}
+				}*/
+			}
+		}
+
+		inputs[i].value = tempval;
+		ChangeFlash = 1;
+
+		push_expansion_in_stack(&inputs[i]);
+	}
+	else if(StartAdd  >= MODBUS_INPUT_FILTER_FIRST && StartAdd  <= MODBUS_INPUT_FILTER_LAST)
+	{
+		i = (StartAdd - MODBUS_INPUT_FILTER_FIRST);
+		inputs[i].filter = pData[5];
+		ChangeFlash = 1;
+
+		push_expansion_in_stack(&inputs[i]);
+	}
+	else if(StartAdd  >= MODBUS_INPUT_CAL_FIRST && StartAdd  <= MODBUS_INPUT_CAL_LAST)
+	{
+		i = (StartAdd - MODBUS_INPUT_CAL_FIRST);
+		inputs[i].calibration_hi = pData[4];
+		inputs[i].calibration_lo = pData[5];
+		ChangeFlash = 1;
+		push_expansion_in_stack(&inputs[i]);
+	}
+	else if(StartAdd  >= MODBUS_INPUT_CAL_SIGN_FIRST && StartAdd  <= MODBUS_INPUT_CAL_SIGN_LAST)
+	{
+		i = (StartAdd - MODBUS_INPUT_CAL_SIGN_FIRST);
+		inputs[i].calibration_sign = pData[5];
+		ChangeFlash = 1;
+		push_expansion_in_stack(&inputs[i]);
+	}
+	else if(StartAdd  >= MODBUS_INPUT_RANGE_FIRST && StartAdd  <= MODBUS_INPUT_RANGE_LAST)
+	{
+		i = (StartAdd - MODBUS_INPUT_RANGE_FIRST);
+		inputs[i].digital_analog = pData[4];
+		inputs[i].range = pData[5];
+		ChangeFlash = 1;
+		push_expansion_in_stack(&inputs[i]);
+	}
+	else if(StartAdd  >= MODBUS_INPUT_AM_FIRST && StartAdd  <= MODBUS_INPUT_AM_LAST)
+	{
+		i = (StartAdd - MODBUS_INPUT_AM_FIRST);
+		inputs[i].auto_manual = pData[5];
+		ChangeFlash = 1;
+		push_expansion_in_stack(&inputs[i]);
+	}
+	/*else if(StartAdd  >= MODBUS_INPUT_HI_SPD_EN_FIRST && StartAdd  <= MODBUS_INPUT_HI_SPD_EN_LAST)
+	{
+		i = (StartAdd - MODBUS_INPUT_HI_SPD_EN_FIRST);
+		high_spd_en[i] = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd  >= MODBUS_INPUT_TYPE_FIRST && StartAdd  <= MODBUS_INPUT_TYPE_LAST)
+	{
+		i = (StartAdd - MODBUS_INPUT_TYPE_FIRST);
+		input_type[i] = pData[5];
+	}*/
+	else if(StartAdd  >= MODBUS_VAR_FIRST && StartAdd  <= MODBUS_VAR_LAST)
+	{
+		int32_t tempval;
+		i = (StartAdd - MODBUS_VAR_FIRST) / 2;
+		tempval = vars[i].value;
+		if((StartAdd - MODBUS_VAR_FIRST) % 2 == 0)  // high word
+		{
+			tempval &= 0x0000ffff;
+			tempval += 65536L * (pData[5] +  256 * pData[4]);
+		}
+		else  // low word
+		{
+			tempval &= 0xffff0000;
+			tempval += (pData[5] + 256 * pData[4]);
+
+			if(vars[i].digital_analog == 0)  // digital
+			{
+				if(( vars[i].range >= ON_OFF && vars[i].range <= HIGH_LOW )
+					||(vars[i].range >= custom_digital1 // customer digital unit
+					&& vars[i].range <= custom_digital8
+					&& digi_units[vars[i].range - custom_digital1].direct == 1))
+				{// inverse
+					if(pData[5]+ (U16_T)(pData[4] << 8) == 1)
+						vars[i].control = 0;
+					else
+						vars[i].control = 1;
+				}
+				else
+				{
+					if(pData[5]+ (U16_T)(pData[4] << 8) == 1)
+						vars[i].control = 1;
+					else
+						vars[i].control = 0;
+				}
+			}
+		}
+
+		vars[i].value = tempval;
+		ChangeFlash = 1;
+
+	}
+	else if(StartAdd  >= MODBUS_VAR_AM_FIRST && StartAdd  <= MODBUS_VAR_AM_LAST)
+	{
+		i = (StartAdd - MODBUS_VAR_AM_FIRST);
+		vars[i].auto_manual = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd  >= MODBUS_VAR_AD_FIRST && StartAdd  <= MODBUS_VAR_AD_LAST)
+	{
+		i = (StartAdd - MODBUS_VAR_AD_FIRST);
+		vars[i].digital_analog = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd  >= MODBUS_VAR_RANGE_FIRST && StartAdd  <= MODBUS_VAR_RANGE_LAST)
+	{
+		i = (StartAdd - MODBUS_VAR_RANGE_FIRST);
+		vars[i].range = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_WR_AM_FIRST && StartAdd <= MODBUS_WR_AM_LAST)
+	{
+		i = (StartAdd - MODBUS_WR_AM_FIRST);
+		weekly_routines[i].auto_manual = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_WR_OUT_FIRST && StartAdd <= MODBUS_WR_OUT_LAST)
+	{
+		i = (StartAdd - MODBUS_WR_OUT_FIRST);
+		weekly_routines[i].value = pData[5] ? 1 : 0;
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_WR_HOLIDAY1_FIRST && StartAdd <= MODBUS_WR_HOLIDAY1_LAST)
+	{
+		i = (StartAdd - MODBUS_WR_HOLIDAY1_FIRST);
+		weekly_routines[i].override_1.number = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_WR_STATE1_FIRST && StartAdd <= MODBUS_WR_STATE1_LAST)
+	{
+		i = (StartAdd - MODBUS_WR_STATE1_FIRST);
+		weekly_routines[i].override_1_value = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_WR_HOLIDAY2_FIRST && StartAdd <= MODBUS_WR_HOLIDAY2_LAST)
+	{
+		i = (StartAdd - MODBUS_WR_HOLIDAY2_FIRST);
+		weekly_routines[i].override_2.number = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_WR_STATE2_FIRST && StartAdd <= MODBUS_WR_STATE2_LAST)
+	{
+		i = (StartAdd - MODBUS_WR_STATE2_FIRST);
+		weekly_routines[i].override_2_value = pData[5];
+		ChangeFlash = 1;
+	}
+
+// weekly_time
+	else if(StartAdd >= MODBUS_WR_TIME_FIRST && StartAdd <= MODBUS_WR_TIME_LAST)
+	{
+		U8_T i,j,k;
+		i = (StartAdd - MODBUS_WR_TIME_FIRST) / (MAX_SCHEDULES_PER_WEEK * 8); // week index
+		j = (StartAdd - MODBUS_WR_TIME_FIRST) %(MAX_SCHEDULES_PER_WEEK * 8) / 8; // day index
+		k = (StartAdd - MODBUS_WR_TIME_FIRST) % (MAX_SCHEDULES_PER_WEEK * 8) % 8;  // seg index
+		wr_times[i][j].time[k].hours = pData[4];
+		wr_times[i][j].time[k].minutes = pData[5];
+		ChangeFlash = 1;
+	}
+// end weekly
+
+// start annual
+	else if(StartAdd >= MODBUS_AR_AM_FIRST && StartAdd <= MODBUS_AR_AM_LAST)
+	{
+		i = (StartAdd - MODBUS_AR_AM_FIRST);
+		annual_routines[i].auto_manual = pData[5];
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_AR_OUT_FIRST && StartAdd <= MODBUS_AR_OUT_LAST)
+	{
+		i = (StartAdd - MODBUS_AR_OUT_FIRST);
+		annual_routines[i].value = pData[5] ? 1 : 0;
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_AR_TIME_FIRST && StartAdd <= MODBUS_AR_TIME_LAST)
+	{
+		U8_T i,j;
+		i = (StartAdd - MODBUS_AR_TIME_FIRST) / AR_DATES_SIZE;
+		j = (StartAdd - MODBUS_AR_TIME_FIRST) % AR_DATES_SIZE;
+		ar_dates[i][j] = pData[5];
+		ChangeFlash = 1;
+	}
+}
+
+void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
+{
+	uint16_t i;
+	if(StartAdd >= MODBUS_OUTPUT_FIRST && StartAdd <= MODBUS_OUTPUT_LAST)
+	{
+		if(pData[5] == 0x02)
+		{
+			int32_t tempval;
+			i = (StartAdd - MODBUS_OUTPUT_FIRST) / 2;
+			tempval = pData[10] + (U16_T)(pData[9] << 8) \
+				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
+
+			outputs[i].value = tempval;
+
+			if(outputs[i].digital_analog == 0)  // digital
+			{
+				if(( outputs[i].range >= ON_OFF && outputs[i].range <= HIGH_LOW )
+					||(outputs[i].range >= custom_digital1 // customer digital unit
+					&& outputs[i].range <= custom_digital8
+					&& digi_units[outputs[i].range - custom_digital1].direct == 1))
+				{// inverse
+					if(tempval == 1)
+						outputs[i].control = 0;
+					else
+						outputs[i].control = 1;
+				}
+				else
+				{
+					if(tempval == 1)
+						outputs[i].control = 1;
+					else
+						outputs[i].control = 0;
+				}
+
+				/*if(outputs[i].control)  tbd:
+					set_output_raw(i,1000);
+				else
+					set_output_raw(i,0);*/
+			}
+			else
+			{
+				// set output_raw
+					//Set_AO_raw(i,(float)outputs[i].value);  tbd:
+			}
+		}
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_INPUT_FIRST && StartAdd <= MODBUS_INPUT_LAST)
+	{
+		if(pData[5] == 0x02)
+		{
+			int32_t tempval;
+			i = (StartAdd - MODBUS_INPUT_FIRST) / 2;
+			tempval = pData[10] + (U16_T)(pData[9] << 8) \
+				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
+
+			if(inputs[i].digital_analog == 0)  // digital
+			{
+				if(( inputs[i].range >= ON_OFF && vars[i].range <= HIGH_LOW )
+					||(inputs[i].range >= custom_digital1 // customer digital unit
+					&& inputs[i].range <= custom_digital8
+					&& digi_units[inputs[i].range - custom_digital1].direct == 1))
+				{// inverse
+					if(tempval == 1)
+						inputs[i].control = 0;
+					else
+						inputs[i].control = 1;
+				}
+				else
+				{
+					if(tempval == 1)
+						inputs[i].control = 1;
+					else
+						inputs[i].control = 0;
+				}
+			}
+
+			inputs[i].value = tempval;
+		}
+		ChangeFlash = 1;
+	}
+	else if(StartAdd >= MODBUS_VAR_FIRST && StartAdd <= MODBUS_VAR_LAST)
+	{
+		if(pData[5] == 0x02)
+		{
+			int32_t tempval;
+			i = (StartAdd - MODBUS_VAR_FIRST) / 2;
+			tempval = pData[10] + (U16_T)(pData[9] << 8) \
+				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
+
+
+			if(vars[i].digital_analog == 0)  // digital
+			{
+				if(( vars[i].range >= ON_OFF && vars[i].range <= HIGH_LOW )
+					||(vars[i].range >= custom_digital1 // customer digital unit
+					&& vars[i].range <= custom_digital8
+					&& digi_units[vars[i].range - custom_digital1].direct == 1))
+				{// inverse
+					if(tempval == 1)
+						vars[i].control = 0;
+					else
+						vars[i].control = 1;
+				}
+				else
+				{
+					if(tempval == 1)
+						vars[i].control = 1;
+					else
+						vars[i].control = 0;
+				}
+				//vars[i].value = vars[i].control ? 1000 : 0;
+			}
+
+			vars[i].value = tempval;
+		}
+		ChangeFlash = 1;
+
+	}
+}
 void set_default_parameters(void);
 
 
@@ -1608,6 +2678,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			/*if((Modbus.com_config[0] == MODBUS_SLAVE) || (Modbus.com_config[0] == NOUSE) || (Modbus.com_config[0] == MODBUS_MASTER)
 				|| (Modbus.com_config[0] == BACNET_SLAVE) || (Modbus.com_config[0] == BACNET_MASTER))*/
 			save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
+			uart_init(0);
 			Count_com_config();
 		}
 		if(Modbus.baudrate[2] != ptr->reg.com_baudrate[2]) // com_baudrate[2]??T3000
@@ -1616,6 +2687,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			/*if((Modbus.com_config[2] == MODBUS_SLAVE) || (Modbus.com_config[2] == NOUSE) || (Modbus.com_config[2] == MODBUS_MASTER)
 				|| (Modbus.com_config[2] == BACNET_SLAVE) || (Modbus.com_config[2] == BACNET_MASTER))*/
 			save_uint8_to_flash(FLASH_BAUD_RATE2, Modbus.baudrate[2]);
+			uart_init(2);
 			Count_com_config();
 		}
 

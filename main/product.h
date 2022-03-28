@@ -4,7 +4,7 @@
 #include "types.h"
 //#include "esp_attr.h"
 
-#define SW_REV	5102
+//#define SW_REV	5102
 
 #define ARM_MINI 1
 #define ARM_CM5  0

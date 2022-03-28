@@ -90,7 +90,7 @@ void Recievebuf_Initialize(uint8_t port)
 	FIFO_Init(&Receive_Buffer2, &Receive_Buffer_Data2[0],
          sizeof(Receive_Buffer_Data2));
 //	}
-	Test[26]++;
+
     return;
 }
 
@@ -252,15 +252,18 @@ void RS485_Send_Data(
 //	        nbytes--;
 //	    }
 //	}
+	
 	if(Modbus.com_config[2] == 9 || Modbus.com_config[2] == 1)
-	{Test[0]++;
+	{
+		
 		uart_send_string(buffer,nbytes,2);
 	}
 	else if(Modbus.com_config[0] == 9 || Modbus.com_config[0] == 1)
-	{Test[1]++;
+	{
 		uart_send_string(buffer,nbytes,0);
 	}
     /* per MSTP spec */
+	
   Timer_Silence_Reset();
 }
 
@@ -273,9 +276,9 @@ void RS485_Send_Data(
 bool RS485_ReceiveError(
     void)
 {
-    bool ReceiveError = false;
+   // bool ReceiveError = false;
  
-    return gbReceiveError;
+    return false;//gbReceiveError;
 }
 
 /****************************************************************************
@@ -312,7 +315,7 @@ bool RS485_DataAvailable(uint8_t * data_register,uint8_t port)
 		if (!FIFO_Empty(&Receive_Buffer2)) {
 	        if (data_register) {
 	            *data_register = FIFO_Get(&Receive_Buffer2);
-						//hsurRxCount --;
+				//hsurRxCount --;
 	        }
 	     //   timer_elapsed_start(&Silence_Timer);
 	       DataAvailable = true;

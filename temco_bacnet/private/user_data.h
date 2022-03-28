@@ -5,6 +5,11 @@
 #include "monitor.h"
 //#include "dyndns_app.h"
 //#include "datetime.h"
+typedef struct
+{
+	U8_T buf[600];
+	U16_T len;
+}STR_SEND_BUF;
 
 typedef struct
 {
@@ -366,7 +371,7 @@ extern U32_T 				time_since_1970;   /* seconds since the beginning of 2010 */
 extern In_aux					 						 in_aux[MAX_IO_POINTS];
 extern Con_aux				 							 con_aux[MAX_CONS];
 //extern Mon_aux                      mon_aux[MAX_MONITORS];
-extern Monitor_Block		 			mon_block[2 * MAX_MONITORS];
+extern EXT_RAM_ATTR Monitor_Block		 			mon_block[2 * MAX_MONITORS];
 //extern S8_T 				         mon_data_buf[sizeof(Monitor_Block) * 2 * MAX_MONITORS];
 extern Mon_Data 			 		*Graphi_data;
 extern S8_T 				 			Garphi_data_buf[sizeof(Mon_Data)];
@@ -395,38 +400,38 @@ extern Password_point			 			passwords[ MAX_PASSW ];
 
 extern Str_Email_point Email_Setting;
 
-extern Str_variable_point		 		 vars[MAX_VARS + 12];
-extern Str_controller_point 	 			 controllers[MAX_CONS];
-extern Str_totalizer_point           totalizers[MAX_TOTALIZERS];
-extern Str_monitor_point		 				 monitors[MAX_MONITORS];   
-extern Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;	
+extern EXT_RAM_ATTR Str_variable_point		 		 vars[MAX_VARS + 12];
+extern EXT_RAM_ATTR Str_controller_point 	 			 controllers[MAX_CONS];
+extern EXT_RAM_ATTR Str_totalizer_point           totalizers[MAX_TOTALIZERS];
+extern EXT_RAM_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];   
+extern EXT_RAM_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;	
 //extern Aux_group_point        	 		 aux_groups[MAX_GRPS];
 //extern S8_T                     		 Icon_names[MAX_ICONS][14];
-extern Control_group_point  	 		 control_groups[MAX_GRPS];
-extern Str_grp_element			 	    		 group_data[MAX_ELEMENTS];
+extern EXT_RAM_ATTR Control_group_point  	 		 control_groups[MAX_GRPS];
+extern EXT_RAM_ATTR Str_grp_element			 	    		 group_data[MAX_ELEMENTS];
 extern S16_T 					 							 total_elements;
 extern S16_T 					 							 group_data_length;
 
 //extern U32_T 				 		SD_lenght[MAX_MONITORS * 2];
-extern U32_T 				 		SD_block_num[MAX_MONITORS * 2];
+//extern U32_T 				 		SD_block_num[MAX_MONITORS * 2];
 
 extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
 extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
 
-extern Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
-extern Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
-extern Str_annual_routine_point	 	 annual_routines[MAX_AR];
-extern U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];	
-extern U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
+extern EXT_RAM_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
+extern EXT_RAM_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
+extern EXT_RAM_ATTR Str_annual_routine_point	 	 annual_routines[MAX_AR];
+extern EXT_RAM_ATTR U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];	
+extern EXT_RAM_ATTR U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
  /* Assume bit0 from octet0 = Jan 1st */
-extern Str_program_point	     			 programs[MAX_PRGS];
+extern EXT_RAM_ATTR Str_program_point	     			 programs[MAX_PRGS];
 extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
-extern U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
+extern EXT_RAM_ATTR U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
 //extern Str_array_point 	     			 arrays[MAX_ARRAYS];
 extern S32_T  			    				*arrays_address[MAX_ARRAYS];
-extern Str_table_point			 				 custom_tab[MAX_TBLS];
+extern EXT_RAM_ATTR Str_table_point			 				 custom_tab[MAX_TBLS];
 extern U16_T                         PRG_crc;
 extern U8_T  *prog;
 extern S32_T  stack[20];
@@ -450,20 +455,20 @@ extern U32_T                       miliseclast;
 extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
-extern NETWORK_POINTS          		 network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
 extern Byte                  			 number_of_network_points_bacnet; 
 
-extern NETWORK_POINTS          		 network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
 extern Byte                  			 number_of_network_points_modbus;
 //extern U8_T  NT_bacnet_tb_func[MAXNETWORKPOINTS];
 //extern STR_BAC_TB  NT_bacnet_tb[MAXNETWORKPOINTS];
 
-extern REMOTE_POINTS		    		 remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
+extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
 //extern STR_SCAN_TB  RP_modbus_tb[MAXREMOTEPOINTS]; 
 //extern U8_T  RP_modbus_tb_func[MAXREMOTEPOINTS];
 extern Byte                 			 number_of_remote_points_modbus;
 
-extern REMOTE_POINTS		    		 remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
+extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
 //extern U8_T  RP_bacnet_tb_func[MAXREMOTEPOINTS];
 //extern STR_BAC_TB  RP_bacnet_tb[MAXREMOTEPOINTS];
 extern Byte                 			 number_of_remote_points_bacnet;
@@ -478,7 +483,7 @@ extern U16_T Last_Contact_Remote_points_modbus[MAXREMOTEPOINTS];
 extern U8_T remote_panel_num;
 
 #define MAX_REMOTE_PANEL_NUMBER 30
-extern STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
+extern EXT_RAM_ATTR STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
 
 //extern BACNET_DATE Local_Date;
 //extern BACNET_TIME Local_Time;
@@ -543,7 +548,7 @@ U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal);
 void put_remote_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op , uint8_t protocal);
 void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
 void put_network_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op );
-void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail);
+void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
 
 void change_panel_number_in_code(U8_T old, U8_T new_panel);
 

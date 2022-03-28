@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SW_REV 1
+#define SOFTREV     6105
 
 #define UIP_HEAD 6
 // must change library if change it
@@ -142,9 +142,12 @@ typedef	enum
 #define MINI_T10P	 11
 #define MINI_VAV	 10   // no used
 #define MINI_TINY_11I		12
-
-#define MAX_MINI_TYPE 12
-
+#define	PROJECT_FAN_MODULE 	13
+#define	PROJECT_POWER_METER 14
+#define	PROJECT_AIRLAB   	15
+#define PROJECT_SAUTER 		16
+#define PROJECT_TSTAT9		17
+#define MAX_MINI_TYPE 		17
 
 extern STR_MODBUS Modbus;
 extern U16_T Test[50];

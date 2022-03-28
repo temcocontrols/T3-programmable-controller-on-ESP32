@@ -15,6 +15,8 @@
 #include "esp_system.h"
 #include <string.h>
 
+uint8_t ChangeFlash;
+uint16_t count_write_Flash;
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -107,6 +109,7 @@ esp_err_t read_default_from_flash(void)
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
 	  ESP_ERROR_CHECK(nvs_flash_erase());
 	  ret = nvs_flash_init();
+
 	}
 	// Open
 
@@ -122,7 +125,8 @@ esp_err_t read_default_from_flash(void)
 		//init_ssid_info();
 		debug_info("The value is not initialized yet!\n");
 	}
-	if (err != ESP_OK) return err;
+	//if (err != ESP_OK) return err;
+
 	err = nvs_get_u8(my_handle,FLASH_MODBUS_ID, &Modbus.address);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -132,13 +136,13 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u8(my_handle, FLASH_BAUD_RATE, &Modbus.baudrate[0]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
-		Modbus.baudrate[0] = 4;
+		Modbus.baudrate[0] = 9;
 		nvs_set_u8(my_handle, FLASH_BAUD_RATE, Modbus.baudrate[0]);
 	}
 	err = nvs_get_u8(my_handle, FLASH_BAUD_RATE2, &Modbus.baudrate[2]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
-		Modbus.baudrate[2] = 4;
+		Modbus.baudrate[2] = 9;
 		nvs_set_u8(my_handle, FLASH_BAUD_RATE2, Modbus.baudrate[2]);
 	}
 	err = nvs_get_u8(my_handle, FLASH_SERIAL_NUM1, &Modbus.serialNum[0]);
@@ -181,6 +185,13 @@ esp_err_t read_default_from_flash(void)
 		Modbus.com_config[2] = MODBUS_SLAVE;
 		nvs_set_u8(my_handle, FLASH_UART2_CONFIG, Modbus.com_config[2]);
 	}
+	err = nvs_get_u8(my_handle, FLASH_MINI_TYPE, &Modbus.mini_type);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.mini_type = MINI_NANO;
+		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
+	}
+
 	err = nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
 
 	// panel name
@@ -190,7 +201,7 @@ esp_err_t read_default_from_flash(void)
 	nvs_close(my_handle);
 
 	Flash_Inital();
-
+	Test[19]++;
 	return ESP_OK;
 }
 
@@ -209,6 +220,8 @@ void Flash_Inital(void)
 	uint8_t loop;
 	uint16_t baseAddr = 0;
 	uint16_t  len = 0;
+	ChangeFlash = 0;
+	count_write_Flash = 0;
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
 		switch(loop)
@@ -406,7 +419,7 @@ esp_err_t save_point_info(uint8_t point_type)
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
-	debug_info(" flash start");
+	//debug_info(" flash start");
 	// step 2: 擦除flash
 
 	err = esp_partition_erase_range(partition, 0, partition->size);
@@ -502,18 +515,17 @@ esp_err_t save_point_info(uint8_t point_type)
 
 		// step 3：获得需要保存的用户数据
 			err = esp_partition_write(partition, Flash_Position[loop].addr,tempbuf,Flash_Position[loop].len);
-			debug_info("write ...");
+			//debug_info("write ...");
 			free(tempbuf);
-		   if(err!=0)
-		   {debug_info("user  flash write error");
+		   if(err != 0)
+		   {//debug_info("user  flash write error");
 			// ESP_LOGI(TAG, "user  flash write header ----1111%d",err);
-		   return err ;
+			   return err ;
 		   }
 
 		}
-	   debug_info("user  flash write success");
+	   //debug_info("user  flash write success");
 	}
-
 	return ESP_OK;
 }
 
@@ -537,14 +549,14 @@ void read_point_info(void)
 
 		ptr_flash.len = Flash_Position[loop].len;
 		base_addr = Flash_Position[loop].addr;*/
-		debug_info("read start");
+		//debug_info("read start");
 		    // 1: read 读函数
 		//err = esp_partition_read(partition, 0, tempbuf, 500);
 		tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
 
 		err = esp_partition_read(partition, Flash_Position[loop].addr, tempbuf, Flash_Position[loop].len);
 		if(err == 0)
-			debug_info("read ok");
+			;//debug_info("read ok");
 
 
 		switch(loop)

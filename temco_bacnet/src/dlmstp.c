@@ -58,7 +58,7 @@
 */
 //#include "hardware.h"	    // tbd: changed by chelsea
 #include "timer.h"		 	// tbd: changed by chelsea
-
+#include <stdlib.h>
 
 #if defined(BACDL_MSTP)	
 uint16_t Timer_Silence(void);
@@ -72,6 +72,9 @@ static MSTP_RECEIVE_STATE Receive_State;
 static MSTP_MASTER_STATE Master_State;
 /* bit-sized boolean flags */
 mstp_flag_t MSTP_Flag;
+
+uint16_t Mstp_NotForUs;
+uint16_t Mstp_ForUs;
 
 /* Used to store the data length of a received frame. */
 uint16_t DataLength;
@@ -240,27 +243,21 @@ uint16_t dlmstp_encode_unconfirmed_frame(
     BACNET_NPDU_DATA npdu_data;
     uint16_t len = 0;
 //		static uint8_t protocal;
-#if BAC_MASTER		
-
-
+	
 	if((Send_Private_Flag == 2) || (Send_Private_Flag == 1)  || (Send_Private_Flag == 3) || (Send_Private_Flag == 4))
-	{		
+	{
 		return Send_Mstp(Send_Private_Flag,type);
 	}
 
+	if(Send_Time_Sync)
+	{
+		Send_Time_Sync = false;
+		Send_TimeSync(&Local_Date,&Local_Time,BAC_MSTP);
+		*type = 1;
+		len = 20;
+		return len;
+	}
 
-#endif	
-
-#if BAC_MASTER	
-		if(Send_Time_Sync)
-		{
-			Send_Time_Sync = false;
-			Send_TimeSync(&Local_Date,&Local_Time,BAC_MSTP);
-			*type = 1;
-			len = 20;
-			return len;
-		}
-#endif
     if (Send_I_Am_Flag) {
 			  Send_I_Am_Flag = false;
  //       TransmitPacket = Handler_Transmit_Buffer;
@@ -307,7 +304,8 @@ static void MSTP_Send_Frame(
     uint8_t datacrc[2]; /* stores the data crc */
     uint16_t i = 0;     /* used to calculate CRC for data */
 
-
+	crc8 = 0xFF;
+	crc16 = 0xFFFF;
     /* create the MS/TP header */
     buffer[0] = 0x55;
     buffer[1] = 0xFF;
@@ -320,9 +318,11 @@ static void MSTP_Send_Frame(
 
     buffer[5] = HI_BYTE(pdu_len);
     crc8 = CRC_Calc_Header(buffer[5], crc8);
-    buffer[6] = LO_BYTE(pdu_len);
+	buffer[6] = LO_BYTE(pdu_len);
     crc8 = CRC_Calc_Header(buffer[6], crc8);
     buffer[7] = ~crc8;
+	// buffer[7] CRC
+	
     if (pdu_len) {
         /* calculate CRC for any data */
         for (i = 0; i < pdu_len; i++) {
@@ -336,16 +336,18 @@ static void MSTP_Send_Frame(
     /* now transmit the frame */
 	RS485_Turnaround_Delay();		 // tbd: changed by chelsea
 	RS485_Transmitter_Enable(true);
-	if(pdu_len == 0)
-		RS485_Send_Data(buffer, 8);
+	if(pdu_len == 0){Test[40]++;
+	RS485_Send_Data(buffer, 8);}
 		/* send any data */
-	else if (pdu_len) 
+	else
 	{
-		U8_T far temp[600];
+		//U8_T far temp[600];
+		uint8_t *temp = malloc(600);		
 		memcpy(temp,buffer,8);
 		memcpy(&temp[8],pdu,pdu_len);
 		memcpy(&temp[8 + pdu_len],datacrc,2);
 		RS485_Send_Data(temp, pdu_len + 10);
+		free(temp);
 	}		
 //#if ASIX
 //  RS485_Transmitter_Enable(false);
@@ -449,9 +451,9 @@ void MSTP_Receive_Frame_FSM(
                     Receive_State = MSTP_RECEIVE_STATE_HEADER;									
 								}								
 								else {
-#if BAC_MASTER	
-									check_mstp_packet_error();
-#endif
+//??????????????
+					check_mstp_packet_error();
+
                     /* NotPreamble */
                     /* wait for the start of a frame. */
                     Receive_State = MSTP_RECEIVE_STATE_IDLE;
@@ -486,25 +488,24 @@ void MSTP_Receive_Frame_FSM(
                 if (Index == 0) {
                     /* FrameType */
                     HeaderCRC = CRC_Calc_Header(DataRegister, HeaderCRC);
-                    FrameType = DataRegister;
-									
-									if(modbus_frame[0] == 0x55 && modbus_frame[1] == 0xff)
-										{
-											if(FrameType > FRAME_TYPE_REPLY_POSTPONED)
-											{
-													Timer_Silence_Reset();
-													INCREMENT_AND_LIMIT_UINT8(EventCount);
-													Receive_State = MSTP_RECEIVE_STATE_IDLE;
-											}
-										}
-										
-										modbus_frame[2] = DataRegister;
-										
-										if((modbus_frame[0] == 0xff) && (modbus_frame[1] == 0x19)) 
-										{
-											//switch_to_modbus();	
-											return;
-										}
+                    FrameType = DataRegister;		
+					if(modbus_frame[0] == 0x55 && modbus_frame[1] == 0xff)
+					{
+						if(FrameType > FRAME_TYPE_REPLY_POSTPONED)
+						{
+							Timer_Silence_Reset();
+							INCREMENT_AND_LIMIT_UINT8(EventCount);
+							Receive_State = MSTP_RECEIVE_STATE_IDLE;
+						}
+					}
+					
+					modbus_frame[2] = DataRegister;
+					
+					if((modbus_frame[0] == 0xff) && (modbus_frame[1] == 0x19)) 
+					{
+						//switch_to_modbus();	
+						return;
+					}
                     Index = 1;
                 } else if (Index == 1) {
                     /* Destination */
@@ -565,9 +566,9 @@ void MSTP_Receive_Frame_FSM(
                         /* BadCRC */
                         /* indicate that an error has occurred during
                            the reception of a frame */
-#if BAC_MASTER	
-											check_mstp_packet_error();
-#endif
+	
+						check_mstp_packet_error();
+
                         MSTP_Flag.ReceivedInvalidFrame = true;
 
 											 /* wait for the start of the next frame. */
@@ -587,7 +588,7 @@ void MSTP_Receive_Frame_FSM(
                             /* receive the data portion of the frame. */
                             Receive_State = MSTP_RECEIVE_STATE_DATA;
                         } else { 
-                            if (DataLength == 0) { 
+                            if (DataLength == 0) {
                                 /* NoData */
                                 if ((DestinationAddress == This_Station) ||
                                     (DestinationAddress ==
@@ -596,22 +597,25 @@ void MSTP_Receive_Frame_FSM(
                                     /* indicate that a frame with
                                        no data has been received */
                                     MSTP_Flag.ReceivedValidFrame = true;
-																		
+									//Test[37]++;	
+									Mstp_ForUs++;	
+									Mstp_NotForUs = 0;
 																					
-                                } else { 
+                                } else {
                                     /* NotForUs - drop */
-																	// only for temco type
+									//Test[38]++;	
+									Mstp_NotForUs++;// only for temco type
 																	
                                 }
                             } else { 
                                 /* FrameTooLong */
                                 /* indicate that a frame with an illegal or  */
                                 /* unacceptable data length has been received */
-																MSTP_Flag.ReceivedInvalidFrame = true;
+								MSTP_Flag.ReceivedInvalidFrame = true;
 
-#if BAC_MASTER	
-															check_mstp_packet_error();
-#endif
+
+								check_mstp_packet_error();
+
                             }
                             /* wait for the start of the next frame. */
                             Receive_State = MSTP_RECEIVE_STATE_IDLE;
@@ -621,9 +625,9 @@ void MSTP_Receive_Frame_FSM(
                     /* indicate that an error has occurred during  */
                     /* the reception of a frame */
                     MSTP_Flag.ReceivedInvalidFrame = true;
-#if BAC_MASTER	
-									check_mstp_packet_error();
-#endif
+	
+							check_mstp_packet_error();
+
                     /* wait for the start of a frame. */
                     Receive_State = MSTP_RECEIVE_STATE_IDLE;
                 }
@@ -631,7 +635,7 @@ void MSTP_Receive_Frame_FSM(
             break;
         case MSTP_RECEIVE_STATE_DATA: 
             /* In the DATA state, the node waits for the data portion of a frame. */
-            if (Timer_Silence() > Tframe_abort) {  
+            if (Timer_Silence() > Tframe_abort) {
                 /* Timeout */
                 /* indicate that an error has occurred during the reception of a frame */
                 MSTP_Flag.ReceivedInvalidFrame = true;
@@ -682,9 +686,9 @@ void MSTP_Receive_Frame_FSM(
                         }
                     } else {  
                         MSTP_Flag.ReceivedInvalidFrame = true; 
-#if BAC_MASTER	
-											check_mstp_packet_error();
-#endif
+	
+						check_mstp_packet_error();
+
                     }
                     Receive_State = MSTP_RECEIVE_STATE_IDLE;
                 }
@@ -755,10 +759,9 @@ static bool MSTP_Master_Node_FSM(
         case MSTP_MASTER_STATE_IDLE:
 				{
             /* In the IDLE state, the node waits for a frame. */
-            if (Timer_Silence() >= Tno_token) {           /* LostToken */
-#if BAC_MASTER	
-							check_mstp_timeout();
-#endif						
+            if (Timer_Silence() >= Tno_token) {         /* LostToken */
+								check_mstp_timeout();
+					
                 /* assume that the token has been lost */
                 EventCount = 0; /* Addendum 135-2004d-8 */
                 Master_State = MSTP_MASTER_STATE_NO_TOKEN;
@@ -767,14 +770,14 @@ static bool MSTP_Master_Node_FSM(
                 MSTP_Flag.ReceivedValidFrame = false;
                 MSTP_Flag.ReceivedInvalidFrame = false;
                 transition_now = true;	
-            } else if (MSTP_Flag.ReceivedInvalidFrame == true) {  							
+            } else if (MSTP_Flag.ReceivedInvalidFrame == true) { 				
 						
                 /* ReceivedInvalidFrame */
                 /* invalid frame was received */
 								//temptoken = 500;
-#if BAC_MASTER	
-							check_mstp_packet_error();
-#endif
+
+					check_mstp_packet_error();
+
                 MSTP_Flag.ReceivedInvalidFrame = false;
                 /* wait for the next frame - remain in IDLE */
             } else if (MSTP_Flag.ReceivedValidFrame == true) { 
@@ -791,9 +794,9 @@ static bool MSTP_Master_Node_FSM(
                         transition_now = true;
                         break;
                     case FRAME_TYPE_POLL_FOR_MASTER:
-                        /* ReceivedPFM */
-                        MSTP_Send_Frame(FRAME_TYPE_REPLY_TO_POLL_FOR_MASTER,
-                            SourceAddress, This_Station, NULL, 0);
+                        /* ReceivedPFM */						                  
+						  MSTP_Send_Frame(FRAME_TYPE_REPLY_TO_POLL_FOR_MASTER,
+                           SourceAddress, This_Station, NULL, 0);
 												
                         break;
                     case FRAME_TYPE_BACNET_DATA_NOT_EXPECTING_REPLY:
@@ -824,72 +827,74 @@ static bool MSTP_Master_Node_FSM(
                     MSTP_Flag.ReceivedValidFrame = false;
                 }
             }
+			else 
+				Test[25]++;
 					}
             break;
             /* In the USE_TOKEN state, the node is allowed to send one or  */
             /* more data frames. These may be BACnet Data frames or */
             /* proprietary frames. */
         case MSTP_MASTER_STATE_USE_TOKEN: 
-				{
-            /* Note: optimized for minimal server:
-               we only send unconfirmed frames when we get the token */
-            /* Note: We could wait for up to Tusage_delay */
-					uint8_t type;
-			
-						type = 0;
-            TransmitPacketLen = dlmstp_encode_unconfirmed_frame(&type);
-            if (type > 0) {  
+			{
+		/* Note: optimized for minimal server:
+		   we only send unconfirmed frames when we get the token */
+		/* Note: We could wait for up to Tusage_delay */
+				uint8_t type;
+					
+				type = 0;
+				TransmitPacketLen = dlmstp_encode_unconfirmed_frame(&type);
+				if (type > 0) {  
 			 	   // who is
-							if(type == 2) // who is
-							{
+						if(type == 2) // who is
+						{
                 MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_NOT_EXPECTING_REPLY,
                     MSTP_BROADCAST_ADDRESS, This_Station,
                     (uint8_t *) & TransmitPacket[0], TransmitPacketLen);
 								Master_State = MSTP_MASTER_STATE_DONE_WITH_TOKEN;
-							}
-							else if(type == 1)  // i am
-							{
-                MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_NOT_EXPECTING_REPLY,
-                    MSTP_BROADCAST_ADDRESS, This_Station,
-                    (uint8_t *) & TransmitPacket[0], TransmitPacketLen);
-								Master_State = MSTP_MASTER_STATE_DONE_WITH_TOKEN;
-							}
-							else if(type == 3)
-							{	  // get panel info
-#if BAC_MASTER		
-								MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_EXPECTING_REPLY,
-                    Get_current_panel(), This_Station,
-                    (uint8_t *) &Handler_Transmit_Buffer[0][0], TransmitPacketLen);
+						}
+						else if(type == 1)  // i am
+						{
+			MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_NOT_EXPECTING_REPLY,
+				MSTP_BROADCAST_ADDRESS, This_Station,
+				(uint8_t *) & TransmitPacket[0], TransmitPacketLen);
+							Master_State = MSTP_MASTER_STATE_DONE_WITH_TOKEN;
+						}
+						else if(type == 3)
+						{	  // get panel info
+
+							MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_EXPECTING_REPLY,
+				Get_current_panel(), This_Station,
+				(uint8_t *) &Handler_Transmit_Buffer[0][0], TransmitPacketLen);
 //								if(MSTP_Rec_Header.subcmd == READ_SETTING || MSTP_Rec_Header.subcmd ==  READPROGRAMCODE_T3000 
 //									|| MSTP_Rec_Header.subcmd ==  WRITEPROGRAMCODE_T3000 )
 //										UART_Init(2);
-#endif						
-								//Master_State = MSTP_MASTER_STATE_IDLE;								
-								//transition_now = false;								
-								Master_State = MSTP_MASTER_STATE_WAIT_FOR_REPLY;
+				
+							//Master_State = MSTP_MASTER_STATE_IDLE;								
+							//transition_now = false;								
+							Master_State = MSTP_MASTER_STATE_WAIT_FOR_REPLY;
 //                /* set the receive frame flags to false in case we received
 //                   some bytes and had a timeout for some reason */
-							}
-							else if(type == 4)// convert bip to mstp pdu
-							{	
-                MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_EXPECTING_REPLY,
-                    TransmitPacket_panel, This_Station,
-                    (uint8_t *) & TransmitPacket[0], TransmitPacketLen);				
-								Master_State = MSTP_MASTER_STATE_WAIT_FOR_REPLY;
-								//Master_State = MSTP_MASTER_STATE_DONE_WITH_TOKEN;????????????????
-							}
-							else if(type == 5 || type == 6) // read & write slave mstp device
-							{									
-                MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_EXPECTING_REPLY,
-                    TransmitPacket_panel, This_Station,
-                    (uint8_t *) & TransmitPacket[0], TransmitPacketLen);				
-				
+						}
+						else if(type == 4)// convert bip to mstp pdu
+						{	
+			MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_EXPECTING_REPLY,
+				TransmitPacket_panel, This_Station,
+				(uint8_t *) & TransmitPacket[0], TransmitPacketLen);				
+							Master_State = MSTP_MASTER_STATE_WAIT_FOR_REPLY;
+							//Master_State = MSTP_MASTER_STATE_DONE_WITH_TOKEN;????????????????
+						}
+						else if(type == 5 || type == 6) // read & write slave mstp device
+						{									
+			MSTP_Send_Frame(FRAME_TYPE_BACNET_DATA_EXPECTING_REPLY,
+				TransmitPacket_panel, This_Station,
+				(uint8_t *) & TransmitPacket[0], TransmitPacketLen);				
+			
 
-								Master_State = MSTP_MASTER_STATE_WAIT_FOR_REPLY;
-							}
+							Master_State = MSTP_MASTER_STATE_WAIT_FOR_REPLY;
+						}
 							
               FrameCount++;
-            } else {  
+            } else { 
                 /* NothingToSend */
                 FrameCount = Nmax_info_frames;
                 transition_now = true;
@@ -969,7 +974,7 @@ static bool MSTP_Master_Node_FSM(
             break;
             /* The DONE_WITH_TOKEN state either sends another data frame,  */
             /* passes the token, or initiates a Poll For Master cycle. */
-        case MSTP_MASTER_STATE_DONE_WITH_TOKEN:	 
+        case MSTP_MASTER_STATE_DONE_WITH_TOKEN:	
             /* SendAnotherFrame */
             if (FrameCount < Nmax_info_frames) {
                 /* then this node may send another information frame  */
@@ -1139,7 +1144,7 @@ static bool MSTP_Master_Node_FSM(
                     RetryCount = 0;
                     Master_State = MSTP_MASTER_STATE_PASS_TOKEN;
                 } else { 
-
+					
                     /* ReceivedUnexpectedFrame */
                     /* An unexpected frame was received.  */
                     /* This may indicate the presence of multiple tokens. */
@@ -1150,7 +1155,7 @@ static bool MSTP_Master_Node_FSM(
                 }
                 MSTP_Flag.ReceivedValidFrame = false;
             } else if ((Timer_Silence() > Tusage_timeout) ||
-                (MSTP_Flag.ReceivedInvalidFrame == true)) {	
+                (MSTP_Flag.ReceivedInvalidFrame == true)) {
 
                 if (MSTP_Flag.SoleMaster == true) {
                     /* SoleMaster */
@@ -1162,7 +1167,7 @@ static bool MSTP_Master_Node_FSM(
                     transition_now = true;
                 } else {	
                     if (Next_Station != This_Station) {
-	
+							
                         /* DoneWithPFM */
                         /* There was no valid reply to the maintenance  */
                         /* poll for a master at address PS.  */
@@ -1263,7 +1268,7 @@ int dlmstp_send_pdu(
 			//TransmitPacket = pdu;
 			TransmitPacketLen = pdu_len;
 			TransmitPacketDest = dest->mac[0];
-	    bytes_sent = pdu_len;		
+			bytes_sent = pdu_len;		
 		}
 		MSTP_Flag.TransmitPacketPending = true;
 	}
@@ -1296,7 +1301,7 @@ uint16_t dlmstp_receive(
 	    if ((MSTP_Flag.ReceivedValidFrame == false) &&
 	        (MSTP_Flag.ReceivedInvalidFrame == false)) 
 			{
-	        for(;;) { 
+	        for(;;) {
 	           	MSTP_Receive_Frame_FSM();
 	            if (MSTP_Flag.ReceivedValidFrame || MSTP_Flag.ReceivedInvalidFrame)
 				{	
@@ -1314,7 +1319,7 @@ uint16_t dlmstp_receive(
 //			LCD_CLK = 0;
     /* only do master state machine while rx is idle */
 	    if (Receive_State == MSTP_RECEIVE_STATE_IDLE) {
-	        if (This_Station <= MAX_MASTER) { 
+	        if (This_Station <= MAX_MASTER) {
 			while (MSTP_Master_Node_FSM()) { 
 				                /* do nothing while some states fast transition */
 	            };

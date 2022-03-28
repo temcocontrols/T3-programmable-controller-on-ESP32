@@ -257,8 +257,6 @@ int bip_send_pdu(
  //   (void) npdu_data;
     /* assumes that the driver has already been initialized */
 
-	Test[40]++;
-
 	if (BIP_Socket < 0) 
 	{
 		return 0;//BIP_Socket;
@@ -277,12 +275,11 @@ int bip_send_pdu(
         bip_decode_bip_address(dest, &address, &port);
         bip_send_buf[1] = BVLC_ORIGINAL_UNICAST_NPDU;
     } else {
-	Test[41]++;
+
         return -1;
 
 		// if GSM, do not return
     }
-	Test[42]++;
     bip_dest.sin_addr.s_addr = address.s_addr;
     bip_dest.sin_port = port;
     memset(&(bip_dest.sin_zero), '\0', 8);

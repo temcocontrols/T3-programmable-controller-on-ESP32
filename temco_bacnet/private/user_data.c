@@ -14,7 +14,17 @@
 //#include "wifi.h"
 #include "esp_timer.h"
 
+void write_parameters_to_nodes(uint8_t func,uint8 id, uint16 reg, uint16* value,uint8_t len);
+int write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * value, U8_T len);
 
+/*U8_T rec_mstp_index;  // for i-am
+U8_T send_mstp_index;
+EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];
+
+U8_T rec_mstp_index1; // response packets form
+U8_T send_mstp_index1;
+EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf1[10];*/
+void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
 
 extern S16_T time_zone = 0;
 extern U8_T  input_type[32];
@@ -26,6 +36,8 @@ U8_T PRODUCT;
 U8_T uart0_baudrate;
 U8_T uart1_baudrate;
 U8_T uart2_baudrate;
+
+
 
 U8_T SD_exist;
 #define DEFAULT_FILTER 5
@@ -63,6 +75,7 @@ BACNET_TIME Local_Time;
 //U8_T  switch_status_back[MAX_OUTS];
 
 U8_T  boot;
+
 
 
  U32_T  update_sntp_last_time;
@@ -112,7 +125,7 @@ EXT_RAM_ATTR Str_monitor_point					backup_monitors[MAX_MONITORS];// _at_ 0x2e000
 
 EXT_RAM_ATTR multiple_struct 					msv_data[MAX_MSV][STR_MSV_MULTIPLE_COUNT];
 
-Str_Email_point Email_Setting;
+//Str_Email_point Email_Setting;
 //U32_T  count_max_time[MAX_MONITORS];
 //U32_T  max_monitor_time[MAX_MONITORS];
 
@@ -120,22 +133,22 @@ Str_Email_point Email_Setting;
 
 //Aux_group_point          		aux_groups[MAX_GRPS];// _at_ 0x13500;
 //S8_T                    far		Icon_names[MAX_ICONS][14];
-Control_group_point  	 		control_groups[MAX_GRPS];// _at_ 0x14000;
+EXT_RAM_ATTR Control_group_point  	 		control_groups[MAX_GRPS];// _at_ 0x14000;
 //Str_grp_element		    far	    	group_data[MAX_ELEMENTS];// _at_ 0x14500;
-Str_grp_element			   	  group_data[MAX_ELEMENTS];
+EXT_RAM_ATTR Str_grp_element			   	  group_data[MAX_ELEMENTS];
 
 S16_T 					far							 total_elements;
 S16_T 					far							 group_data_length;
 
 
-Str_weekly_routine_point 	far		weekly_routines[MAX_WR];//_at_ 0x28000; // _at_ 0x15200;
-Wr_one_day					far		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];//_at_ 0x29000 ;//_at_ 0x16000;
-U8_T  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
-Str_annual_routine_point	far	 	annual_routines[MAX_AR];// _at_ 0x2a000;//_at_ 0x16500;
-U8_T                   		     ar_dates[MAX_AR][AR_DATES_SIZE];//_at_ 0x2b000 ;//_at_ 0x17000;
+EXT_RAM_ATTR Str_weekly_routine_point 	far		weekly_routines[MAX_WR];//_at_ 0x28000; // _at_ 0x15200;
+EXT_RAM_ATTR Wr_one_day					far		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];//_at_ 0x29000 ;//_at_ 0x16000;
+EXT_RAM_ATTR U8_T  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
+EXT_RAM_ATTR Str_annual_routine_point	far	 	annual_routines[MAX_AR];// _at_ 0x2a000;//_at_ 0x16500;
+EXT_RAM_ATTR U8_T                   		     ar_dates[MAX_AR][AR_DATES_SIZE];//_at_ 0x2b000 ;//_at_ 0x17000;
 
-UN_ID  ID_Config[254];
-U8_T  ID_Config_Sche[254];
+//UN_ID  ID_Config[254];
+//U8_T  ID_Config_Sche[254];
 
 float  output_priority[MAX_OUTS][16];
 float  output_relinquish[MAX_OUTS];
@@ -143,7 +156,7 @@ float  output_relinquish[MAX_OUTS];
 //Date_block	ora_current;
  /* Assume bit0 from octet0 = Jan 1st */
 //S8_T 			    	far			*program_address[MAX_PRGS]; /*pointer to code*/
-//U8_T    	    	far				prg_code[MAX_PRGS][CODE_ELEMENT * MAX_CODE];// _at_ 0x8000; 
+EXT_RAM_ATTR U8_T    	    					prg_code[MAX_PRGS][CODE_ELEMENT * MAX_CODE];// _at_ 0x8000; 
 //U16_T				far	 			Code_len[MAX_PRGS];
 U16_T 			    				Code_total_length;
 //Str_array_point 	    			 arrays[MAX_ARRAYS];
@@ -160,17 +173,17 @@ S8_T  panelname[20];
 
 
 
-NETWORK_POINTS      		  network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
+EXT_RAM_ATTR NETWORK_POINTS      		  network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
 Byte              			  number_of_network_points_bacnet; 
 
-NETWORK_POINTS      		  network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
+EXT_RAM_ATTR NETWORK_POINTS      		  network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
 Byte              			  number_of_network_points_modbus; 
 
-REMOTE_POINTS		    		  remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
+EXT_RAM_ATTR REMOTE_POINTS		    		  remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
 Byte              			  number_of_remote_points_bacnet;
 
 
-REMOTE_POINTS		    		  remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
+EXT_RAM_ATTR REMOTE_POINTS		    		  remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
 Byte              			  number_of_remote_points_modbus;
 
 U16_T Last_Contact_Network_points_bacnet[MAXNETWORKPOINTS];
@@ -181,7 +194,7 @@ U16_T Last_Contact_Remote_points_modbus[MAXREMOTEPOINTS];
 
 U8_T remote_panel_num;
 // include remote mstp device and network bip device
-STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
+EXT_RAM_ATTR STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
 
 
 //U8_T 	client_ip[4];
@@ -441,7 +454,7 @@ void init_panel(void)
 		ptr.pnp->decomisioned = 0;
 
 	}
-#if TEST
+#if 1//TEST
 	memset( control_groups,'\0', MAX_GRPS * sizeof( Control_group_point) );
 //	memset( aux_groups,'\0', MAX_GRPS * sizeof( Aux_group_point) );
 	memset( group_data, '\0', MAX_ELEMENTS * sizeof( Str_grp_element) );
@@ -510,8 +523,8 @@ void init_panel(void)
 		ptr.panr->auto_manual = 0;
 	}
 	memset( ar_dates,'\0',MAX_AR*46*sizeof(S8_T));
-	memset( ID_Config, 0, 254 * sizeof(UN_ID));
-	memset( ID_Config_Sche, 0, 254);
+//	memset( ID_Config, 0, 254 * sizeof(UN_ID));
+//	memset( ID_Config_Sche, 0, 254);
 	
 	memset( output_priority, 0, MAX_OUTS * 16 * 4);
 	for( i=0; i<MAX_OUTS; i++)
@@ -573,11 +586,6 @@ void init_panel(void)
 	month_length[10] = 30;
 	month_length[11] = 31;
 
-#if Test
-	flag_Updata_Clock = 1;
-	//Updata_Clock(0);
-	timestart = 0;
-#endif
 	
 	memset(input_raw,1000,2 * MAX_INS);
 	memset(input_raw_back,1000,2 * MAX_INS);
@@ -587,7 +595,7 @@ void init_panel(void)
 	init_info_table();
 
 	memset(&Remote_tst_db,0,sizeof(Str_Remote_TstDB) );
-	memset(panelname,0,20);
+//	memset(panelname,0,20);
 
 	MISC_Info.reg.flag = 0x55ff;
 	memset(MISC_Info.reg.monitor_block_num,0,MAX_MONITORS * 2 * 4);
@@ -620,11 +628,11 @@ void init_panel(void)
 //	memset(switch_status_back,SW_AUTO,MAX_OUTS);
 	
 	memset(var_unit,0,MAX_VAR_UNIT * VAR_UNIT_SIZE);
-	memset(extio_points,0,MAX_EXTIO * sizeof(Str_Extio_point));
+//	memset(extio_points,0,MAX_EXTIO * sizeof(Str_Extio_point));
 	
 
-	memset(panelname,0,20);
-	memset(&Email_Setting, 0, sizeof(Str_Email_point));
+//	memset(panelname,0,20);
+//	memset(&Email_Setting, 0, sizeof(Str_Email_point));
 
 	//memset(&SSID_Info,0,sizeof(STR_SSID));
 #endif
@@ -798,8 +806,7 @@ extern U32_T system_timer;
 
 U32_T get_current_time(void)
 {
-	// tbd:
-	return time_since_1970 + system_timer / 100;
+	return time_since_1970 + system_timer / 1000;//timezone ?????????????
 }
 
 #if BAC_TRENDLOG
@@ -828,9 +835,10 @@ extern U16_T count_send_whois;
 //extern xSemaphoreHandle sem_mstp;
 void Send_whois_to_mstp(void)
 {
-#if (ARM_MINI || ARM_CM5 )
+
 	U8_T count;
-	if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
+	
+	if(Modbus.com_config[2] == 9/*BACNET_MASTER*/ || Modbus.com_config[0] == 9/*BACNET_MASTER*/)
 	{
 // avoid sending out who_is frequently, interval is at least 30s
 // count_send_whois is increased per 5ms
@@ -847,25 +855,18 @@ void Send_whois_to_mstp(void)
 		if(remote_panel_num > 0)
 		{
 			U8_T i;
-			send_mstp_index = 0;
-			rec_mstp_index = 0;
+			//rec_mstp_index = 0;
 			for(i = 0;i < remote_panel_num;i++)
-			{
+			{ 
 				if(remote_panel_db[i].protocal == BAC_MSTP)
 				{
 					Send_SUB_I_Am(i);  // mstp device
 				}					
 			}
 			
-			if(rec_mstp_index > 0)
-			{
-				memcpy(&response_bacnet_ip ,uip_udp_conn->ripaddr,4);
-				response_bacnet_port = HTONS(uip_udp_conn->rport);
-				Response_bacnet_Start();
-			}
 		}
 	}
-#endif
+
 
 }
 
@@ -873,8 +874,9 @@ void Send_whois_to_mstp(void)
 extern uint8_t Master_Scan_Network_Count;
 void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,uint8_t * pdu,uint8_t pdu_len,uint8_t protocal,uint8_t temcoproduct)
 {
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
+
 	U8_T i;	
+
 	if(device_id == 0)
 	{	
 		return;
@@ -968,9 +970,11 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 			}
 			remote_panel_db[remote_panel_num].retry_reading_panel = 0;
 			remote_panel_num++;
+			Test[31] = remote_panel_num;
+			
 		}
 	}
-#endif
+
 }
 
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
@@ -990,9 +994,7 @@ void Check_Remote_Panel_Table(void)
 			{
 				if(remote_panel_num > 0)
 				{
-				// delete this point
-//				Test[48]++;
-//				Test[49] = ptr->panel;
+
 				memcpy(ptr,ptr+1,(remote_panel_num - i - 1) * sizeof(STR_REMOTE_PANEL_DB));
 				memset(&remote_panel_db[remote_panel_num - 1],0,sizeof(STR_REMOTE_PANEL_DB));
 				remote_panel_num--;
@@ -1063,7 +1065,7 @@ U32_T Get_device_id_by_panel(uint8 panel,uint8 sub_id,uint8_t protocal)
 	return 0;
 }
 
-S8_T Get_remote_index_by_device_id(uint32_t device_id,uint8 *index)
+S8_T Get_remote_index_by_device_id(U32_T device_id,U8_T *index)
 {
 	U8_T i;
 	for(i = 0;i < remote_panel_num;i++)
@@ -1080,7 +1082,7 @@ S8_T Get_remote_index_by_device_id(uint32_t device_id,uint8 *index)
 
 S8_T Get_rmp_index_by_panel(U8_T panel,U8_T sub_id,U8_T *index,U8_T protocal)
 {
-	U8_T i;
+	U8_T i = 0;
 	if(sub_id == 0)
 	{
 		if(protocal == BAC_MSTP)
@@ -1111,7 +1113,7 @@ U8_T check_point_type(Point_Net * point)
 {
 	U8_T point_type;
 	point_type = (point->point_type & 0x1f) + (point->network_number & 0x60);
-	Test[30]++;
+
 	if(point_type == VAR + 1) // point type of T3-IO is VAR
 		return 1;
 	if((point_type <= MB_REG + 1) 
@@ -1119,7 +1121,7 @@ U8_T check_point_type(Point_Net * point)
 		return 1;	
 	if((point_type >= BAC_FLOAT_ABCD + 1) && (point_type <= BAC_FLOAT_DCBA + 1))
 		return 1;
-	Test[31]++;
+
 	return 0;
 }
 
@@ -1131,6 +1133,8 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 	// modbus points do not have instance
 
 	if(check_point_type(point) == 1) return -1;
+	Test[26]++;
+
 	if(point->network_number & 0x80)  // first bit is 1, new structure, it is for instance
 	{
 		instance = (U32_T)((point->network_number & 0x7f) << 16) + (U16_T)(point->panel << 8) + point->sub_id;
@@ -1154,6 +1158,7 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 			start_scan_network_count = 0;
 #endif
 		point->panel = 0;
+		Test[27]++;
 	}
 	return -1;	
 }
@@ -1163,8 +1168,8 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 
 void Send_SUB_I_Am(uint8_t index)
 {
+	uint16_t mstp_network = 1;
 
-#if ARM_MINI || ARM_CM5
 	uint8_t pos;
 	uint8_t mtu[50];
 	uint8_t len;
@@ -1225,33 +1230,24 @@ void Send_SUB_I_Am(uint8_t index)
 			memcpy(&mtu[len],&remote_panel_db[index].remote_iam_buf[10 - pos],3);
 			len += 3;
 		}
+		Send_MSTP_to_BIPsocket(mtu,len);
 
-		memcpy(mstp_bac_buf[rec_mstp_index].buf,&mtu, len);
-		mstp_bac_buf[rec_mstp_index].len = len;
-		rec_mstp_index++;
-
-		bip_send_mstp_rport = HTONS(uip_udp_conn->rport);
-
-//  auto send 
-	
-	//cSemaphoreGive(Sem_mstp_Flag);
-#endif
 }
 
 
 void chech_mstp_collision(void)
 {
-	//collision[2]++;
+	Test[0]++;//collision[2]++;
 }
 
 void check_mstp_packet_error(void)
 {
-	//packet_error[2]++;
+	Test[1]++;//packet_error[2]++;
 }
 
 void check_mstp_timeout(void)
 {
-	//timeout[2]++;
+	Test[2]++;//timeout[2]++;
 }
 
 #if 1 //BAC_POINT
@@ -1286,21 +1282,21 @@ S8_T *rtrim(S8_T *text)
 }
 
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 S16_T find_network_point( Point_Net *point )
 {
 	S16_T i;
 	U8_T flag = 0;
 	NETWORK_POINTS *ptr;
 
-#if NETWORK_MODBUS
+
 
 	if(check_point_type(point) == 1)
 	{
 		ptr = network_points_list_modbus;
 	}
 	else
-#endif
+
 	{
 		ptr = network_points_list_bacnet;
 	}
@@ -1334,7 +1330,7 @@ S16_T find_network_point( Point_Net *point )
 		return -1;
 	}
 }
-#endif
+
 
 S16_T find_remote_point( Point_Net *point )
 {
@@ -1346,26 +1342,18 @@ S16_T find_remote_point( Point_Net *point )
 	{
 		ptr = remote_points_list_modbus;
 	}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	else
 	{
 		ptr = remote_points_list_bacnet;
 	}
-#endif
-//	if( point->network_number == 0xFF ||  point->network_number == 0)
-//	{
-//		point->network_number = Setting_Info.reg.network_number;//panel_net_info.network_number;
-//		flag = 1;
-//	}
-//	else
-//		flag = 0;
+
 
 	for( i=0; i<MAXREMOTEPOINTS; i++, ptr++ )
 	{
 		if( ptr->count )
 		{
 			// change size to 4, dont compare network number
-			if( !memcmp( (void*)point, (void*)&ptr->point, 4/*sizeof(Point_Net)*/ ) )
+			if( !memcmp( (void*)point, (void*)&ptr->point, sizeof(Point_Net)) )
 			{
 				break;
 			}
@@ -1383,13 +1371,13 @@ S16_T find_remote_point( Point_Net *point )
 		return -1;
 }
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
 U8_T check_network_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 {
 	U16_T i;
 	NETWORK_POINTS *ptr;
 
-#if NETWORK_MODBUS
+#if 1//NETWORK_MODBUS
 	if(protocal == 0)
 		ptr = network_points_list_modbus;
 	else
@@ -1411,7 +1399,7 @@ U8_T check_network_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 	}
 	return 0;
 }
-#endif
+
 
 U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 {
@@ -1419,10 +1407,9 @@ U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 	REMOTE_POINTS *ptr;
 	if(protocal == 0)
 		ptr = remote_points_list_modbus;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	else
 		ptr = remote_points_list_bacnet;
-#endif
+
 //	Test[20] = point->panel; Test[25] = ptr->point.panel;
 //	Test[21] = point->network_number; Test[26] = ptr->point.network_number;
 //	Test[22] = point->point_type; Test[27] = ptr->point.point_type;
@@ -1458,7 +1445,7 @@ void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T 
 		protocal = 1;
 		type = point_type & 0x1f;
 		number_high3bit = point_type & 0xe0;
-#if TEST
+
 		if(type == OBJECT_ANALOG_VALUE || type == BAC_AV)
 		{
 			ptr.point.point_type = BAC_AV + 1 + number_high3bit;
@@ -1483,7 +1470,7 @@ void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T 
 		{
 			ptr.point.point_type = BAC_BI + 1 + number_high3bit;
 		}
-#endif
+
 	}
 	else
 	{
@@ -1520,7 +1507,6 @@ void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T 
 		}
 	}
 
-
 	ptr.point.number = number;
 	ptr.auto_manual = 0;
 	if(check_remote_point_list(&ptr.point,&index,protocal))
@@ -1536,34 +1522,33 @@ void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T 
 				remote_points_list_modbus[index].point_value = f * 1000;
 			}
 		}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 		else
 		{ // mstp
 			remote_points_list_bacnet[index].point_value = val_ptr;
 		}
-#endif
+
 	}
 }
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+#if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 // special -- 2: bacnet points, 0/1 - modbus points
 
-void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail)
+void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type)
 {
-	NETWORK_POINTS ptr;//	Point_Net *point;
+	NETWORK_POINTS ptr;//	Point_Net *point; 
 	U8_T index;
 	U8_T protocal;
 	U8_T type,number_high3bit;
 	ptr.point.network_number = 0;//Setting_Info.reg.network_number;
 	ptr.point.panel = panel;
-  ptr.point.sub_id = id;
+	ptr.point.sub_id = id;
 	ptr.point.point_type = point_type + 1;
 //  ptr->auto_manual = auto_manual;
 //	ptr->digital_analog = digital_analog;
 //	type = point_type & 0x1f;
 	ptr.point.number = number - 1;
-	ptr.auto_manual = 0;
-
+	ptr.auto_manual = 0;  
+	
 	if(specail == 2)
 	{
 		protocal = 1;
@@ -1572,38 +1557,54 @@ void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_
 	else
 	{
 		type = point_type & 0x1f;
-		number_high3bit = point_type & 0xe0;;
-
+		number_high3bit = point_type & 0xe0;
+		
 		if(type == READ_COIL)
 			ptr.point.point_type = MB_COIL_REG + 1 + number_high3bit;
 		else if(type == READ_DIS_INPUT)
 			ptr.point.point_type = MB_DIS_REG + 1 + number_high3bit;
 		else if(type == READ_INPUT)
+		{
 			ptr.point.point_type = MB_IN_REG + 1 + number_high3bit;
+			float_type = 1;			// read input float 32bit
+			protocal = 0;			
+		}
 		else if(type == READ_VARIABLES)
 		{
-			if(specail == 1)
+			if(specail == 1) 
 				ptr.point.point_type = MB_REG + 1 + number_high3bit;
 			else   // MB_REG & REG
-				ptr.point.point_type = VAR + 1 + number_high3bit;
+				ptr.point.point_type = VAR + 1 + number_high3bit;	
+			
+			if(float_type > 0)
+			{
+				ptr.point.point_type = ((BAC_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
+				ptr.point.network_number |= ((BAC_FLOAT_ABCD + float_type) & 0x60);
+			}
 		}
 		protocal = 0;
 	}
 	// network panel
-
+	Test[40]++;
 	if(check_network_point_list(&ptr.point,&index,protocal))
-	{
-#if NETWORK_MODBUS
+	{Test[41]++;
+#if 1//NETWORK_MODBUS	
 		if(protocal == 0) // modbus
-		{
-			network_points_list_modbus[index].point_value = val_ptr;
+		{Test[41]++;
+			if(float_type == 0)
+				network_points_list_modbus[index].point_value = val_ptr*1000;
+			else 
+			{
+				float f;
+				Byte_to_Float(&f,val_ptr,float_type);
+				network_points_list_modbus[index].point_value = f*1000;
+			}			
 		}
 		else
 #endif
 		{
 			network_points_list_bacnet[index].point_value = val_ptr;
-		}
-
+		}			
 	}
 }
 #endif
@@ -1613,17 +1614,16 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 	S16_T i;
 	REMOTE_POINTS *ptr;
 	U8_T point_type;
-
+	
 	if(check_point_type(point) == 1)
 	{
 		ptr = &remote_points_list_modbus[0];
 	}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	else
 	{
 		ptr = &remote_points_list_bacnet[0];
 	}
-#endif
+
 	if( index < 0 )
 	{ /* index < 0 means that the index is unknown */
 		if(check_point_type(point) == 1)
@@ -1631,13 +1631,12 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 			if( number_of_remote_points_modbus >= MAXREMOTEPOINTS )
 				return -1;
 		}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 		else
 		{
 			if( number_of_remote_points_bacnet >= MAXREMOTEPOINTS )
 				return -1;
 		}
-#endif
+
 		if( ( i = find_remote_point( point ) ) >= 0 )
 		{ /* the point is in the list */
 			(ptr+i)->count++;
@@ -1651,7 +1650,6 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 				{
 					U8_T *addr;
 				// check current id is modbus device or mstp device
-
 					// add modbus command
 					if(check_point_type(point) == 1)
 					{
@@ -1682,9 +1680,8 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 						else	// other things
 							remote_points_list_modbus[i].tb.RP_modbus.func = READ_VARIABLES;
 						number_of_remote_points_modbus++;
-
+						Test[27]++;
 					}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 					else
 					{
 						point_type = (point->point_type & 0x1f) + (point->network_number & 0x60);
@@ -1706,7 +1703,7 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 							remote_points_list_bacnet[i].tb.RP_bacnet.object = OBJECT_BINARY_INPUT;
 						number_of_remote_points_bacnet++;
 					}
-#endif
+
 					memcpy( &ptr->point, point, sizeof(Point_Net) );
 					ptr->point_value = DEFUATL_REMOTE_NETWORK_VALUE;
 					//if( point->network_number == 0x0FFFF)
@@ -1729,13 +1726,13 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 	}
 }
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+#if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 S16_T insert_network_point( Point_Net *point, S16_T index )
 {
 	S16_T i;
 	NETWORK_POINTS *ptr;
 	U8_T point_type;
-#if NETWORK_MODBUS
+#if 1//NETWORK_MODBUS
 	if(check_point_type(point) == 1)
 	{ // only support MB_COIL_REG to MB_REG
 		ptr = &network_points_list_modbus[0];
@@ -1746,11 +1743,11 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 		ptr = &network_points_list_bacnet[0];
 	}
 
-
+	Test[22]++;
 	if( index < 0 )
 	{ /* index < 0 means that the index is unknown */
 
-#if NETWORK_MODBUS
+#if 1//NETWORK_MODBUS
 		if(check_point_type(point) == 1)
 		{ // only support MB_COIL_REG to MB_REG
 			if( number_of_network_points_modbus >= MAXNETWORKPOINTS )
@@ -1762,7 +1759,7 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 			if( number_of_network_points_bacnet >= MAXNETWORKPOINTS )
 				return -1;
 		}
-
+		Test[23]++;
 		if( ( i = find_network_point( point ) ) >= 0 )
 		{ /* the point is in the list */
 			return i;
@@ -1773,7 +1770,7 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 			{
 				if( !ptr->count )
 				{
-#if NETWORK_MODBUS
+#if 1//NETWORK_MODBUS
 				// add modbus command
 					if(check_point_type(point) == 1)
 					{ // only support MB_COIL_REG to MB_REG
@@ -1817,7 +1814,7 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 					ptr->point_value = DEFUATL_REMOTE_NETWORK_VALUE;
 					//if( point->network_number == 0x0FFFF )
 					//ptr->point.network_number = Setting_Info.reg.network_number;
-#if NETWORK_MODBUS
+#if 1//NETWORK_MODBUS
 					// add modbus command
 					if(check_point_type(point) == 1)
 					 // only support MB point
@@ -1825,7 +1822,7 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 					else
 #endif
 						number_of_network_points_bacnet++;
-
+					Test[24]++;
 					ptr->count = 1;
 					return i;
 				}
@@ -1842,6 +1839,18 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 }
 #endif
 
+S32_T my_honts_arm(S32_T val)
+{
+	U8_T temp[4];
+	S32_T temp_32;
+	temp[0] = (val & 0xff000000) >> 24;
+	temp[1] = (val & 0x00ff0000) >> 16;
+	temp[2] = (val & 0x0000ff00) >> 8;
+	temp[3] = (val & 0x000000ff);
+	temp_32 = temp[0] + (U16_T)(temp[1] << 8) + ((U32_T)temp[2] << 16) + ((U32_T)temp[3] << 24);
+	return temp_32;
+}
+
 POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 // check if remote bacent points and network points online or not
@@ -1857,63 +1866,60 @@ void Update_RM_NT_points_table(void)
 
 	j = 0;
 
-		for(i = 0;i < number_of_remote_points_modbus;i++)
+	for(i = 0;i < number_of_remote_points_modbus;i++)
+	{
+		if(j < MAXREMOTEPOINTS - 1)
 		{
-			if(j < MAXREMOTEPOINTS - 1)
-			{
-				memcpy(&points_header[j],&remote_points_list_modbus[i],sizeof(POINTS_HEADER));
-
-				points_header[j].point_value = ((remote_points_list_modbus[i].point_value));
-				points_header[j].instance = ((float)remote_points_list_modbus[i].instance);
-
-				points_header[j].time_to_live = Last_Contact_Remote_points_modbus[j] / 60;
-				j++;
-			}
+			memcpy(&points_header[j],&remote_points_list_modbus[i],sizeof(POINTS_HEADER));
+			points_header[j].point_value = my_honts_arm((remote_points_list_modbus[i].point_value));
+			points_header[j].instance = my_honts_arm((float)remote_points_list_modbus[i].instance);
+			points_header[j].time_to_live = Last_Contact_Remote_points_modbus[j] / 60;
+			j++;
 		}
+	}
 
 
-
-		for(i = 0;i < number_of_remote_points_bacnet;i++)
+	for(i = 0;i < number_of_remote_points_bacnet;i++)
+	{
+		if(j < MAXREMOTEPOINTS - 1)
 		{
-			if(j < MAXREMOTEPOINTS - 1)
-			{
-				memcpy(&points_header[j],&remote_points_list_bacnet[i],sizeof(POINTS_HEADER));
+			memcpy(&points_header[j],&remote_points_list_bacnet[i],sizeof(POINTS_HEADER));
 
-				points_header[j].point_value = ((float)remote_points_list_bacnet[i].point_value );
-				points_header[j].instance = ((float)remote_points_list_bacnet[i].instance);
-				points_header[j].time_to_live = Last_Contact_Remote_points_bacnet[j] / 60;
-				j++;
-			}
+			points_header[j].point_value = my_honts_arm((float)remote_points_list_bacnet[i].point_value );
+			points_header[j].instance = my_honts_arm((float)remote_points_list_bacnet[i].instance);
+			points_header[j].time_to_live = Last_Contact_Remote_points_bacnet[j] / 60;
+			j++;
 		}
-#if NETWORK_MODBUS
-		for(i = 0;i < number_of_network_points_modbus;i++)
+	}
+#if 1//NETWORK_MODBUS
+	for(i = 0;i < number_of_network_points_modbus;i++)
+	{
+		if(j < MAXNETWORKPOINTS - 1)
 		{
-			if(j < MAXNETWORKPOINTS - 1)
-			{
-				memcpy(&points_header[j],&network_points_list_modbus[i],sizeof(POINTS_HEADER));
+			memcpy(&points_header[j],&network_points_list_modbus[i],sizeof(POINTS_HEADER));
 
-				points_header[j].point_value = my_honts_arm((float)network_points_list_modbus[i].point_value);
-				points_header[j].instance = my_honts_arm((float)network_points_list_modbus[i].instance);
-				points_header[j].time_to_live = Last_Contact_Network_points_modbus[j] / 60;
-				j++;
-			}
+			points_header[j].point_value = my_honts_arm((float)network_points_list_modbus[i].point_value);
+			points_header[j].instance = my_honts_arm((float)network_points_list_modbus[i].instance);
+			points_header[j].time_to_live = Last_Contact_Network_points_modbus[j] / 60;
+			j++;
 		}
+	}
 #endif
-		for(i = 0;i < number_of_network_points_bacnet;i++)
+	for(i = 0;i < number_of_network_points_bacnet;i++)
+	{
+		if(j < MAXNETWORKPOINTS - 1)
 		{
-			if(j < MAXNETWORKPOINTS - 1)
-			{
-				memcpy(&points_header[j],&network_points_list_bacnet[i],sizeof(POINTS_HEADER));
+			memcpy(&points_header[j],&network_points_list_bacnet[i],sizeof(POINTS_HEADER));
 
-				points_header[j].point_value = ((float)network_points_list_bacnet[i].point_value);
-				points_header[j].instance = ((float)network_points_list_bacnet[i].instance);
-				points_header[j].time_to_live = Last_Contact_Network_points_bacnet[j] / 60;
-				j++;
-			}
+			points_header[j].point_value = my_honts_arm((float)network_points_list_bacnet[i].point_value);
+			points_header[j].instance = my_honts_arm((float)network_points_list_bacnet[i].instance);
+			points_header[j].time_to_live = Last_Contact_Network_points_bacnet[j] / 60;
+			j++;
 		}
+	}
 
 
-		memset(&points_header[j],0,(MAXREMOTEPOINTS - j) * sizeof(POINTS_HEADER));
+	memset(&points_header[j],0,(MAXREMOTEPOINTS - j) * sizeof(POINTS_HEADER));
 
 }
 
@@ -1992,7 +1998,7 @@ void Check_Net_Point_Table(void)
 error
 */
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+#if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	ptr = &remote_points_list_bacnet[0];
 	for(i = 0;i < number_of_remote_points_bacnet;i++,ptr++)
 	{
@@ -2018,7 +2024,7 @@ error
 			}
 		}
 	}
-#if NETWORK_MODBUS
+#if 1//NETWORK_MODBUS
 	ptr1 = &network_points_list_modbus[0];
 	for(i = 0;i < number_of_network_points_modbus;i++,ptr1++)
 	{
@@ -2342,13 +2348,11 @@ S16_T put_point_value( Point *point, S32_T *val_ptr, S16_T aux, S16_T prog_op )
 				}
 				break;
 		  	case VAR:
-		  		Test[25]++;
 				sptr.pvar = &vars[point->number];
 				if(((sptr.pvar->auto_manual == 0) && (prog_op == 0)) || ((sptr.pvar->auto_manual == 1) && (prog_op == 1)) )
 				{
-					Test[26]++;
 					if(sptr.pvar->digital_analog == 0)
-					{Test[27]++;
+					{
 						sptr.pvar->control = *val_ptr ? 1 : 0;
 					}
 					temp = *val_ptr;
@@ -2458,10 +2462,10 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 	if( point.network_number != Setting_Info.reg.network_number)
 		return 0;*/  // change structure, network is used for instance
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 
+	
 	get_point_info_by_instacne(&point);
-#endif
+
 	if(point.panel == 0)
 		return -1;
 
@@ -2504,11 +2508,11 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 						if((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))
 						{
 							Float_to_Byte((float)(*val_ptr) / 1000,(U8_T *)&value,point_type - BAC_FLOAT_ABCD);
-				//			write_parameters_to_nodes(0x10,remote_points_list_modbus[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,4);
+							write_parameters_to_nodes(0x10,remote_points_list_modbus[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,4);
 						}
 						else
 						{	value = *val_ptr / 1000;
-				//			write_parameters_to_nodes(0x06,remote_points_list_modbus[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);
+							write_parameters_to_nodes(0x06,remote_points_list_modbus[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);
 						}
 					}
 				}
@@ -2518,7 +2522,7 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 					if(ptr->point_value != *val_ptr)
 					{
 						value = (float)*val_ptr / 1000; // write coil
-					//	write_parameters_to_nodes(0x05,remote_points_list_modbus[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);
+						write_parameters_to_nodes(0x05,remote_points_list_modbus[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);
 					}
 				}
 				if(mode == 0)
@@ -2533,7 +2537,6 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 				ptr->instance = 0;
 			}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			else
 			{  // write remote bacnet points
 				ptr = (REMOTE_POINTS *)(&remote_points_list_bacnet[0]) + index;
@@ -2639,7 +2642,6 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 				ptr->instance = Get_device_id_by_panel(point.panel,point.sub_id,BAC_MSTP);
 			}
-#endif
 //			ptr->change = 1;
 			if(mode == 0)
 				ptr->time_to_live = RB_TIME_TO_LIVE;
@@ -2648,7 +2650,6 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 			Last_Contact_Remote_points_bacnet[index] = 0;
 		}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 
 		else  // network points
 		{
@@ -2657,7 +2658,7 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 			{
 				if( ( index = insert_network_point( &point, -1 ) ) < 0 ) return -1;
 			}
-#if  NETWORK_MODBUS
+#if  1//NETWORK_MODBUS
 
 			if(check_point_type(&point) == 1)
 			{// network modbus point
@@ -2665,11 +2666,11 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 				ptr1 = (NETWORK_POINTS *)(&network_points_list_modbus[0]) + index;
 				point_type = (ptr1->point.point_type & 0x1f) + (ptr1->point.network_number & 0x60);
 				high_3bit = ptr1->point.point_type >> 5;
-//				value = ptr1->point_value;
-//				Test[4] = value / 1000;
+
 				if((point_type == (VAR + 1)) \
 				|| (point_type == (MB_IN_REG + 1))\
 				|| (point_type == (MB_REG + 1))
+				|| (point_type == (MB_COIL_REG + 1))
 				|| ((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1)))
 				{
 					if(ptr1->point.network_number & 0x80)
@@ -2679,28 +2680,30 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 					if(ptr1->point_value != *val_ptr)
 					{
-//						if((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_CDBA + 1))
-//						{
-//								Float_to_Byte(*val_ptr,(U8_T *)&value,point_type - BAC_FLOAT_ABCD);
-//						}
-//						else
+						if((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))
+						{
+								Float_to_Byte(*val_ptr,(U8_T *)&value,point_type - BAC_FLOAT_ABCD);
+								write_NP_Modbus_to_nodes(ptr1->point.panel,0x10,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,2);
+						}
+						else
+						{
 							value = *val_ptr / 1000;
+							if(point_type == (MB_COIL_REG + 1))  // WRITE COIL
+							{
+								//network_points_list_modbus[index].invoked_id =
+									write_NP_Modbus_to_nodes(ptr1->point.panel,0x05,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);
+							}
+							else
+								//network_points_list_modbus[index].invoked_id =
+									write_NP_Modbus_to_nodes(ptr1->point.panel,0x06,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);
 
-						network_points_list_modbus[index].invoked_id =
-							write_NP_Modbus_to_nodes(ptr1->point.panel,0x06,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,value,1);
+						}
+						// tbd:
+						//network_points_list_modbus[index].invoked_id =
+						//	write_NP_Modbus_to_nodes(ptr1->point.panel,0x06,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,value,1);
 						ptr1->point_value = *val_ptr;
 					}
 
-
-
-					if(ptr1->point_value != *val_ptr)
-					{
-						value = *val_ptr / 1000;
-
-						network_points_list_modbus[index].invoked_id =
-							write_NP_Modbus_to_nodes(ptr1->point.panel,0x06,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,value,1);
-						ptr1->point_value = *val_ptr;
-					}
 				}
 //				if(((ptr1->point.point_type & 0x1f) == (MB_COIL_REG + 1)) || ((ptr1->point.point_type & 0x1f) == (MB_DIS_REG + 1)))
 //				{
@@ -2816,7 +2819,7 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 				ptr1->instance = Get_device_id_by_panel(point.panel,point.sub_id,BAC_IP_CLIENT);
 
-				vTaskDelay( 100 / portTICK_RATE_MS);
+				//vTaskDelay( 100 / portTICK_RATE_MS);
 
 				if(mode == 0)
 					ptr1->time_to_live = NP_TIME_TO_LIVE;
@@ -2826,7 +2829,7 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 				Last_Contact_Network_points_bacnet[index] = 0;
 			}
 		}
-#endif
+
 	}
 	else
 	{
@@ -2862,19 +2865,19 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag)
 
 	memcpy( &point, p, sizeof(Point_Net));
 
-	/*get_point_info_by_instacne(&point);
-	Test[35]++;
+	get_point_info_by_instacne(&point);
+
 	if(point.panel == 0)
 	{
 		return -1;
-	}Test[36]++;*/
+	}
 	if(/*( point.network_number != Setting_Info.reg.network_number) ||*/( point.panel != panel_number)
 		|| ((point.sub_id != panel_number) && (point.sub_id != 0)))
 	{
 		if( point.panel == panel_number)  // remote points
 		{
 		 // remote points
-
+			
 			if( ( index = find_remote_point( &point ) ) < 0 )
 			{
 				if( ( index = insert_remote_point( &point, -1 ) ) < 0 )
@@ -2910,14 +2913,12 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag)
 				}
 
 				else		// remote bacnet points
-				{
+				{	
 					remote_points_list_bacnet[index].instance =
 					Get_device_id_by_panel(remote_points_list_bacnet[index].point.panel,remote_points_list_bacnet[index].point.sub_id,BAC_MSTP);
 					if(remote_points_list_bacnet[index].point_value != DEFUATL_REMOTE_NETWORK_VALUE)
-					{
-
-						*val_ptr = remote_points_list_bacnet[index].point_value;
-
+					{						
+						*val_ptr = remote_points_list_bacnet[index].point_value;						
 						if(mode == 0)
 							remote_points_list_bacnet[index].time_to_live = RB_TIME_TO_LIVE;
 						else
@@ -2930,12 +2931,12 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag)
 						*val_ptr = 0;
 						return 0;
 					}
-									}
+				}
 
 			}
 
 		}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+#if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 
 		else  // network points
 		{
@@ -2948,7 +2949,7 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag)
 			}
 			if(index < MAXNETWORKPOINTS)
 			{
-#if NETWORK_MODBUS
+#if 1//NETWORK_MODBUS
 				if(check_point_type(&point) == 1)  // modbus points
 				{
 					network_points_list_modbus[index].instance = 0;
@@ -3065,9 +3066,15 @@ Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
 Monitor_Block					mon_block[2 * MAX_MONITORS];
 
 //void monitor_reboot(void);
-U8_T Get_start_end_packet_by_time(U8_T file_index,U32_T start_time,U32_T end_time, U32_T * start_seg, U32_T * end_seg,U32_T block_no)
+U8_T Get_start_end_packet_by_time(U8_T file_index,U32_T start_time,U32_T end_time, U32_T * start_seg, U32_T * total_seg,U32_T block_no)
 {
-// tbd:
+	// tbd:?????????????
+	if(SD_exist != 2)
+	{
+		*start_seg = 0;
+		*total_seg = 1;
+		return 0;
+	}
 	return 1;
 }
 
@@ -3132,7 +3139,7 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		ptr.pnet = mon_block[i * 2].inputs + j;
 		if( !mon_block[i * 2].index )
 		{
-			mon_block[i * 2].start_time = get_current_time();
+			mon_block[i * 2].start_time = get_current_time() - 8 * 3600;
 		}
 
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].index = mon_block[i * 2].monitor;
@@ -3144,10 +3151,10 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].point.network_number = ptr.pnet->network_number;
 
 
-		temp[0] = get_current_time();
-		temp[1] = get_current_time() >> 8;
-		temp[2] = get_current_time() >> 16;
-		temp[3] = get_current_time() >> 24;
+		temp[0] = get_current_time() - 8 * 3600;
+		temp[1] = (get_current_time() - 8 * 3600) >> 8;
+		temp[2] = (get_current_time() - 8 * 3600) >> 16;
+		temp[3] = (get_current_time() - 8 * 3600) >> 24;
 
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].time = temp[3] + (U16_T)(temp[2] << 8)
 	 + ((U32_T)temp[1] << 16) + ((U32_T)temp[0] << 24);
@@ -3155,10 +3162,9 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].mark = 0x0a0d;
 
 
-
-		if(get_net_point_value( ptr.pnet, &value,0,0 ) == 1)  // get rid of default value 0x55555555
+		//if(get_net_point_value( ptr.pnet, &value,0,0 ) == 1)  // get rid of default value 0x55555555
 		{
-			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  value;
+			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  123;//value;
 
 			temp[0] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value);
 			temp[1] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value) >> 8;
@@ -3169,15 +3175,14 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 						+ ((U32_T)temp[1] << 16) + ((U32_T)temp[0] << 24);
 
 			mon_block[i * 2].index++;
-			Test[46]++;
-			Test[47] = mon_block[i * 2].index;
+
 		}
 
 	}
 
-
+	Test[24]++;
 	if(mon_block[i * 2].index +  mon_block[i * 2].no_points > MAX_MON_POINT)
-	{
+	{Test[25]++;
 		// current buffer is full, save data to SD card.
 		// clear no used point
 		for(k = mon_block[i * 2].index;k < MAX_MON_POINT;k++)
@@ -3212,7 +3217,6 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 				}
 			}*/
 		}
-		Test[47]++;
 		init_new_analog_block( i, mon_ptr);
 	}
 
@@ -3487,7 +3491,7 @@ void sample_points( void  )
 				if( mon_ptr->an_inputs > 0)
 				{
 					if( mon_ptr->next_sample_time <= get_current_time() )
-					{Test[44]++;
+					{
 						sample_analog_points(i, mon_ptr);
 					}
 				}
@@ -3529,7 +3533,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 	ret = 1;
 //	reading_sd = 1;
 //	count_reading_sd = 0;
-//	Test[25]++;
+
 	ana_dig = PTRtable->sample_type;
 	if(ana_dig == 1)
 	{
@@ -3539,17 +3543,17 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 	{
 		block_no = 0;//SD_block_num[PTRtable->index * 2 + 1] + 1;
 	}
-	Test[20]++;
 	if(SD_exist != 2) // inexist  ?????????????????
-	{Test[21]++;
+	{
 		block_no = 1;
 	}
 // current packet from T3000
+
 	if(PTRtable->seg_index > 0)
-	{Test[22]++;
+	{
 		if(SD_exist != 2) // inexist
 		{ // check if no sd card, whether currect data should be stored into PC's DB
-			PTRtable->special = 0;
+			PTRtable->special = 0;Test[34]++;
 		}
 		else
 		{
@@ -3563,7 +3567,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 			}
 		}
 		if((PTRtable->seg_index < block_no) && (PTRtable->seg_index >= 1))
-		{Test[23]++;
+		{
 #if STORE_TO_SD
 			if(Read_SD(((PTRtable->seg_index - 1) >> 8) & 0xfff,PTRtable->index,ana_dig,(U32_T)LOW_BYTE(PTRtable->seg_index - 1) * MAX_MON_POINT * sizeof(Str_mon_element)) == 1)   // analog data
 #endif
@@ -3578,7 +3582,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 
 		}
 		else // read last packet, not store into SD
-		{Test[24]++;
+		{
 				ret = 1;
 				if(ana_dig == 1) // an
 				{
@@ -3604,7 +3608,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 //	}
 
 	if(PTRtable->seg_index == 0 && PTRtable->total_seg == 0)
-	{Test[25]++;
+	{
 		if(PTRtable->sample_type == 1) // analog
 			Get_start_end_packet_by_time(PTRtable->index * 2,PTRtable->comm_arg.monupdate.oldest_time,PTRtable->comm_arg.monupdate.most_recent_time,&PTRtable->seg_index,&PTRtable->total_seg,block_no);
 		else
@@ -3625,16 +3629,18 @@ void check_monitor_sample_points(U8_T i)
 
 	monitors[i].num_inputs = 0;
 	monitors[i].an_inputs = 0;
-
+	Test[0] = 5;
 	for(j = 0;j < MAX_POINTS_IN_MONITOR;j++)
 	{
 // 0.0. --> invalid points
+		Test[0] = 6;
 		if(monitors[i].inputs[j].panel != 0)
-		{
+		{Test[0] = 7;
 			monitors[i].num_inputs++;
 			k = monitors[i].inputs[j].number;
 			if(monitors[i].inputs[j].sub_id == panel_number || monitors[i].inputs[j].sub_id == 0)
 			{ // Local points
+				Test[0] = 8;
 				if(monitors[i].inputs[j].point_type == IN + 1)
 				{
 					monitors[i].range[j] = inputs[k].range;
@@ -3653,10 +3659,10 @@ void check_monitor_sample_points(U8_T i)
 					}
 				}
 				else if(monitors[i].inputs[j].point_type == VAR + 1)
-				{
+				{Test[0] = 9;
 					monitors[i].range[j] = vars[k].range;
 					if(vars[k].digital_analog == 1)
-					{
+					{Test[0] = 10;
 						monitors[i].an_inputs++;
 					}
 				}
@@ -3679,7 +3685,6 @@ void monitor_init(void)
 //	U8_T far time_unit;
 //	reading_sd = 0;
 //  count_reading_sd = 0;
-
 	monitors[0].status = 1;
 	monitors[0].an_inputs = 2;
 	monitors[0].num_inputs = 2;
@@ -3710,8 +3715,9 @@ void monitor_init(void)
 				(monitors[i].minute_interval_time != 0) ||
 				(monitors[i].hour_interval_time != 0) )
 			{  // sample time is not 0
+
 					if(monitors[i].num_inputs)
-					{ // check number of inputs
+					{// check number of inputs
 							if(monitors[i].an_inputs > 0)
 							{ // exist analog inputs
 								init_new_analog_block(i,&monitors[i]);
@@ -4017,20 +4023,14 @@ void dealwithMonitor(uint8_t bank)
 
 #endif // monitor
 
-
+#if 0
 void update_timers( void )
 {
 	S16_T  i, year;
 
 	U32_T  far ora_current_sec;  /* seconds since the beginning of the day */
 	unsigned int day_of_year;
-	unsigned char mon,day,hour,min,sec;
-	year = 21;
-	mon = 9;
-	day = 13;
-	hour = 12;
-	min = 40;
-	sec = 13;
+	
 
 	month_length[0] = 31;
 	month_length[1] = 28;
@@ -4097,3 +4097,4 @@ void update_timers( void )
 
 
 }
+#endif

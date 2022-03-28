@@ -31,10 +31,4 @@
 
 /** @file txbuf.c  Declare the global Transmit Buffer for handler functions. */
 
-#if ASIX
-unsigned char  far Handler_Transmit_Buffer[2][MAX_PDU] = {0};
-#endif
-
-#if ARM
-unsigned char  Handler_Transmit_Buffer[2][MAX_PDU] = {0};
-#endif
+EXT_RAM_ATTR unsigned char  Handler_Transmit_Buffer[2][MAX_PDU] = {0};

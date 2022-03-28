@@ -7,10 +7,18 @@
 #include <sys/time.h>
 //#include "deviceparams.h"
 #include "wifi.h"
+#include "user_data.h"
 //#include "i2c_task.h"
 
-static esp_err_t last_i2c_err = ESP_OK;
+extern uint16_t Test[50];
+int16_t  timezone;
+uint8_t  Daylight_Saving_Time;
 
+const uint8_t	Month[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
+const uint8_t	AddMonth[12] = {31,29,31,30,31,30,31,31,30,31,30,31};
+
+static esp_err_t last_i2c_err = ESP_OK;
+//UN_Time Rtc;
 esp_err_t PCF_Write(uint8_t addr, uint8_t *data, size_t count) {
 
 	last_i2c_err = ESP_OK;
@@ -57,13 +65,11 @@ int PCF_Init(uint8_t mode){
 		uint8_t tmp = 0b00000000;
 		esp_err_t ret = PCF_Write(0x00, &tmp, 1);
 		if (ret != ESP_OK){
-			//holding_reg_params.testBuf[19] = ret;
 			return -1;
 		}
 		mode &= 0b00010011;
 		ret = PCF_Write(0x01, &mode, 1);
 		if (ret != ESP_OK){
-			//holding_reg_params.testBuf[12] = ret;
 			return -2;
 		}
 		init = true;
@@ -257,6 +263,30 @@ fail:
 	return ret;
 }
 
+uint8_t const table_week[12] = {0, 3, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5};
+
+uint8_t RTC_Get_Week(uint16_t year, uint8_t month, uint8_t day)
+{
+	uint16_t temp2;
+	uint8_t yearH, yearL;
+
+	yearH = year / 100;
+	yearL = year % 100;
+
+	if(yearH > 19)	//
+		yearL += 100;
+
+
+	temp2 = yearL + yearL / 4;
+	temp2 = temp2 % 7;
+	temp2 = temp2 + day + table_week[month - 1];
+
+	if(yearL % 4 == 0 && month < 3)
+		temp2--;
+
+	return(temp2 % 7);
+}
+
 int PCF_systohc(){
 	int ret;
 //	PCF_DateTime date = {0};
@@ -275,31 +305,224 @@ int PCF_systohc(){
 	rtc_date.day = tm.tm_mday;
 	rtc_date.month = tm.tm_mon + 1;
 	rtc_date.year = tm.tm_year + 1900;
-	rtc_date.weekday = tm.tm_wday;
-
+	rtc_date.weekday = RTC_Get_Week(rtc_date.year,rtc_date.month,rtc_date.day);//tm.tm_wday;
 	ret = PCF_SetDateTime(&rtc_date);
 
 fail:
 	return ret;
 }
-
-void rtc_task(void *arg)
+void update_timers( void );
+/*void rtc_task(void *arg)
 {
+	timezone = 800;
+	Daylight_Saving_Time = 0;
+	PCF_hctosys();
+	update_timers();
 	while (true) {
 
 	        int ret = PCF_hctosys();
+	        Test[30]++;
 	        if (ret != 0) {
-
+	        	Test[31]++;
 	            PCF_systohc();
-
+	            update_timers();
 	            //ESP_LOGE(LOG_TAG, "Error reading hardware clock: %d", ret);
 	        }
 
-	        printf("ret %d time %ld\n ", ret, time(NULL));
+	       // printf("ret %d time %ld\n ", ret, time(NULL));
 
-	        vTaskDelay(5000 / portTICK_RATE_MS);
+	        vTaskDelay(500 / portTICK_RATE_MS);
 
 	    }
+}*/
+
+
+void update_timers( void )
+{
+	int  i, year = 0;
+
+	uint32_t  ora_current_sec;  /* seconds since the beginning of the day */
+	uint16_t day_of_year;
+	uint8_t month_length[12];
+
+	month_length[0] = 31;
+	month_length[1] = 28;
+	month_length[2] = 31;
+	month_length[3] = 30;
+	month_length[4] = 31;
+	month_length[5] = 30;
+	month_length[6] = 31;
+	month_length[7] = 31;
+	month_length[8] = 30;
+	month_length[9] = 31;
+	month_length[10] = 30;
+	month_length[11] = 31;
+
+	if(rtc_date.year % 4 == 0)
+		month_length[1] = 29;
+	else
+		month_length[1] = 28;
+	/* seconds since the beginning of the day */
+
+	ora_current_sec = 3600L * rtc_date.hour;
+	ora_current_sec += 60L * rtc_date.minute;
+	ora_current_sec += rtc_date.second;
+
+	day_of_year = 0;
+	//if(Rtc.Clk.mon > 0)
+	{
+		for( i=0; i< rtc_date.month - 1; i++ )
+		{
+			day_of_year += month_length[i];
+		}
+	}
+	day_of_year +=  rtc_date.day;
+	rtc_date.day_of_year = day_of_year;
+/*	timestart = 0;*/ /* seconds since the beginning of the year */
+	timestart = 86400L * (day_of_year - 1); /* 86400L = 3600L * 24;*/
+	timestart += ora_current_sec;
+
+	time_since_1970 = 0; /* seconds since 1970 */
+	if( rtc_date.year < 70 )
+		year = 100 + rtc_date.year;
+	else
+		year =  rtc_date.year - 1900;
+
+	for( i = 70; i < year; i++ )
+	{
+		time_since_1970 += 31536000L;
+		if(i % 4 == 0)  // leap year
+			time_since_1970 += 86400L;
+	}
+//	Test[0]++;
+	time_since_1970 += timestart;
+
+
+}
+
+uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8_t min, uint8_t sec, uint8_t flag)
+{
+	rtc_date.second = sec;
+	rtc_date.minute = min;
+	rtc_date.hour = hour;
+	rtc_date.month = smon;
+	rtc_date.year = syear + 2000;
+	rtc_date.day = sday;
+	PCF_SetDateTime(&rtc_date);
+	update_timers();
+	return 1;
+}
+
+void Get_RTC_by_timestamp(U32_T timestamp,UN_Time* rtc,U8_T source)
+{
+	S8_T	signhour, signmin;
+	U8_T	hour, min;
+	U8_T	i;
+	U16_T temp_YY;
+	TimeInfo tt;
+
+
+	i = 0;
+	tt.timestamp = timestamp;
+
+	signhour = timezone / 100;
+	signmin = timezone % 100;
+
+	if (signhour < 0)
+	{
+		hour = -signhour;
+		min = -signmin;
+		tt.timestamp -= (hour*3600 + min*60);
+	}
+	else
+	{
+		hour = signhour;
+		min = signmin;
+		tt.timestamp += (hour*3600 + min*60);
+	}
+
+
+	if(Daylight_Saving_Time)
+	{
+		if((rtc_date.day_of_year >= start_day) && (rtc_date.day_of_year <= end_day))
+		{
+			tt.timestamp += 3600;
+		}
+	}
+
+	tt.second_remain = tt.timestamp % 86400;
+	tt.day_total = tt.timestamp / 86400;
+	tt.HH = tt.second_remain / 3600;
+	tt.MI_r = tt.second_remain % 3600;
+	tt.MI = tt.MI_r / 60;
+	tt.SS = tt.MI_r % 60;
+	tt.YY = tt.day_total / 365.2425;
+
+	temp_YY = tt.YY;
+	if(source == 0)  // time server
+		temp_YY += 1900;
+	else  // PC
+		temp_YY += 1970;
+	if((temp_YY % 4) == 0)
+	{
+		tt.DD_r = tt.day_total-(tt.YY*365)-(tt.YY/4);
+		tt.DD_r++;
+		if(source == 0)
+		{
+			tt.DD_r++;
+		}
+		while(tt.DD_r>0)
+		{
+			tt.DD = tt.DD_r;
+			tt.DD_r -= AddMonth[i];
+			i++;
+		}
+	}
+	else
+	{
+		tt.DD_r = tt.day_total-(tt.YY*365)-(tt.YY/4);
+		if(((temp_YY - 1) % 4) == 0)
+		{
+
+		}
+		else
+			tt.DD_r++;
+		/*if(tt.DD_r > 365){
+			tt.DD_r = 1;
+			tt.YY++;
+		}*/
+		while(tt.DD_r > 0)
+		{
+			tt.DD = tt.DD_r;
+			tt.DD_r -= Month[i];
+			i++;
+		}
+	}
+	tt.MM = i;
+	if(source == 0)  // time server
+		tt.YY += 1900;
+	else  // PC
+		tt.YY += 1970;
+
+
+	rtc->Clk.sec = tt.SS;
+	rtc->Clk.min = tt.MI;
+	rtc->Clk.hour = tt.HH;
+	rtc->Clk.day = tt.DD;
+//	Rtc.Clk.week = tt.SS;
+	rtc->Clk.mon = tt.MM;
+	rtc->Clk.year = tt.YY - 2000;
+//	rtc->Clk.day_of_year = tt->day_total;
+	rtc->Clk.is_dst = Daylight_Saving_Time;
+
+
+//#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
+//	Rtc_Set(rtc->Clk.year,rtc->Clk.mon,rtc->Clk.day,rtc->Clk.hour,rtc->Clk.min,rtc->Clk.sec,0);
+//#endif
+
+//#if (ASIX_MINI || ASIX_CM5)
+//		flag_Updata_Clock = 1;
+//#endif
 }
 
 #ifdef main

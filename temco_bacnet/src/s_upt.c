@@ -126,8 +126,10 @@ int Send_ConfirmedPrivateTransfer(
 	/* encode the APDU portion of the packet */
 
 	 invoke_id = tsm_next_free_invokeID();
+
 	 if(invoke_id == 0)//???????????ID??????ID???;????;
-		 tsm_free_all_invoke_id();
+	 tsm_free_all_invoke_id();
+		 
 	len =
 		ptransfer_encode_apdu(&Handler_Transmit_Buffer[protocal][pdu_len],invoke_id,private_data);	//???????? Invoke ID
 	// uptransfer_encode_apdu(&Handler_Transmit_Buffer[protocal][pdu_len],		//Fance
@@ -135,15 +137,15 @@ int Send_ConfirmedPrivateTransfer(
 
 	pdu_len += len;
 
-#if ARM	
-		// added by chelsea
-		if(protocal == BAC_MSTP)
-		{
-			MSTP_Flag.TransmitPacketPending = 0;
-			memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len);
-			MSTP_Transfer_Len = pdu_len;
-		}
-#endif
+	
+	// added by chelsea
+	if(protocal == BAC_MSTP)
+	{
+		MSTP_Flag.TransmitPacketPending = 0;
+		memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len);
+		MSTP_Transfer_Len = pdu_len;
+	}
+
 	bytes_sent =
 		datalink_send_pdu(dest, &npdu_data, &Handler_Transmit_Buffer[protocal][0],
 		pdu_len,protocal);
@@ -153,6 +155,8 @@ int Send_ConfirmedPrivateTransfer(
 		"Failed to Send UnconfirmedPrivateTransfer Request (%s)!\n",
 		strerror(errno));
 #endif
+
+
 	if(bytes_sent > 0)
 	{
 		return invoke_id;

@@ -23,7 +23,7 @@
 #define T10P_MAX_DIS 8
 #define T10P_MAX_SCS 8
 
-U8_T far uart0_sub_addr[SUB_NO];// _at_ 0x41600;
+EXT_RAM_ATTR U8_T far uart0_sub_addr[SUB_NO];// _at_ 0x41600;
 U8_T far sub_no;
 U8_T far online_no;	  
 U8_T far uart0_sub_no;
@@ -32,19 +32,19 @@ U8_T far uart0_sub_no;
 
 U8_T far uart1_sub_no;
 U8_T far uart2_sub_no;
-U8_T far uart1_sub_addr[SUB_NO];// _at_ 0x41700;
-U8_T far uart2_sub_addr[SUB_NO];// _at_ 0x41800;
+EXT_RAM_ATTR U8_T far uart1_sub_addr[SUB_NO];// _at_ 0x41700;
+EXT_RAM_ATTR U8_T far uart2_sub_addr[SUB_NO];// _at_ 0x41800;
 
 
-STR_MAP_table far sub_map[SUB_NO];
+EXT_RAM_ATTR STR_MAP_table far sub_map[SUB_NO];
 
 
 
 #if BAC_COMMON
-U16_T far sub_info_AI[SUB_NO][32];
-U8_T far sub_info_DI[SUB_NO][5];
-U16_T far sub_info_AO[SUB_NO][12];
-U16_T far sub_info_DO[SUB_NO][13];
+EXT_RAM_ATTR U16_T far sub_info_AI[SUB_NO][32];
+EXT_RAM_ATTR U8_T far sub_info_DI[SUB_NO][5];
+EXT_RAM_ATTR U16_T far sub_info_AO[SUB_NO][12];
+EXT_RAM_ATTR U16_T far sub_info_DO[SUB_NO][13];
 //U8_T far sub_info_Range[SUB_NO][32];
 #endif
 
@@ -67,7 +67,7 @@ void Comm_Tstat_Initial_Data(void)
 	else /*if(Modbus.mini_type == MINI_NANO) */		{	base_in = 0;		base_out = 0;}
 	base_var = 0;
 
-	memset(sub_map,0,sizeof(STR_MAP_table) * SUB_NO);
+	//memset(sub_map,0,sizeof(STR_MAP_table) * SUB_NO); //??????????????????????
 //	memset(RP_modbus_tb,0,sizeof(STR_SCAN_TB) * MAXREMOTEPOINTS);
 
 

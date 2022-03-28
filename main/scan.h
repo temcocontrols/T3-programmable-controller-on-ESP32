@@ -6,6 +6,7 @@
 
 
 #include "types.h"
+#include "esp_attr.h"
 
 #pragma pack(1)
 typedef struct _SCAN_DATABASE_
@@ -16,7 +17,42 @@ typedef struct _SCAN_DATABASE_
 	U8_T product_model;  
 } SCAN_DB;
 
+#define STACK_LEN  20
+#define MAX_WRITE_RETRY 3//10
+
+typedef struct
+{
+	U8_T ip;
+	U8_T func;
+	U8_T id;
+	U16_T reg;
+	U16_T value[2];
+	U8_T len;
+	U8_T flag;
+	U8_T retry;
+}STR_NP_NODE_OPERATE;
+
+extern STR_NP_NODE_OPERATE NP_node_write[STACK_LEN];
+// ¿©’πIO”≥…‰
+typedef struct
+{
+  U8_T sub_index;
+	U8_T type;
+	U8_T id;
+	U8_T do_start;
+	U8_T ao_start;
+	U8_T ai_start;
+	U8_T var_start;
+	U8_T do_len;
+	U8_T ao_len;
+	U8_T ai_len;
+	U8_T var_len;
+	U8_T add_in_map;
+}STR_MAP_table;
+
+
 #define MAX_ID		5//255
+#define SUB_NO		MAX_ID - 1
 
 #define	NONE_ID						0
 #define	UNIQUE_ID					1
@@ -35,23 +71,26 @@ typedef struct _SCAN_DATABASE_
 #define SCAN_DB_TIME_TO_LIVE  600  // 1min
 
 
-extern U32_T  com_rx[2];
-extern U32_T  com_tx[2];
-extern U16_T  collision[2];  // id collision
-extern U16_T  packet_error[2];  // bautrate not match
-extern U16_T  timeout[2];
+extern U32_T  com_rx[3];
+extern U32_T  com_tx[3];
+extern U16_T  collision[3];  // id collision
+extern U16_T  packet_error[3];  // bautrate not match
+extern U16_T  timeout[3];
 
-extern U8_T  tstat_name[MAX_ID][16];
-extern U8_T  flag_tstat_name[MAX_ID];
-extern U16_T  count_read_tstat_name[MAX_ID];
-extern SCAN_DB  current_db;
-extern SCAN_DB  scan_db[MAX_ID];
-extern S16_T  scan_db_time_to_live[MAX_ID];
+extern EXT_RAM_ATTR U8_T  tstat_name[MAX_ID][16];
+extern EXT_RAM_ATTR U8_T  flag_tstat_name[MAX_ID];
+extern EXT_RAM_ATTR U16_T  count_read_tstat_name[MAX_ID];
+extern EXT_RAM_ATTR SCAN_DB  current_db;
+extern EXT_RAM_ATTR SCAN_DB  scan_db[MAX_ID];
+extern EXT_RAM_ATTR S16_T  scan_db_time_to_live[MAX_ID];
 extern U8_T db_ctr;
 extern U8_T db_online[32], db_occupy[32]/*, get_para[32]*/;
 extern U8_T current_online[32];
 extern U8_T current_online_ctr;
 extern U8_T reset_scan_db_flag;
+
+extern uint8_t flag_suspend_scan;
+extern uint8_t suspend_scan_count;
 
 extern U8_T count_send_id_to_zigbee;
 
@@ -120,7 +159,7 @@ void Check_whether_clear_conflict_id(void);
 //void check_write_to_nodes(void);
 //void get_parameters_from_nodes(void);
 void write_parameters_to_nodes(U8_T func,U8_T id, U16_T reg, U16_T* value, U8_T len);
-int write_NP_Modbus_to_nodes(U8_T pane,U8_T func,U8_T id, U16_T reg, U16_T value, U8_T len);
+void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * value, U8_T len);
 
 void init_scan_db(void);
 //U8_T check_master_id_in_database(U8_T set_id, U8_T increase) reentrant;

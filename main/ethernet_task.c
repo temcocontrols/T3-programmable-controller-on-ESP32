@@ -73,7 +73,7 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
-
+    Modbus.ethernet_status = 4;  // GOT IP
     debug_info( "~~~~~~~~~~~");
 }
 
@@ -82,18 +82,37 @@ void ethernet_init(void)
 	esp_err_t ret;
 	tcpip_adapter_init(); // Commented by Evan: it is recommanded to be replaced by esp_netif_init();
 
-	ret = esp_event_loop_create_default();
-	if(ret == ESP_OK)
-		debug_info("esp_event_loop_create_default() finished^^^^^^^^");
-	ret =tcpip_adapter_set_default_eth_handlers();
-	if(ret == ESP_OK)
-		debug_info("tcpip_adapter_set_default_eth_handlers() finished^^^^^^^^");
+	// check dhcp mode or static mode
+	/*Modbus.tcp_type = 1;
+	if(Modbus.tcp_type == 1) // dhcp -> 0, 1 -> static
+	{
+		//tcpip_adapter_dhcpc_stop();
+		tcpip_adapter_ip_info_t ipInfo;
+		IP4_ADDR(&ipInfo.ip, 192,168,0,99);
+		IP4_ADDR(&ipInfo.gw, 192,168,0,1);
+		IP4_ADDR(&ipInfo.netmask, 255,255,255,0);
+		tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
+		Test[9] = 10;
+
+	}
+	else*/
+	{	Test[9] = 20;
+		ret = esp_event_loop_create_default();
+		if(ret == ESP_OK)
+			debug_info("esp_event_loop_create_default() finished^^^^^^^^");
+		ret =tcpip_adapter_set_default_eth_handlers();
+		if(ret == ESP_OK)
+			debug_info("tcpip_adapter_set_default_eth_handlers() finished^^^^^^^^");
+
+	}
 	ret = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);
 	if(ret == ESP_OK)
 		debug_info("esp_event_handler_register(ESP_EVENT_ANY_ID) finished^^^^^^^^");
 	ret = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL);
 	if(ret == ESP_OK)
+	{
 		debug_info("esp_event_handler_register(IP_EVENT_ETH_GOT_IP) finished^^^^^^^^");
+	}
 
 	eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
 	eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
@@ -107,8 +126,8 @@ void ethernet_init(void)
 	esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
 	esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
 	esp_eth_handle_t eth_handle = NULL;
-	if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK)
-		debug_info("esp_eth_driver_install finished^^^^^^^^");
-	if(esp_eth_start(eth_handle))
-		debug_info("esp_eth_start finished^^^^^^^^");
+	if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK){
+		debug_info("esp_eth_driver_install finished^^^^^^^^");}
+	if(esp_eth_start(eth_handle)){
+		debug_info("esp_eth_start finished^^^^^^^^");}
 }

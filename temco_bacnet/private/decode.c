@@ -20,7 +20,7 @@ void pushlong(unsigned long value);
 unsigned long poplong(void);
 
 extern UN_Time Rtc;
-
+extern U16_T Test[50];
 #if (ARM_MINI || ARM_CM5 )
 extern uint8_t flag_start_scan_network;
 extern uint8_t start_scan_network_count;
@@ -1216,6 +1216,65 @@ S32_T veval_exp(U8_T *local)
 				push(rs232_cmd.res);	
 				break;
 #endif
+			case MB_BW:
+			 {uint8_t panel,sub_id,len;
+				uint16_t addr;
+				Point_Net point;
+			  uint16_t val[50];
+				m = *prog++;				
+				
+				if(m < 3) break;
+				 
+				for(i = 0;i < m;i++)
+				{
+					op1 = pop()/1000;
+	 				//op1 = swap_double(op1); 
+					val[m - i - 1] = op1;					
+				}				
+				
+				point.panel =  panel_number;//val[0];
+				point.sub_id = val[0];
+				point.number = LOW_BYTE(val[1]);
+				point.point_type = (HIGH_BYTE(val[1]) << 5) + VAR + 1;
+				point.network_number = (HIGH_BYTE(val[1]) >> 3) + 0x80;
+				len = m - 2;
+				//if(len == m - 2)
+				{	
+					put_net_point_value(&point,(int *)&val[2],len*2,1,1);
+				}
+				push(1000);
+			}
+			break;
+		case MB_BW_COIL:
+			 {uint8_t panel,sub_id,len;
+				uint16_t addr;
+				Point_Net point;
+			  uint16_t val[50];
+				m = *prog++;				
+				
+				if(m < 3) break;
+				 
+				for(i = 0;i < m;i++)
+				{
+					op1 = pop()/1000;
+	 				//op1 = swap_double(op1); 
+					val[m - i - 1] = op1;					
+				}			
+				
+				point.panel = panel_number;//val[0];
+				point.sub_id = val[0];
+				point.number = LOW_BYTE(val[1]);
+				point.point_type = (HIGH_BYTE(val[1]) << 5) + MB_COIL_REG + 1;
+				point.network_number = (HIGH_BYTE(val[1]) >> 3) + 0x80;
+				//len = val[3];
+				len = m - 2;
+				//if(len == m - 3)
+				{	
+					put_net_point_value(&point,(int *)&val[2],len*2,1,1);
+				}
+				push(1000);
+			}
+			break;
 	 case MAX:
 				m = *prog++;
 				value = pop();
@@ -1382,8 +1441,8 @@ S32_T veval_exp(U8_T *local)
 //								value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;
 //						}
 //						else
-							value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;// - (S16_T)timezone * 36000;
-								
+//							value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;// - (S16_T)timezone * 36000;
+						value =  100000L * Rtc.Clk.hour + 1000L * Rtc.Clk.min + 10L * Rtc.Clk.sec;			
 						push(value);
 						break;
 		case USER_A:	 // ethernet
@@ -1464,7 +1523,7 @@ S32_T operand(U8_T **buf,U8_T *local)
 	U8_T *p;
 	S16_T num;
 	value = 0;
-
+	
 	if (*prog >= LOCAL_VARIABLE && *prog <= BYTE_TYPE)    /* local var */
 	{
 		prog += 3;

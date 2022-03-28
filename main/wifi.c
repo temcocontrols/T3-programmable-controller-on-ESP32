@@ -3,7 +3,7 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "esp_system.h"
-#include "esp_wifi.h"
+//#include "esp_wifi.h"
 #include "esp_event.h"
 #include "wifi.h"
 #include "driver/uart.h"
@@ -44,7 +44,7 @@ void debug_print(char *string,char task_index)
 
 void debug_info(char *string)
 {
- #if 0//DEBUG_INFO_UART0
+ #if 1//DEBUG_INFO_UART0
  	//uart_write_bytes(UART_NUM_0, "\r\n", 1);
  	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 
@@ -57,10 +57,10 @@ void init_ssid_info()
 {
 	memset(SSID_Info.name,0,64);
 	memset(SSID_Info.password,0,32);
-	//memcpy(SSID_Info.name, "TP-LINK_wuxian", strlen("TP-LINK_wuxian"));
-	//memcpy(SSID_Info.password, "87654321", strlen("87654321"));
-	memcpy(SSID_Info.name, "TEMCO_TEST_2.4G", strlen("TEMCO_TEST_2.4G"));
-	memcpy(SSID_Info.password, "Travel321", strlen("Travel321"));
+	memcpy(SSID_Info.name, "TP-LINK_wuxian", strlen("TP-LINK_wuxian"));
+	memcpy(SSID_Info.password, "87654321", strlen("87654321"));
+	//memcpy(SSID_Info.name, "TEMCO_TEST_2.4G", strlen("TEMCO_TEST_2.4G"));
+	//memcpy(SSID_Info.password, "Travel321", strlen("Travel321"));
 }
 
 //#define WIFI_RETRY_NEED_INITIAL_COUNT  20
@@ -253,6 +253,11 @@ void wifi_init_sta()
     {
     	init_ssid_info();
     }
+    SSID_Info.rev = 4;
+    if(SSID_Info.bacnet_port == 0)
+    	SSID_Info.bacnet_port = 47808;
+    if(SSID_Info.modbus_port == 0)
+    	SSID_Info.modbus_port = 502;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
@@ -333,6 +338,7 @@ void wifi_task(void *pvParameters)
 	//modbus_init();
 	debug_info("Finish flash init........");
 	//ESP_ERROR_CHECK(ret);
+	//if(SSID_Info.MANUEL_EN == 1)
 	wifi_init_sta();
     ESP_LOGI(TAG, "Finish wifi init");
 
@@ -343,7 +349,7 @@ void wifi_task(void *pvParameters)
 		//esp_random();
 		esp_fill_random(&temp_rssi,1);
 		temp_rssi /= 15;
-		SSID_Info.rssi = temp_rssi-95;
+		SSID_Info.rssi = temp_rssi - 95;
 	    //Initialize the system event handler
 		/*
 	    ESP_ERROR_CHECK(esp_event_loop_init(scan_event_handler, NULL));

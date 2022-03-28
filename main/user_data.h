@@ -7,6 +7,12 @@
 
 typedef struct
 {
+	U8_T buf[600];
+	U16_T len;
+}STR_SEND_BUF;
+
+typedef struct
+{
 	uint8 harware_rev;
 	uint16 firmware_asix;	// ASIX
 	uint8 frimware_pic;    // PIC
@@ -412,15 +418,15 @@ extern U32_T 				 		SD_block_num[MAX_MONITORS * 2];
 extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
 extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
 
-extern Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
-extern Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
-extern Str_annual_routine_point	 	 annual_routines[MAX_AR];
-extern U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];	
-extern U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
+extern EXT_RAM_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
+extern EXT_RAM_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
+extern EXT_RAM_ATTR Str_annual_routine_point	 	 annual_routines[MAX_AR];
+extern EXT_RAM_ATTR U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];
+extern EXT_RAM_ATTR U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
  /* Assume bit0 from octet0 = Jan 1st */
 extern EXT_RAM_ATTR Str_program_point	     			 programs[MAX_PRGS];
 extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
-extern U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
+extern EXT_RAM_ATTR U8_T    	    	 	 prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
 //extern Str_array_point 	     			 arrays[MAX_ARRAYS];
@@ -449,20 +455,20 @@ extern U32_T                       miliseclast;
 extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
-extern NETWORK_POINTS          		 network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
 extern Byte                  			 number_of_network_points_bacnet; 
 
-extern NETWORK_POINTS          		 network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
 extern Byte                  			 number_of_network_points_modbus;
 //extern U8_T  NT_bacnet_tb_func[MAXNETWORKPOINTS];
 //extern STR_BAC_TB  NT_bacnet_tb[MAXNETWORKPOINTS];
 
-extern REMOTE_POINTS		    		 remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
+extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
 //extern STR_SCAN_TB  RP_modbus_tb[MAXREMOTEPOINTS]; 
 //extern U8_T  RP_modbus_tb_func[MAXREMOTEPOINTS];
 extern Byte                 			 number_of_remote_points_modbus;
 
-extern REMOTE_POINTS		    		 remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
+extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
 //extern U8_T  RP_bacnet_tb_func[MAXREMOTEPOINTS];
 //extern STR_BAC_TB  RP_bacnet_tb[MAXREMOTEPOINTS];
 extern Byte                 			 number_of_remote_points_bacnet;
@@ -485,7 +491,7 @@ extern STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
 extern Byte	 Station_NUM;
 extern Byte  MAX_MASTER;
 extern 	U8_T panel_number;
-
+extern U16_T SW_REV;
 
 //extern U8_T  flag_Moniter_changed;
 //extern U8_T count_monitor_changed;
@@ -542,7 +548,7 @@ U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal);
 void put_remote_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op , uint8_t protocal);
 void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
 void put_network_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op );
-void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail);
+void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
 
 void change_panel_number_in_code(U8_T old, U8_T new_panel);
 
@@ -561,9 +567,18 @@ void push_expansion_in_stack(Str_in_point* ptr);
 
 U32_T get_current_time(void);
 
-
+int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub_id,uint8_t protocal);
 int GetPrivateBacnetToModbusData(uint32_t deviceid, uint16_t start_reg, int16_t readlength, uint16_t *data_out,uint8_t protocal);
 int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_t writelength, uint32_t data_in);
 void clear_dead_master(void);
+
+
+extern u8 rec_mstp_index;  // for i-am
+extern u8 send_mstp_index;
+extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];
+
+extern u8 rec_mstp_index1; // response packets form   
+extern u8 send_mstp_index1;
+extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf1[10];
 #endif
 

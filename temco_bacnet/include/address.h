@@ -47,13 +47,9 @@ extern "C" {
 }Address_Cache_Entry;
 	
 
-#if ASIX
-extern Address_Cache_Entry far Address_Cache[MAX_ADDRESS_CACHE];
-#endif
 
-#if ARM
-extern Address_Cache_Entry Address_Cache[MAX_ADDRESS_CACHE];
-#endif
+extern EXT_RAM_ATTR Address_Cache_Entry Address_Cache[MAX_ADDRESS_CACHE];
+
 	
 	
     void address_init(

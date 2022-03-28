@@ -3,6 +3,10 @@
 
 #include "esp_err.h"
 
+
+extern uint8_t ChangeFlash;
+extern uint16_t count_write_Flash;
+
 enum
 {
 	FLASH_BLOCK1_SSID,
@@ -24,6 +28,8 @@ enum
 #define FLASH_PANEL_NAME	"PANEL_NAME"
 #define FLASH_UART2_CONFIG	"UART2_CONFIG"
 #define FLASH_UART_CONFIG	"UART0_CONFIG"
+#define FLASH_SN_WRITE		"SN_WRITE"
+#define FLASH_MINI_TYPE		"MINI_TYPE"
 
 
 #define FLASH_POINT_OUT		"POINT_OUT"

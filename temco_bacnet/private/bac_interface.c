@@ -5,6 +5,7 @@
 #include "bacdevobjpropref.h"
 #include <string.h>
 #include "datetime.h"
+#include <stdlib.h>
 
 typedef enum
 {
@@ -49,7 +50,7 @@ U8_T base_var;
 extern U8_T max_aos;
 extern U8_T max_dos;
 extern S16_T timezone;
-extern U8_T BVS;
+
 //extern U16_T input_raw[64];
 //extern U16_T output_raw[64];
 //extern S8_T panelname[20];
@@ -2547,7 +2548,7 @@ char Write_temcovars_string_to_buf(uint8_t number,char * str)
 	return 0;
 }
 
-
+#include <string.h>
 
 extern uint8_t header_len;
 extern uint16_t transfer_len;
@@ -2590,53 +2591,66 @@ void Send_UserList_Broadcast(U8_T start,U8_T end)
 	
 }
 
-
+void uart_send_string(U8_T *p, U16_T length,U8_T port);
 int Send_private_scan(U8_T index)
 {
 	BACNET_PRIVATE_TRANSFER_DATA private_data = { 0 };
 	BACNET_APPLICATION_DATA_VALUE data_value = { 0 };
-	uint8_t  test_value[480] = { 0 };
+	//uint8_t  test_value[480] = { 0 };
 	bool status = false;
-	int private_data_len = 0;	
+	int private_data_len = 0;
 	BACNET_ADDRESS dest;
 	uint8_t  temp[500];
-	unsigned short max_apdu = 0;
-	
+	unsigned max_apdu = 0;
+
+	uint8_t* test_value = (uint8_t*)malloc(512);
+	//uint8_t* temp = (uint8_t*)malloc(512);
 	private_data.vendorID = Get_Vendor_ID();
-	private_data.serviceNumber = 1;	
-	
+	private_data.serviceNumber = 1;
+
 	temp[0] = 0x07;
 	temp[1] = 0x00;
 	temp[2] = READ_BACNET_TO_MDOBUS;
 	temp[3] = 0;
 	temp[4] = 0; // start addr is 0
-	temp[5] = 10; 
+	temp[5] = 10;
 	temp[6] = 0;  // len is 10
-	
-	header_len = USER_DATA_HEADER_LEN;	
-	transfer_len = 0;
 
+	header_len = USER_DATA_HEADER_LEN;
+	transfer_len = 0;
+	
 	status = bacapp_parse_application_data(BACNET_APPLICATION_TAG_OCTET_STRING,(char *)&temp, &data_value);
+	
 	private_data_len = bacapp_encode_application_data(&test_value[0], &data_value);
 	private_data.serviceParameters = &test_value[0];
 	private_data.serviceParametersLen = private_data_len;
-	
-	if(count_hold_on_bip_to_mstp > 0)									
-		return -1;
-		
-	flag_mstp_source = 2;   // T3-CONTROLLER
-	Send_Private_Flag = 3;   // send normal bacnet packet
-	TransmitPacket_panel = remote_panel_db[index].sub_id;
-	status = address_get_by_device(remote_panel_db[index].device_id, &max_apdu, &dest);
-	
-	if(status)
-	{
-		if((TransmitPacket_panel < 255) && (TransmitPacket_panel > 0))
-		{
-			invokeid_mstp = Send_ConfirmedPrivateTransfer(&dest,&private_data,BAC_MSTP);
-		}	
-	}
 
+	if(count_hold_on_bip_to_mstp > 0)
+	{
+		free(test_value);
+		//free(temp);
+		return -1;
+	}
+	if(remote_panel_db[index].sub_id != 0)
+	{
+		flag_mstp_source = 2;   // T3-CONTROLLER
+		Send_Private_Flag = 3;   // send normal bacnet packet
+		TransmitPacket_panel = remote_panel_db[index].sub_id;
+		
+		status = address_get_by_device(remote_panel_db[index].device_id, &max_apdu, &dest);
+		if(status)
+		{
+			if((TransmitPacket_panel < 255) && (TransmitPacket_panel > 0))
+			{
+				invokeid_mstp = Send_ConfirmedPrivateTransfer(&dest,&private_data,BAC_MSTP);
+			}
+		}
+	}
+	
+	
+	
+	free(test_value);
+	//free(temp);
 	return invokeid_mstp;
 }
 

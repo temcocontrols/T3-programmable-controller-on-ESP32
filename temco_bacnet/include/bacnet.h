@@ -73,7 +73,7 @@
 #if ASIX
 #define MAX_TSM_TRANSACTIONS  20
 #else
-#define MAX_TSM_TRANSACTIONS  255
+#define MAX_TSM_TRANSACTIONS  20//255
 #endif
 //#if !defined(MAX_TSM_TRANSACTIONS)
 //#define MAX_TSM_TRANSACTIONS  255 //????????????? changed by chelsea
@@ -84,7 +84,7 @@
 /* If your device is a simple server and does not need to bind, */
 /* then you don't need to use this. */
 #if !defined(MAX_ADDRESS_CACHE)
-#define MAX_ADDRESS_CACHE 255
+#define MAX_ADDRESS_CACHE 10//255
 #endif
 
 /* some modules have debugging enabled using PRINT_ENABLED */
@@ -213,7 +213,7 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_TRENDLOG		0//1
 #define BAC_RANGE				0  // dont need range 
 #define BAC_BI				1
-//#define BAC_BV				1
+#define BAC_BV				1
 #define BAC_DCC				0
 #define BAC_PROPRIETARY 1
 
@@ -495,6 +495,7 @@ extern uint8_t  AIS;
 extern uint8_t  AOS;
 extern uint8_t  BIS;
 extern uint8_t  BOS;
+extern uint8_t  BVS;
 extern uint8_t  TemcoVarS;
 
 extern uint8_t AI_Index_To_Instance[MAX_AIS];

@@ -1,6 +1,8 @@
 #include "controls.h"
 #include "product.h"
 #include "define.h"
+#include "scan.h"
+#include "commsub.h"
 
 U8_T base_in;
 U8_T base_out;
@@ -29,32 +31,7 @@ U8_T base_var;
 
 #define SUB_NO  254
 
-#define MAX_ID		255
 
-typedef struct _SCAN_DATABASE_
-{
-	U8_T id;
-	U32_T sn;
-	U8_T port;	// high half byte -- baut , low half byte - port
-	U8_T product_model;
-} SCAN_DB;
-
-
-typedef struct
-{
-  U8_T sub_index;
-	U8_T type;
-	U8_T id;
-	U8_T do_start;
-	U8_T ao_start;
-	U8_T ai_start;
-	U8_T var_start;
-	U8_T do_len;
-	U8_T ao_len;
-	U8_T ai_len;
-	U8_T var_len;
-	U8_T add_in_map;
-}STR_MAP_table;
 
 
 
@@ -70,9 +47,8 @@ U8_T base_out;
 U8_T base_var;
 
 U8_T far sub_no;
-STR_MAP_table far sub_map[SUB_NO];
-U8_T current_online[32]; // Added/subtracted by co2 request command
-SCAN_DB far scan_db[MAX_ID];// _at_ 0x8000;
+
+
 
 U16_T far Test[50];
 //U16_T far input_raw[MAX_INS];

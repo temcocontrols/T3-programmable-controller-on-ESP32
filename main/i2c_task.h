@@ -41,12 +41,12 @@
 #define HI_UINT8(a) (((a) >> 4) & 0x0F)
 #define LO_UINT8(a) ((a) & 0x0F)
 
-typedef enum{
+/*typedef enum{
 	PROJECT_SAUTER,
 	PROJECT_FAN_MODULE=13,
 	PROJECT_POWER_METER=14,
 	PROJECT_AIRLAB=15,
-}project_e;
+}project_e;*/
 
 #pragma pack(push, 1)
 typedef struct{
@@ -78,4 +78,6 @@ extern void i2c_task(void *arg);
 extern void sensirion_sleep_usec(uint32_t useconds);
 extern esp_err_t sensirion_i2c_read(uint8_t address, uint8_t *data, uint16_t count);
 extern esp_err_t sensirion_i2c_write(uint8_t address, const uint8_t *data, uint16_t count);
+extern esp_err_t LED_i2c_write(uint8_t address, const uint8_t *data,uint16_t count);
+extern esp_err_t LED_i2c_read(uint8_t address, uint8_t *data, uint16_t count);
 #endif

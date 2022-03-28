@@ -12,7 +12,8 @@
 #define MAXFRAMEBUFFER			      490 
 #define MAX_SEND_FRAMES             5
 
-
+#define LOW_BYTE(word)	(U8_T)(word & 0x00FF)
+#define HIGH_BYTE(word)	(U8_T)((word & 0xFF00) >> 8)
 
 #define MAX_MON_ELEMENT  200
 

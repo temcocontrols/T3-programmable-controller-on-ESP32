@@ -733,7 +733,16 @@ bool octetstring_init_ascii_hex(
 	#endif
 	status = true;
 #if BAC_PRIVATE
-	octet_string->length = transfer_len + header_len/*USER_DATA_HEADER_LEN*/;
+	if (transfer_len + header_len < MAX_OCTET_STRING_BYTES)
+	{
+		status = true;
+		octet_string->length = transfer_len + header_len/*USER_DATA_HEADER_LEN*/;	
+	}
+	else
+	{
+		octet_string->length = 0;
+		return false;
+	}
 #endif
 	for(index = 0;index < octet_string->length;index++)
 		octet_string->value[index] = ascii_hex[index]; 

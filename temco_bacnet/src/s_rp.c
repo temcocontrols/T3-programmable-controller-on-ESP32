@@ -66,7 +66,7 @@ uint8_t Send_Read_Property_Request_Address(
     uint32_t object_instance,
     BACNET_PROPERTY_ID object_property,
     uint32_t array_index,
-		uint8_t protocal)
+	uint8_t protocal)
 {
     BACNET_ADDRESS my_address;
     uint8_t invoke_id = 0;
@@ -87,6 +87,7 @@ uint8_t Send_Read_Property_Request_Address(
     if (!dest) {
         return 0;
     }
+	
     /* is there a tsm available? */
     invoke_id = tsm_next_free_invokeID();
     if(invoke_id == 0)
@@ -113,17 +114,18 @@ uint8_t Send_Read_Property_Request_Address(
            us and the destination, we won't know unless
            we have a way to check for that and update the
            max_apdu in the address binding table. */
-        if ((uint16_t) pdu_len < max_apdu) {
+
+        if ((uint16_t) pdu_len < 600/*max_apdu*/) {
             tsm_set_confirmed_unsegmented_transaction(invoke_id, dest,
                 &npdu_data, &Handler_Transmit_Buffer[protocal][0], (uint16_t) pdu_len);
-#if ARM					
+				
 					// added by chelsea
 					if(protocal == BAC_MSTP)
 					{
 						memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len);
 						MSTP_Transfer_Len = pdu_len;
 					}
-#endif
+				
 					bytes_sent =
                 datalink_send_pdu(dest, &npdu_data,
                 &Handler_Transmit_Buffer[protocal][0], pdu_len,protocal);
@@ -174,6 +176,7 @@ uint8_t Send_Read_Property_Request(
     bool status = false;
 		invoke_id = 0;
     /* is the device bound? */
+	
     status = address_get_by_device(device_id, &max_apdu, &dest);
     if (status) {
         invoke_id =

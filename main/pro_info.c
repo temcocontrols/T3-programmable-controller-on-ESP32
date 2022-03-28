@@ -2,8 +2,9 @@
 #include "stdint.h"
 #include "esp_attr.h"
 #include "esp_app_format.h"
+#include "define.h"
 
-#define SOFTREV     20
+
 
 #define FW_VER_HIGH (SOFTREV >> 8)
 #define FW_VER_LOW 	(SOFTREV & 0xff)

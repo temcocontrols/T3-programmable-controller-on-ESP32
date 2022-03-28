@@ -63,7 +63,7 @@ void handler_i_am_add(
         iam_decode_service_request(service_request, &device_id, &max_apdu,
         &segmentation, &vendor_id);
 	
-#if BAC_MASTER
+
 		if(vendor_id == 148) // Temco panel 
 		{
 			if(service_len == 13) // old firmware
@@ -73,7 +73,7 @@ void handler_i_am_add(
 		}
 		else 
 			panel = 0;
-#endif
+
 	
 #if PRINT_ENABLED
     fprintf(stderr, "Received I-Am Request");

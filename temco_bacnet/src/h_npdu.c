@@ -101,7 +101,7 @@ void npdu_handler(
 			    /* only handle the version that we know how to handle */
                 /* and we are not a router, so ignore messages with
                    routing information cause they are not for us */
-				Test[10]++;			
+				
 				apdu_handler(src, &pdu[apdu_offset],
                     (uint16_t) (pdu_len - apdu_offset), protocal);
 			//	printf("pdu: %s",pdu);
@@ -112,15 +112,15 @@ void npdu_handler(
 							
 #if BAC_MASTER
 #if ARM
-							// it is a router 
-							if(protocal == BAC_IP)
-							{ 	// transfer BIP TO MSTP pdu	
-								Transfer_Bip_To_Mstp_pdu(pdu,pdu_len);
-							}
-							else
-							{ // transfer MSTP TO BIP PDU
-								Transfer_Mstp_To_Bip_pdu(src->mac[0],pdu,pdu_len);
-							}
+					// it is a router 
+					if(protocal == BAC_IP)
+					{ 	// transfer BIP TO MSTP pdu	
+						Transfer_Bip_To_Mstp_pdu(pdu,pdu_len);
+					}
+					else
+					{ // transfer MSTP TO BIP PDU
+						Transfer_Mstp_To_Bip_pdu(src->mac[0],pdu,pdu_len);
+					}
 #endif
 #endif
             }

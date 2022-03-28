@@ -5,26 +5,11 @@
 #include "scan.h"
 #include "ProductModel.h"
 
-#define SUB_NO  5//254
 
-// ¿©’πIO”≥…‰
-typedef struct
-{
-  U8_T sub_index;
-	U8_T type;
-	U8_T id;
-	U8_T do_start;
-	U8_T ao_start;
-	U8_T ai_start;
-	U8_T var_start;
-	U8_T do_len;
-	U8_T ao_len;
-	U8_T ai_len;
-	U8_T var_len;
-	U8_T add_in_map;
-}STR_MAP_table;
 
-extern STR_MAP_table far sub_map[SUB_NO];
+
+
+extern EXT_RAM_ATTR STR_MAP_table far sub_map[SUB_NO];
 //extern TST_INFO far tst_info[SUB_NO];
 
 //extern U8_T far tst_addr_index[3];
@@ -32,11 +17,11 @@ extern STR_MAP_table far sub_map[SUB_NO];
 
 
 //extern U8_T far sub_addr[SUB_NO];
-extern U8_T far uart0_sub_addr[SUB_NO];
+extern EXT_RAM_ATTR U8_T far uart0_sub_addr[SUB_NO];
 
 
-extern U8_T far uart1_sub_addr[SUB_NO];
-extern U8_T far uart2_sub_addr[SUB_NO];	
+extern EXT_RAM_ATTR U8_T far uart1_sub_addr[SUB_NO];
+extern EXT_RAM_ATTR U8_T far uart2_sub_addr[SUB_NO];
 extern U8_T far uart1_sub_no;
 extern U8_T far uart2_sub_no;
 

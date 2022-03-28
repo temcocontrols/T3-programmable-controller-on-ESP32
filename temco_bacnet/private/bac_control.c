@@ -1013,14 +1013,14 @@ void check_output_priority_HOA(U8_T i)
 			}
 		}
 		else if(outputs[i].switch_status == SW_AUTO)// auto
-		{//Test[16]++;
+		{
 			output_priority[i][6] = 0xff;	
 			check_output_priority_array(i,1);
 		}
 		else
 		{
 			// error status
-//			Test[30]++;
+
 		}
 
 }

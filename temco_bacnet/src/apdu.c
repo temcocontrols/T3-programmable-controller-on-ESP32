@@ -524,10 +524,10 @@ void apdu_handler(
 #if  BAC_PRIVATE
 							else if (service_choice == SERVICE_CONFIRMED_PRIVATE_TRANSFER) 
 							{
-#ifdef T3_CON
+
 					if(	protocal == BAC_MSTP)
 						count_hold_on_bip_to_mstp = 10;			
-#endif								
+								
 								handler_private_transfer(apdu,apdu_len,src,protocal);	 // add private transfer by chelsea
 							}
 #endif							
@@ -596,7 +596,7 @@ void apdu_handler(
 									}
 #endif				
 									if (service_choice == SERVICE_UNCONFIRMED_WHO_IS) 
-									{Test[12]++;	
+									{
 										if(	protocal == BAC_MSTP)
 										{	 
 											if((apdu_len == 5) &&
@@ -607,7 +607,7 @@ void apdu_handler(
 												count_suspend_mstp = service_request[2] * 60;
 												
 											}
-											else{	Test[13]++;	
+											else{	
 											
 												// supposed it is "10 08"
 											handler_who_is(service_request,service_request_len, src);}
@@ -702,7 +702,8 @@ void apdu_handler(
                 if (service_ack_data.segmented_message) {
                     service_ack_data.sequence_number = apdu[len++];
                     service_ack_data.proposed_window_number = apdu[len++];
-                }
+                }	
+				
                 service_choice = apdu[len++];
                 service_request = &apdu[len];
                 service_request_len = apdu_len - (uint16_t) len; 
@@ -715,14 +716,14 @@ void apdu_handler(
 //                    case SERVICE_CONFIRMED_ATOMIC_WRITE_FILE:											
 //                        /* Object Access Services */
 //                    case SERVICE_CONFIRMED_CREATE_OBJECT:
-                    case SERVICE_CONFIRMED_READ_PROPERTY:
+                    case SERVICE_CONFIRMED_READ_PROPERTY:					
 #if BAC_MASTER
-											Handler_Complex_Ack(apdu,apdu_len,protocal);
+										Handler_Complex_Ack(apdu,apdu_len,protocal);
 #endif
 											break;
 //                    case SERVICE_CONFIRMED_READ_PROP_CONDITIONAL:
 //                    case SERVICE_CONFIRMED_READ_PROP_MULTIPLE:
-                    case SERVICE_CONFIRMED_READ_RANGE:  
+                    case SERVICE_CONFIRMED_READ_RANGE: 
 #if READ_RANGE
 											handler_read_range(
 										service_request,service_request_len, 
@@ -733,7 +734,7 @@ void apdu_handler(
                         /* Virtual Terminal Services */
 										// tbd:
 #if ARM
-#if 0//BAC_MASTER
+#if BAC_MASTER
 											handler_conf_private_trans_ack(
 										service_request,service_request_len, 
 										apdu,apdu_len,protocal);		
@@ -814,7 +815,7 @@ void apdu_handler(
              //       Abort_Function(src, invoke_id, reason, server);
             //    tsm_free_invoke_id(invoke_id);
                 break;
-            default:   
+            default:  
                 break;
         }
 

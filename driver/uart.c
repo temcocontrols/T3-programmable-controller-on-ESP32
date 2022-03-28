@@ -50,10 +50,11 @@
 
 #define MSTP 1
 
+extern uint16_t Test[50];
 #if MSTP
 #include "fifo.h"
 
-uint8_t get_protocal(void);
+uint8_t get_protocal(uint8_t port);
 extern FIFO_BUFFER Receive_Buffer2;
 #endif
 
@@ -1107,7 +1108,7 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
         return 0;
     }
     size_t original_size = size;
-
+	Test[10]++;
     //lock for uart_tx
     xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)portMAX_DELAY);
     p_uart_obj[uart_num]->coll_det_flg = false;
@@ -1131,7 +1132,7 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
             uart_enable_tx_intr(uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
         }
     } else {
-        while(size) {
+        while(size) {Test[42]++;
             //semaphore for tx_fifo available
             if(pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_fifo_sem, (portTickType)portMAX_DELAY)) {
                 uint32_t sent = 0;
@@ -1159,7 +1160,7 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
             xSemaphoreTake(p_uart_obj[uart_num]->tx_brk_sem, (portTickType)portMAX_DELAY);
         }
         xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
-    }
+    }Test[44]++;
     xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
     return original_size;
 }
@@ -1239,9 +1240,9 @@ int uart_read_bytes(uart_port_t uart_num, void* buf, uint32_t length, TickType_t
         memcpy((uint8_t *)buf + copy_len, p_uart_obj[uart_num]->rx_ptr, len_tmp);
 #if MSTP		
 		
-		if(get_protocal()== 9)  // MSTP
+		if(get_protocal(uart_num)== 9)  // MSTP
 		{
-			uint8_t i;
+			uint16_t i;
 			uint8_t * tmp_ptr;			
 			tmp_ptr = p_uart_obj[uart_num]->rx_ptr;			
 			for(i = 0; i < len_tmp;i++)

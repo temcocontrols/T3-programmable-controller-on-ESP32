@@ -1,8 +1,9 @@
 #ifndef __WIFI_H
 #define __WIFI_H
 
+#include "esp_wifi.h"
 
-#define DEBUG_INFO_UART0	0//
+#define DEBUG_INFO_UART0	0
 
 typedef enum
 {

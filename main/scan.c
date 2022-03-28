@@ -16,7 +16,7 @@
 #define ScanNetSTACK_SIZE	  512
 
 void uart_send_string(U8_T *p, U16_T length,U8_T port);
-//xTaskHandle Handle_Scan, Handle_Scan_net;
+xTaskHandle Handle_Scan;
 //xTaskHandle Handle_COV;
 //void check_id_alarm(uint8_t type, uint8_t id, uint32_t old_sn, uint32_t new_sn);
 void add_id_online(U8_T index);
@@ -27,17 +27,19 @@ U8_T force_scan;
 U16_T modbus_scan_count;
 extern U8_T count_reset_zigbee;
 extern U16_T last_reset_zigbee;
-
+extern xSemaphoreHandle sem_uart;
 U8_T far scan_port;
 U8_T far scan_baut;
 
-//u8 tcp_server_sendbuf[300];
-//u16 tcp_server_sendlen;
+U32_T com_rx[3];
+U32_T com_tx[3];
+U16_T collision[3];  // id collision
+U16_T packet_error[3];  // bautrate not match
+U16_T timeout[3];
 
 void Change_com_config(U8_T port);
 
-#define STACK_LEN  20
-#define MAX_WRITE_RETRY 3//10
+
 typedef struct
 {
 	U8_T func;
@@ -53,30 +55,18 @@ STR_NODE_OPERATE far node_write[STACK_LEN];
 
 typedef enum { WRITE_OK = 0,WAIT_FOR_WRITE};
 
-#if TEST
-typedef struct
-{
-	U8_T ip;
-	U8_T func;
-	U8_T id;
-	U16_T reg;
-	U16_T value;
-	U8_T len;
-	U8_T flag;
-	U8_T retry;
-}STR_NP_NODE_OPERATE;
-STR_NP_NODE_OPERATE far np_node_write[STACK_LEN];
-#endif
 
-U32_T far com_rx[2];
-U32_T far com_tx[2];
-U16_T far collision[2];  // id collision
-U16_T far packet_error[2];  // bautrate not match
-U16_T far timeout[2];
-U32_T far zigbee_error;
+STR_NP_NODE_OPERATE NP_node_write[STACK_LEN];
 
-U8_T temp_baut[2];
-U8_T flag_temp_baut[2];
+
+U32_T  com_rx[3];
+U32_T  com_tx[3];
+U16_T  collision[3];  // id collision
+U16_T  packet_error[3];  // bautrate not match
+U16_T  timeout[3];
+
+U8_T temp_baut[3];
+U8_T flag_temp_baut[3];
 
 //U8_T far flag_scan_sub;
 //U8_T far count_scan_sub_by_hand;
@@ -301,6 +291,9 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 
 	if(length > 0)
 	{
+		if(port == 0)	led_sub_tx++;
+		else if(port == 2)	led_main_tx++;
+		com_tx[port]++;
 		ret = receive_scan_reply(subnet_response_buf, length);
 	}
 	else // NONE_ID || MULTIPLE_ID
@@ -363,6 +356,9 @@ U8_T assignment_id_with_sn(U8_T old_id, U8_T new_id, U32_T current_sn,U8_T port)
 		length = 0; // tbd:
 	if(length > 0)
 	{
+		if(port == 0)	led_sub_tx++;
+				else if(port == 2)	led_main_tx++;
+		com_tx[port]++;
 		ret = receive_assign_id_reply(subnet_response_buf, 12);
 	}
 
@@ -627,15 +623,15 @@ U8_T get_baut_by_port(U8_T port)
 	{
 		if(Modbus.com_config[0] == MODBUS_MASTER)
 			return Modbus.baudrate[0];
-		else 	if(Modbus.com_config[1] == MODBUS_MASTER)
-			return Modbus.baudrate[1];
+		else 	if(Modbus.com_config[2] == MODBUS_MASTER)
+			return Modbus.baudrate[2];
 		else
 			return 19200;
 	}
 	else	if(port == 1)	
 		return Modbus.baudrate[0];
 	else
-		return Modbus.baudrate[1];//scan_port;
+		return Modbus.baudrate[2];//scan_port;
 	
 }
 
@@ -1186,6 +1182,9 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 
 	if(length > 0)	 
 	{
+		if(port == 0)	led_sub_tx++;
+		else if(port == 2)	led_main_tx++;
+		com_tx[port]++;
 		crc_check = crc16(subnet_response_buf,length - 2);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[length - 2]) && (LOW_BYTE(crc_check) == subnet_response_buf[length - 1]))
 		{
@@ -1463,16 +1462,10 @@ void write_parameters_to_nodes(uint8_t func,uint8 id, uint16 reg, uint16* value,
 		
 		if(len == 1)
 		{
-#if (ASIX_MINI || ASIX_CM5)
-			node_write[i].value[0] = value[1] + (U16_T)(value[0] << 256);
-#endif
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			node_write[i].value[0] = value[0];
-#endif
 		}
 		else
 		{			
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )			
 			U8_T temp_value[50];
 			U8_T j;
 			for(j = 0;j < len / 2;j++)
@@ -1481,11 +1474,6 @@ void write_parameters_to_nodes(uint8_t func,uint8 id, uint16 reg, uint16* value,
 				temp_value[j * 2 + 1] = value[j];
 			}
 			memcpy(&node_write[i].value[0],&temp_value,len);
-#endif
-	
-#if (ASIX_MINI || ASIX_CM5)
-			memcpy(&node_write[i].value[0],value,len);
-#endif
 		}
 		node_write[i].len = len;
 		node_write[i].flag = WAIT_FOR_WRITE;
@@ -1505,21 +1493,12 @@ void check_write_to_nodes(U8_T port)
 	{
 		if(node_write[i].flag == WAIT_FOR_WRITE) //	get current index, 1 -- WAIT_FOR_WRITE, 0 -- WRITE_OK
 		{
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			if(node_write[i].retry < MAX_WRITE_RETRY)
 			{
 				node_write[i].retry++;
 				break;
 			}
 			else
-#else
-			if(node_write[i].retry < 1)  // ASIX
-			{
-				node_write[i].retry++;
-				break;
-			}
-			else
-#endif			
 			{  	// retry 10 time, give up
 				node_write[i].flag = WRITE_OK; 
 				node_write[i].retry = 0;
@@ -1555,14 +1534,38 @@ void check_write_to_nodes(U8_T port)
 		buf[1] = node_write[i].func;
 		buf[4] = 0;
 		buf[5] = node_write[i].len;
-		buf[6] = node_write[i].len * 2;
 
-		for(j = 0;j < node_write[i].len;j++)
+		if(node_write[i].func == 0x0f)
 		{
-			
-			buf[7 + j * 2] = HIGH_BYTE(node_write[i].value[j]);
-			buf[8 + j * 2] = LOW_BYTE(node_write[i].value[j]);
-		}	
+			uint8_t temp = 0;
+			buf[6] = (node_write[i].len + 7) / 8;
+
+			for( j = 0;j < node_write[i].len;j++)
+			{
+				temp |= ((node_write[i].value[j] != 0) ? 1 : 0) << (j % 8);
+
+				if((j + 1) % 8 == 0)
+				{
+					buf[6 + (j + 1) / 8] = temp;
+					temp = 0;
+				}
+				else if(j + 1 == node_write[i].len)
+				{
+					buf[6 + (j + 1) / 8 + 1] = temp;
+				}
+			}
+
+		}
+		else
+		{
+			buf[6] = node_write[i].len * 2;
+
+			for(j = 0;j < node_write[i].len;j++)
+			{
+				buf[7 + j * 2] = HIGH_BYTE(node_write[i].value[j]);
+				buf[8 + j * 2] = LOW_BYTE(node_write[i].value[j]);
+			}
+		}
 		crc_check = crc16(buf, buf[6] + 7); // crc16
 		buf[buf[6] + 7] = HIGH_BYTE(crc_check);				 
 		buf[buf[6] + 8] = LOW_BYTE(crc_check);
@@ -1605,6 +1608,9 @@ void check_write_to_nodes(U8_T port)
 		length = 0; // tbd:
 	if(length > 0)
 	{
+		if(port == 0)	led_sub_tx++;
+		else if(port == 2)	led_main_tx++;
+		com_tx[port]++;
 		node_write[i].flag = WRITE_OK; // without doing checksum
 //		node_write[i].id = 0;
 //		node_write[i].reg = 0;
@@ -1714,7 +1720,7 @@ void Scan_Idle(void)
 				add_id_online(index_sub);
 			}
 			//else	
-			{									
+			{
 				get_parameters_from_nodes(index_sub,0); // heartbeat
 			}
 		}
@@ -1767,8 +1773,9 @@ void ScanTask(void)
 
 	while(1)	 
 	{	
+		if(flag_suspend_scan == 0)
+		{
 		// write schedule data
-
 #if (ARM_MINI || ARM_CM5 )
 		SendSchedualData(0);
 #if TIME_SYNC	
@@ -1776,9 +1783,9 @@ void ScanTask(void)
 		Schedule_Sync_Tstat();
 #endif
 #endif	
-
+		Test[46]++;
 		check_whether_force_scan();
-		if(tempcount >= 10000 / READ_POINT_TIMER)	 // 20s
+		if(tempcount >= 20000 / READ_POINT_TIMER)	 // 20s
 		{
 			if(subcom_num >= 1)
 			{
@@ -1789,8 +1796,10 @@ void ScanTask(void)
 				} 
 				else
 					comindex1 = 0;
-				scan_sub_nodes(port);		   // 19200	
-				
+
+				scan_sub_nodes(port);		   // 19200
+
+
 			} 						
 			tempcount = 0;
 		}
@@ -1809,10 +1818,12 @@ void ScanTask(void)
 			else
 			{
 				type = 0;	
-			}		
+			}
+
 			
 			if(type == 0)  // hearbeat or program
-			{					
+			{
+
 				Scan_Idle();
 			}
 			else
@@ -1826,15 +1837,14 @@ void ScanTask(void)
 						comindex2++;	
 					} 
 					else
-						comindex2 = 0;				
-				
-				if(port == 1) // zigbee port, slow down
-					vTaskDelay( READ_POINT_TIMER * 4 / portTICK_RATE_MS);
+						comindex2 = 0;
 
+				
 				check_write_to_nodes(port);  // write have high priority
 					// no write cmd, then read
 					if(number_of_remote_points_modbus == 0) 
 					{  // no remote point, go to heartbeat 
+
 						Scan_Idle();	
 						vTaskDelay( READ_POINT_TIMER * 50 / portTICK_RATE_MS);
 						tempcount = tempcount + 50;
@@ -1843,6 +1853,7 @@ void ScanTask(void)
 					else
 					{		
 						U8_T temp_index;
+
 						if(remote_modbus_index < number_of_remote_points_modbus)
 						{						
 							remote_modbus_index++;	
@@ -1859,6 +1870,7 @@ void ScanTask(void)
 							|| (!(db_online[remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id / 8] & (1 << (remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id % 8))))  // not in DB
 						)						
 						{
+
 							// current device is on line, read remote point one by one
 							if(remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id > 0)
 							{
@@ -1879,8 +1891,10 @@ void ScanTask(void)
 						}	
 
 					}
+
 				}		
-			}				
+			}
+
 		}
 	
 		if(scan_db_changed == TRUE)
@@ -1892,7 +1906,17 @@ void ScanTask(void)
 			// tbd: save to flash
 			scan_db_changed = FALSE;			
 		}
-		
+
+		}
+		else
+		{
+			if(suspend_scan_count++ > 10)
+			{
+				flag_suspend_scan = 0;
+				suspend_scan_count = 0;
+			}
+			vTaskDelay(1000 / portTICK_RATE_MS);
+		}
 	}
 }
 
@@ -1925,657 +1949,58 @@ void Check_On_Line(void)
 
 }
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-uint8_t far invokeid_mstp;
-uint8_t far flag_receive_rmbp;  // remote bacnet points
-
-
-U8_T Send_bip_Flag;  // 0 - no send, 1- send , 2 - wait
-U8_T Send_bip_Flag2;  // 0 - no send, 1- send , 2 - wait
-U8_T far Send_bip_address[6];
-U8_T far Send_bip_address2[6];
-U8_T far Send_bip_count;
-U8_T far Send_bip_count2;
-
-U8_T far count_send_bip2;
-
-
-#if (ARM_MINI  || ARM_CM5)
-
-
-
-
-uint8_t far flag_receive_netp;	// network points 
-uint8_t far flag_receive_netp_temcovar;	// network points 
-//uint8_t far flag_receive_netp_temcoreg;
-//uint8_t far temcoreg[20];
-uint8_t far temcovar_panel;
-uint8_t far temcovar_panel_invoke;
-//uint8_t far temcoreg_panel_invoke;
-uint8_t far flag_receive_netp_modbus;	// network points modbus
-//U8_T far flag_bip_client_reading;
-//U8_T far count_bip_client_reading;
-U8_T far count_send_bip;
-// 避免死锁在主动发送，5s发送不成功，切换为server接受模式
-void Check_Send_bip(void)
+void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * value, U8_T len)
 {
-	if(Send_bip_Flag != 0)
-	{	
-		if(count_send_bip++ < 5)
-			count_send_bip++;
-		else
-		{
-			Send_bip_Flag = 0;
-		}
-	}
-	if(Send_bip_Flag2 != 0)
-	{	
-		if(count_send_bip2++ < 5)
-			count_send_bip2++;
-		else
-		{
-			Send_bip_Flag2 = 0;
-		}
-	}	
-}
 
-//void Set_bip_client_reading_flag(void)
-//{
-//	if(flag_bip_client_reading == 0)
-//		flag_bip_client_reading = 1;
-//	count_bip_client_reading = 0;
-//}
-
-//// implemet 1 time per second
-//void Count_bip_client_reading(void)
-//{
-//		if(flag_bip_client_reading == 1)
-//		{
-//			count_bip_client_reading++;
-//			if(count_bip_client_reading >= 5) 
-//			{
-//				flag_bip_client_reading = 0;
-//				count_bip_client_reading = 0;
-//			}
-//		}
-//}
-
-
-
-uint8_t Master_Scan_Network_Count = 0;
-void Send_Time_Sync_To_Network(void);
-uint8_t flag_start_scan_network;
-uint8_t start_scan_network_count;
-U16_T scan_network_bacnet_count = 0;
-U8_T flag_send_get_panel_number;
-
-extern uint32 multicast_addr;	
-#if COV
-void Handler_COV_Task(void)	reentrant
-{
-	handler_cov_init();
-
-	while(1)
+	U8_T i = 0;
+	for(i = 0;i < STACK_LEN;i++)
 	{
-		if(flag_start_scan_network == 0) 
-		{
-			handler_cov_task(BAC_IP_CLIENT2);		
-		}	
-		//else
-		{
-			delay_ms(1000);
-		}
-	}
-}
-#endif
-
-void Scan_network_bacnet_Task(void)
-{
-//	portTickType xDelayPeriod = (portTickType)1000 / portTICK_RATE_MS;
-	U8_T port = 0;
-	U8_T wait_count;
-	U8_T far network_point_index;	
-	U8_T send_whois_interval;
-	int invoke;
-	bip_set_port(UDP_BACNET_LPORT);
-
-//	count_send_bip = 0;
-	Modbus.network_master = 0;  // ONLY FOR NETWORK TEST
-	
-//	Set_bip_client_reading_flag();
-	task_test.enable[3] = 1;
-	
-	Send_Time_Sync_To_Network();
-	send_whois_interval = 1;				
-	scan_network_bacnet_count = 0;
-	while(1)
-	{
-		vTaskDelay( 500 / portTICK_RATE_MS);
-		task_test.count[3]++;
-		current_task = 3;
-#if 1
-		Master_Scan_Network_Count++;
-		if(Master_Scan_Network_Count >= 180)
-		{  // did not find master 
-			// current panel is master
-			Modbus.network_master = 1;									
-			Master_Scan_Network_Count = 0;
-
-		}				
-
-		// 为了确保不会间隔太久
-		if(scan_network_bacnet_count > 64)
-			scan_network_bacnet_count = 64;
-		if(scan_network_bacnet_count % send_whois_interval == 0)  // 1min+
-		{
-			if(send_whois_interval < 50)
-				send_whois_interval *= 2;
-			if(flag_start_scan_network == 1) 
-			{// if no network points, do not scan scan command
-				if((start_scan_network_count++ < 2))
-				{		
-// 两个广播地址二选一	
-					static char tempindex = 0;
-					Send_bip_count = MAX_RETRY_SEND_BIP;
-					Send_bip_Flag = 1;
-					count_send_bip = 0;
-					
-					if(tempindex++ % 2 == 0) // broadcast
-					{				
-						Set_broadcast_bip_address(multicast_addr);
-						bip_set_broadcast_addr(multicast_addr);
-					}
-					else 
-					{			
-						Set_broadcast_bip_address(0xffffffff);
-						bip_set_broadcast_addr(0xffffffff);								
-					}
-
-					Send_WhoIs(-1,-1,BAC_IP_CLIENT);
-				}
-				else
-				{
-					start_scan_network_count = 0;
-					flag_start_scan_network = 0;
-				}
-			}
-			
-			scan_network_bacnet_count = 0;
-				
-		}
-		else  // check whether reading remote point 
-		{
-
-			char i;
-			for(i = 0;i < remote_panel_num;i++)
-			{// get panel number from proprietary
-				if(remote_panel_db[i].protocal == BAC_IP 
-					&& remote_panel_db[i].product_model == 1)
-				{		
-					flag_receive_netp_temcovar = 0;						
-					Send_bip_Flag = 1;	
-					count_send_bip = 0;
-					Get_address_by_instacne(remote_panel_db[i].device_id,Send_bip_address);	
-					Send_bip_count = MAX_RETRY_SEND_BIP;
-					temcovar_panel_invoke	= Send_Read_Property_Request(remote_panel_db[i].device_id,
-					PROPRIETARY_BACNET_OBJECT_TYPE,1,/* panel number is proprietary 1*/
-					PROP_PRESENT_VALUE,0,BAC_IP_CLIENT);
-					temcovar_panel = 0;
-					if(temcovar_panel_invoke >= 0)
-					{	
-						remote_panel_db[i].retry_reading_panel++;					
-						wait_count = 0;	
-						while((flag_receive_netp_temcovar == 0) && (wait_count++ < 30))
-						{
-							IWDG_ReloadCounter(); 
-							vTaskDelay( 100 / portTICK_RATE_MS);
-						}
-						if(flag_receive_netp_temcovar == 1)
-						{	
-							char j;
-							remote_panel_db[i].product_model = 2;
-// if update panel and sub_id, should update network points table also
-							for(j = 0;j < number_of_network_points_bacnet;j++)
-							{
-								if(network_points_list_bacnet[j].instance == remote_panel_db[i].device_id)
-								{// instance is same, update panel
-									if(temcovar_panel != 0)
-									{
-										network_points_list_bacnet[j].point.panel = temcovar_panel;
-										network_points_list_bacnet[j].point.sub_id = temcovar_panel;
-									}
-								}
-							}
-							if(temcovar_panel != 0)
-							{
-								remote_panel_db[i].panel = temcovar_panel;
-								remote_panel_db[i].sub_id = temcovar_panel;
-							}
-							else
-							{
-								;//Test[10]++;
-							}
-							
-						}
-						
-						// if retry many times, means it is old panel or other product
-						if(remote_panel_db[i].retry_reading_panel > 10)
-						{
-							remote_panel_db[i].product_model = 2;
-							remote_panel_db[i].retry_reading_panel = 0;
-						}
-					}
-					
-					vTaskDelay( 1000 / portTICK_RATE_MS);
-					scan_network_bacnet_count++;
-				}
-
-			}
-			
-//			for(i = 0;i < remote_panel_num;i++)
-//			{// get sn,id,object instance, product module by reading bac_to_modbus
-//				if(remote_panel_db[i].protocal == BAC_IP 
-//					&& remote_panel_db[i].product_model == 2
-//					&& remote_panel_db[i].retry_reading_panel > 0)
-//				{
-//					//uint16_t databuf[10];
-//					// reg0-reg7
-//					Send_bip_Flag = 1;
-//					memset(&temcoreg,0,20);
-//					temcoreg_panel_invoke = GetPrivateBacnetToModbusData(remote_panel_db[i].device_id,0,10,NULL,BAC_IP_CLIENT);
-//					if(temcoreg_panel_invoke > 0)
-//					{
-//						while((flag_receive_netp_temcoreg == 0) && (wait_count++ < 30))
-//						{
-//							IWDG_ReloadCounter(); 
-//							vTaskDelay( 100 / portTICK_RATE_MS);
-//						}
-//						
-//						if(flag_receive_netp_temcoreg == 1)
-//						{
-//							remote_panel_db[i].sn = (U32_T)(temcoreg[0] << 24) + (U32_T)(temcoreg[2] << 16) +
-//									(U16_T)(temcoreg[4] << 8) + temcoreg[6];
-//							remote_panel_db[i].sub_id =  temcoreg[12];
-//							remote_panel_db[i].product_model =  temcoreg[14];
-//							
-//						}
-//					}
-//				}
-//			}
-			// find remote point from remote panel
-			if(number_of_network_points_bacnet > 0) 
-			{		
-				for(network_point_index = 0;network_point_index < number_of_network_points_bacnet;network_point_index++)
-				{
-					if(network_points_list_bacnet[network_point_index].lose_count > 5)
-					{
-						network_points_list_bacnet[network_point_index].lose_count = 0;
-						network_points_list_bacnet[network_point_index].decomisioned = 0;
-					}
-					flag_receive_netp = 0;								
-					network_points_list_bacnet[network_point_index].invoked_id = 0;
-					//if(flag_bip_client_reading == 0)  // if reading program code, dont read network points
-					{	
-							invoke	= 
-									GetRemotePoint(network_points_list_bacnet[network_point_index].point.point_type & 0x1f,
-											network_points_list_bacnet[network_point_index].point.number + (U16_T)((network_points_list_bacnet[network_point_index].point.point_type & 0xe0) << 3),
-											network_points_list_bacnet[network_point_index].point.panel ,
-											network_points_list_bacnet[network_point_index].point.sub_id,
-											BAC_IP_CLIENT);
-						vTaskDelay( 100 / portTICK_RATE_MS);
-					}	
-					
-					if(invoke >= 0)
-					{u32 t1,t2;
-						network_points_list_bacnet[network_point_index].invoked_id = invoke;					
-					
-				// check whether the device is online or offline	
-						// wait whether recieve_netp
-						wait_count = 0;
-						t1 = uip_timer;
-						while((flag_receive_netp == 0) && (wait_count++ < 30))
-						{
-							IWDG_ReloadCounter(); 
-							vTaskDelay( 50 / portTICK_RATE_MS);
-						}
-//						Test[13] = uip_timer - t1;
-//						Test[14]++;
-						if(flag_receive_netp == 1)
-						{
-							U8_T remote_panel_index;
-							network_points_list_bacnet[network_point_index].lose_count = 0;
-							network_points_list_bacnet[network_point_index].decomisioned = 1;
-							if(Get_rmp_index_by_panel(network_points_list_bacnet[network_point_index].point.panel,
-							network_points_list_bacnet[network_point_index].point.sub_id, 
-							&remote_panel_index,BAC_IP_CLIENT) != -1)
-							{								
-								remote_panel_db[remote_panel_index].time_to_live = RMP_TIME_TO_LIVE;
-							}
-						}
-						else
-						{
-							network_points_list_bacnet[network_point_index].lose_count++;
-							//network_points_list[network_point_index].decomisioned = 0;
-						}
-					}
-					else  // if invoked id is 0, this point is off line
-					{
-						//network_points_list[network_point_index].decomisioned = 0;
-						network_points_list_bacnet[network_point_index].lose_count++;
-					}	
-					vTaskDelay( 500 / portTICK_RATE_MS);
-					scan_network_bacnet_count++;
-				}				
-			}
-		}
-#endif
-		scan_network_bacnet_count++;
-	}
-}
-
-
-
-extern uint8_t flag_Modbus_Client_Send;
-extern uint8_t Modbus_Client_Command[UIP_CONNS][20];
-extern uint8_t Modbus_Client_CmdLen;
-extern uint8_t Modbus_Client_State;
-extern uint8_t tcp_client_sta[UIP_CONNS];
-
-
-int8_t Get_uip_conn_pos(uip_ipaddr_t *lripaddr, u16_t lrport)
-{
-	char c;
-	struct uip_conn * conn;
-	for(c = 0; c < UIP_CONNS; ++c) 
-	{
-    conn = &uip_conns[c];
-		
-		// ip and port 
-		// tcp client
-	
-		if((memcmp(conn->ripaddr,lripaddr,4) == 0)  
-			&& (conn->rport == lrport))
-		{
-			if(conn->tcpstateflags == UIP_CLOSED ||
-				conn->tcpstateflags == UIP_TIME_WAIT)
-			{
-				return -1;
-			}
-			else
-			{			
-				return c;
-			}
-		}
-		
-		// tcp server
-		if((memcmp(conn->ripaddr,lripaddr,4) == 0)  
-			&& (conn->lport == lrport)
-		)
-		{
-			return c;
-		}
-	}
-	
-	return -1;
-}
-
-#if NETWORK_MODBUS	
-struct uip_conn * replace_old_pos_connection(uint8_t old,uip_ipaddr_t *ripaddr, u16_t rport)
-{
-	struct uip_conn *conn;	
-
-	conn = &uip_conns[old];
-	
-	conn->tcpstateflags = UIP_SYN_SENT;
-	conn->initialmss = conn->mss = UIP_TCP_MSS;
-  
-//  conn->len = 1;   /* TCP length of the SYN is one. */
-//  conn->nrtx = 0;
-//  conn->timer = 1; /* Send the SYN next time around. */
-//  conn->rto = UIP_RTO;
-//  conn->sa = 0;
-//  conn->sv = 16;   /* Initial value of the RTT variance. */
-//  conn->lport = htons(lastport);
-//  conn->rport = rport;
-	
-  uip_ipaddr_copy(&conn->ripaddr, ripaddr);
-	
-	return conn;
-}
-
-
-
-int8_t conn_pos = -1;
-static u8_t tcp_client_transaction_id = 0;
-
-int Get_Network_Point_Modbus(uint8_t network_point_index)//ip,uint8_t sub_id,uint8_t func,uint16 reg)
-{
-	uip_ipaddr_t ipaddr;
-	struct uip_conn * Modbus_Client_Conn[UIP_CONNS];
-	uint8_t count;
-	uint8_t ip,sub_id,func,reg;
-
-	if(cSemaphoreTake(sem_Modbus_Client_Send, 50) == pdFALSE)
-	{
-		return 0;
-	}	
-
-	ip = network_points_list_modbus[network_point_index].point.panel;
-	sub_id = network_points_list_modbus[network_point_index].tb.NT_modbus.id;
-	func = network_points_list_modbus[network_point_index].tb.NT_modbus.func & 0x7f;
-	reg = network_points_list_modbus[network_point_index].tb.NT_modbus.reg;
-// 	tcp client reconnect
-// if first connect this ip, connect it.
-	
-	uip_ipaddr(ipaddr, Modbus.ip_addr[0], Modbus.ip_addr[1], Modbus.ip_addr[2], ip);		//??IP?192.168.1.103
-
-	do
-	{
-		conn_pos = Get_uip_conn_pos(&ipaddr, htons(Modbus.tcp_port));
-
-		if(conn_pos == -1)
-		{
-			uip_connect(&ipaddr, htons(Modbus.tcp_port));
-		}
-		else
+		if(NP_node_write[i].flag == WRITE_OK)
 			break;
-	}while(conn_pos == -1);		
-		
-	Modbus_Client_Conn[conn_pos] = &uip_conns[conn_pos];
-	if(Modbus_Client_Conn[conn_pos]->tcpstateflags == UIP_CLOSED)	
+	}
+	
+	if(i == STACK_LEN)
+	{  // stack full
+	// tbd
+		//return -1;
+	}
+	else
 	{
-		Modbus_Client_Conn[conn_pos] = uip_connect(&ipaddr, htons(Modbus.tcp_port));
-	}	
-	
-	
-	if(Modbus_Client_Conn[conn_pos] != NULL)
-	{	
-		if(tcp_client_transaction_id < 127)
-			tcp_client_transaction_id++;
-		else
-			tcp_client_transaction_id = 1;
+		if(len >= 2) return ;
+		NP_node_write[i].ip = ip;
+		NP_node_write[i].func = func;
+		NP_node_write[i].id = sub_id;
+		NP_node_write[i].reg = reg;
+		NP_node_write[i].len = len;
 		
-		Modbus_Client_Command[conn_pos][0] =  ip;// 0x00;//transaction_id >> 8;
-		Modbus_Client_Command[conn_pos][1] = tcp_client_transaction_id;
-		Modbus_Client_Command[conn_pos][2] = 0x00;
-		Modbus_Client_Command[conn_pos][3] = 0x00;
-		Modbus_Client_Command[conn_pos][4] = 0x00;
-		Modbus_Client_Command[conn_pos][5] = 0x06;  // len
-		if(sub_id == 0)
-				sub_id = 255;
-		Modbus_Client_Command[conn_pos][6] = sub_id;
-		Modbus_Client_Command[conn_pos][7] = func;
-		
-		if(func == 0x03)  // read command
+		if(len == 1)
 		{
-			Modbus_Client_Command[conn_pos][8] = reg >> 8;
-			Modbus_Client_Command[conn_pos][9] = reg;
-			Modbus_Client_Command[conn_pos][10] = 0x00;
-			Modbus_Client_Command[conn_pos][11] = 0x01;
-			Modbus_Client_CmdLen = 12;
-		}	
-
-		flag_Modbus_Client_Send = 1;
-
-		cSemaphoreGive(sem_Modbus_Client_Send);	
-
-		
-		return tcp_client_transaction_id;
-	}
-	
-	cSemaphoreGive(sem_Modbus_Client_Send);
-	return 0;
-
-}
-
-
-int write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T value, U8_T len)
-{
-
-	uip_ipaddr_t ipaddr;
-	struct uip_conn * Modbus_Client_Conn[UIP_CONNS];
-	uint8_t count;
-//	uint8_t ip,sub_id,func,reg;
-	uint8_t i;	
-
-	if(cSemaphoreTake(sem_Modbus_Client_Send, 200) == pdFALSE)
-	{
-		return 0;
-	}
-	
-	uip_ipaddr(ipaddr, Modbus.ip_addr[0], Modbus.ip_addr[1], Modbus.ip_addr[2], ip);		//??IP?192.168.1.103
-	
-	do
-	{
-		conn_pos = Get_uip_conn_pos(&ipaddr, htons(Modbus.tcp_port));
-		if(conn_pos == -1)
-			uip_connect(&ipaddr, htons(Modbus.tcp_port));
-		else
-			break;
-	}while(conn_pos == -1);
-	
-	Modbus_Client_Conn[conn_pos] = &uip_conns[conn_pos];
-	if(Modbus_Client_Conn[conn_pos]->tcpstateflags == UIP_CLOSED)	
-	{
-		Modbus_Client_Conn[conn_pos] = uip_connect(&ipaddr, htons(Modbus.tcp_port));
-	}	
-	
-	if(Modbus_Client_Conn[conn_pos] != NULL)
-	{	
-		if(tcp_client_transaction_id < 127)
-			tcp_client_transaction_id++;
-		else
-			tcp_client_transaction_id = 1;
-		
-		Modbus_Client_Command[conn_pos][0] = ip;//transaction_id >> 8;
-		Modbus_Client_Command[conn_pos][1] = tcp_client_transaction_id;
-		Modbus_Client_Command[conn_pos][2] = 0x00;
-		Modbus_Client_Command[conn_pos][3] = 0x00;
-		Modbus_Client_Command[conn_pos][4] = 0x00;
-		Modbus_Client_Command[conn_pos][5] = 0x06;  // len
-		if(sub_id == 0)
-				sub_id = 255;
-		Modbus_Client_Command[conn_pos][6] = sub_id;
-		Modbus_Client_Command[conn_pos][7] = func;
-
-
-		Modbus_Client_Command[conn_pos][8] = reg >> 8;
-		Modbus_Client_Command[conn_pos][9] = reg;
-		Modbus_Client_Command[conn_pos][10] = value >> 8;
-		Modbus_Client_Command[conn_pos][11] = value;
-		Modbus_Client_CmdLen = 12;
-
-		flag_Modbus_Client_Send = 1;
-	}
-	cSemaphoreGive(sem_Modbus_Client_Send);
-	return tcp_client_transaction_id;
-}
-
-
-
-
-void Scan_network_modbus_Task(void)
-{
-	U8_T port = 0;
-	U16_T scan_count = 0;
-	U8_T wait_count;
-	U8_T far network_point_index;	
-	U8_T flag_receive_netp = 0;	
-	task_test.enable[4] = 1;
-	conn_pos = -1;
-	scan_count = 0;
-	
-	flag_Modbus_Client_Send = 0;
-	
-	sem_Modbus_Client_Send = vSemaphoreCreateBinary(0);
-    
-	while(1)
-	{
-		task_test.count[4]++;	
-
-		// find remote point from remote panel
-		if(number_of_network_points_modbus > 0) 
-		{
-			for(network_point_index = 0;network_point_index < number_of_network_points_modbus;network_point_index++)
-			{
-#if 1	
-				if(network_points_list_modbus[network_point_index].lose_count > 10)
-				{
-					network_points_list_modbus[network_point_index].lose_count = 0;
-					network_points_list_modbus[network_point_index].decomisioned = 0;
-				}
-				
-				flag_receive_netp_modbus = 0;	
-				
-				network_points_list_modbus[network_point_index].invoked_id = 
-					Get_Network_Point_Modbus(network_point_index);
-				
-				if(network_points_list_modbus[network_point_index].invoked_id > 0)
-				{
-				// check whether the device is online or offline	
-						// wait whether recieve_netp
-						
-						wait_count = 0;
-						while(flag_receive_netp_modbus == 0 && wait_count++ < 30) 
-						{
-							delay_ms(50);
-						}						
-						if(flag_receive_netp_modbus == 1)
-						{
-							network_points_list_modbus[network_point_index].lose_count = 0;
-							network_points_list_modbus[network_point_index].decomisioned = 1;
-						}
-						else
-						{
-							network_points_list_modbus[network_point_index].lose_count++;
-						}
-					}
-					else  // if invoked id is 0, this point is off line
-					{
-						//network_points_list[network_point_index].decomisioned = 0;
-						network_points_list_modbus[network_point_index].lose_count++;
-					}	
-				
-#endif				
-			}	
-
-			vTaskDelay(50 / portTICK_RATE_MS);	
-
+			NP_node_write[i].value[0] = value[0];
 		}
 		else
-			vTaskDelay( 5000 / portTICK_RATE_MS);
+		{
+			U8_T temp_value[50];
+			U8_T j;
+			for(j = 0;j < len / 2;j++)
+			{
+				temp_value[j * 2] = value[j] >> 8;
+				temp_value[j * 2 + 1] = value[j];
+			}
+			memcpy(&NP_node_write[i].value[0],&temp_value,len);
+
+		}
+		NP_node_write[i].len = len;
+		NP_node_write[i].flag = WAIT_FOR_WRITE;
+		NP_node_write[i].retry = 0;
 	}
+	//return 0;
 }
-#endif
 
-#endif
-
-#endif
 
 void debug_info(char *string);
 void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 {
-	U16_T length = 0;
+	int length = 0;
 	U16_T crc_check = 0;
 	U16_T size0 = 0;
 	U8_T flag_expansion = 0;
@@ -2674,13 +2099,16 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	if(buf[1] == CHECKONLINE)  // scan command
 	{		
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
+			length = uart_read_bytes(port, subnet_response_buf, 512, 200 / portTICK_RATE_MS);
 		else
 			length = 0; // tbd:
 
 
 		if(length > 0)
 		{
+			if(port == 0)	led_sub_tx++;
+			else if(port == 2)	led_main_tx++;
+			com_tx[port]++;
 			memcpy(tmp_sendbuf,header,6);
 			memcpy(&tmp_sendbuf[6],subnet_response_buf,length);			
 
@@ -2720,15 +2148,19 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	else
 	{
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
+			length = uart_read_bytes(port, subnet_response_buf, 250, 100 / portTICK_RATE_MS);
 		else
 			length = 0; // tbd:
 #if 1
+		//Test[40]++;
 		if(length > 0)
-		{
+		{//Test[41]++;Test[42] = length;
+			if(port == 0)	led_sub_tx++;
+			else if(port == 2)	led_main_tx++;
+			com_tx[port]++;
 			crc_check = crc16(subnet_response_buf, length - 2);		
 			if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])
-			{ 
+			{ //Test[43]++;
 //			auto_check_master_retry[port] = 0;
 				memcpy(tmp_sendbuf,header,6);
 
@@ -2741,7 +2173,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				}
 				else
 				{
-
+					//Test[44]++;
 					memcpy(&tmp_sendbuf[6],subnet_response_buf,length - 2);
 
 					//modbus_send_buf = &tmp_sendbuf;
@@ -2796,7 +2228,10 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			}			
 		}
 		else
-		{
+		{// 一旦read出错，回复全0
+			memset(&modbus_send_buf,0,size0 + 4);
+			modbus_send_len = size0 + 4;
+
 			timeout[port]++;
 			tst_retry[buf[0]]++;
 		}
@@ -2907,6 +2342,7 @@ void Response_MAIN_To_SUB(U8_T *buf, U16_T len,U8_T port)
 void vStartScanTask(unsigned char uxPriority)
 {
 	U8_T i;
+
 	memset(node_write,0,sizeof(STR_NODE_OPERATE) * STACK_LEN);
 	subcom_seq[0] = subcom_seq[1] = subcom_seq[2] = 0;
 	subcom_num = 0;	 
@@ -2945,7 +2381,7 @@ void vStartScanTask(unsigned char uxPriority)
 	scan_port = 0xff;
     scan_baut = 0xff;
 
-    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, NULL);
+    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (xTaskHandle *)&Handle_Scan);
 
 }
 
@@ -2999,6 +2435,9 @@ void read_name_of_tstat(U8_T index)
 		length = 0; // tbd:
 	if(length > 0)
 	{
+		if(port == 0)	led_sub_tx++;
+		else if(port == 2)	led_main_tx++;
+		com_tx[port]++;
 		crc_check = crc16(subnet_response_buf,21);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[21]) && (LOW_BYTE(crc_check) == subnet_response_buf[22]))
 		{

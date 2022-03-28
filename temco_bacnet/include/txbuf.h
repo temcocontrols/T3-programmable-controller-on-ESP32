@@ -30,12 +30,8 @@
 #include "bacnet.h"
 #include "datalink.h"
 
-#if ASIX
-extern unsigned char far Handler_Transmit_Buffer[2][MAX_PDU];
-#endif
 
-#if ARM
-extern  unsigned char  Handler_Transmit_Buffer[2][MAX_PDU];
-#endif
+extern EXT_RAM_ATTR  unsigned char  Handler_Transmit_Buffer[2][MAX_PDU];
 
 #endif
+

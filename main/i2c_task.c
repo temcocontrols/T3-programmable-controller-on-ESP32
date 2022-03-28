@@ -48,7 +48,7 @@ uint8_t light_data[2];
 uint8_t temp_data[2];
 g_sensor_t g_sensors;
 uint8_t mlx90614_data[3];
-uint8_t which_project= PROJECT_FAN_MODULE;
+//uint8_t which_project= PROJECT_FAN_MODULE;
 double ambient; /**< Ambient temperature in degrees Celsius */
 double object; /**< Object temperature in degrees Celsius */
 float mlx90614_ambient;
@@ -422,6 +422,45 @@ esp_err_t sensirion_i2c_read(uint8_t address, uint8_t *data, uint16_t count) {
     return ret;
 }
 
+esp_err_t LED_i2c_write(uint8_t address, const uint8_t *data,
+                           uint16_t count) {
+    int ret;
+    uint16_t i;
+
+
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+
+    i2c_master_write_byte(cmd,address << 1| WRITE_BIT, ACK_CHECK_EN);
+    for (i = 0; i < count; i++) {
+        ret = i2c_master_write_byte(cmd, data[i],ACK_CHECK_EN);
+    }
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	return ret;
+}
+
+esp_err_t LED_i2c_read(uint8_t address, uint8_t *data, uint16_t count) {
+	int ret;
+	uint16_t i;
+	uint8_t send_ack;
+	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd,address << 1| READ_BIT, ACK_CHECK_EN);
+    //usleep(600);
+    for (i = 0; i < count; i++) {
+		send_ack = i < (count - 1); /* last byte must be NACK'ed */
+		i2c_master_read_byte(cmd, &data[i],!send_ack);
+	}
+    i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+    return ret;
+}
+
+
+
 void sensirion_sleep_usec(uint32_t useconds) {
 	//delay_us(useconds);
 	usleep(useconds);
@@ -436,7 +475,7 @@ esp_err_t i2c_master_init()
     int i2c_master_port = I2C_MASTER_NUM;
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = 12;//I2C_MASTER_SDA_IO;
+    conf.sda_io_num = 4;//I2C_MASTER_SDA_IO;
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
     conf.scl_io_num = 14;//I2C_MASTER_SCL_IO;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
@@ -540,7 +579,7 @@ void i2c_task(void *arg)
 		}
 	}
 #endif
-    while (1) {
+    while (1) {Test[20]++;
 #if 1
         // ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
         ret = i2c_master_sensor_sht31(I2C_MASTER_NUM, sht31_data);//&sensor_data_h, &sensor_data_l);
@@ -568,7 +607,7 @@ void i2c_task(void *arg)
 		memcpy(outputs[1].description,"FAN PWM",strlen("FAN PWM"));
 		//memcpy(inputs[4].description,"RPM",strlen("RPM"));
         xSemaphoreTake(print_mux, portMAX_DELAY);
-        if (ret == ESP_ERR_TIMEOUT) {
+        if (ret == ESP_ERR_TIMEOUT) {Test[24]++;
             ESP_LOGE(TAG, "I2C Timeout");
             Test[0] = 120;
         } else if (ret == ESP_OK) {
@@ -589,11 +628,13 @@ void i2c_task(void *arg)
 			if(inputs[0].range == 4)
 				inputs[0].value = (g_sensors.temperature*9/5)*100+32000;
 			inputs[1].value = g_sensors.humidity*100;
+			Test[21]++;
+			Test[22] = g_sensors.humidity;
 			//g_sensors.temperature = Filter(0,g_sensors.temperature);
 			//g_sensors.humidity = Filter(9,g_sensors.humidity);
 			//g_sensors.temperature += holding_reg_params.sht31_temp_offset;
             //printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
-        } else {
+        } else {Test[23]++;
             //ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         	Test[1] = ret;
         }

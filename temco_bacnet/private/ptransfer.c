@@ -54,18 +54,24 @@
 
 extern STR_MODBUS Modbus;
 void Send_Time_Sync_To_Network(void);
-//void Get_RTC_by_timestamp(U32_T timestamp,TimeInfo *tt,UN_Time* Rtc,U8_T source);
-//UN_Time Rtc2;
+void Get_RTC_by_timestamp(U32_T timestamp,/*TimeInfo *tt,*/UN_Time* Rtc,U8_T source);
+UN_Time Rtc2;
 //extern 	TimeInfo t;
 U32_T get_current_timestamp(void);
 void uart_send_string(U8_T *p, U16_T length,U8_T port);
 //U8_T AlarmSync(uint8_t add_delete,uint8_t index,char *mes,uint8_t panel);
+
+/*extern U8_T rec_mstp_index; // response packets form
+extern U8_T send_mstp_index;
+extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];*/
+void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
 
 /** @file ptransfer.c  Encode/Decode Private Transfer data */
 /* 
 	handler roution for private transfer
 	created by chelsea
 */
+uint8_t invokeid_mstp = 0;
 void check_SD_PnP(void);
 
 #if ARM_TSTAT_WIFI 
@@ -82,12 +88,18 @@ void Check_Pulse_Counter(void);
 
 extern esp_err_t save_point_info(uint8_t point_type);
 
+extern U32_T  com_rx[3];
+extern U32_T  com_tx[3];
+extern U16_T  collision[3];  // id collision
+extern U16_T  packet_error[3];  // bautrate not match
+extern U16_T  timeout[3];
+
 void dealwith_write_setting(Str_Setting_Info * ptr);
 
 //extern uint8_t flag_load_prg;
 //extern uint8_t count_load_prg;
 
-U8_T    	    	far		prg_code[MAX_PRGS][CODE_ELEMENT * MAX_CODE];
+//U8_T    	    	far		prg_code[MAX_PRGS][CODE_ELEMENT * MAX_CODE];
 
 
 uint8_t invoke_id;
@@ -107,7 +119,8 @@ U8_T MSTP_Write_OK;
 U8_T  MSTP_Transfer_OK;
 U8_T  MSTP_Transfer_Len;
 
-
+extern uint8_t ChangeFlash;
+extern uint16_t count_write_Flash;
 
 U8_T flag_writing_code;
 U8_T count_wring_code;
@@ -129,6 +142,8 @@ U8_T check_whehter_running_code(void)
 //#include "tcpip.h"
 //extern xTaskHandle xHandler_Output;
 //extern xTaskHandle Handle_Scan;
+extern int16_t  timezone;
+extern uint8_t  Daylight_Saving_Time;
 
 extern uint8_t write_page_en[26];
 void refresh_zone(void);
@@ -342,7 +357,7 @@ void change_panel_number_in_trendlog(U8_T old, U8_T new_panel)
 
 }
 
-extern unsigned char far Handler_Transmit_Buffer[2][MAX_PDU];
+
 
 U8_T flag_mstp_source;
 
@@ -395,15 +410,18 @@ uint8_t Send_Mstp(uint8_t flag,uint8_t * type)
 }
 
 uint8_t count_hold_on_bip_to_mstp;  // 当yabe或者T3000软件正在访问时，不要读写下面的设备
-
+int 	usleep (uint32_t __useconds);
 // BIP TO MSTP
 void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
 {
-#if 0// (ARM_MINI || ASIX_MINI || ARM_CM5)
+
 	U8_T i;
+	U8_T mstp_network = 1;
 	U8_T start = 0;
+	U8_T count = 0;
 	if(pdu_len < 7) 
 		return;
+	
 	if(pdu[10] == 0x12) // T3000 reading tstat by private transfer command
 	{
 		count_hold_on_bip_to_mstp = 10;		
@@ -411,11 +429,11 @@ void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
 	else
 	{
 		if(count_hold_on_bip_to_mstp > 0)		
-		{			
+		{	
 			return;
 		}
 	}
-
+	
 	MSTP_Transfer_Len = pdu_len + 4;
 	TransmitPacket_panel = pdu[5];
 	TransmitPacket[0] = pdu[0];
@@ -433,19 +451,23 @@ void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
 
 	flag_mstp_source = 1;   // T3000 or BIP client
 	
+	while(Send_Private_Flag != 0 && count++ < 5)
+	{
+		usleep(500000);		
+	}
+	//Send_Private_Flag = 0;  //?????????????
 	if(Send_Private_Flag == 0)
 	{
-		Send_Private_Flag = 2; 
-
+		Send_Private_Flag = 2; 		
 		// source is bip client,if it is private 
 		memcpy(&TransmitPacket[11],&pdu[7],pdu_len - 7);
 	}
-#endif
+	
 }
 
 void Transfer_Mstp_To_Bip_pdu(uint8_t src,uint8_t * pdu,uint16_t pdu_len)
 {
-#if 0// (ARM_MINI || ASIX_MINI || ARM_CM5)
+
 	MSTP_Send_buffer[0] = 0x81;
 	MSTP_Send_buffer[1] = 0x0a;
 	MSTP_Send_buffer[2] = (uint8_t)((pdu_len - 2) >> 8);
@@ -458,20 +480,8 @@ void Transfer_Mstp_To_Bip_pdu(uint8_t src,uint8_t * pdu,uint16_t pdu_len)
 	MSTP_Send_buffer[9] = src; //  SADR
 	memcpy(&MSTP_Send_buffer[10],&pdu[12],pdu_len - 12);
 
-	// wait send_mstp_flag free
-	//Send_mstp_Flag = 1;
-//	send_mstp_index1 = 0;
-//	rec_mstp_index1 = 0;
-	if(rec_mstp_index1 < 9)
-	{
-	memcpy(mstp_bac_buf1[rec_mstp_index1].buf,MSTP_Send_buffer, pdu_len - 2);
-	mstp_bac_buf1[rec_mstp_index1].len = pdu_len -2;
-	}
-	if(rec_mstp_index1 < 10)
-		rec_mstp_index1++;
-	else
-		rec_mstp_index1 = 0;
-#endif
+	Send_MSTP_to_BIPsocket(MSTP_Send_buffer,pdu_len - 2);
+	
 }
 
 
@@ -533,15 +543,15 @@ void Handler_Complex_Ack(
     int apdu_len,      /* total length of the apdu */
     uint8_t protocal)
 {
-//	float val_ptr;
+	float val_ptr = 0;
 //	uint8_t index;
 	U8_T invokeid_bip = 0;
 //	S8_T far network_point_index;	
 //	U8_T far remote_bacnet_index;	
 	
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
+	
 	if(protocal == BAC_MSTP)
-	{ 	
+	{ 
 		if(flag_mstp_source == 1) // source is BIP client, T3000 or yabe or other panel...
 		{ // it is for BIP TO MSTP, need transfer to BIP cilent
 // BIP TO MSTP
@@ -553,27 +563,14 @@ void Handler_Complex_Ack(
 			MSTP_Send_buffer[5] = 0x00;
 			memcpy(&MSTP_Send_buffer[6],apdu,apdu_len);
 	
-
-	//		uip_send((char *)MSTP_Send_buffer, apdu_len + 6);	
-
-			//Send_mstp_Flag = 1;
-#if (ARM_MINI || ARM_CM5)	
-			if(rec_mstp_index1 < 9)
-			{
-				memcpy(mstp_bac_buf1[rec_mstp_index1].buf,MSTP_Send_buffer, apdu_len + 6);
-				mstp_bac_buf1[rec_mstp_index1].len = apdu_len + 6;
-			}
-			if(rec_mstp_index1 < 10)
-				rec_mstp_index1++;
-			else
-				rec_mstp_index1 = 0;
-#endif
+			Send_MSTP_to_BIPsocket(MSTP_Send_buffer,apdu_len + 6);
 
     /* since object property == object_id, decode the application data using
        the appropriate decode function */
 		}
 		else if(flag_mstp_source == 2)
-		{ //  packet's source is from T3-BB,dont need transfer to BIP client		
+		{ //  packet's source is from T3-BB,dont need transfer to BIP client
+			
 			if(apdu[1] == invokeid_mstp && invokeid_mstp >= 0)
 			{	
 				flag_receive_rmbp	= 1;	
@@ -591,18 +588,17 @@ void Handler_Complex_Ack(
 00 9d 00 00 00 01 00 00 00 4d 00 00 00 10 00 09 00 03 00 00 
 2f
 */		
+					
 					if(apdu[12] == READ_BACNET_TO_MDOBUS)	
 					{
 						uint8_t len;
 						uint16_t reg;								
-
 						len = apdu[10];
 						if(len == apdu[15] * 2)
 						{							
 					remote_panel_db[remote_mstp_panel_index].sn = 
 						apdu[18] + ((U16_T)apdu[20] << 8) + ((U32_T)apdu[22] << 16) + ((U32_T)apdu[24] << 24);
 					remote_panel_db[remote_mstp_panel_index].product_model = apdu[32];
-					
 						}
 					}
 				}
@@ -631,7 +627,7 @@ void Handler_Complex_Ack(
 			
 		flag_mstp_source = 0;
 	}
-#if (ARM_MINI || ARM_CM5)	
+#if 0
 	else if(protocal == BAC_IP)
 	{	
 // response from ptranfer reading
@@ -640,9 +636,7 @@ void Handler_Complex_Ack(
 		network_point_index = get_netpoint_index_by_invoke_id(invokeid_bip);
 		if(network_point_index != -1)
 		{	
-			//memcpy(&Test[2],&apdu[0],28);
-//			if((apdu[1] == invokeid_bip) && (invokeid_bip > 0) )
-//			{	
+	
 			flag_receive_netp = 1;
 			if(apdu[11] == 0x44) // decode real
 			{
@@ -680,8 +674,7 @@ void Handler_Complex_Ack(
 			network_points_list_bacnet[network_point_index].point.number + 1,
 			val_ptr * 1000,
 			2);
-				
-//			}
+
 		}
 		else
 		{ // PROPRIETARY_BACNET_OBJECT_TYPE panel number
@@ -719,7 +712,6 @@ void Handler_Complex_Ack(
 		}
 		
 	}
-#endif
 #endif
 }
 
@@ -779,165 +771,6 @@ U8_T Get_current_panel(void)
 }
 
 
-
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-
-uint16_t get_reg_from_list(uint8_t type,uint8_t index,uint8_t * len)
-{
-	uint16_t reg;
-	switch (type)
-	{
-		case VAR + 1:
-			reg = MODBUS_VAR_FIRST + 2 * index;
-			break;
-		case IN + 1:
-			reg = MODBUS_INPUT_FIRST + 2 * index;
-			break;
-		case OUT + 1:
-			reg = MODBUS_OUTPUT_FIRST + 2 * index;
-			break;
-		
-		default:
-		break;
-	}
-	*len = 2;
-	return reg;
-}
-
-int WriteRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub_id,float value,uint8_t protocal)
-{
-	uint32 deviceid;
-//	U8_T invokeid_bip;
-//	U8_T invokeid_mstp;
-	BACNET_APPLICATION_DATA_VALUE val;
-
-	deviceid = Get_device_id_by_panel(panel,sub_id,protocal);
-	if(deviceid > 0)	
-	{	
-		if(protocal == BAC_MSTP)
-		{
-			if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
-			{
-//				if(cSemaphoreTake(sem_mstp, 200) == 1)
-				if(count_hold_on_bip_to_mstp > 0)									
-					return -1;
-				
-				{			
-					flag_mstp_source = 2;    // T3-CONTROLLER
-					Send_Private_Flag = 4;   // send normal bacnet packet
-					TransmitPacket_panel = sub_id;
-//				val.tag = BACNET_APPLICATION_TAG_REAL;
-//				val.context_specific = 0;
-//				val.context_tag = 4;
-//				val.next = 0;	
-//				val.type.Real = value;
-					//invokeid_mstp = 				
-					Send_Write_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,&val,0,value,BACNET_ARRAY_ALL,protocal);
-				}
-				
-//				cSemaphoreGive(sem_mstp);	
-				return 1;//invokeid_mstp;
-			}
-		}
-#if (ARM_MINI || ASIX_MINI || ARM_CM5)
-		else if(protocal == BAC_IP_CLIENT)
-		{
-			Send_bip_Flag = 1;	
-			count_send_bip = 0;
-			Get_address_by_panel(panel,Send_bip_address);						
-			Send_bip_count = MAX_RETRY_SEND_BIP;			
-
-			return	Send_Write_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,&val,0,value,BACNET_ARRAY_ALL,protocal);
-		}
-#endif
-	}
-	return -1;
-
-}
-
-
-
-// get standard bacnet points, AV, AI , AO ...
-/*
-	type -> ANALOG_VALUE_OBJECT, ANALOG_INPUT,OBJECT ...
-	
-	protoal -> 1. mstp  (	remote device is mstp device)	
-					-> 2. bip (	network decive is bacnet device)
-
-*/
-int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub_id,uint8_t protocal)
-{
-	uint32 deviceid;
-	U8_T invokeid_bip;
-//	U8_T invokeid_mstp;
-	invokeid_bip = -1;
-	deviceid = Get_device_id_by_panel(panel,sub_id,protocal);
-	if(deviceid > 0)
-	{	
-		if(protocal == BAC_MSTP)
-		{
-			if(count_hold_on_bip_to_mstp > 0)		
-			{				
-					return -1;
-			}
-			flag_mstp_source = 2;   // T3-CONTROLLER
-			Send_Private_Flag = 3;   // send normal bacnet packet
-			TransmitPacket_panel = sub_id;
-			invokeid_mstp = Send_Read_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,0,protocal);
-			return invokeid_mstp;
-		}
-#if !(ARM_TSTAT_WIFI )
-		else if(protocal == BAC_IP_CLIENT)
-		{
-			Send_bip_Flag = 1;	
-			count_send_bip = 0;
-			Get_address_by_panel(panel,Send_bip_address);	
-			Send_bip_count = MAX_RETRY_SEND_BIP;
-			
-			if(object_type == VAR + 1 || object_type == IN + 1 || object_type == OUT + 1)
-			{
-				uint16_t databuf[10];
-				uint16_t reg;
-				uint8_t len;
-				reg = get_reg_from_list(object_type,object_instance,&len);
-				invokeid_bip = GetPrivateBacnetToModbusData(deviceid,reg,len,databuf,BAC_IP_CLIENT);
-			}
-			else if(object_type == BAC_AV + 1)
-			{
-				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_VALUE,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
-			}
-			else if(object_type == BAC_AI + 1)
-			{
-				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_INPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
-			}			
-			else if((object_type == BAC_AO + 1) || ((object_type == OUT + 1) && (object_instance >= max_dos)))
-			{
-				if(object_type == BAC_AO + 1)
-					invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_OUTPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
-				else
-				{
-					invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_OUTPUT,object_instance - max_dos/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
-				}
-			}
-			else if((object_type == BAC_BO + 1) || ((object_type == OUT + 1) && (object_instance < max_dos)))
-			{
-				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_OUTPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
-			}
-			else	if(object_type == BAC_BV + 1)
-			{
-				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_VALUE,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
-			}
-			else if(object_type == BAC_BI + 1)
-			{
-				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_INPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
-			}
-			return invokeid_bip;
-		}
-#endif
-	}
-	return -1;
-}
-
 void handler_conf_private_trans_ack(
     uint8_t * service_request,
     uint16_t service_len,
@@ -978,15 +811,13 @@ void handler_conf_private_trans_ack(
 	 
 	if(command == GET_PANEL_INFO)
 	{
-		Str_Panel_Info *ptr;
+		/*Str_Panel_Info *ptr;
 		U8_T remote_i;
-		U32_T device_id;
+		U32_T device_id = 0;
 		
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )		
-		device_id = ptr->reg.instance * 65536L + ptr->reg.instance_hi;
-#else
-		device_id = (ptr->reg.instance_hi) * 65536L + (ptr->reg.instance);
-#endif		
+
+		//device_id = ptr->reg.instance * 65536L + ptr->reg.instance_hi; ?????????????
+	
 		
 		ptr = (Str_Panel_Info *)&MSTP_Send_buffer[9];
 		
@@ -1003,7 +834,7 @@ void handler_conf_private_trans_ack(
 			remote_panel_db[remote_i].device_id = device_id;
 			
 		
-		}
+		}*/
 	}
 	else
 	{	
@@ -1016,6 +847,167 @@ void handler_conf_private_trans_ack(
 	MSTP_buffer_len = 0;
  }
 
+}
+
+
+#if 1// (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+
+uint16_t get_reg_from_list(uint8_t type,uint8_t index,uint8_t * len)
+{
+	uint16_t reg = 0;
+	switch (type)
+	{
+		/*case VAR + 1:
+			reg = MODBUS_VAR_FIRST + 2 * index;
+			break;
+		case IN + 1:
+			reg = MODBUS_INPUT_FIRST + 2 * index;
+			break;
+		case OUT + 1:
+			reg = MODBUS_OUTPUT_FIRST + 2 * index;
+			break;*/
+		
+		default:
+		break;
+	}
+	*len = 2;
+	return reg;
+}
+U32_T Get_device_id_by_panel(uint8 panel,uint8 sub_id,uint8_t protocal);
+int WriteRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub_id,float value,uint8_t protocal)
+{
+	uint32 deviceid;
+//	U8_T invokeid_bip;
+//	U8_T invokeid_mstp;
+	BACNET_APPLICATION_DATA_VALUE val;
+
+	deviceid = Get_device_id_by_panel(panel,sub_id,protocal);
+	if(deviceid > 0)	
+	{	
+		if(protocal == BAC_MSTP)
+		{
+			if(Modbus.com_config[2] == 9/*BACNET_MASTER*/ || Modbus.com_config[0] == 9/*BACNET_MASTER*/)
+			{
+//				if(cSemaphoreTake(sem_mstp, 200) == 1)
+				if(count_hold_on_bip_to_mstp > 0)									
+					return -1;
+				
+				{			
+					flag_mstp_source = 2;    // T3-CONTROLLER
+					Send_Private_Flag = 4;   // send normal bacnet packet
+					TransmitPacket_panel = sub_id;
+//				val.tag = BACNET_APPLICATION_TAG_REAL;
+//				val.context_specific = 0;
+//				val.context_tag = 4;
+//				val.next = 0;	
+//				val.type.Real = value;
+					//invokeid_mstp = 				
+					Send_Write_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,&val,0,value,BACNET_ARRAY_ALL,protocal);
+				}
+				
+//				cSemaphoreGive(sem_mstp);	
+				return 1;//invokeid_mstp;
+			}
+		}
+#if 0//(ARM_MINI || ASIX_MINI || ARM_CM5)
+		else if(protocal == BAC_IP_CLIENT)
+		{
+			Send_bip_Flag = 1;	
+			count_send_bip = 0;
+			Get_address_by_panel(panel,Send_bip_address);						
+			Send_bip_count = MAX_RETRY_SEND_BIP;			
+
+			return	Send_Write_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,&val,0,value,BACNET_ARRAY_ALL,protocal);
+		}
+#endif
+	}
+	return -1;
+
+}
+
+
+
+// get standard bacnet points, AV, AI , AO ...
+/*
+	type -> ANALOG_VALUE_OBJECT, ANALOG_INPUT,OBJECT ...
+	
+	protoal -> 1. mstp  (	remote device is mstp device)	
+					-> 2. bip (	network decive is bacnet device)
+
+*/
+int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub_id,uint8_t protocal)
+{
+	uint32 deviceid;
+	U8_T invokeid_bip;
+//	U8_T invokeid_mstp;
+	invokeid_bip = -1;
+#if 1
+	deviceid = Get_device_id_by_panel(panel,sub_id,protocal);
+	if(deviceid > 0)
+	{	
+		if(protocal == BAC_MSTP)
+		{
+			if(count_hold_on_bip_to_mstp > 0)		
+			{				
+					return -1;
+			}
+			flag_mstp_source = 2;   // T3-CONTROLLER
+			Send_Private_Flag = 3;   // send normal bacnet packet
+			TransmitPacket_panel = sub_id;
+			invokeid_mstp = Send_Read_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,0,protocal);
+			return invokeid_mstp;
+		}
+
+		else if(protocal == BAC_IP_CLIENT)
+		{
+			/*Send_bip_Flag = 1;	
+			count_send_bip = 0;
+			Get_address_by_panel(panel,Send_bip_address);	
+			Send_bip_count = MAX_RETRY_SEND_BIP;
+			*/
+			if(object_type == VAR + 1 || object_type == IN + 1 || object_type == OUT + 1)
+			{
+				uint16_t databuf[10];
+				uint16_t reg;
+				uint8_t len;
+				reg = get_reg_from_list(object_type,object_instance,&len);
+				invokeid_bip = GetPrivateBacnetToModbusData(deviceid,reg,len,databuf,BAC_IP_CLIENT);
+			}
+			else if(object_type == BAC_AV + 1)
+			{
+				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_VALUE,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
+			}
+			else if(object_type == BAC_AI + 1)
+			{
+				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_INPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
+			}			
+			else if((object_type == BAC_AO + 1) || ((object_type == OUT + 1) /*&& (object_instance >= max_dos)*/))
+			{
+				if(object_type == BAC_AO + 1)
+					invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_OUTPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
+				else
+				{
+					//invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_ANALOG_OUTPUT,object_instance - max_dos/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
+				}
+			}
+			else if((object_type == BAC_BO + 1) || ((object_type == OUT + 1) /*&& (object_instance < max_dos)*/))
+			{
+				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_OUTPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
+			}
+			else	if(object_type == BAC_BV + 1)
+			{
+				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_VALUE,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
+			}
+			else if(object_type == BAC_BI + 1)
+			{
+				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_INPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
+			}
+			return invokeid_bip;
+		}
+
+	}
+#endif
+	return -1;
 }
 
 
@@ -1064,12 +1056,12 @@ int GetPrivateBacnetToModbusData(uint32_t deviceid, uint16_t start_reg, int16_t 
     Str_bacnet_to_modbus_header private_data_chunk;
     int HEADER_LENGTH = USER_DATA_HEADER_LEN;
     BACNET_ADDRESS dest = { 0 };
-		int i;
-		
-		bacnet_to_modbus_struct.org_nlength = readlength;
+	int i;
+	
+	bacnet_to_modbus_struct.org_nlength = readlength;
     bacnet_to_modbus_struct.org_start_add = start_reg;
 		
-    private_data.vendorID = BACNET_VENDOR_ID;
+    private_data.vendorID = 148;//BACNET_VENDOR_ID;
     private_data.serviceNumber = 1;
 
 //    memset(SendBuffer, 0, 1000);
@@ -1123,7 +1115,7 @@ int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_
 
     memset(temp_data, 0, 50);
 
-    private_data.vendorID = BACNET_VENDOR_ID;
+    private_data.vendorID = 148;//BACNET_VENDOR_ID;
     private_data.serviceNumber = 1;
 
     header_len = USER_DATA_HEADER_LEN;
@@ -1156,7 +1148,7 @@ int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_
     private_data_len = bacapp_encode_application_data(&test_value[0], &data_value);
     private_data.serviceParameters = &test_value[0];
     private_data.serviceParametersLen = private_data_len;
-#if !(ARM_TSTAT_WIFI )
+#if 0//!(ARM_TSTAT_WIFI )
 		Send_bip_Flag = 1;
 		count_send_bip = 0;
 		Send_bip_count = MAX_RETRY_SEND_BIP;	
@@ -1186,7 +1178,7 @@ int Send_Ptransfer_to_Sub(U8_T *p, U16_T length,U8_T port)
 	uint8_t far temp[500];
 	int i = 0;  /* counter */
 
-	private_data.vendorID = BACNET_VENDOR_ID;
+	private_data.vendorID = 148;//BACNET_VENDOR_ID;
 	private_data.serviceNumber = 1;	
 	
 	if(p[0] == 0x10)  // multi-write
@@ -1379,10 +1371,11 @@ void handler_private_transfer(
 			if((command != WRITETIME_COMMAND) && 
 				(command != WRITE_SETTING))
 			{
-				//ChangeFlash = 1;	
+				ChangeFlash = 1;
+				count_write_Flash = 0;			
 			}
 		// TBD: add more write command
-			save_point_info(command - WRITEOUTPUT_T3000);
+			//save_point_info(command - WRITEOUTPUT_T3000);
 #if 0//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			if(command - WRITEOUTPUT_T3000 < MAX_POINT_TYPE)
 			{
@@ -1459,7 +1452,7 @@ void handler_private_transfer(
 					ptr = (uint8_t *)(ar_dates[private_header.point_start_instance]);
 					break;
 				case WRITETIME_COMMAND:
-					//ptr = (uint8_t *)(Rtc2.all);
+					ptr = (uint8_t *)(Rtc2.all);
 					break;
 				case WRITECONTROLLER_T3000:
 					if(private_header.point_end_instance <= MAX_CONS)
@@ -1805,19 +1798,15 @@ void handler_private_transfer(
 
 					else if(command == WRITETIME_COMMAND)
 					{ 
+						UN_Time Rtc;
 						// update current panel	
-						//Get_RTC_by_timestamp(swap_double(Rtc2.NEW.timestamp),&t,&Rtc,1);
+						Get_RTC_by_timestamp(Rtc2.NEW.timestamp/*,&t*/,&Rtc,1);
 						// time sync with PC 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 						Setting_Info.reg.update_time_sync_pc = 0;
 						//flag_Updata_Clock = 1;
-						//Rtc_Set(Rtc.Clk.year,Rtc.Clk.mon,Rtc.Clk.day,Rtc.Clk.hour,Rtc.Clk.min,Rtc.Clk.sec,0);
 						Rtc_Set(Rtc.Clk.year,Rtc.Clk.mon,Rtc.Clk.day,Rtc.Clk.hour,Rtc.Clk.min,Rtc.Clk.sec,0);
-						RTC_Get();
-						Test[10]++;
-#endif
-
-
+						//Rtc_Set(Rtc.Clk.year,Rtc.Clk.mon,Rtc.Clk.day,Rtc.Clk.hour,Rtc.Clk.min,Rtc.Clk.sec,0);
+/*						//RTC_Get();
 						// time sync other panel
 #if (ASIX_MINI || ASIX_CM5)
 						Rtc_Set(Rtc.Clk.year,Rtc.Clk.mon,Rtc.Clk.day,Rtc.Clk.hour,Rtc.Clk.min,Rtc.Clk.sec,0);
@@ -1835,7 +1824,7 @@ void handler_private_transfer(
 						Send_Time_Sync_To_Network();
 #endif
 						
-#endif
+#endif*/
 
 					}
 					else if(command == WRITE_SETTING)
@@ -1929,16 +1918,16 @@ void handler_private_transfer(
 
 						if(Write_Special.reg.clear_health_rx_tx == 0x11)
 						{
-							char i;
+							uint8 i;
 
-							/*for( i = 0; i < 3;i++)
+							for( i = 0; i < 3;i++)
 							{
 								com_tx[i] = 0;
 								com_rx[i] = 0;
 								collision[i] = 0;
 								packet_error[i] = 0;
 								timeout[i] = 0;
-							}*/	
+							}
 						}
 					}
 					
@@ -1988,16 +1977,14 @@ void handler_private_transfer(
 				}				
 			}		
 		}
-
+		
 		switch(command)
 		{
-#if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			case READ_BACNET_TO_MDOBUS:
 			// get packet (transfer bacnet to modbus )	
 				Get_Pkt_Bac_to_Modbus(&private_header);
 				ptr = (uint8_t *)(&bacnet_to_modbus[0]);
 				break;
-#endif
 			case READOUTPUT_T3000:
 				if(private_header.point_end_instance <= MAX_OUTS)
 				ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
@@ -2040,14 +2027,14 @@ void handler_private_transfer(
 				break;
 			case READTIME_COMMAND:
 				// if daylight_saving_time
-				/* 
+				 
 //				if(Rtc.Clk.year % 5 == 0)
-					Rtc2.NEW.timestamp = swap_double(get_current_time());
+					Rtc2.NEW.timestamp = get_current_time();
 //				else
 //					Rtc2.NEW.timestamp = swap_double(get_current_time()) - 86400;
 				Rtc2.NEW.time_zone = timezone;
 				Rtc2.NEW.daylight_saving_time = Daylight_Saving_Time;
-				ptr = (uint8_t *)(Rtc2.all);*/
+				ptr = (uint8_t *)(Rtc2.all);
 				break;			
 			case READCONTROLLER_T3000:
 				/*if(private_header.point_end_instance <= MAX_CONS)
@@ -2081,8 +2068,8 @@ void handler_private_transfer(
 				break;	 
 			case READMONITORDATA_T3000:				
 			// check whether get correct data, if fail no response
-				//flag_read_monitor = ReadMonitor(Graphi_data);
-
+				flag_read_monitor = ReadMonitor(Graphi_data);
+				Test[33]++;
 				transfer_len = 400;
 				temp[22] = (U8_T)(Graphi_data->total_seg);
 				temp[23] = (Graphi_data->total_seg >> 8);
@@ -2118,7 +2105,7 @@ void handler_private_transfer(
 #endif			
 //			case UPDATEMEMMONITOR_T3000:
 //				UpdateMonitor(Graphi_data);
-//				ptr = (char *)(Graphi_data->asdu);
+//				ptr = (char *)(Graphi_data->asdu);UPDATEMEMMONITOR_T3000
 //				break;
 
 			case GET_PANEL_INFO:   // other commad
@@ -2128,8 +2115,7 @@ void handler_private_transfer(
 				break;
 
 			case READ_SETTING:	
-				Sync_Panel_Info(); 
-				//Test[12]++;
+				Sync_Panel_Info();
 			  ptr = (uint8_t *)(Setting_Info.all);
 				break;
 			case READVARUNIT_T3000:
@@ -2174,10 +2160,10 @@ void handler_private_transfer(
 //					break;
 			
 			case READ_MISC:
-				/*{
-					char i;
-					for( i = 0; i < 24;i++)
-						MISC_Info.reg.monitor_block_num[i] = (SD_block_num[i]);
+				{
+					uint8 i;
+					//for( i = 0; i < 24;i++)
+						//MISC_Info.reg.monitor_block_num[i] = (SD_block_num[i]);
 					MISC_Info.reg.flag = (0xff55);
 					MISC_Info.reg.flag1 = 0x55;
 					for( i = 0; i < 3;i++)
@@ -2189,7 +2175,7 @@ void handler_private_transfer(
 						MISC_Info.reg.timeout[i] = (timeout[i]);
 					}	
 				}
-				ptr = (uint8_t *)(MISC_Info.all);*/	
+				ptr = (uint8_t *)(MISC_Info.all);
 				break;
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
 			case READ_MSV_COMMAND:	
@@ -2285,6 +2271,7 @@ void handler_private_transfer(
   return;
 
 }
+
 
 int ptransfer_decode_apdu(
     uint8_t * apdu,
