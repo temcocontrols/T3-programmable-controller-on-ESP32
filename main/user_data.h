@@ -4,6 +4,7 @@
 #include "ud_str.h"
 #include "monitor.h"
 #include "esp_attr.h"
+#include "bacnet.h"
 
 typedef struct
 {
@@ -83,7 +84,7 @@ typedef	union
  }Str;
 }UN_ID; /*config roution */
 
-
+#if 0
 typedef	union
 	{
 		U8_T all[10];
@@ -109,6 +110,7 @@ typedef	union
     }NEW;
 	}UN_Time;
 
+#endif
 	
 typedef union
 {
@@ -213,6 +215,8 @@ typedef	union
 	U8_T start_day;
 	U8_T end_month;
 	U8_T end_day;
+	
+	uint8_t network_number_hi;
 	}reg;
 }Str_Setting_Info;
 

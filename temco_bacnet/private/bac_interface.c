@@ -213,7 +213,7 @@ char* get_description(uint8_t type,uint8_t num)
 #if BAC_TRENDLOG
 	if(type == TRENDLOG)
 	{
-		if(num >= MAX_TRENDLOGS) return NULL;
+		if(num >= MAX_TREND_LOGS) return NULL;
 		return (char*)"tendlog";
 	}
 #endif
@@ -1947,6 +1947,46 @@ float Get_Output_Relinguish(uint8_t type,uint8_t i)
 		return (float)output_relinquish[i + max_dos];
 }
 
+void adjust_trend_log(void)
+{
+	int i;
+	TRENDLOGS = 0;
+	for(i = 0;i < base_in;i++)
+	{
+		if(inputs[i].digital_analog == 1)
+		{			
+			add_Trend_Log(OBJECT_ANALOG_INPUT,i + 1);
+		}
+		else
+		{
+			add_Trend_Log(OBJECT_BINARY_INPUT,i + 1);
+		}
+	}
+	
+	for(i = 0;i < base_out;i++)
+	{
+		if(outputs[i].digital_analog == 1)
+		{			
+			add_Trend_Log(OBJECT_ANALOG_OUTPUT,i + 1);
+		}
+		else
+		{
+			add_Trend_Log(OBJECT_ANALOG_OUTPUT,i + 1);
+		}
+	}
+	
+	for(i = 0;i < MAX_VARS;i++)
+	{
+		if((vars[i].range != 0) &&(vars[i].digital_analog == 1))
+		{
+			add_Trend_Log(OBJECT_ANALOG_VALUE,i + 1);
+		}
+		if((vars[i].range != 0) &&(vars[i].digital_analog == 0))
+		{			
+			add_Trend_Log(OBJECT_BINARY_VALUE,i + 1);
+		}
+	}
+}
 uint8_t AI_Index_To_Instance[MAX_INS];
 uint8_t BI_Index_To_Instance[MAX_INS];
 uint8_t AO_Index_To_Instance[MAX_AOS];
@@ -1973,16 +2013,19 @@ void Count_IN_Object_Number(void)
 			AI_Index_To_Instance[count1] = i;
 			AI_Instance_To_Index[i] = count1;
 			count1++;
+			
 		}
 		else
 		{
 			BI_Index_To_Instance[count2] = i;
 			BI_Instance_To_Index[i] = count2;
 			count2++;
+			
 		}
 	}
 	AIS = count1;
 	BIS = count2;
+	adjust_trend_log();  // adjust trend log if inputs are changed
 }
 
 
@@ -1991,6 +2034,7 @@ void Count_OUT_Object_Number(void)
 	U8_T count1,count2,i;
 	count1 = 0;
 	count2 = 0;
+	
 	for(i = 0;i < base_out;i++)
 	{
 		if(outputs[i].digital_analog == 1)
@@ -1998,16 +2042,19 @@ void Count_OUT_Object_Number(void)
 			AO_Index_To_Instance[count1] = i;
 			AO_Instance_To_Index[i] = count1;
 			count1++;
+			
 		}
 		else
 		{
 			BO_Index_To_Instance[count2] = i;
 			BO_Instance_To_Index[i] = count2;
 			count2++;
+			
 		}
 	}
 	AOS = count1;
 	BOS = count2;
+	adjust_trend_log(); // adjust trend log if outputs are changed
 }
 
 
@@ -2023,17 +2070,18 @@ void Count_VAR_Object_Number(void)
 		{
 			AV_Index_To_Instance[count1] = i;
 			AV_Instance_To_Index[i] = count1;
-			count1++;
+			count1++;			
 		}
 		if((vars[i].range != 0) &&(vars[i].digital_analog == 0))
 		{
 			BV_Index_To_Instance[count2] = i;
 			BV_Instance_To_Index[i] = count2;
-			count2++;
+			count2++;			
 		}
 	}
 	AVS = count1;
 	BVS = count2;
+	adjust_trend_log(); // adjust trend log if variables are changed
 
 //#if ARM_TSTAT_WIFI 
 //	

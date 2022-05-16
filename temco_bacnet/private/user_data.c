@@ -347,6 +347,10 @@ void init_info_table( void )
 	}
 }
 
+uint16_t get_network_number(void)
+{
+	return Modbus.network_number;
+}
 
 void init_panel(void)
 {	 	
@@ -741,6 +745,7 @@ void Sync_Panel_Info(void)
 		Setting_Info.reg.update_time_sync_pc = 0;
 	
 	Setting_Info.reg.network_number = Modbus.network_number;
+	Setting_Info.reg.network_number_hi = Modbus.network_number >> 8;
 	
 	Setting_Info.reg.panel_type = 88;
 
@@ -804,10 +809,10 @@ void Sync_Panel_Info(void)
 
 extern U32_T system_timer;
 
-U32_T get_current_time(void)
+/*U32_T get_current_time(void)
 {
 	return time_since_1970 + system_timer / 1000;//timezone ?????????????
-}
+}*/
 
 #if BAC_TRENDLOG
 U32_T my_mktime(UN_Time* t)
@@ -823,8 +828,7 @@ U32_T my_mktime(UN_Time* t)
 void Bacnet_Initial_Data(void)
 {
 	init_panel(); // for test now
-	initial_graphic_point();
-	monitor_init();
+
 }
 
 U32_T response_bacnet_ip = 0;
@@ -1133,7 +1137,6 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 	// modbus points do not have instance
 
 	if(check_point_type(point) == 1) return -1;
-	Test[26]++;
 
 	if(point->network_number & 0x80)  // first bit is 1, new structure, it is for instance
 	{
@@ -1158,7 +1161,6 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 			start_scan_network_count = 0;
 #endif
 		point->panel = 0;
-		Test[27]++;
 	}
 	return -1;	
 }
@@ -1410,10 +1412,7 @@ U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 	else
 		ptr = remote_points_list_bacnet;
 
-//	Test[20] = point->panel; Test[25] = ptr->point.panel;
-//	Test[21] = point->network_number; Test[26] = ptr->point.network_number;
-//	Test[22] = point->point_type; Test[27] = ptr->point.point_type;
-//	Test[23] = point->number; Test[28] = ptr->point.number;
+
 	for(i = 0;i < MAXREMOTEPOINTS;i++,ptr++)
 	{
 		if(/*(point->network_number == remote_points_list[i].point.network_number) &&*/
@@ -1585,12 +1584,12 @@ void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_
 		protocal = 0;
 	}
 	// network panel
-	Test[40]++;
+
 	if(check_network_point_list(&ptr.point,&index,protocal))
-	{Test[41]++;
+	{
 #if 1//NETWORK_MODBUS	
 		if(protocal == 0) // modbus
-		{Test[41]++;
+		{
 			if(float_type == 0)
 				network_points_list_modbus[index].point_value = val_ptr*1000;
 			else 
@@ -1680,7 +1679,6 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 						else	// other things
 							remote_points_list_modbus[i].tb.RP_modbus.func = READ_VARIABLES;
 						number_of_remote_points_modbus++;
-						Test[27]++;
 					}
 					else
 					{
@@ -1743,7 +1741,6 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 		ptr = &network_points_list_bacnet[0];
 	}
 
-	Test[22]++;
 	if( index < 0 )
 	{ /* index < 0 means that the index is unknown */
 
@@ -1759,7 +1756,7 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 			if( number_of_network_points_bacnet >= MAXNETWORKPOINTS )
 				return -1;
 		}
-		Test[23]++;
+
 		if( ( i = find_network_point( point ) ) >= 0 )
 		{ /* the point is in the list */
 			return i;
@@ -1822,7 +1819,7 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 					else
 #endif
 						number_of_network_points_bacnet++;
-					Test[24]++;
+
 					ptr->count = 1;
 					return i;
 				}
@@ -3089,8 +3086,8 @@ void init_new_analog_block( int mon_number, Str_monitor_point *mon_ptr/*, Monito
 	sample_time += mon_ptr->minute_interval_time * 60;
 	sample_time += mon_ptr->second_interval_time;
 
-	//memcpy( (void*)mon_block[mon_number * 2].inputs, (void*)mon_ptr->inputs,  ???????????????????
-	//		                mon_ptr->an_inputs*sizeof(Point_Net)  );
+	memcpy( (void*)mon_block[mon_number * 2].inputs, (void*)mon_ptr->inputs,
+			                mon_ptr->an_inputs*sizeof(Point_Net)  );
 
 	mon_block[mon_number * 2].second_interval_time = mon_ptr->second_interval_time;
 	mon_block[mon_number * 2].minute_interval_time = mon_ptr->minute_interval_time;
@@ -3101,7 +3098,6 @@ void init_new_analog_block( int mon_number, Str_monitor_point *mon_ptr/*, Monito
 	mon_block[mon_number * 2].start_time++;
 	mon_block[mon_number * 2].start_time *= sample_time;
 	mon_block[mon_number * 2].index = 0;
-
 }
 
 
@@ -3112,7 +3108,7 @@ void init_new_digital_block( int mon_number, Str_monitor_point *mon_ptr/*,Monito
 
 
 	mon_block[mon_number * 2 + 1].monitor = mon_number;
-  mon_block[mon_number * 2 + 1].no_points = mon_ptr->num_inputs - mon_ptr->an_inputs;
+    mon_block[mon_number * 2 + 1].no_points = mon_ptr->num_inputs - mon_ptr->an_inputs;
 	mon_block[mon_number * 2 + 1].index = 0;
 
 }
@@ -3134,12 +3130,13 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 	time += 60 * mon_ptr->minute_interval_time;
 	time += mon_ptr->second_interval_time;
 	mon_ptr->next_sample_time += time;
+
 	for(j = 0; j < mon_block[i * 2].no_points;j++)
 	{
 		ptr.pnet = mon_block[i * 2].inputs + j;
 		if( !mon_block[i * 2].index )
 		{
-			mon_block[i * 2].start_time = get_current_time() - 8 * 3600;
+			mon_block[i * 2].start_time = get_current_time();
 		}
 
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].index = mon_block[i * 2].monitor;
@@ -3151,20 +3148,19 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].point.network_number = ptr.pnet->network_number;
 
 
-		temp[0] = get_current_time() - 8 * 3600;
-		temp[1] = (get_current_time() - 8 * 3600) >> 8;
-		temp[2] = (get_current_time() - 8 * 3600) >> 16;
-		temp[3] = (get_current_time() - 8 * 3600) >> 24;
+		temp[0] = get_current_time();
+		temp[1] = get_current_time() >> 8;
+		temp[2] = get_current_time() >> 16;
+		temp[3] = get_current_time() >> 24;
 
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].time = temp[3] + (U16_T)(temp[2] << 8)
 	 + ((U32_T)temp[1] << 16) + ((U32_T)temp[0] << 24);
 
 		write_mon_point_buf[i * 2][mon_block[i * 2].index].mark = 0x0a0d;
 
-
-		//if(get_net_point_value( ptr.pnet, &value,0,0 ) == 1)  // get rid of default value 0x55555555
+		if(get_net_point_value( ptr.pnet, &value,0,0 ) == 1)  // get rid of default value 0x55555555
 		{
-			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  123;//value;
+			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  value;
 
 			temp[0] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value);
 			temp[1] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value) >> 8;
@@ -3180,9 +3176,9 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 
 	}
 
-	Test[24]++;
+
 	if(mon_block[i * 2].index +  mon_block[i * 2].no_points > MAX_MON_POINT)
-	{Test[25]++;
+	{
 		// current buffer is full, save data to SD card.
 		// clear no used point
 		for(k = mon_block[i * 2].index;k < MAX_MON_POINT;k++)
@@ -3553,7 +3549,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 	{
 		if(SD_exist != 2) // inexist
 		{ // check if no sd card, whether currect data should be stored into PC's DB
-			PTRtable->special = 0;Test[34]++;
+			PTRtable->special = 0;
 		}
 		else
 		{
@@ -3629,18 +3625,16 @@ void check_monitor_sample_points(U8_T i)
 
 	monitors[i].num_inputs = 0;
 	monitors[i].an_inputs = 0;
-	Test[0] = 5;
+
 	for(j = 0;j < MAX_POINTS_IN_MONITOR;j++)
 	{
 // 0.0. --> invalid points
-		Test[0] = 6;
 		if(monitors[i].inputs[j].panel != 0)
-		{Test[0] = 7;
+		{
 			monitors[i].num_inputs++;
 			k = monitors[i].inputs[j].number;
 			if(monitors[i].inputs[j].sub_id == panel_number || monitors[i].inputs[j].sub_id == 0)
 			{ // Local points
-				Test[0] = 8;
 				if(monitors[i].inputs[j].point_type == IN + 1)
 				{
 					monitors[i].range[j] = inputs[k].range;
@@ -3659,10 +3653,10 @@ void check_monitor_sample_points(U8_T i)
 					}
 				}
 				else if(monitors[i].inputs[j].point_type == VAR + 1)
-				{Test[0] = 9;
+				{
 					monitors[i].range[j] = vars[k].range;
 					if(vars[k].digital_analog == 1)
-					{Test[0] = 10;
+					{
 						monitors[i].an_inputs++;
 					}
 				}
@@ -3685,7 +3679,7 @@ void monitor_init(void)
 //	U8_T far time_unit;
 //	reading_sd = 0;
 //  count_reading_sd = 0;
-	monitors[0].status = 1;
+/*	monitors[0].status = 1;
 	monitors[0].an_inputs = 2;
 	monitors[0].num_inputs = 2;
 	monitors[0].inputs[0].point_type = VAR + 1;
@@ -3705,10 +3699,11 @@ void monitor_init(void)
 	monitors[0].hour_interval_time = 0;
 	monitors[0].minute_interval_time = 0;
 	monitors[0].second_interval_time = 5;
+*/
 
 	for(i = 0;i < MAX_MONITORS - 1;i++)
 	{
-		//if(monitors[i].status == 1) //
+		if(monitors[i].status == 1)
 		{  // enalble monitor
 			check_monitor_sample_points(i);
 			if((monitors[i].second_interval_time != 0) ||
@@ -4023,78 +4018,4 @@ void dealwithMonitor(uint8_t bank)
 
 #endif // monitor
 
-#if 0
-void update_timers( void )
-{
-	S16_T  i, year;
 
-	U32_T  far ora_current_sec;  /* seconds since the beginning of the day */
-	unsigned int day_of_year;
-	
-
-	month_length[0] = 31;
-	month_length[1] = 28;
-	month_length[2] = 31;
-	month_length[3] = 30;
-	month_length[4] = 31;
-	month_length[5] = 30;
-	month_length[6] = 31;
-	month_length[7] = 31;
-	month_length[8] = 30;
-	month_length[9] = 31;
-	month_length[10] = 30;
-	month_length[11] = 31;
-
-	if(year % 4)
-		month_length[1] = 29;
-	else
-		month_length[1] = 28;
-	/* seconds since the beginning of the day */
-
-	ora_current_sec = 3600L * hour;
-	ora_current_sec += 60L * min;
-	ora_current_sec += sec;
-
-	day_of_year = 0;
-	//if(Rtc.Clk.mon > 0)
-	{
-		for( i=0; i< mon - 1; i++ )
-		{
-			day_of_year += month_length[i];
-		}
-	}
-	day_of_year +=  9;
-/*	timestart = 0;*/ /* seconds since the beginning of the year */
-	timestart = 86400L * day_of_year; /* 86400L = 3600L * 24;*/
-	timestart += ora_current_sec;
-
-	time_since_1970 = 0; /* seconds since 1970 */
-	if( year < 70 )
-		year = 100 + year;
-
-	for( i = 70; i < year; i++ )
-	{
-		time_since_1970 += 31536000L;
-		if(i % 4 == 0)  // leap year
-			time_since_1970 += 86400L;
-	}
-
-	time_since_1970 += timestart;
-
-	//system_timer = time_since_1970;
-//	if(timezone >= 0)
-//		time_since_1970 -= (U16_T)timezone * 36;
-//	else
-//		time_since_1970 -= (S16_T)timezone * 36;
-
-
-//	if(Daylight_Saving_Time)
-//	{
-//		time_since_1970 += 3600;
-//	}
-
-	timestart = 0; /* seconds since the beginning */
-
-
-}
-#endif

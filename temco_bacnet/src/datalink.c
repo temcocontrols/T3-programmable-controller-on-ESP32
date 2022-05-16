@@ -38,7 +38,7 @@
 #include <string.h>
 
 /** @file datalink.c  Optional run-time assignment of datalink transport */
-
+#if 0
 //#if defined(BACDL_ALL) || defined FOR_DOXYGEN
 /* Function pointers - point to your datalink */
 static int BIP_Socket = -1;
@@ -99,6 +99,9 @@ void bip_get_my_address(
 
     return;
 }
+#endif
+
+
 
 	
 int datalink_send_pdu (

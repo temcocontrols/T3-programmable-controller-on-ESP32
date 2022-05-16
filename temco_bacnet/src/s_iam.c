@@ -49,6 +49,7 @@
  * @param npdu_data [out] The NPDU structure describing the message.
  * @return The length of the message in buffer[].
  */
+extern uint8_t flag_response_iam;
 int iam_encode_pdu(
     uint8_t * buffer,
     BACNET_ADDRESS * dest,
@@ -58,7 +59,9 @@ int iam_encode_pdu(
     int len = 0;
     int pdu_len = 0;
     BACNET_ADDRESS my_address;
+	flag_response_iam = 1;
     datalink_get_my_address(&my_address,protocal);
+	flag_response_iam = 0;
 
     datalink_get_broadcast_address(dest,protocal);
     /* encode the NPDU portion of the packet */

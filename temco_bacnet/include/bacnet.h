@@ -146,6 +146,7 @@
 
 
 
+
 #ifndef MAX_AVS
 #define MAX_AVS 128
 #endif
@@ -179,6 +180,7 @@
 #endif
 
 
+
 // for ASIX
 void switch_to_modbus(void);   // receive modbus frame when current protocal is mstp,switch to modbus
 //void UART_Init(U8_T port);
@@ -210,8 +212,8 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_SCHEDULE 		1
 #define BAC_PRIVATE 		1
 #define BAC_TIMESYNC 		1
-#define BAC_TRENDLOG		0//1
-#define BAC_RANGE				0  // dont need range 
+#define BAC_TRENDLOG		1
+#define BAC_RANGE			1 // dont need range 
 #define BAC_BI				1
 #define BAC_BV				1
 #define BAC_DCC				0
@@ -328,7 +330,12 @@ bool Analog_Value_Change_Of_Value(unsigned int instance);
 // for TIMESYNC
 #if BAC_TIMESYNC
 #include "timesync.h"
-#if 0
+//#include "user_data.h"
+#if 1
+
+int add_Trend_Log(uint8_t type,uint8_t instance);
+
+
 typedef	union
 	{
 		U8_T all[10];
@@ -339,17 +346,24 @@ typedef	union
 			U8_T hour;      		/* 0-23	*/
 			U8_T day;       		/* 1-31	*/
 			U8_T week;  		/* 0-6, 0=Sunday	*/
-			U8_T mon;     		/* 0-11	*/
+			U8_T mon;     		/* 1-12	*/
 			U8_T year;      		/* 0-99	*/
 			U16_T day_of_year; 	/* 0-365	*/
 			S8_T is_dst;        /* daylight saving time on / off */		
 				
 		}Clk;
-	}UN_Time;
+		struct
+    {
+        U32_T timestamp;
+        S8_T time_zone;
+        U8_T daylight_saving_time;
+        U8_T reserved[3];
+    }NEW;
+}UN_Time;
 extern UN_Time Rtc;//时钟结构体 
 #endif	
-U32_T Rtc_Set(U16_T syear, U8_T smon, U8_T sday, U8_T hour, U8_T min, U8_T sec, U8_T flag);
-
+//U32_T Rtc_Set(U16_T syear, U8_T smon, U8_T sday, U8_T hour, U8_T min, U8_T sec, U8_T flag);
+uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8_t min, uint8_t sec, uint8_t flag);
 extern  BACNET_DATE Local_Date;
 extern  BACNET_TIME Local_Time;
 void Set_Daylight_Saving_Status(bool);
@@ -404,7 +418,7 @@ void write_annual_date(uint8_t index,BACNET_DATE date);
 #include "trendlog.h"
 
 extern uint8_t  TRENDLOGS;
-
+U32_T my_mktime(UN_Time* t);
 #endif
 
 
@@ -496,6 +510,7 @@ extern uint8_t  AOS;
 extern uint8_t  BIS;
 extern uint8_t  BOS;
 extern uint8_t  BVS;
+extern uint8_t  TRENDLOGS;
 extern uint8_t  TemcoVarS;
 
 extern uint8_t AI_Index_To_Instance[MAX_AIS];

@@ -1,0 +1,254 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="build\detect_compiler_builtins.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="build\detect_compiler_builtins.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="build\project_elf_src_esp32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="build\bootloader\project_elf_src_esp32.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="build\bootloader\cmakefiles\3.16.4\compileridc\CMakeCCompilerId.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="build\bootloader\cmakefiles\3.16.4\compileridcxx\CMakeCXXCompilerId.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="build\cmakefiles\3.16.4\compileridc\CMakeCCompilerId.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="build\cmakefiles\3.16.4\compileridcxx\CMakeCXXCompilerId.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\ade7953.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\ble_mesh.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\co2_cal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\commsub.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\ethernet_task.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\flash.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\i2c_task.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\io.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\led_pwm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\mlx90632.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\mlx90632_extended_meas.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\modbus.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\ota.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\pro_info.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\rtc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\scan.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\scd40.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\scd4x_i2c.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\sensirion_common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\sgp30.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\sgp30_featureset.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\store.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\tcp_server.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\timegm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\veml7700.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main\wifi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="build\bootloader\config\sdkconfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="build\config\sdkconfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\ade7953.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\ble_mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\co2_cal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\commsub.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\controls.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\define.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\ethernet_task.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\flash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\i2c_task.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\led_pwm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\mlx90632.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\mlx90632_depends.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\mlx90632_extended_meas.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\modbus.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\MONITOR.H">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\ota.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\product.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\ProductModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\rtc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\scan.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\scd4x_i2c.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\sensirion_arch_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\sensirion_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\sgp30.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\sgp_featureset.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\sgp_git_version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\store.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\timegm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\ud_str.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\user_data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\veml7700.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main\wifi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="build\ota_data_initial.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\temco_app.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\temco_app_5.6test.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\bootloader\bootloader.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\bootloader\cmakefiles\3.16.4\CMakeDetermineCompilerABI_C.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\bootloader\cmakefiles\3.16.4\CMakeDetermineCompilerABI_CXX.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\cmakefiles\3.16.4\CMakeDetermineCompilerABI_C.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\cmakefiles\3.16.4\CMakeDetermineCompilerABI_CXX.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="build\partition_table\partition-table.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+</Project>

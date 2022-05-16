@@ -10,6 +10,7 @@
 #include <string.h>
 #include "mlx90632.h"
 #include "controls.h"
+#include "define.h"
 
 static const char *TAG = "i2c-task";
 
@@ -475,7 +476,10 @@ esp_err_t i2c_master_init()
     int i2c_master_port = I2C_MASTER_NUM;
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = 4;//I2C_MASTER_SDA_IO;
+    if(Modbus.mini_type == PROJECT_FAN_MODULE)
+    	conf.sda_io_num = 12;//4;//I2C_MASTER_SDA_IO;
+    else
+    	conf.sda_io_num = 4;
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
     conf.scl_io_num = 14;//I2C_MASTER_SCL_IO;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;

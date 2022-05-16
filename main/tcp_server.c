@@ -79,7 +79,7 @@ extern uint32_t Instance;
 void modbus0_task(void *arg);
 void modbus2_task(void *arg);
 void Bacnet_Control(void) ;
-
+void smtp_client_task(void *pvParameters);
 //计数信号量相关 信号量句柄 最大计数值，初始化计数值 （计数信号量管理是否有资源可用。）
 //MAX_COUNT 最大计数量，最多有几个资源
 xSemaphoreHandle CountHandle;
@@ -202,6 +202,20 @@ void UdpData(unsigned char type)
 
 }
 
+
+uint32_t get_ip_addr(void)
+{
+	if(Modbus.ethernet_status == 4)
+	{
+		return ((uint32_t)Modbus.ip_addr[3] << 24) + ((uint32_t)Modbus.ip_addr[2] << 16) + ((uint16_t)Modbus.ip_addr[1] << 8) + Modbus.ip_addr[0];
+
+	}
+	else
+	{
+		return ((uint32_t)SSID_Info.ip_addr[3] << 24) + ((uint32_t)SSID_Info.ip_addr[2] << 16) + ((uint16_t)SSID_Info.ip_addr[1] << 8) + SSID_Info.ip_addr[0];
+	}
+}
+
 EXT_RAM_ATTR uint8_t PDUBuffer_BIP[MAX_APDU];
 uint16_t  bip_len;
 uint8_t * bip_Data;
@@ -222,7 +236,6 @@ void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len)
 	if(len > 0)
 	{
 		sendto(bip_sock, (uint8_t *)buf, len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
-		//Test[38]++;
 		len = 0;
 	}
 
@@ -1489,6 +1502,7 @@ uint8_t MAX_MASTER;
 extern U8_T base_in;
 extern U8_T base_out;
 void Bacnet_Initial_Data(void);
+void Trend_Log_Init(void);
 void set_default_parameters(void)
 {
 	Bacnet_Initial_Data();
@@ -1523,6 +1537,8 @@ void Inital_Bacnet_Server(void)
 	Bacnet_Initial_Data();
 	Sync_Panel_Info();
 	read_point_info();
+	initial_graphic_point();
+	monitor_init();
 	Comm_Tstat_Initial_Data();
 	init_scan_db();
 
@@ -1543,12 +1559,15 @@ void Inital_Bacnet_Server(void)
 		AOS = MAX_AOS + 1;
 		AVS = MAX_AVS + 1;
 		BOS = 0;
-	}
 
+	}
+	TRENDLOGS = 0;
+	//Trend_Log_Init();
 
 	Count_VAR_Object_Number();
 	Count_IN_Object_Number();
 	Count_OUT_Object_Number();
+	//Test[29] = TRENDLOGS;
 }
 EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer0;
 EXT_RAM_ATTR uint8_t Receive_Buffer_Data0[512];
@@ -1840,6 +1859,7 @@ void Master2_Node_task(void)
 					}
 				}
 			}
+			//Test[20]++;
 
 			pdu_len = dlmstp_receive(&src, &PDUBuffer2[0], sizeof(PDUBuffer), 2);
 			if(pdu_len)
@@ -1872,7 +1892,6 @@ void uart0_rx_task(void)
 			int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 			if(len > 0)
-			
 			{
 				led_sub_rx++;
 				com_rx[0]++;
@@ -1926,7 +1945,8 @@ esp_err_t save_point_info(uint8_t point_type);
 #define TIMER_LED_INTERVAL 100
 void Timer_task(void)
 {
-	uint16_t count;
+	//uint16_t count;
+	uint16_t count = 0;
 	timezone = 800;
 	Daylight_Saving_Time = 0;
 	PCF_hctosys();
@@ -1934,10 +1954,11 @@ void Timer_task(void)
 	system_timer = 0;
 	Mstp_ForUs = 0;
 	Mstp_NotForUs = 0;
+	//FOR TEST
+	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
 	for (;;)
 	{// 10ms
-		//Test[38] = Mstp_ForUs;
-		//Test[39] = Mstp_NotForUs;
+
 		if((Mstp_ForUs > 100) && (Mstp_NotForUs > 10))
 		{// MSTP error, reboot
 			esp_restart();
@@ -1948,11 +1969,9 @@ void Timer_task(void)
 			SilenceTime = 0;
 		}
 		// tbd:
-		if(count >= 1000 / TIMER_INTERVAL) // 1 seond
-		{
+		{	
 			PCF_GetDateTime(&rtc_date);
 			update_timers();
-
 			if(count_hold_on_bip_to_mstp > 0)
 				count_hold_on_bip_to_mstp--;
 			count = 0;
@@ -2180,7 +2199,8 @@ void Bacnet_Control(void)
 //		else
 //			count_1s = 0;
 		check_trendlog_1s(2);
-
+		//trend_log_timer(0); // for standard trend log
+		Test[21]++;
 		Check_Net_Point_Table();
 		vTaskDelay(500 / portTICK_RATE_MS);
 
@@ -2204,7 +2224,6 @@ void app_main()
 #endif  */
 	SW_REV = SOFTREV;
 	read_default_from_flash();
-   mass_flash_init();
    uart_init(0);
    uart_init(2);
    //debug_info("modbus init finished^^^^^^^^");
@@ -2269,12 +2288,17 @@ void app_main()
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL, tskIDLE_PRIORITY + 8,NULL);
 //	xTaskCreate(rtc_task,"rtc_task", 2048, NULL, 10, NULL);
 	vStartScanTask(5);
+
+//	xTaskCreate(&smtp_client_task, "smtp_client_task", 4096, NULL, 5, NULL);
 }
 
 // for bacnet lib
 void uart_send_string(U8_T *p, U16_T length,U8_T port)
 {
-	holding_reg_params.led_rx485_tx = 2;
+//#if FAN
+	if(Modbus.mini_type == PROJECT_FAN_MODULE)
+		holding_reg_params.led_rx485_tx = 2;
+//#endif
 	if(port == 0)
 	{
 		uart_write_bytes(UART_NUM_0, (const char *)p, length);

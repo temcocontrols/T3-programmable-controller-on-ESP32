@@ -25,6 +25,7 @@ idf_component_register(SRCS "tcp_server.c"
 							"scd4x_i2c.c"													
 							"scan.c"
 							"commsub.c"
+							#"smtp_client.c"
 #							"ble_mesh.c"
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)

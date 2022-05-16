@@ -1607,7 +1607,7 @@ void handler_private_transfer(
 					{
 //						Count_Object_Number(OBJECT_ANALOG_VALUE);
 //						Count_Object_Number(OBJECT_BINARY_VALUE);
-						//Count_VAR_Object_Number();
+						Count_VAR_Object_Number();
 					}
 					if(command == WRITEWEEKLYROUTINE_T3000)          /* write weekly routines*/	
 					{		
@@ -1688,7 +1688,7 @@ void handler_private_transfer(
 						}	
 					
 #endif
-						//Count_IN_Object_Number();
+						Count_IN_Object_Number();
 					}
 					if(command == WRITEOUTPUT_T3000)
 					{	 
@@ -1733,7 +1733,7 @@ void handler_private_transfer(
 #endif
 //						Count_Object_Number(OBJECT_ANALOG_OUTPUT);
 //						Count_Object_Number(OBJECT_BINARY_OUTPUT);
-						//Count_OUT_Object_Number();
+						Count_OUT_Object_Number();
 					}
 #if  T3_MAP	
 					if(command == WRITEEXT_IO_T3000)
@@ -2029,7 +2029,7 @@ void handler_private_transfer(
 				// if daylight_saving_time
 				 
 //				if(Rtc.Clk.year % 5 == 0)
-					Rtc2.NEW.timestamp = get_current_time();
+					Rtc2.NEW.timestamp = get_current_time() + timezone * 36;
 //				else
 //					Rtc2.NEW.timestamp = swap_double(get_current_time()) - 86400;
 				Rtc2.NEW.time_zone = timezone;

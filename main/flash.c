@@ -192,6 +192,15 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
 	}
 
+	nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
+
+	if(Modbus.network_number == 0)
+	{
+		Modbus.network_number = 0xffff;
+		nvs_set_u16(my_handle, FLASH_NETWORK_NUMBER, Modbus.network_number);
+	}
+
+
 	err = nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
 
 	// panel name
@@ -201,7 +210,6 @@ esp_err_t read_default_from_flash(void)
 	nvs_close(my_handle);
 
 	Flash_Inital();
-	Test[19]++;
 	return ESP_OK;
 }
 

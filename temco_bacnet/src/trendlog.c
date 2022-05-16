@@ -45,13 +45,15 @@
 #endif
 
 #if BAC_TRENDLOG
+//#include "user_data.h"
 /* number of demo objects */
-//#ifndef MAX_TREND_LOGS
-//#define MAX_TREND_LOGS 8
-//#endif
+#ifndef MAX_TREND_LOGS
+#define MAX_TREND_LOGS 100
+#endif
 
 uint8_t  TRENDLOGS;
-
+void Get_Time_by_sec(unsigned long sec_time,UN_Time *  rtc,uint8_t flag);
+U32_T RTC_GetCounter(void);
 TL_DATA_REC Logs[MAX_TREND_LOGS][TL_MAX_ENTRIES];
 static TL_LOG_INFO LogInfo[MAX_TREND_LOGS];
 
@@ -150,6 +152,7 @@ uint32_t Trend_Log_Index_To_Instance(
 	 return index + OBJECT_BASE;
 }
 
+
 /* we simply have 0-n object instances.  Yours might be */
 /* more complex, and then you need to return the index */
 /* that correlates to the correct instance number */
@@ -166,6 +169,84 @@ unsigned Trend_Log_Instance_To_Index(
 	return object_instance - OBJECT_BASE; 
 }
 
+
+
+int add_Trend_Log(uint8_t type,uint8_t instance)
+{
+	UN_Time	TempTime; // current time
+	time_t tClock;
+	int iLog = 0;//TRENDLOGS;
+	int iEntry = 0;
+	int i = 0;
+	
+	if(TRENDLOGS == MAX_TREND_LOGS)
+		return TRENDLOGS;
+	// check whehter exist in table
+	for(i = 0;i < TRENDLOGS;i++)
+	{
+		if((type == LogInfo[iLog].Source.objectIdentifier.type) && 
+		(instance == LogInfo[iLog].Source.deviceIndentifier.instance))
+		return TRENDLOGS;
+	}
+	
+	iLog = TRENDLOGS;
+	tClock = RTC_GetCounter();
+	Get_Time_by_sec(tClock,&TempTime,0);
+	
+	Logs[iLog][iEntry].tTimeStamp = tClock;
+	Logs[iLog][iEntry].ucRecType = TL_TYPE_REAL;
+	Logs[iLog][iEntry].Datum.fReal =
+		(float) (iEntry + (iLog * TL_MAX_ENTRIES));
+	/* Put status flags with every second log */
+	if ((iLog & 1) == 0)
+		Logs[iLog][iEntry].ucStatus = 128;
+	else
+		Logs[iLog][iEntry].ucStatus = 0;
+	tClock += 10;//900;  /* advance 15 minutes */
+	
+
+	LogInfo[iLog].tLastDataTime = tClock - 10;//900;
+	LogInfo[iLog].bAlignIntervals = true;
+	LogInfo[iLog].bEnable = true;
+	LogInfo[iLog].bStopWhenFull = false;
+	LogInfo[iLog].bTrigger = false;
+	LogInfo[iLog].LoggingType = LOGGING_TYPE_POLLED;
+	LogInfo[iLog].Source.arrayIndex = 0;
+	LogInfo[iLog].ucTimeFlags = 0;
+	LogInfo[iLog].ulIntervalOffset = 0;
+	LogInfo[iLog].iIndex = 0;
+	LogInfo[iLog].ulLogInterval = 10;//900;
+	LogInfo[iLog].ulRecordCount = 0;//TL_MAX_ENTRIES;
+	LogInfo[iLog].ulTotalRecordCount = 1000;
+
+	LogInfo[iLog].Source.deviceIndentifier.instance =
+		Device_Object_Instance_Number();
+	LogInfo[iLog].Source.deviceIndentifier.type = OBJECT_DEVICE;
+				
+	LogInfo[iLog].Source.objectIdentifier.instance = instance;
+	LogInfo[iLog].Source.objectIdentifier.type = type;
+	LogInfo[iLog].Source.arrayIndex = BACNET_ARRAY_ALL;
+	LogInfo[iLog].Source.propertyIdentifier = PROP_PRESENT_VALUE;
+
+	datetime_set_values(&LogInfo[iLog].StartTime, 2000 + TempTime.Clk.year, TempTime.Clk.mon, TempTime.Clk.day, TempTime.Clk.hour, TempTime.Clk.min, TempTime.Clk.sec,
+		0);
+	LogInfo[iLog].tStartTime =
+		TL_BAC_Time_To_Local(&LogInfo[iLog].StartTime);
+	
+	tClock = RTC_GetCounter();	
+	Get_Time_by_sec(tClock + 3600 * 12,&TempTime,0);
+	datetime_set_values(&LogInfo[iLog].StopTime, 2000 + TempTime.Clk.year, TempTime.Clk.mon, TempTime.Clk.day, TempTime.Clk.hour, TempTime.Clk.min, TempTime.Clk.sec,
+		99);
+	LogInfo[iLog].tStopTime = LogInfo[iLog].tStartTime + 3600 * 12; // tbd:
+		//TL_BAC_Time_To_Local(&LogInfo[iLog].StopTime);	
+		
+	TRENDLOGS++;
+	return TRENDLOGS;
+}
+
+
+
+
 /*
  * Things to do when starting up the stack for Trend Logs.
  * Should be called whenever we reset the device or power it up
@@ -177,7 +258,7 @@ void Trend_Log_Init(
     int iLog;
     int iEntry;
 /*    struct tm TempTime;*/
-		UN_Time	TempTime;
+	UN_Time	TempTime;
     time_t tClock;
     if (!initialized) {
         initialized = true;
@@ -199,10 +280,10 @@ void Trend_Log_Init(
             /* We will just fill the logs with some entries for testing
              * purposes.
              */
-            TempTime.Clk.year = 17;
-            TempTime.Clk.mon = 12; /* Different month for each log */
-            TempTime.Clk.day = 1;
-            TempTime.Clk.hour = 15;
+            TempTime.Clk.year = 22;
+            TempTime.Clk.mon = 4; /* Different month for each log */
+            TempTime.Clk.day = 11;
+            TempTime.Clk.hour = 0;
             TempTime.Clk.min = 0;
             TempTime.Clk.sec = 0;
             tClock = my_mktime(&TempTime);//mktime(&TempTime);
@@ -233,22 +314,22 @@ void Trend_Log_Init(
             LogInfo[iLog].iIndex = 0;
             LogInfo[iLog].ulLogInterval = 10;//900;
             LogInfo[iLog].ulRecordCount = 0;//TL_MAX_ENTRIES;
-            LogInfo[iLog].ulTotalRecordCount = 100;//10000;
+            LogInfo[iLog].ulTotalRecordCount = 10000;
 
             LogInfo[iLog].Source.deviceIndentifier.instance =
                 Device_Object_Instance_Number();
             LogInfo[iLog].Source.deviceIndentifier.type = OBJECT_DEVICE;
 						
             LogInfo[iLog].Source.objectIdentifier.instance = iLog + 1;
-            LogInfo[iLog].Source.objectIdentifier.type = OBJECT_ANALOG_INPUT;
+            LogInfo[iLog].Source.objectIdentifier.type = OBJECT_ANALOG_VALUE;//OBJECT_ANALOG_INPUT;
             LogInfo[iLog].Source.arrayIndex = BACNET_ARRAY_ALL;
             LogInfo[iLog].Source.propertyIdentifier = PROP_PRESENT_VALUE;
 
-            datetime_set_values(&LogInfo[iLog].StartTime, 2017, 11, 25, 0, 0, 0,
+            datetime_set_values(&LogInfo[iLog].StartTime, 2022, 4, 11, 0, 0, 0,
                 0);
             LogInfo[iLog].tStartTime =
                 TL_BAC_Time_To_Local(&LogInfo[iLog].StartTime);
-            datetime_set_values(&LogInfo[iLog].StopTime, 2020, 11, 22, 23, 59,
+            datetime_set_values(&LogInfo[iLog].StopTime, 2022, 4, 30, 23, 59,
                 59, 99);
             LogInfo[iLog].tStopTime =
                 TL_BAC_Time_To_Local(&LogInfo[iLog].StopTime);							
@@ -266,20 +347,56 @@ void Trend_Log_Init(
  * on the assumption that there is a 1 to 1 correspondance. If there
  * is not we need to convert to index before proceeding.
  */
-//bool Trend_Log_Object_Name(
-//    uint32_t object_instance,
-//    BACNET_CHARACTER_STRING * object_name)
-//{
-//    static char text_string[32] = "";   /* okay for single thread */
-//    bool status = false;
+bool Trend_Log_Object_Name(
+    uint32_t object_instance,
+    BACNET_CHARACTER_STRING * object_name)
+{
+    //static char text_string[32] = "";   /* okay for single thread */
+    bool status = false;
+	int i;
+	
+    if (object_instance < MAX_TREND_LOGS) {
+        //sprintf(text_string, "Trend Log %u", object_instance);
+		// get name from monitor object
+		if(LogInfo[object_instance].Source.objectIdentifier.instance > 0)
+			i = LogInfo[object_instance].Source.objectIdentifier.instance - 1;
+		else
+			return status;
+		
+		switch(LogInfo[object_instance].Source.objectIdentifier.type)
+		{
+			case OBJECT_ANALOG_OUTPUT:
+			if(get_description(AO,i) != NULL)
+			status = characterstring_init_ansi(object_name,get_description(AO,i));
+			break;			
+			case OBJECT_ANALOG_INPUT:
+			if(get_description(AI,i) != NULL)
+			status = characterstring_init_ansi(object_name,get_description(AI,i));
+			break;
+			case OBJECT_ANALOG_VALUE:
+			if(get_description(AV,i) != NULL)
+			status = characterstring_init_ansi(object_name,get_description(AV,i));			
+			break;
+			case OBJECT_BINARY_OUTPUT:
+			if(get_description(BO,i) != NULL)
+			status = characterstring_init_ansi(object_name,get_description(BO,i));
+			break;			
+			case OBJECT_BINARY_INPUT:
+			if(get_description(BI,i) != NULL)
+			status = characterstring_init_ansi(object_name,get_description(BI,i));
+			break;
+			case OBJECT_BINARY_VALUE:
+			if(get_description(BV,i) != NULL)
+			status = characterstring_init_ansi(object_name,get_description(BV,i));
+			break;
+			default:
+			break;
+		}        
+    }
 
-//    if (object_instance < MAX_TREND_LOGS) {
-//        sprintf(text_string, "Trend Log %u", object_instance);
-//        status = characterstring_init_ansi(object_name, text_string);
-//    }
+    return status;
+}
 
-//    return status;
-//}
 
 
 /* return the length of the apdu encoded or BACNET_STATUS_ERROR for error or
@@ -316,13 +433,13 @@ int  Trend_Log_Encode_Property_APDU(
                 encode_application_object_id(&apdu[0], OBJECT_TRENDLOG,
                 object_index);
             break;
-
-        case PROP_DESCRIPTION:
-        case PROP_OBJECT_NAME:
-            //Trend_Log_Object_Name(object_index, &char_string);
-						characterstring_init_ansi(&char_string, get_label(TRENDLOG,object_index));
-            apdu_len =
+		case PROP_DESCRIPTION:			
+        case PROP_OBJECT_NAME:		
+			memset(&char_string,0,sizeof(BACNET_CHARACTER_STRING));
+            Trend_Log_Object_Name(object_index, &char_string);			
+			apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
+			
             break;
 
         case PROP_OBJECT_TYPE:
@@ -501,7 +618,10 @@ bool Trend_Log_Write_Property(
         wp_data->error_code = ERROR_CODE_PROPERTY_IS_NOT_AN_ARRAY;
         return false;
     }
+	
     switch (wp_data->object_property) {
+		case PROP_DESCRIPTION:
+			break;
         case PROP_ENABLE:
             status =
                 WPValidateArgType(&value, BACNET_APPLICATION_TAG_BOOLEAN,
@@ -814,12 +934,14 @@ bool Trend_Log_Write_Property(
             TempSource.deviceIndentifier.type = OBJECT_DEVICE;
             TempSource.deviceIndentifier.instance =
                 Device_Object_Instance_Number();
+			
             /* Quick comparison if structures are packed ... */
             if (memcmp(&TempSource, &CurrentLog->Source,
                     sizeof(BACNET_DEVICE_OBJECT_PROPERTY_REFERENCE)) != 0) {
                 /* Clear buffer if property being logged is changed */
                 CurrentLog->ulRecordCount = 0;
                 CurrentLog->iIndex = 0;
+				
                 TL_Insert_Status_Rec(log_index, LOG_STATUS_BUFFER_PURGED,
                     true);
             }
@@ -940,7 +1062,7 @@ void TL_Insert_Status_Rec(
     TL_DATA_REC TempRec;
 
     CurrentLog = &LogInfo[iLog];
-    TempRec.tTimeStamp = get_current_time();
+    TempRec.tTimeStamp = RTC_GetCounter();//get_current_time();
     TempRec.ucRecType = TL_TYPE_STATUS;
     TempRec.ucStatus = 0;
     TempRec.Datum.ucLogStatus = 0;
@@ -983,7 +1105,7 @@ bool TL_Is_Enabled(
     TL_LOG_INFO *CurrentLog;
     time_t tNow;
     bool bStatus;
-
+	
     bStatus = true;
     CurrentLog = &LogInfo[iLog];
 #if 0
@@ -1001,7 +1123,7 @@ bool TL_Is_Enabled(
         bStatus = false;
     } else if (CurrentLog->ucTimeFlags != (TL_T_START_WILD | TL_T_STOP_WILD)) {
         /* enabled and either 1 wild card or none */
-        tNow = get_current_time();
+        tNow = RTC_GetCounter();
 #if 0
         printf("\nFlags - %u, Current - %u, Start - %u, Stop - %u\n",
             (unsigned int) CurrentLog->ucTimeFlags, (unsigned int) Now,
@@ -1011,22 +1133,22 @@ bool TL_Is_Enabled(
         if ((CurrentLog->ucTimeFlags & TL_T_START_WILD) != 0) {
             /* wild card start time */
             if (tNow > CurrentLog->tStopTime)
-                bStatus = false;
+			bStatus = false;
         } else if ((CurrentLog->ucTimeFlags & TL_T_STOP_WILD) != 0) {
             /* wild card stop time */
             if (tNow < CurrentLog->tStartTime)
-                bStatus = false;
+			bStatus = false;
         } else {
 #if 0
             printf("\nCurrent - %u, Start - %u, Stop - %u\n",
                 (unsigned int) tNow, (unsigned int) CurrentLog->tStartTime,
                 (unsigned int) CurrentLog->tStopTime);
-#endif
-								
+#endif		
+											
             /* No wildcards so use both times */
             if ((tNow < CurrentLog->tStartTime) ||
                 (tNow > CurrentLog->tStopTime))
-                bStatus = false;
+				 bStatus = false;
         }
     }
 
@@ -1069,7 +1191,7 @@ time_t TL_BAC_Time_To_Local(
 /*****************************************************************************
  * Convert a local time in seconds since the local epoch into a BACnet time  *
  *****************************************************************************/
-void Get_Time_by_sec(u32 sec_time,UN_Time *  rtc);
+
 
 void TL_Local_Time_To_BAC(
     BACNET_DATE_TIME * DestTime,
@@ -1079,10 +1201,11 @@ void TL_Local_Time_To_BAC(
     TempTime = localtime(&SourceTime);*/
 	
 		UN_Time TempTime;
-	  Get_Time_by_sec(SourceTime,&TempTime);
-	
-		DestTime->date.year = (uint16_t) (TempTime.Clk.year + 2000);
-    DestTime->date.month = (uint8_t) (TempTime.Clk.mon);
+
+		Get_Time_by_sec(SourceTime,&TempTime,0);
+	  
+		DestTime->date.year = TempTime.Clk.year + 2000;
+    DestTime->date.month = TempTime.Clk.mon;
     DestTime->date.day = (uint8_t) TempTime.Clk.day;
     /* BACnet is 1 to 7 = Monday to Sunday
      * Windows is days from Sunday 0 - 6 so we
@@ -1222,7 +1345,6 @@ int TL_encode_by_position(
             break;
         }
         iTemp = TL_encode_entry(&apdu[iLen], log_index, uiIndex);
-
         uiRemaining -= iTemp;   /* Reduce the remaining space */
         iLen += iTemp;  /* and increase the length consumed */
         uiLast = uiIndex;       /* Record the last entry encoded */
@@ -1353,7 +1475,7 @@ int TL_encode_by_sequence(
                 true);
             break;
         }
-
+				
         iTemp = TL_encode_entry(&apdu[iLen], log_index, uiIndex);
 
         uiRemaining -= iTemp;   /* Reduce the remaining space */
@@ -1484,7 +1606,7 @@ int TL_encode_by_time(
                 true);
             break;
         }
-
+				
         iTemp = TL_encode_entry(&apdu[iLen], log_index, uiIndex);
 
         uiRemaining -= iTemp;   /* Reduce the remaining space */
@@ -1534,6 +1656,7 @@ int TL_encode_entry(
 
     iLen = 0;
     /* First stick the time stamp in with tag [0] */
+
     TL_Local_Time_To_BAC(&TempTime, pSource->tTimeStamp);
     iLen += bacapp_encode_context_datetime(apdu, 0, &TempTime);
 
@@ -1652,12 +1775,13 @@ static int local_read_property(
         /* configure our storage */
         rpdata.application_data = value;
         rpdata.application_data_len = MAX_APDU;
-        rpdata.object_type = Source->objectIdentifier.type;
+        rpdata.object_type = Source->objectIdentifier.type;		
         rpdata.object_instance = Source->objectIdentifier.instance;
         rpdata.object_property = Source->propertyIdentifier;
         rpdata.array_index = Source->arrayIndex;
         /* Try to fetch the required property */
         len = Device_Read_Property(&rpdata);
+				
         if (len < 0) {
             *error_class = rpdata.error_class;
             *error_code = rpdata.error_code;
@@ -1703,14 +1827,15 @@ void TL_fetch_property(
 
     /* Record the current time in the log entry and also in the info block
      * for the log so we can figure out when the next reading is due */
-    TempRec.tTimeStamp = get_current_time();
+    TempRec.tTimeStamp = RTC_GetCounter();//get_current_time();
+
     CurrentLog->tLastDataTime = TempRec.tTimeStamp;
     TempRec.ucStatus = 0;
-
+	
     iLen =
         local_read_property(ValueBuf, StatusBuf, &LogInfo[iLog].Source,
         &error_class, &error_code);
-    if (iLen < 0) { 
+    if (iLen < 0) { 	
         /* Insert error code into log */
         TempRec.Datum.Error.usClass = error_class;
         TempRec.Datum.Error.usCode = error_code;
@@ -1794,13 +1919,13 @@ void TL_fetch_property(
         TempRec.ucStatus = 128 | bitstring_octet(&TempBits, 0);
     }
 
-
+	
     Logs[iLog][CurrentLog->iIndex++] = TempRec;
     if (CurrentLog->iIndex >= TL_MAX_ENTRIES)
         CurrentLog->iIndex = 0;
 
     CurrentLog->ulTotalRecordCount++;
-
+	
     if (CurrentLog->ulRecordCount < TL_MAX_ENTRIES)
         CurrentLog->ulRecordCount++;
 }
@@ -1819,15 +1944,15 @@ void trend_log_timer(
     /* unused parameter */
     uSeconds = uSeconds;
     /* use OS to get the current time */
-    tNow = get_current_time();
+    tNow = RTC_GetCounter();//get_current_time();
     for (iCount = 0; iCount < MAX_TREND_LOGS; iCount++) {
         CurrentLog = &LogInfo[iCount];
         if (TL_Is_Enabled(iCount)) { 
-            if (CurrentLog->LoggingType == LOGGING_TYPE_POLLED) {
+            if (CurrentLog->LoggingType == LOGGING_TYPE_POLLED) {	
                 /* For polled logs we first need to see if they are clock
                  * aligned or not.
                  */
-                if (CurrentLog->bAlignIntervals == true) { 
+                if (CurrentLog->bAlignIntervals == true) {
                     /* Aligned logging so use the combination of the interval
                      * and the offset to decide when to log. Also log a reading if
                      * more than interval time has elapsed since last reading to ensure
@@ -1862,11 +1987,11 @@ void trend_log_timer(
                 }
 
                 CurrentLog->bTrigger = false;   /* Clear this every time */
-            } else if (CurrentLog->LoggingType == LOGGING_TYPE_TRIGGERED) {
+            } else if (CurrentLog->LoggingType == LOGGING_TYPE_TRIGGERED) { 
                 /* Triggered logs take a reading when the trigger is set and
                  * then reset the trigger to wait for the next event
                  */
-                if (CurrentLog->bTrigger == true) { 
+                if (CurrentLog->bTrigger == true) {
                     TL_fetch_property(iCount); 
                     CurrentLog->bTrigger = false;
                 }

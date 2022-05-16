@@ -713,6 +713,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0;
 			temp2 = Modbus.address;
 		}
+		else if(address == MODBUS_NETWORK_NUMBER)
+		{
+			temp1 = Modbus.network_number >> 8;
+			temp2 = Modbus.network_number;
+		}
          else if((address >= MAC_ADDR_1) && (address <= MAC_ADDR_6))
          {
             temp1 = 0;
@@ -1465,6 +1470,11 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				Modbus.mini_type = *(bufadd + 5);
 				save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
 			}
+		}
+		else if(address == MODBUS_NETWORK_NUMBER)
+		{
+			Modbus.network_number = (*(bufadd + 5)) + (*(bufadd + 4)) * 256;
+			save_uint16_to_flash(FLASH_NETWORK_NUMBER,Modbus.network_number);
 		}
       else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
       {
@@ -2653,7 +2663,11 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
 			}
 		}
-
+		if(Modbus.network_master != (ptr->reg.network_number + 256L * ptr->reg.network_number_hi))
+		{
+			Modbus.network_master = ptr->reg.network_number + 256L * ptr->reg.network_number_hi;
+			save_uint16_to_flash( FLASH_NETWORK_NUMBER, Modbus.network_master);
+		}
 		if((Instance != (ptr->reg.instance)) && (ptr->reg.instance != 0))
 		{
 			Instance = (ptr->reg.instance);

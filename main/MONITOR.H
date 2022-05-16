@@ -114,6 +114,7 @@ void UpdateMonitor( Mon_Data *PTRtable);
 
 void dealwithMonitor(uint8_t bank);
 void monitor_init(void);
+void initial_graphic_point(void);
 void check_whehter_reading_sd(void);
 
 #endif

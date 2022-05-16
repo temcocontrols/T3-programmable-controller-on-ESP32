@@ -34,7 +34,7 @@ typedef struct
 	U16_T start_adc[11];
 	U8_T refresh_flash_timer;
 
-	U8_T network_number;
+	U16_T network_number;
 	U8_T  en_username;
 	U8_T  cus_unit;
 

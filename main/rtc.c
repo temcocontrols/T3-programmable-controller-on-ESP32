@@ -394,23 +394,166 @@ void update_timers( void )
 		if(i % 4 == 0)  // leap year
 			time_since_1970 += 86400L;
 	}
-//	Test[0]++;
-	time_since_1970 += timestart;
 
+/*	if(timezone >= 0)
+		time_since_1970 -= (U16_T)timezone * 36;
+	else
+		time_since_1970 -= (S16_T)timezone * 36;
+
+
+	if(Daylight_Saving_Time)
+	{
+		time_since_1970 += 3600;
+	}*/
+
+	time_since_1970 += timestart;
 
 }
 
+U32_T get_current_time(void)
+{
+	if(Daylight_Saving_Time)  // timezone : +8 ---> 800
+	{
+		if((rtc_date.day_of_year >= start_day) && (rtc_date.day_of_year <= end_day))
+		{
+			return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36 - 3600;
+		}
+		else
+			return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36;
+
+	}
+	else
+		return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36;
+
+	return 0;
+	//return time_since_1970 + system_timer / 1000;//timezone ?????????????
+}
+
+U32_T RTC_GetCounter(void)
+{
+	return time_since_1970 + system_timer / 1000;
+}
+
+
+
+u8 Is_Leap_Year(u16 year)
+{
+	if(year % 4 == 0)
+	{
+		if(year % 100 == 0)
+		{
+			if(year % 400 == 0)
+				return 1;
+			else
+				return 0;
+		}
+		else
+		{
+			return 1;
+		}
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+const u8 mon_table[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag)
+{
+	static u16 daycnt = 0;
+	u32 temp = 0;
+	u16 temp1 = 0;
+
+
+ 	temp = sec_time / 86400;
+	if(flag == 0)
+	{
+		daycnt = 0;
+	}
+	if(daycnt != temp)
+	{
+		daycnt = temp;
+		temp1 = 1970;
+		while(temp >= 365)
+		{
+			if(Is_Leap_Year(temp1))
+			{
+				if(temp >= 366)
+				{
+					temp -= 366;
+				}
+				else
+				{
+					break;
+				}
+			}
+			else
+			{
+				temp -= 365;
+			}
+			temp1++;
+		}
+		rtc->Clk.year = temp1 - 2000;
+		rtc->Clk.day_of_year = temp + 1;  // get day of year, added by chelsea
+		temp1 = 0;
+		while(temp >= 28)
+		{
+			if(Is_Leap_Year(rtc->Clk.year) && temp1 == 1)
+			{
+				if(temp >= 29)
+					temp -=	29;
+				else
+					break;
+			}
+			else
+			{
+				if(temp >= mon_table[temp1])
+					temp -= mon_table[temp1];
+				else
+					break;
+			}
+			temp1++;
+		}
+		rtc->Clk.mon = temp1 + 1;
+		rtc->Clk.day = temp + 1;
+	}
+	temp = sec_time % 86400;
+	rtc->Clk.hour = temp / 3600;
+	rtc->Clk.min = (temp % 3600) / 60;
+	rtc->Clk.sec = (temp % 3600) % 60;
+	rtc->Clk.week = RTC_Get_Week(2000 + rtc->Clk.year, rtc->Clk.mon,rtc->Clk.day);
+
+	if(flag == 1)
+	{
+	Local_Date.year = rtc->Clk.year + 2000;
+	Local_Date.month = rtc->Clk.mon;
+	Local_Date.day = rtc->Clk.day;
+	Local_Date.wday = rtc->Clk.week;
+
+	Local_Time.hour = rtc->Clk.hour;
+	Local_Time.min = rtc->Clk.min;
+	Local_Time.sec = rtc->Clk.sec;
+	}
+}
+
+//U32_T Rtc_Set(U16_T syear, U8_T smon, U8_T sday, U8_T hour, U8_T min, U8_T sec, U8_T flag)
 uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8_t min, uint8_t sec, uint8_t flag)
 {
-	rtc_date.second = sec;
-	rtc_date.minute = min;
-	rtc_date.hour = hour;
-	rtc_date.month = smon;
-	rtc_date.year = syear + 2000;
-	rtc_date.day = sday;
-	PCF_SetDateTime(&rtc_date);
+	if(flag == 0)
+	{
+		rtc_date.second = sec;
+		rtc_date.minute = min;
+		rtc_date.hour = hour;
+		rtc_date.month = smon;
+		rtc_date.year = syear + 2000;
+		rtc_date.day = sday;
+		system_timer = 0;
+		PCF_SetDateTime(&rtc_date);
+	}
+
 	update_timers();
-	return 1;
+	return time_since_1970 + system_timer / 1000;
 }
 
 void Get_RTC_by_timestamp(U32_T timestamp,UN_Time* rtc,U8_T source)

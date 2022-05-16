@@ -1193,20 +1193,8 @@ U8_T Get_index_by_BOx(uint8_t do_index,uint8_t *out_index)
 	}
 
 }
-#endif
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-S32_T my_honts_arm(S32_T val)
-{
-	U8_T temp[4];
-	S32_T temp_32;
-	temp[0] = (val & 0xff000000) >> 24;
-	temp[1] = (val & 0x00ff0000) >> 16;
-	temp[2] = (val & 0x0000ff00) >> 8;
-	temp[3] = (val & 0x000000ff);
-	temp_32 = temp[0] + (U16_T)(temp[1] << 8) + ((U32_T)temp[2] << 16) + ((U32_T)temp[3] << 24);
-	return temp_32;
-}
+
 #endif
 
 void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start,uint8_t out_end,uint8_t update_time)

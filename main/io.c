@@ -65,32 +65,8 @@ U32_T get_rpm(U8_T point)
 
 void Set_Input_Type(U8_T point)
 {
-#if !(ARM_TSTAT_WIFI)
-		if((Modbus.mini_type == MINI_BIG)  || (Modbus.mini_type == MINI_BIG_ARM)
-		|| (Modbus.mini_type == MINI_SMALL)	|| (Modbus.mini_type == MINI_SMALL_ARM))
-		{
-			//InputLed[point] &= 0x0f;
-			//if(input_type[point] >= 1)
-			//	InputLed[point] |= ((input_type[point] - 1) << 4);
-			//else
-			//	InputLed[point] |= (input_type[point] << 4);
+	// maybe not need it
 
-		}
-
-		if((Modbus.mini_type == MINI_TINY && Modbus.hardRev < STM_TINY_REV)|| Modbus.mini_type == MINI_CM5)
-		{
-#if (ASIX_MINI || ASIX_CM5)
-			if(input_type[point] > 0)
-			{
-				push_cmd_to_picstack(SET_INPUT1_TYPE + point,input_type[point] - 1);  // only for tiny
-			}
-			else
-			{
-				push_cmd_to_picstack(SET_INPUT1_TYPE + point,3);  // only for tiny
-			}
-#endif
-		}
-#endif
 }
 
 U16_T get_input_raw(U8_T point)
@@ -112,28 +88,15 @@ U16_T get_output_raw(U8_T point)
 U32_T conver_by_unit_5v(U32_T sample)
 {
 
-	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
+	if(Modbus.mini_type == MINI_BIG_ARM)
 	{
-		if(Modbus.hardRev >= 22)  // rev22  use input moudle
-			return  (5000L * sample ) >> 10;
-		else
-			return  (3000L * sample) >> 10;
+		return  (5000L * sample ) >> 10;
 	}
-	else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
+	else if(Modbus.mini_type == MINI_SMALL_ARM) // rev4  use input moudle
 	{
-		if(Modbus.hardRev >= 4)
-			return  (5000L * sample ) >> 10;
-		else
-			return  (3000L * sample ) >> 10;
+		return  (5000L * sample ) >> 10;
 	}
-	else if(Modbus.mini_type == MINI_TINY) // rev4  use input moudle
-	{
-		if(Modbus.hardRev >= STM_TINY_REV)
-			return  (5000L * sample ) >> 10;
-		else
-			return (8300L * sample ) >> 10;	// input Ä£¿éÓÐÄÚ×è£¬±ØÐë¼Óµ÷Õû
-	}
-	else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM) )
+	else if(Modbus.mini_type == MINI_TINY_ARM)
 	{
 		return (5000L * sample ) >> 10;
 	}
@@ -146,28 +109,15 @@ U32_T conver_by_unit_5v(U32_T sample)
 U32_T conver_by_unit_10v(U32_T sample)
 {
 
-		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
+		if(Modbus.mini_type == MINI_BIG_ARM)
 		{
-			if(Modbus.hardRev >= 22)
-				return (10000l * sample) >> 10;
-			else
-				return  (9000L * sample) >> 10;
+			return (10000l * sample) >> 10;
 		}
-		else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
+		else if(Modbus.mini_type == MINI_SMALL_ARM) // rev4  use input moudle
 		{
-			if(Modbus.hardRev >= 6)
-				return (10000l * sample) >> 10;
-			else
-				return (9000L * sample) >> 10;
+			return (10000l * sample) >> 10;
 		}
-		else if(Modbus.mini_type == MINI_TINY) // rev6  use input moudle
-		{
-			if(Modbus.hardRev >= STM_TINY_REV)
-				return (10000l * sample) >> 10;
-			else
-				return ( 9000L * sample ) >> 10;
-		}
-		else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM) )
+		else if(Modbus.mini_type == MINI_TINY_ARM)
 		{
 			return (10000L * sample ) >> 10;
 		}
@@ -181,28 +131,15 @@ U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 {
 	if(input_type[point] == INPUT_V0_5)
 	{
-		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
+		if(Modbus.mini_type == MINI_BIG_ARM)
 		{
-			if(Modbus.hardRev >= 22)  // rev22  use input moudle
-				return  ( 5000L * sample) >> 10;
-			else
-				return  ( 3000L  * sample ) >> 10;
+			return  ( 5000L * sample) >> 10;
 		}
-		else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
+		else if(Modbus.mini_type == MINI_SMALL_ARM) // rev4  use input moudle
 		{
-			if(Modbus.hardRev >= 4)
-				return  ( 5000L * sample  ) >> 10;
-			else
-				return  ( 3000L  * sample ) >> 10;
+			return  ( 5000L * sample  ) >> 10;
 		}
-		else if(Modbus.mini_type == MINI_TINY)
-		{
-			if(Modbus.hardRev >= STM_TINY_REV)
-				return  ( 5000L * sample  ) >> 10;
-			else
-				return ( 8300L * sample  ) >> 10;	// input Ä£¿éÓÐÄÚ×è£¬±ØÐë¼Óµ÷Õû
-		}
-		else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM))
+		else if(Modbus.mini_type == MINI_TINY_ARM)
 		{
 			return (5000L * sample ) >> 10;
 		}
@@ -218,28 +155,15 @@ U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 	}
 	else if(input_type[point] == INPUT_0_10V)
 	{
-		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
+		if(Modbus.mini_type == MINI_BIG_ARM)
 		{
-			if(Modbus.hardRev >= 22)
-				return ( 10000l * sample) >> 10;
-			else
-				return  (  9000L * sample) >> 10;
+			return ( 10000l * sample) >> 10;
 		}
-		else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
+		else if(Modbus.mini_type == MINI_SMALL_ARM) // rev4  use input moudle
 		{
-			if(Modbus.hardRev >= 6)
-				return (10000l * sample ) >> 10;
-			else
-				return (9000L *   sample) >> 10;
+			return (10000l * sample ) >> 10;
 		}
-		else if(Modbus.mini_type == MINI_TINY) // rev6  use input moudle
-		{
-			if(Modbus.hardRev >= STM_TINY_REV)
-				return (10000l * sample  ) >> 10;
-			else
-				return (9000L * sample  ) >> 10;
-		}
-		else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM))
+		else if(Modbus.mini_type == MINI_TINY_ARM)
 		{
 			return (10000L * sample ) >> 10;
 		}
@@ -268,27 +192,15 @@ U8_T get_max_output(void)
 
 U8_T get_max_internal_input(void)
 {
-	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
+	if(Modbus.mini_type == MINI_BIG_ARM)
 	{
 		return BIG_MAX_AIS;
 	}
-	else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM))
+	else if(Modbus.mini_type == MINI_SMALL_ARM)
 	{
 	  return SMALL_MAX_AIS;
 	}
-	else if(Modbus.mini_type == MINI_TINY)
-	{
-	  return TINY_MAX_AIS;
-	}
-	else if(Modbus.mini_type == MINI_VAV)
-	{
-	  return VAV_MAX_AIS;
-	}
-	else if(Modbus.mini_type == MINI_CM5)
-	{
-	  return CM5_MAX_AIS;
-	}
-	else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM))
+	else if(Modbus.mini_type == MINI_TINY_ARM)
 	{
 	  return NEW_TINY_MAX_AIS;
 	}
@@ -301,27 +213,15 @@ U8_T get_max_internal_input(void)
 
 U8_T get_max_internal_output(void)
 {
-	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
+	if(Modbus.mini_type == MINI_BIG_ARM)
 	{
 		return BIG_MAX_AOS + BIG_MAX_DOS;
 	}
-	else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM))
+	else if(Modbus.mini_type == MINI_SMALL_ARM)
 	{
 	  return SMALL_MAX_AOS + SMALL_MAX_DOS;
 	}
-	else if(Modbus.mini_type == MINI_TINY)
-	{
-	  return TINY_MAX_AOS + TINY_MAX_DOS;
-	}
-	else if(Modbus.mini_type == MINI_VAV)
-	{
-	  return VAV_MAX_AOS + VAV_MAX_DOS;
-	}
-	else if(Modbus.mini_type == MINI_CM5)
-	{
-	  return CM5_MAX_AOS + CM5_MAX_DOS;
-	}
-	else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM))
+	else if(Modbus.mini_type == MINI_TINY_ARM)
 	{
 	  return NEW_TINY_MAX_AOS + NEW_TINY_MAX_DOS;
 	}

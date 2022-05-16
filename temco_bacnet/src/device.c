@@ -203,9 +203,9 @@ static struct my_object_functions {
 				OBJECT_TRENDLOG, 
 				Trend_Log_Init,  
 				Trend_Log_Count,
-        Trend_Log_Index_To_Instance, 
+				Trend_Log_Index_To_Instance, 
 				Trend_Log_Valid_Instance,
-        Trend_Log_Object_Name,   
+				Trend_Log_Object_Name,   
 				Trend_Log_Encode_Property_APDU,//Trend_Log_Read_Property,
 				NULL,//Trend_Log_Write_Property,
 				Trend_Log_Property_Lists,
@@ -578,6 +578,7 @@ unsigned Device_Object_List_Count( void)
 #if BAC_FILE
 	count += bacfile_count();
 #endif
+	Test[23] = count + 10;
     return count;
 }
 
@@ -706,7 +707,7 @@ bool Device_Object_List_Identifier(
 		if (!status) {
         /* array index starts at 1, and 1 for the device object */
         object_index -= object_count;
-        object_count = Calendar_Count();
+        object_count = Trend_Log_Count();
         if (object_index < object_count) {
             *object_type = OBJECT_TRENDLOG;
             *instance = Trend_Log_Index_To_Instance(object_index);
