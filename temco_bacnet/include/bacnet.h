@@ -13,7 +13,7 @@
 #define BAC_BVLC 3
 #define BAC_IP_CLIENT2 4  // for COV
 
-
+#pragma pack(1)
 // select current chip
 #define ASIX				0
 #define ARM					1
@@ -27,7 +27,7 @@
 #endif
 #endif
 
-
+#pragma pack(1)
 /* Define your processor architecture as
    Big Endian (PowerPC,68K,Sparc) or Little Endian (Intel,AVR)
    ARM and MIPS can be either - what is your setup? */
@@ -213,7 +213,7 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_PRIVATE 		1
 #define BAC_TIMESYNC 		1
 #define BAC_TRENDLOG		1
-#define BAC_RANGE			1 // dont need range 
+#define BAC_RANGE			1 // dont need range
 #define BAC_BI				1
 #define BAC_BV				1
 #define BAC_DCC				0
@@ -357,7 +357,7 @@ typedef	union
         U32_T timestamp;
         S8_T time_zone;
         U8_T daylight_saving_time;
-        U8_T reserved[3];
+        U8_T reserved[4];
     }NEW;
 }UN_Time;
 extern UN_Time Rtc;//时钟结构体 

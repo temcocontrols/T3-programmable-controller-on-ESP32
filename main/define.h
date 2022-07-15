@@ -145,9 +145,10 @@ typedef	enum
 #define	PROJECT_FAN_MODULE 	13
 #define	PROJECT_POWER_METER 14
 #define	PROJECT_AIRLAB   	15
-#define PROJECT_SAUTER 		16
+#define PROJECT_TRANSDUCER 	16
 #define PROJECT_TSTAT9		17
-#define MAX_MINI_TYPE 		17
+#define PROJECT_SAUTER		18
+#define MAX_MINI_TYPE 		18
 
 extern STR_MODBUS Modbus;
 extern U16_T Test[50];

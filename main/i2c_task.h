@@ -63,6 +63,8 @@ typedef struct{
 	uint32_t sound;
 	uint16_t ambient;
 	uint16_t object;
+	uint16_t co2_temp;
+	uint16_t co2_humi;
 	float original_temperature;
 	float original_humidity;
 	bool co2_ready;

@@ -11,6 +11,8 @@
 #include "mlx90632.h"
 #include "controls.h"
 #include "define.h"
+#include "scd4x_i2c.h"
+#include "sht4x.h"
 
 static const char *TAG = "i2c-task";
 
@@ -476,7 +478,7 @@ esp_err_t i2c_master_init()
     int i2c_master_port = I2C_MASTER_NUM;
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
-    if(Modbus.mini_type == PROJECT_FAN_MODULE)
+    if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER))
     	conf.sda_io_num = 12;//4;//I2C_MASTER_SDA_IO;
     else
     	conf.sda_io_num = 4;
@@ -505,6 +507,7 @@ void i2c_task(void *arg)
     int16_t ambient_old_raw=0;
     int16_t object_new_raw=0;
     int16_t object_old_raw=0;
+    int32_t sht4x_temp, sht4x_hum;
 
     g_sensors.co2_start_measure = false;
 //    uint8_t sensor_data_h, sensor_data_l;
@@ -583,68 +586,89 @@ void i2c_task(void *arg)
 		}
 	}
 #endif
-    while (1) {Test[20]++;
+	scd4x_wake_up();
+	scd4x_stop_periodic_measurement();
+	scd4x_reinit();
+	scd4x_start_periodic_measurement();
+	while (1) {//Test[20]++;
 #if 1
         // ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_sht31(I2C_MASTER_NUM, sht31_data);//&sensor_data_h, &sensor_data_l);
-/*
-		inputs[0].digital_analog = 1;
-		inputs[1].digital_analog = 1;
-		inputs[2].digital_analog = 1;
-		inputs[3].digital_analog = 1;
-		inputs[4].digital_analog = 1;
-		inputs[0].range = 1;
-		inputs[1].range = 27;*/
-		memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
-		memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
+		if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		{
-			memcpy(inputs[2].description,"TEMP REMOTE",strlen("TEMP REMOTE"));
+			ret = i2c_master_sensor_sht31(I2C_MASTER_NUM, sht31_data);//&sensor_data_h, &sensor_data_l);
+
+			memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
+			memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
+			{
+				memcpy(inputs[2].description,"TEMP REMOTE",strlen("TEMP REMOTE"));
+			}
+			{
+				memcpy(inputs[3].description,"FAN STATUS",strlen("FAN STATUS"));
+			}
+			{
+				memcpy(inputs[4].description,"FAN SPEED",strlen("FAN SPEED"));
+			}
+			memcpy(inputs[5].description,"THERMEL TEMP",strlen("THERMEL TEMP"));
+			memcpy(outputs[0].description,"FAN AO",strlen("FAN AO"));
+			memcpy(outputs[1].description,"FAN PWM",strlen("FAN PWM"));
+			//memcpy(inputs[4].description,"RPM",strlen("RPM"));
+			xSemaphoreTake(print_mux, portMAX_DELAY);
+			if (ret == ESP_ERR_TIMEOUT) {Test[24]++;
+				ESP_LOGE(TAG, "I2C Timeout");
+				Test[0] = 120;
+			} else if (ret == ESP_OK) {
+				g_sensors.original_temperature = SHT3X_getTemperature(sht31_data);
+				g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
+				g_sensors.temperature = (uint16_t)(g_sensors.original_temperature*10);
+				g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
+				if(!inputs[0].calibration_sign)
+					g_sensors.temperature += (inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
+				else
+					g_sensors.temperature += -(inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
+				if(!inputs[1].calibration_sign)
+					g_sensors.humidity += (inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
+				else
+					g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
+				if(inputs[0].range == 3)
+					inputs[0].value = g_sensors.temperature*100;
+				if(inputs[0].range == 4)
+					inputs[0].value = (g_sensors.temperature*9/5)*100+32000;
+				inputs[1].value = g_sensors.humidity*100;
+				//Test[21]++;
+				//Test[22] = g_sensors.humidity;
+				//g_sensors.temperature = Filter(0,g_sensors.temperature);
+				//g_sensors.humidity = Filter(9,g_sensors.humidity);
+				//g_sensors.temperature += holding_reg_params.sht31_temp_offset;
+				//printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
+			} else {//Test[23]++;
+				//ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
+				Test[1] = ret;
+			}
+			xSemaphoreGive(print_mux);
 		}
-		{
-			memcpy(inputs[3].description,"FAN STATUS",strlen("FAN STATUS"));
-		}
-		{
-			memcpy(inputs[4].description,"FAN SPEED",strlen("FAN SPEED"));
-		}
-		memcpy(inputs[5].description,"THERMEL TEMP",strlen("THERMEL TEMP"));
-		memcpy(outputs[0].description,"FAN AO",strlen("FAN AO"));
-		memcpy(outputs[1].description,"FAN PWM",strlen("FAN PWM"));
-		//memcpy(inputs[4].description,"RPM",strlen("RPM"));
-        xSemaphoreTake(print_mux, portMAX_DELAY);
-        if (ret == ESP_ERR_TIMEOUT) {Test[24]++;
-            ESP_LOGE(TAG, "I2C Timeout");
-            Test[0] = 120;
-        } else if (ret == ESP_OK) {
-			g_sensors.original_temperature = SHT3X_getTemperature(sht31_data);
-			g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
-			g_sensors.temperature = (uint16_t)(g_sensors.original_temperature*10);
-			g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
-			if(!inputs[0].calibration_sign)
-				g_sensors.temperature += (inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
-			else
-				g_sensors.temperature += -(inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
-			if(!inputs[1].calibration_sign)
-				g_sensors.humidity += (inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
-			else
-				g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
-			if(inputs[0].range == 3)
-				inputs[0].value = g_sensors.temperature*100;
-			if(inputs[0].range == 4)
-				inputs[0].value = (g_sensors.temperature*9/5)*100+32000;
-			inputs[1].value = g_sensors.humidity*100;
-			Test[21]++;
-			Test[22] = g_sensors.humidity;
-			//g_sensors.temperature = Filter(0,g_sensors.temperature);
-			//g_sensors.humidity = Filter(9,g_sensors.humidity);
-			//g_sensors.temperature += holding_reg_params.sht31_temp_offset;
-            //printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
-        } else {Test[23]++;
-            //ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
-        	Test[1] = ret;
-        }
-        xSemaphoreGive(print_mux);
 #endif
         vTaskDelay(100 / portTICK_RATE_MS);
+        if(Modbus.mini_type == PROJECT_TRANSDUCER)
+        {
+			xSemaphoreTake(print_mux, portMAX_DELAY);
+			scd4x_start_periodic_measurement();
+			vTaskDelay(100 / portTICK_RATE_MS);
+			scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
+			xSemaphoreGive(print_mux);
+
+			xSemaphoreTake(print_mux, portMAX_DELAY);
+			ret = sht4x_measure_blocking_read( &sht4x_temp, &sht4x_hum);
+			if(ret != ESP_OK)
+			{
+
+			}
+			else
+			{
+				g_sensors.temperature = (sht4x_temp)/100;
+				g_sensors.humidity = (sht4x_hum)/100;
+			}
+			xSemaphoreGive(print_mux);
+        }
 #if 0
 		xSemaphoreTake(print_mux, portMAX_DELAY);
         ret = i2c_master_sensor_veml7700(I2C_MASTER_NUM,&light_data[0], &light_data[1]);
@@ -770,7 +794,6 @@ void i2c_task(void *arg)
 	  }
 		xSemaphoreGive(print_mux);
 		vTaskDelay(500/portTICK_RATE_MS);
-
 		//------------------SCD40
 
 		xSemaphoreTake(print_mux, portMAX_DELAY);
@@ -785,10 +808,10 @@ void i2c_task(void *arg)
 				sensirion_i2c_write_cmd(SCD40_SENSOR_ADDR, 0x3608);
 				g_sensors.co2_start_measure = true;
 			}
-			//vTaskDelay(2000/portTICK_RATE_MS);
+			vTaskDelay(1000/portTICK_RATE_MS);
 			ret = sensirion_i2c_delayed_read_cmd(
 							SCD40_SENSOR_ADDR, 0xEC05,
-							200, scd40_data,
+							2000, scd40_data,
 							3);
 			if(ret == ESP_OK)
 			{
@@ -832,6 +855,7 @@ void i2c_task(void *arg)
 		}*/
 #if 0
 		//vTaskDelay(1000/portTICK_RATE_MS);
+
 		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 		i2c_master_start(cmd);
 		i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
@@ -850,6 +874,7 @@ void i2c_task(void *arg)
 		i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
 		i2c_master_read(cmd,scd40_data,8,ACK_VAL);
 		i2c_master_read(cmd,&scd40_data[8],1,NACK_VAL);
+		i2c_master_stop(cmd);
 		ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
 		i2c_cmd_link_delete(cmd);
         //vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);

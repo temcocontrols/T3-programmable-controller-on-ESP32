@@ -6,6 +6,8 @@
 #include "bacnet.h"
 //#include "dyndns_app.h"
 //#include "datetime.h"
+#pragma pack(1) 
+
 typedef struct
 {
 	U8_T buf[600];
@@ -215,7 +217,7 @@ typedef	union
 	U8_T end_month;
 	U8_T end_day;
 	
-	uint8_t network_number_hi;
+	U8_T network_number_hi;
 	}reg;
 }Str_Setting_Info;
 

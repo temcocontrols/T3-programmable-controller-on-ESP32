@@ -11,6 +11,7 @@
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 #include "controls.h"
+#include "define.h"
 
 #define LEDC_HS_TIMER          LEDC_TIMER_0
 #define LEDC_HS_MODE           LEDC_HIGH_SPEED_MODE
@@ -43,6 +44,11 @@
 #define PULSE_COUNTER_SEL	(1ULL<<PULSE_COUNTER)
 
 #define ESP_INTR_FLAG_DEFAULT 0
+
+#define LEDC_TRANSDUCER_CH_NUM	(3)
+#define LEDC_TRANSDUCER_CH0_GPIO       (32)
+#define LEDC_TRANSDUCER_CH1_GPIO       (34)
+#define LEDC_TRANSDUCER_CH2_GPIO       (25)
 
 static void pcnt_task(void* arg);
 static void adc_task(void* arg);
@@ -224,7 +230,33 @@ static void adc_task(void* arg)
         vTaskDelay(1000 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
     }
 }
+static void transducer_output_task(void* arg)
+{
+	for(;;) {
+		if(outputs[0].range == 1)
+			if((outputs[0].value<=10000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm1 = outputs[0].value*10/391;
+		if(outputs[1].range == 1)
+			if((outputs[1].value<=10000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm2 = outputs[1].value*10/391;
+		if((outputs[0].range == 4)||(outputs[0].range == 7))
+			if((outputs[0].value<=100000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm1 = outputs[0].value/391;
+		if((outputs[1].range == 4)||(outputs[1].range == 7))
+			if((outputs[1].value<=100000)&&(outputs[1].value>=0))
+				holding_reg_params.fan_module_pwm2 = outputs[1].value/391;
+		//Test[0] = holding_reg_params.fan_module_pwm1;
+		//Test[1] = holding_reg_params.fan_module_pwm2;
+	//        Test[2] = outputs[0].switch_status;
+	//        Test[3] = outputs[1].switch_status;
+		ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
+		ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, holding_reg_params.fan_module_pwm2);
+		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 
+		vTaskDelay(50 / portTICK_RATE_MS);
+	}
+}
 static void fan_led_task(void* arg)
 {
 	uint32_t cnt=0;
@@ -546,55 +578,98 @@ void led_pwm_init(void)
 	};
 	// Set configuration of timer0 for high speed channels
 	ledc_timer_config(&ledc_timer);
+	if(Modbus.mini_type == PROJECT_FAN_MODULE)
+	{
+		ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
+			{
+				.channel    = LEDC_HS_CH0_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LEDC_HS_CH0_GPIO,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},
+			{
+				.channel    = LEDC_HS_CH1_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LEDC_HS_CH1_GPIO,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},
+			/*{
+				.channel    = LEDC_HS_CH2_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LED_HEART_BEAT,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},
+			{
+				.channel    = LEDC_HS_CH3_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LED_FAN_SPEED,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},
+			{
+				.channel    = LEDC_HS_CH4_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LED_WIFI,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},*/
+		};
+		for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+			ledc_channel_config(&ledc_channel[ch]);
+		}
 
-	ledc_channel_config_t ledc_channel[LEDC_TEST_CH_NUM] = {
-		{
-			.channel    = LEDC_HS_CH0_CHANNEL,
-			.duty       = 0,
-			.gpio_num   = LEDC_HS_CH0_GPIO,
-			.speed_mode = LEDC_HS_MODE,
-			.hpoint     = 0,
-			.timer_sel  = LEDC_HS_TIMER
-		},
-		{
-			.channel    = LEDC_HS_CH1_CHANNEL,
-			.duty       = 0,
-			.gpio_num   = LEDC_HS_CH1_GPIO,
-			.speed_mode = LEDC_HS_MODE,
-			.hpoint     = 0,
-			.timer_sel  = LEDC_HS_TIMER
-		},
-		/*{
-			.channel    = LEDC_HS_CH2_CHANNEL,
-			.duty       = 0,
-			.gpio_num   = LED_HEART_BEAT,
-			.speed_mode = LEDC_HS_MODE,
-			.hpoint     = 0,
-			.timer_sel  = LEDC_HS_TIMER
-		},
-		{
-			.channel    = LEDC_HS_CH3_CHANNEL,
-			.duty       = 0,
-			.gpio_num   = LED_FAN_SPEED,
-			.speed_mode = LEDC_HS_MODE,
-			.hpoint     = 0,
-			.timer_sel  = LEDC_HS_TIMER
-		},
-		{
-			.channel    = LEDC_HS_CH4_CHANNEL,
-			.duty       = 0,
-			.gpio_num   = LED_WIFI,
-			.speed_mode = LEDC_HS_MODE,
-			.hpoint     = 0,
-			.timer_sel  = LEDC_HS_TIMER
-		},*/
-	};
-	for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
-		ledc_channel_config(&ledc_channel[ch]);
+		ledc_set_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
+		ledc_set_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel, (255-holding_reg_params.fan_module_pwm2));
+		ledc_update_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel);
+		ledc_update_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel);
 	}
+	if(Modbus.mini_type == PROJECT_TRANSDUCER)
+	{
+		ledc_channel_config_t ledc_channel[LEDC_TRANSDUCER_CH_NUM] = {
+			{
+				.channel    = LEDC_HS_CH0_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LEDC_TRANSDUCER_CH0_GPIO,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},
+			{
+				.channel    = LEDC_HS_CH1_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LEDC_TRANSDUCER_CH1_GPIO,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},
+			{
+				.channel    = LEDC_HS_CH2_CHANNEL,
+				.duty       = 0,
+				.gpio_num   = LEDC_TRANSDUCER_CH2_GPIO,
+				.speed_mode = LEDC_HS_MODE,
+				.hpoint     = 0,
+				.timer_sel  = LEDC_HS_TIMER
+			},
+		};
+		for (ch = 0; ch < LEDC_TEST_CH_NUM; ch++) {
+			ledc_channel_config(&ledc_channel[ch]);
+		}
 
-	ledc_set_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
-	ledc_set_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel, (255-holding_reg_params.fan_module_pwm2));
-	ledc_update_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel);
-	ledc_update_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel);
+		ledc_set_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
+		ledc_set_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel, (255-holding_reg_params.fan_module_pwm2));
+		ledc_set_duty(ledc_channel[2].speed_mode, ledc_channel[2].channel, holding_reg_params.fan_module_pwm1);
+		ledc_update_duty(ledc_channel[0].speed_mode, ledc_channel[0].channel);
+		ledc_update_duty(ledc_channel[1].speed_mode, ledc_channel[1].channel);
+		ledc_update_duty(ledc_channel[2].speed_mode, ledc_channel[2].channel);
+
+		xTaskCreate(transducer_output_task,"transducer_fan_task",2048,NULL,1,NULL);
+	}
 }

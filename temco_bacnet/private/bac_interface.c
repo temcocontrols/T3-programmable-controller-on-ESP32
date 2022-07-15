@@ -1946,7 +1946,7 @@ float Get_Output_Relinguish(uint8_t type,uint8_t i)
 	else
 		return (float)output_relinquish[i + max_dos];
 }
-
+#if BAC_TRENDLOG
 void adjust_trend_log(void)
 {
 	int i;
@@ -1987,6 +1987,7 @@ void adjust_trend_log(void)
 		}
 	}
 }
+#endif
 uint8_t AI_Index_To_Instance[MAX_INS];
 uint8_t BI_Index_To_Instance[MAX_INS];
 uint8_t AO_Index_To_Instance[MAX_AOS];
@@ -2025,7 +2026,9 @@ void Count_IN_Object_Number(void)
 	}
 	AIS = count1;
 	BIS = count2;
+#if BAC_TRENDLOG
 	adjust_trend_log();  // adjust trend log if inputs are changed
+#endif
 }
 
 
@@ -2054,7 +2057,9 @@ void Count_OUT_Object_Number(void)
 	}
 	AOS = count1;
 	BOS = count2;
+#if BAC_TRENDLOG
 	adjust_trend_log(); // adjust trend log if outputs are changed
+#endif
 }
 
 
@@ -2081,7 +2086,9 @@ void Count_VAR_Object_Number(void)
 	}
 	AVS = count1;
 	BVS = count2;
+#if BAC_TRENDLOG
 	adjust_trend_log(); // adjust trend log if variables are changed
+#endif
 
 //#if ARM_TSTAT_WIFI 
 //	

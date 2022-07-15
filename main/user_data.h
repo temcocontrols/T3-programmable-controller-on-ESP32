@@ -106,7 +106,7 @@ typedef	union
         U32_T timestamp;
         S8_T time_zone;
         U8_T daylight_saving_time;
-        U8_T reserved[3];
+        U8_T reserved[4];
     }NEW;
 	}UN_Time;
 
@@ -216,7 +216,7 @@ typedef	union
 	U8_T end_month;
 	U8_T end_day;
 	
-	uint8_t network_number_hi;
+	U8_T network_number_hi;
 	}reg;
 }Str_Setting_Info;
 
@@ -348,7 +348,7 @@ extern FRAME_ENTRY 								 SendFrame[MAX_SEND_FRAMES];
 extern U8_T flag_Updata_Clock;
 extern U32_T  update_sntp_last_time;
 extern uint8_t  BACnet_Port;
-extern uint32_t   	Instance;
+extern uint32_t   Instance;
 extern U8_T  boot;
 //extern U8_T  flag_E2_changed;
 //extern U32_T  changed_index;

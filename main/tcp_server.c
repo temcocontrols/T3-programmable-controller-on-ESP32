@@ -74,12 +74,12 @@ extern double ambient;
 extern double object;
 extern float mlx90614_ambient;
 extern float mlx90614_object;*/
-extern uint32_t Instance;
+uint32_t Instance;
 
 void modbus0_task(void *arg);
 void modbus2_task(void *arg);
 void Bacnet_Control(void) ;
-void smtp_client_task(void *pvParameters);
+void smtp_client_task(void);
 //计数信号量相关 信号量句柄 最大计数值，初始化计数值 （计数信号量管理是否有资源可用。）
 //MAX_COUNT 最大计数量，最多有几个资源
 xSemaphoreHandle CountHandle;
@@ -205,7 +205,7 @@ void UdpData(unsigned char type)
 
 uint32_t get_ip_addr(void)
 {
-	if(Modbus.ethernet_status == 4)
+	if(Modbus.ethernet_status == 4) // wifi is disconnected
 	{
 		return ((uint32_t)Modbus.ip_addr[3] << 24) + ((uint32_t)Modbus.ip_addr[2] << 16) + ((uint16_t)Modbus.ip_addr[1] << 8) + Modbus.ip_addr[0];
 
@@ -251,6 +251,7 @@ static void bip_task(void *pvParameters)
     uint16_t pdu_len = 0;
     BACNET_ADDRESS far src; /* source address */
     bip_set_socket(47808);
+
     while (1) {
        //if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
        {
@@ -960,6 +961,8 @@ static void tcp_server_task(void *pvParameters)
 	char taskName[50];
 	struct hostent *hostP = NULL;
 	int ip_protocol;
+	char debug_buffer[100] =  {0};
+
 	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BIT这里还需要处理 wifi是否连接的信号量
 	while(1)
 	{
@@ -972,7 +975,7 @@ static void tcp_server_task(void *pvParameters)
 			struct sockaddr_in localAddr;
 			localAddr.sin_addr.s_addr 	= htonl(INADDR_ANY);
 			localAddr.sin_family		= AF_INET;
-			localAddr.sin_port			=htons(502);
+			localAddr.sin_port			= htons(502);
 			//新建一个 socket
 			int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
 			if (listen_sock < 0)
@@ -987,7 +990,9 @@ static void tcp_server_task(void *pvParameters)
 				vTaskDelay(5000 / portTICK_PERIOD_MS); //5秒钟后再重新执行
 				continue;
 			}
-			debug_info( "Socket created\r");
+
+
+
 
 			//开启监听 监听7681端口
 			err = listen(listen_sock,0);
@@ -1001,7 +1006,7 @@ static void tcp_server_task(void *pvParameters)
 			//为accpet连接传入参数初始化
 			struct sockaddr_in6 sourceAddr;
 			uint addrLen = sizeof(sourceAddr);
-            char debug_buffer[100] =  {0};
+
 			while (1)
 			{
 				debug_info("ready to accept %d\r");
@@ -1027,7 +1032,6 @@ static void tcp_server_task(void *pvParameters)
 				}
 				debug_info("Socket accepted\r");
 
-
 				//获取到accept的IP sock 端口信息保存
 				struct sockinfo remoteInfo;
 
@@ -1047,6 +1051,8 @@ static void tcp_server_task(void *pvParameters)
 				remoteInfo.remotePort = ntohs(sourceAddr.sin6_port);
 				sprintf(debug_buffer,"ip:%s,port:%d ,sock:%d connected\r",remoteInfo.remoteIp,remoteInfo.remotePort,remoteInfo.sock);
 				debug_info(debug_buffer);
+
+
 				uxBits = xEventGroupWaitBits(network_EventHandle,TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT,false,false,portMAX_DELAY);
 				debug_info("tcp_server_task get  xEventGroupWaitBits success\r");
 				for(int i = 0; i < MAX_SOC_COUNT; i++)
@@ -1527,8 +1533,9 @@ void Inital_Bacnet_Server(void)
 
 	//Modbus.mini_type = MINI_NANO;//
 	Initial_Panel_Info(); // read panel name, must read flash first
-	Instance = ((uint32)Modbus.serialNum[3]<<24)|((uint32)Modbus.serialNum[2]<<16)|((uint32)Modbus.serialNum[1]<<8) | Modbus.serialNum[0];
-		// tbd:
+	Instance = ((uint32)Modbus.serialNum[3]<<24)+((uint32)Modbus.serialNum[2]<<16)+((uint16)Modbus.serialNum[1]<<8) + Modbus.serialNum[0];
+
+	// tbd:
 	Station_NUM = Modbus.address;
 	MAX_MASTER = 254;
 	//Modbus.mini_type = PROJECT_FAN_MODULE;
@@ -1553,6 +1560,13 @@ void Inital_Bacnet_Server(void)
 		AVS = 0;
 		BOS = 0;
 	}
+	if(Modbus.mini_type == PROJECT_TRANSDUCER)
+	{
+		AIS = 3;
+		AOS = 3;
+		AVS = 3;
+		BOS = 0;
+	}
 	else
 	{
 		AIS = MAX_INS + 1;
@@ -1561,8 +1575,10 @@ void Inital_Bacnet_Server(void)
 		BOS = 0;
 
 	}
+#if BAC_TRENDLOG
 	TRENDLOGS = 0;
 	//Trend_Log_Init();
+#endif
 
 	Count_VAR_Object_Number();
 	Count_IN_Object_Number();
@@ -1949,46 +1965,53 @@ void Timer_task(void)
 	uint16_t count = 0;
 	timezone = 800;
 	Daylight_Saving_Time = 0;
-	PCF_hctosys();
+	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER))
+		PCF_hctosys();
 	update_timers();
 	system_timer = 0;
 	Mstp_ForUs = 0;
 	Mstp_NotForUs = 0;
+
 	//FOR TEST
 	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
 	for (;;)
 	{// 10ms
-
-		if((Mstp_ForUs > 100) && (Mstp_NotForUs > 10))
-		{// MSTP error, reboot
-			esp_restart();
-		}
-		SilenceTime = SilenceTime + TIMER_INTERVAL;
-		if(SilenceTime++ > 10000 / TIMER_INTERVAL)
+		//Test[0]++;
+		if(1)//Modbus.mini_type != PROJECT_FAN_MODULE)
 		{
-			SilenceTime = 0;
-		}
-		// tbd:
-		{	
-			PCF_GetDateTime(&rtc_date);
-			update_timers();
-			if(count_hold_on_bip_to_mstp > 0)
-				count_hold_on_bip_to_mstp--;
-			count = 0;
-		}
-		system_timer = system_timer + TIMER_INTERVAL;
-
-		if(ChangeFlash != 0)
-		{
-			if(count_write_Flash++ > 5000 / TIMER_INTERVAL) // 5s
-			{
-			save_point_info(0);
-			ChangeFlash = 0;
-			count_write_Flash = 0;
+			if((Mstp_ForUs > 100) && (Mstp_NotForUs > 10))
+			{// MSTP error, reboot
+				esp_restart();
 			}
+			SilenceTime = SilenceTime + TIMER_INTERVAL;
+			if(SilenceTime++ > 10000 / TIMER_INTERVAL)
+			{
+				SilenceTime = 0;
+			}
+			// tbd:
+			{
+				if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER))
+					PCF_GetDateTime(&rtc_date);
+				update_timers();
+				if(count_hold_on_bip_to_mstp > 0)
+					count_hold_on_bip_to_mstp--;
+				count = 0;
+			}
+			system_timer = system_timer + TIMER_INTERVAL;
+
+			if(ChangeFlash != 0)
+			{
+				if(count_write_Flash++ > 5000 / TIMER_INTERVAL) // 5s
+				{
+				save_point_info(0);
+				ChangeFlash = 0;
+				count_write_Flash = 0;
+				}
+			}
+
+			vTaskDelay(TIMER_INTERVAL / portTICK_RATE_MS);
 		}
 
-		vTaskDelay(TIMER_INTERVAL / portTICK_RATE_MS);
 	}
 
 }
@@ -2111,6 +2134,8 @@ void Bacnet_Control(void)
 #endif
 	}
 	Check_All_WR();
+
+
 	for(;;)
 	{
 		control_input();
@@ -2199,7 +2224,9 @@ void Bacnet_Control(void)
 //		else
 //			count_1s = 0;
 		check_trendlog_1s(2);
+#if BAC_TRENDLOG
 		//trend_log_timer(0); // for standard trend log
+#endif
 		Test[21]++;
 		Check_Net_Point_Table();
 		vTaskDelay(500 / portTICK_RATE_MS);
@@ -2231,28 +2258,12 @@ void app_main()
    ethernet_init();
 
    i2c_master_init();
-/*#if FAN
-   Modbus.mini_type = PROJECT_FAN_MODULE;
-    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
-#endif*/
 
-
-   /*if(holding_reg_params.which_project == PROJECT_SAUTER)
-   {
-      stm32_uart_init();
-   }
-   else if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-   {
-		holding_reg_params.fan_module_pwm2 = 0;
-		led_pwm_init();
-		led_init();
-		my_pcnt_init();
-		adc_init();
-   }*/
     //microphone_init();
     //SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
     //connect_wifi();
    //Modbus.com_config[0] = MODBUS_SLAVE;
+   Modbus.tcp_port = 502;
 //#if FAN
     if(Modbus.mini_type == PROJECT_FAN_MODULE)
     {
@@ -2264,15 +2275,22 @@ void app_main()
    		i2c_master_init();
     }
 //#endif
+    if(Modbus.mini_type == PROJECT_TRANSDUCER)
+    {
+    	led_pwm_init();
+    	//led_init();
+    	//adc_init();
+    	i2c_master_init();
+    }
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, NULL);
     network_EventHandle = xEventGroupCreate();
-    xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 7, NULL);
+    xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 2, NULL);
     xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 5, NULL);
     xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 5, NULL);
     xTaskCreate(bip_task, "bacnet ip", 4096, NULL, 5, NULL);
     //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
 //#if FAN
-    if(Modbus.mini_type == PROJECT_FAN_MODULE)
+    if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER))
     	xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
 //#endif
     xTaskCreate(modbus0_task,"modbus0_task",4096, NULL, 11, NULL);
@@ -2289,7 +2307,8 @@ void app_main()
 //	xTaskCreate(rtc_task,"rtc_task", 2048, NULL, 10, NULL);
 	vStartScanTask(5);
 
-//	xTaskCreate(&smtp_client_task, "smtp_client_task", 4096, NULL, 5, NULL);
+
+	//xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
 }
 
 // for bacnet lib

@@ -2108,15 +2108,16 @@ void handler_private_transfer(
 //				ptr = (char *)(Graphi_data->asdu);UPDATEMEMMONITOR_T3000
 //				break;
 
-			case GET_PANEL_INFO:   // other commad
+			/*case GET_PANEL_INFO:   // other commad
 				Sync_Panel_Info();	
 				Panel_Info.reg.protocal = protocal;
 				ptr = (uint8_t *)(Panel_Info.all);	
-				break;
+				break;*/
 
 			case READ_SETTING:	
 				Sync_Panel_Info();
-			  ptr = (uint8_t *)(Setting_Info.all);
+				Test[24] = Setting_Info.reg.network_number_hi;
+			    ptr = (uint8_t *)(Setting_Info.all);
 				break;
 			case READVARUNIT_T3000:
 					ptr = (uint8_t *)(var_unit);
@@ -2248,7 +2249,7 @@ void handler_private_transfer(
 				}
 			}
 			else
-			{
+			{Test[25] = Setting_Info.reg.network_number_hi;
 				Send_UnconfirmedPrivateTransfer(src,&private_data,protocal);
 			}
 		}

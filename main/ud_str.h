@@ -4,14 +4,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "types.h"
+
+
 #include "esp_attr.h"
-
-
+#pragma pack(1) 
 
 #define MAXFRAMEBUFFER			      490 
-#define MAX_SEND_FRAMES             1//5
+#define MAX_SEND_FRAMES             5
 
-
+#define LOW_BYTE(word)	(U8_T)(word & 0x00FF)
+#define HIGH_BYTE(word)	(U8_T)((word & 0xFF00) >> 8)
 
 #define MAX_MON_ELEMENT  200
 
@@ -23,9 +25,9 @@
 #define  MAX_IO_POINTS	64
 
 
-#define MAX_INS     	64
-#define MAX_OUTS        64  	
-#define MAX_CONS        16 	
+#define MAX_INS     			64
+#define MAX_OUTS        	64
+#define MAX_CONS       	 16
 #define MAX_VARS				128
 
 #define MAX_EXTIO       12
@@ -102,8 +104,8 @@ typedef enum
 	{
 		OUT=0, IN, VAR, CON, WRT, AR, PRG,/* TBL,*/  TZ = 8,
 		AMON = 9, GRP, ARRAY, ALARMM = 12,
-		UNIT, USER_NAME, PRG_CODE/*ALARM_SET = 15*/, WR_TIME, AR_DATA,
-		TSTAT, GRP_POINT = 19,/*20???*/
+		UNIT, USER_NAME, ALARM_SET = 15, WR_TIME, AR_DATA, 
+		PRG_CODE, GRP_POINT = 19,/*20???*/
 		TBL = 22,ID_ROUTION,
 		MAX_POINT_TYPE
 	}	Point_type_equate;
@@ -1440,8 +1442,13 @@ typedef struct
 		unsigned short msv_value;
 }multiple_struct;
 
-extern EXT_RAM_ATTR multiple_struct msv_data[MAX_MSV][STR_MSV_MULTIPLE_COUNT];
+extern multiple_struct msv_data[MAX_MSV][STR_MSV_MULTIPLE_COUNT];
 
-
+extern  U16_T  input_raw[MAX_INS];
+extern  U16_T  input_raw_back[MAX_INS];
+extern  U16_T  output_raw[MAX_OUTS];
+extern  U16_T  output_raw_back[MAX_OUTS];
+extern  U16_T  chip_info[6];
+extern  uint32_t  Instance;
 #endif
 

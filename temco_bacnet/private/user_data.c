@@ -642,6 +642,17 @@ void init_panel(void)
 #endif
 }
 
+U32_T my_swap_double(U32_T val)
+{
+	U16_T temp1,temp2,temp3,temp4;
+	temp1 = val >> 24;
+	temp2 = val >> 16;
+	temp3 = val >> 8;
+	temp4 = val;
+	
+	return (((U32_T)temp4 << 24) + ((U32_T)temp3 << 16) + ((U32_T)temp2 << 8) + temp1);
+}
+
 void Initial_Panel_Info(void)
 {
 	memset(&Panel_Info,0,sizeof(Str_Panel_Info));
@@ -680,6 +691,7 @@ void Sync_Panel_Info(void)
 
 //	Setting_Info.reg.time_zone = timezone;
 	Setting_Info.reg.tcp_port = Modbus.tcp_port;	
+	
 	Setting_Info.reg.update_sntp_last_time =  (update_sntp_last_time);
 
 	
@@ -778,11 +790,14 @@ void Sync_Panel_Info(void)
 
 	Setting_Info.reg.panel_number	= panel_number;
 
+
 	Setting_Info.reg.instance = Instance;
+	
 	Setting_Info.reg.en_panel_name = 1;
 	memcpy(Setting_Info.reg.panel_name,panelname,20);
 
 	Setting_Info.reg.sd_exist = SD_exist;
+	Setting_Info.reg.BBMD_EN = 0;
 
 	Panel_Info.reg.product_type = 88;
 

@@ -248,10 +248,23 @@ exit:
     }
     return ret;
 }
-
-void smtp_client_task(void *pvParameters)
+extern unsigned int Test[50];
+unsigned int stringtest[1000];
+void smtp_client_task(void)
 {
-    char *buf = NULL;
+/*	Test[2]++;
+	Test[3] = stringtest[900];
+	long i = 0;
+	for (;;)
+	{// 10ms
+		Test[2]++;
+		for(i = 0;i < 1000;i++)
+			stringtest[i] = i;
+		vTaskDelay(100);
+	}*/
+
+#if 1
+	char *buf = NULL;
     unsigned char base64_buffer[128];
     int ret, len;
     size_t base64_len;
@@ -267,16 +280,17 @@ void smtp_client_task(void *pvParameters)
     mbedtls_x509_crt_init(&cacert);
     mbedtls_ctr_drbg_init(&ctr_drbg);
     ESP_LOGI(TAG, "Seeding the random number generator");
-
+    Test[1] = 1;
     mbedtls_ssl_config_init(&conf);
-
+    Test[1] = 2;
     mbedtls_entropy_init(&entropy);
+
     if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                                      NULL, 0)) != 0) {
         ESP_LOGE(TAG, "mbedtls_ctr_drbg_seed returned -0x%x", -ret);
         goto exit;
     }
-
+    Test[1] = 3;
     ESP_LOGI(TAG, "Loading the CA root certificate...");
 
     ret = mbedtls_x509_crt_parse(&cacert, server_root_cert_pem_start,
@@ -286,7 +300,7 @@ void smtp_client_task(void *pvParameters)
         ESP_LOGE(TAG, "mbedtls_x509_crt_parse returned -0x%x", -ret);
         goto exit;
     }
-
+    Test[1] = 4;
     ESP_LOGI(TAG, "Setting hostname for TLS session...");
 
     /* Hostname set here should match CN in server certificate */
@@ -304,7 +318,7 @@ void smtp_client_task(void *pvParameters)
         ESP_LOGE(TAG, "mbedtls_ssl_config_defaults returned -0x%x", -ret);
         goto exit;
     }
-
+    Test[1] = 5;
     mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
@@ -316,7 +330,7 @@ void smtp_client_task(void *pvParameters)
         ESP_LOGE(TAG, "mbedtls_ssl_setup returned -0x%x", -ret);
         goto exit;
     }
-
+    Test[1] = 6;
     mbedtls_net_init(&server_fd);
 
     ESP_LOGI(TAG, "Connecting to %s:%s...", MAIL_SERVER, MAIL_PORT);
@@ -328,7 +342,7 @@ void smtp_client_task(void *pvParameters)
     }
 
     ESP_LOGI(TAG, "Connected.");
-
+    Test[1] = 7;
     mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send, mbedtls_net_recv, NULL);
 
     buf = (char *) calloc(1, BUF_SIZE);
@@ -375,7 +389,7 @@ void smtp_client_task(void *pvParameters)
 
     /* Authentication */
     ESP_LOGI(TAG, "Authentication...");
-
+    Test[1] = 8;
     ESP_LOGI(TAG, "Write AUTH LOGIN");
     len = snprintf( (char *) buf, BUF_SIZE, "AUTH LOGIN\r\n" );
     ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
@@ -402,13 +416,13 @@ void smtp_client_task(void *pvParameters)
     len = snprintf((char *) buf, BUF_SIZE, "%s\r\n", base64_buffer);
     ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
     VALIDATE_MBEDTLS_RETURN(ret, 200, 399, exit);
-
+    Test[1] = 9;
     /* Compose email */
     ESP_LOGI(TAG, "Write MAIL FROM");
     len = snprintf((char *) buf, BUF_SIZE, "MAIL FROM:<%s>\r\n", SENDER_MAIL);
     ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
     VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
-
+    Test[1] = 10;
     ESP_LOGI(TAG, "Write RCPT");
     len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", RECIPIENT_MAIL);
     ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
@@ -418,7 +432,7 @@ void smtp_client_task(void *pvParameters)
     len = snprintf((char *) buf, BUF_SIZE, "DATA\r\n");
     ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
     VALIDATE_MBEDTLS_RETURN(ret, 300, 399, exit);
-
+    Test[1] = 11;
     ESP_LOGI(TAG, "Write Content");
     /* We do not take action if message sending is partly failed. */
     len = snprintf((char *) buf, BUF_SIZE,
@@ -432,7 +446,7 @@ void smtp_client_task(void *pvParameters)
      * If by chance, it's failed; at worst email will be incomplete!
      */
     ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
-
+    Test[1] = 12;
     /* Multipart boundary */
     len = snprintf((char *) buf, BUF_SIZE,
                    "Content-Type: multipart/mixed;boundary=XYZabcd1234\n"
@@ -446,7 +460,7 @@ void smtp_client_task(void *pvParameters)
                    "\r\n"
                    "Enjoy!\n\n--XYZabcd1234\n");
     ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
-
+    Test[1] = 13;
     /* Attachment */
     len = snprintf((char *) buf, BUF_SIZE,
                    "Content-Type: image/png;name=esp_logo.png\n"
@@ -468,7 +482,7 @@ void smtp_client_task(void *pvParameters)
         len = snprintf((char *) buf, BUF_SIZE, "%s\r\n", base64_buffer);
         ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
     }
-
+    Test[1] = 14;
     len = snprintf((char *) buf, BUF_SIZE, "\n--XYZabcd1234\n");
     ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
 
@@ -480,7 +494,7 @@ void smtp_client_task(void *pvParameters)
     /* Close connection */
     mbedtls_ssl_close_notify(&ssl);
     ret = 0; /* No errors */
-
+    Test[1] = 15;
 exit:
     mbedtls_ssl_session_reset(&ssl);
     mbedtls_net_free(&server_fd);
@@ -489,12 +503,13 @@ exit:
         mbedtls_strerror(ret, buf, 100);
         ESP_LOGE(TAG, "Last error was: -0x%x - %s", -ret, buf);
     }
-
+    Test[1] = 16;
     putchar('\n'); /* Just a new line */
     if (buf) {
         free(buf);
     }
     vTaskDelete(NULL);
+#endif
 }
 
 #if 0

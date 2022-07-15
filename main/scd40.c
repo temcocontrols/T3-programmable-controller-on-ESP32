@@ -3,6 +3,7 @@
 #include "sgp_git_version.h"
 #include "i2c_task.h"
 #include "esp_err.h"
+#include "scd40.h"
 
 #define SCD40_CMD_START_PERIODIC_MEASUREMENT 0x3608 //0x0010
 #define SCD40_CMD_STOP_PERIODIC_MEASUREMENT 0x3F86//0x0104
