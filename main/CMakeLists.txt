@@ -26,11 +26,14 @@ idf_component_register(SRCS "tcp_server.c"
 							"scd4x_i2c.c"													
 							"scan.c"
 							"commsub.c"
-							#"smtp_client.c"
+							"ade7953.c"							
+#							"pic.c"
+#							"smtp_client.c"
+#							"spi_master_arm.c"
 #							"ble_mesh.c"
+#							EMBED_TXTFILES server_root_cert.pem esp_logo.png
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
-
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 target_link_libraries(${COMPONENT_TARGET} "-u pro_info")

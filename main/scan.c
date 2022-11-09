@@ -291,8 +291,8 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 
 	if(length > 0)
 	{
-		if(port == 0)	led_sub_tx++;
-		else if(port == 2)	led_main_tx++;
+		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+		else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 		com_tx[port]++;
 		ret = receive_scan_reply(subnet_response_buf, length);
 	}
@@ -356,8 +356,8 @@ U8_T assignment_id_with_sn(U8_T old_id, U8_T new_id, U32_T current_sn,U8_T port)
 		length = 0; // tbd:
 	if(length > 0)
 	{
-		if(port == 0)	led_sub_tx++;
-				else if(port == 2)	led_main_tx++;
+		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 		com_tx[port]++;
 		ret = receive_assign_id_reply(subnet_response_buf, 12);
 	}
@@ -1182,8 +1182,9 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 
 	if(length > 0)	 
 	{
-		if(port == 0)	led_sub_tx++;
-		else if(port == 2)	led_main_tx++;
+		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
+
 		com_tx[port]++;
 		crc_check = crc16(subnet_response_buf,length - 2);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[length - 2]) && (LOW_BYTE(crc_check) == subnet_response_buf[length - 1]))
@@ -1608,8 +1609,8 @@ void check_write_to_nodes(U8_T port)
 		length = 0; // tbd:
 	if(length > 0)
 	{
-		if(port == 0)	led_sub_tx++;
-		else if(port == 2)	led_main_tx++;
+		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 		com_tx[port]++;
 		node_write[i].flag = WRITE_OK; // without doing checksum
 //		node_write[i].id = 0;
@@ -1783,7 +1784,6 @@ void ScanTask(void)
 		Schedule_Sync_Tstat();
 #endif
 #endif	
-		Test[46]++;
 		check_whether_force_scan();
 		if(tempcount >= 20000 / READ_POINT_TIMER)	 // 20s
 		{
@@ -2106,8 +2106,8 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 
 		if(length > 0)
 		{
-			if(port == 0)	led_sub_tx++;
-			else if(port == 2)	led_main_tx++;
+			if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+					else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 			com_tx[port]++;
 			memcpy(tmp_sendbuf,header,6);
 			memcpy(&tmp_sendbuf[6],subnet_response_buf,length);			
@@ -2155,8 +2155,8 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		//Test[40]++;
 		if(length > 0)
 		{//Test[41]++;Test[42] = length;
-			if(port == 0)	led_sub_tx++;
-			else if(port == 2)	led_main_tx++;
+			if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+					else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 			com_tx[port]++;
 			crc_check = crc16(subnet_response_buf, length - 2);		
 			if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])
@@ -2435,8 +2435,8 @@ void read_name_of_tstat(U8_T index)
 		length = 0; // tbd:
 	if(length > 0)
 	{
-		if(port == 0)	led_sub_tx++;
-		else if(port == 2)	led_main_tx++;
+		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 		com_tx[port]++;
 		crc_check = crc16(subnet_response_buf,21);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[21]) && (LOW_BYTE(crc_check) == subnet_response_buf[22]))

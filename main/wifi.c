@@ -31,6 +31,7 @@ extern unsigned short int Test[50];
 static int s_retry_num = 0;
 TaskHandle_t Task_handle[7] ;
 extern int task_sock[7];
+char debug_array[100];
 void debug_print(char *string,char task_index)
 {
 #if 0
@@ -44,12 +45,13 @@ void debug_print(char *string,char task_index)
 
 void debug_info(char *string)
 {
- #if 0//DEBUG_INFO_UART0
+#if 0//DEBUG_INFO_UART0
  	//uart_write_bytes(UART_NUM_0, "\r\n", 1);
  	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 
  	uart_write_bytes(UART_NUM_0, "\r\n", 2);
  	led_sub_tx++;
+ 	flagLED_sub_tx = 1;
 #endif
 }
 
@@ -91,10 +93,7 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
     case SYSTEM_EVENT_STA_DISCONNECTED:
     	//wifi_task_running = 0;
 
-    	debug_info("Wifi disconnected, try to connect ...");
-    	Test[10]++;
-    	Test[11] = Modbus.ethernet_status;
-    	Test[12] = SSID_Info.IP_Wifi_Status;
+    	//debug_info("Wifi disconnected, try to connect ...");
 	   if(0)
 	   {// wifi
     	for(int i=0 ;i<7;i++)

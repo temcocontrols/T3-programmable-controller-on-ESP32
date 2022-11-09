@@ -44,6 +44,7 @@ enum
 #define FLASH_SERIAL_NUM4	"SERIAL_NUM_4"
 #define FLASH_RESUME_PACKAGE "RESUME_PACKAGE"
 #define FLASH_BOOTLOADER    "BOOTLOADER"
+#define FLASH_COUNT_REBOOT	"COUNT_REBOOT"
 
 #define FLASH_PANEL_NAME	"PANEL_NAME"
 #define FLASH_UART2_CONFIG	"UART2_CONFIG"
@@ -52,6 +53,11 @@ enum
 #define FLASH_MINI_TYPE		"MINI_TYPE"
 #define FLASH_NETWORK_NUMBER "NETWORK_NUMBER"
 #define FLASH_BAUD_RATE2	"BAUD_RATE2"
+#define FLASH_INSTANCE1		"INSTANCE1"
+#define FLASH_INSTANCE2		"INSTANCE2"
+#define FLASH_INSTANCE3		"INSTANCE3"
+#define FLASH_INSTANCE4		"INSTANCE4"
+
 
 
 #define FLASH_POINT_OUT		"POINT_OUT"
@@ -100,6 +106,7 @@ extern esp_err_t read_uint16_from_falsh(const char* key, uint16_t* value);
 extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_int16_to_flash(const char* key, int16_t value);
+extern void clear_count_reboot(void);
 
 extern void Flash_Inital(void);
 extern void read_point_info(void);

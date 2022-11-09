@@ -13,6 +13,7 @@
 #include "define.h"
 #include "scd4x_i2c.h"
 #include "sht4x.h"
+#include "ade7953.h"
 
 static const char *TAG = "i2c-task";
 
@@ -430,7 +431,6 @@ esp_err_t LED_i2c_write(uint8_t address, const uint8_t *data,
     int ret;
     uint16_t i;
 
-
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
 
@@ -444,24 +444,58 @@ esp_err_t LED_i2c_write(uint8_t address, const uint8_t *data,
 	return ret;
 }
 
-esp_err_t LED_i2c_read(uint8_t address, uint8_t *data, uint16_t count) {
-	int ret;
-	uint16_t i;
-	uint8_t send_ack;
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+// 0x74 STM32 chip device
+esp_err_t stm_i2c_write(uint8_t reg,const uint8_t *value, uint16_t count)
+{
+    int ret;
+    uint16_t i;
+
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
-    i2c_master_write_byte(cmd,address << 1| READ_BIT, ACK_CHECK_EN);
-    //usleep(600);
+
+    i2c_master_write_byte(cmd,(0x74 << 1) | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, reg , ACK_CHECK_EN);
     for (i = 0; i < count; i++) {
-		send_ack = i < (count - 1); /* last byte must be NACK'ed */
-		i2c_master_read_byte(cmd, &data[i],!send_ack);
-	}
-    i2c_master_stop(cmd);
+        ret = i2c_master_write_byte(cmd, value[i],ACK_CHECK_EN);
+    }
+
+	i2c_master_stop(cmd);
 	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
-    return ret;
+	return ret;
 }
 
+// 0x74 STM32 chip device
+int32_t stm_i2c_read(int16_t reg, uint8_t *value,uint16_t len)
+{
+    int ret;
+    uint8_t i;
+    uint8_t send_ack;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (0x74 << 1) | WRITE_BIT, ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, reg,ACK_CHECK_EN);
+
+	vTaskDelay(50/portTICK_RATE_MS);
+
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (0x74 << 1) | READ_BIT, ACK_CHECK_EN);
+	/*for(i = 0;i < len - 1;i++)
+		i2c_master_read_byte(cmd, &value[i], ACK_VAL);
+	i2c_master_read_byte(cmd, &value[i], NACK_VAL);*/
+	for (i = 0; i < len; i++) {
+			send_ack = i < (len - 1); /* last byte must be NACK'ed */
+			i2c_master_read_byte(cmd, &value[i],!send_ack);
+		}
+
+
+	i2c_master_stop(cmd);
+
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	return ret;
+}
 
 
 void sensirion_sleep_usec(uint32_t useconds) {
@@ -478,7 +512,7 @@ esp_err_t i2c_master_init()
     int i2c_master_port = I2C_MASTER_NUM;
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
-    if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER))
+    if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER)||((Modbus.mini_type == PROJECT_POWER_METER)))
     	conf.sda_io_num = 12;//4;//I2C_MASTER_SDA_IO;
     else
     	conf.sda_io_num = 4;
@@ -498,7 +532,7 @@ esp_err_t i2c_master_init()
 
 void i2c_task(void *arg)
 {
-    int ret;
+    int ret,i;
     uint8_t voc_ok;
 	uint32_t temp;
 	uint32_t iaq_baseline;
@@ -586,18 +620,187 @@ void i2c_task(void *arg)
 		}
 	}
 #endif
-	scd4x_wake_up();
-	scd4x_stop_periodic_measurement();
-	scd4x_reinit();
-	scd4x_start_periodic_measurement();
+	if(Modbus.mini_type == PROJECT_POWER_METER)
+	{
+		Ade7953_init();
+	}
+	else
+	{
+		scd4x_wake_up();
+		scd4x_stop_periodic_measurement();
+		scd4x_reinit();
+		scd4x_start_periodic_measurement();
+	}
 	while (1) {//Test[20]++;
 #if 1
-        // ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
+		if(Modbus.mini_type == PROJECT_POWER_METER)
+		{
+			Ade7953GetData();
+			/*
+			Test[0] = Ade7953_getVoltage();
+			vTaskDelay(100 / portTICK_RATE_MS);
+			//Test[1] = Ade7953_getCurrent(1);
+			Test[2] = Ade7953_getCurrent(2);
+			Test[3] = Ade7953_getActivePower(1);
+			Test[4] = Ade7953_getActivePower(2);
+			//Test[5] = Ade7953_getEnergy(1);
+			//Test[6] = Ade7953_getEnergy(2);
+			for(i=0;i<63;i++){
+				vars[i].auto_manual = 0;
+				//newAde7953Read()
+			}*/
+			//uint8 tempI2cBuf[4];
+			for(i=0; i<49; i++)
+			{
+				//newAde7953Read(0x200+i, (uint8_t *)&vars[i].value);
+				vars[i].value = Ade7953Read(0x200+i);
+			}
+			for(i=0; i<24;i++)
+			{
+				//newAde7953Read(0x280+i, (uint8_t *)&vars[i+49].value);
+				vars[i+49].value = Ade7953Read(0x280+i);
+			}
+			memcpy(vars[0].description,"SAG VOLTAGE LEVEL",strlen("SAG VOLTAGE LEVEL"));
+			memcpy(vars[0].label,"SAGLVL",strlen("SAGLVL"));
+			//vars[0].value = 136;
+			memcpy(vars[1].description,"ACCUMULATION MODE",strlen("ACCUMULATION MODE"));
+			memcpy(vars[1].label,"ACCMODE",strlen("ACCMODE"));
+			memcpy(vars[2].description,"ACTIVE PW NO LOAD LV",strlen("ACTIVE PW NO LOAD LV"));
+			memcpy(vars[2].label,"APNOLOAD",strlen("APNOLOAD"));
+			memcpy(vars[3].description,"Reactive PW no-load LV",strlen("Reactive PW no-load LV"));
+			memcpy(vars[3].label,"VARNOLD",strlen("VARNOLD"));
+			memcpy(vars[4].description,"Apparent PW no-load level",strlen("Apparent PW no-load level"));
+			memcpy(vars[4].label,"VANOLD",strlen("VANOLD"));
+			memcpy(vars[5].description,"Instantaneous Apparent Power A",strlen("Instantaneous Apparent Power"));
+			memcpy(vars[5].label,"AVA",strlen("AVA"));
+			memcpy(vars[6].description,"Instantaneous Apparent Power B",strlen("Instantaneous Apparent Power"));
+			memcpy(vars[6].label,"AVB",strlen("AVB"));
+			memcpy(vars[7].description,"Instantaneous Active Power",strlen("Instantaneous Active Power"));
+			memcpy(vars[7].label,"AWATT",strlen("AWATT"));
+			memcpy(vars[8].description,"Instantaneous Active Power",strlen("Instantaneous Active Power"));
+			memcpy(vars[8].label,"BWATT",strlen("BWATT"));
+			memcpy(vars[9].description,"Instantaneous Reactive Power",strlen("Instantaneous Reactive Power"));
+			memcpy(vars[9].label,"AVAR",strlen("AVAR"));
+			memcpy(vars[10].description,"Instantaneous Reactive Power",strlen("Instantaneous Reactive Power"));
+			memcpy(vars[10].label,"BVAR",strlen("BVAR"));
+			memcpy(vars[11].description,"Instantaneous Current",strlen("Instantaneous Current"));
+			memcpy(vars[11].label,"IA",strlen("IA"));
+			memcpy(vars[12].description,"Instantaneous Current",strlen("Instantaneous Current"));
+			memcpy(vars[12].label,"IB",strlen("IB"));
+			memcpy(vars[13].description,"Instantaneous Voltage",strlen("Instantaneous Voltage"));
+			memcpy(vars[13].label,"VOLT",strlen("VOLT"));
+			memcpy(vars[14].description,"IRMSA register",strlen("IRMSA register"));
+			memcpy(vars[14].label,"IRMSA",strlen("IRMSA"));
+			memcpy(vars[15].description,"IRMSB register",strlen("IRMSB register"));
+			memcpy(vars[15].label,"IRMSB",strlen("IRMSB"));
+			memcpy(vars[16].description,"VRMS register",strlen("VRMS register"));
+			memcpy(vars[16].label,"VRMS",strlen("VRMS"));
+			memcpy(vars[17].description,"Active Energy A",strlen("Active Energy A"));
+			memcpy(vars[17].label,"AENGA",strlen("AENGA"));
+			memcpy(vars[18].description,"Active Energy B",strlen("Active Energy B"));
+			memcpy(vars[18].label,"AENGB",strlen("AENGB"));
+			memcpy(vars[19].description,"Reactive Energy A",strlen("Reactive Energy A"));
+			memcpy(vars[19].label,"RENGA",strlen("RENGA"));
+			memcpy(vars[20].description,"Reactive Energy B",strlen("Reactive Energy B"));
+			memcpy(vars[20].label,"RENGB",strlen("RENGB"));
+			memcpy(vars[21].description,"Apparent Energy A",strlen("Apparent Energy A"));
+			memcpy(vars[21].label,"APENGA",strlen("APENGA"));
+			memcpy(vars[22].description,"Apparent Energy B",strlen("Apparent Energy B"));
+			memcpy(vars[22].label,"APENGB",strlen("APENGB"));
+			memcpy(vars[23].description,"Overvolatage Level",strlen("Overvolatage Level"));
+			memcpy(vars[23].label,"OVLVL",strlen("OVLVL"));
+			memcpy(vars[24].description,"Overcurrent Level",strlen("Overcurrent Level"));
+			memcpy(vars[24].label,"OILVL",strlen("OILVL"));
+			memcpy(vars[25].description,"Voltage Channel Peak ",strlen("Voltage Channel Peak "));
+			memcpy(vars[25].label,"VPEAK",strlen("VPEAK"));
+			memcpy(vars[26].description,"Read Voltage Peak With Reset",strlen("Read Voltage Peak With Reset"));
+			memcpy(vars[26].label,"RSTVPEAK",strlen("RSTVPEAK"));
+			memcpy(vars[27].description,"Current Channel A Peak",strlen("Current Channel A Peak"));
+			memcpy(vars[27].label,"IAPEAK",strlen("IAPEAK"));
+			memcpy(vars[28].description,"Read Current Channel A Peak With Reset",strlen("Read Current Channel A Peak With Reset"));
+			memcpy(vars[28].label,"RSTIAPEAK",strlen("RSTIAPEAK"));
+			memcpy(vars[29].description,"Current Channel B Peak",strlen("Current Channel A Peak"));
+			memcpy(vars[29].label,"IBPEAK",strlen("IBPEAK"));
+			memcpy(vars[30].description,"Read Current Channel B Peak With Reset",strlen("Read Current Channel A Peak With Reset"));
+			memcpy(vars[30].label,"RSTIBPEAK",strlen("RSTIBPEAK"));
+			memcpy(vars[31].description,"Interrupt Enable A",strlen("Interrupt Enable A"));
+			memcpy(vars[31].label,"IRQENA",strlen("IRQENA"));
+			memcpy(vars[32].description,"Interrupt Status A",strlen("Interrupt Status A"));
+			memcpy(vars[32].label,"ISTATA",strlen("ISTATA"));
+			memcpy(vars[33].description,"Reset Interrupt Status A",strlen("Reset Interrupt Status A"));
+			memcpy(vars[33].label,"RSTISA",strlen("RSTISA"));
+			memcpy(vars[34].description,"Interrupt Enable B",strlen("Interrupt Enable A"));
+			memcpy(vars[34].label,"IRQENB",strlen("IRQENB"));
+			memcpy(vars[35].description,"Interrupt Status B",strlen("Interrupt Status A"));
+			memcpy(vars[35].label,"ISTATB",strlen("ISTATB"));
+			memcpy(vars[36].description,"Reset Interrupt Status B",strlen("Reset Interrupt Status B"));
+			memcpy(vars[36].label,"RSTISB",strlen("RSTISB"));
+			memcpy(vars[37].description,"Checksum",strlen("Checksum"));
+			memcpy(vars[37].label,"CRC",strlen("CRC"));
+			memcpy(vars[38].description,"Current Channel Gain A",strlen("Current Channel Gain A"));
+			memcpy(vars[38].label,"IAGAIN",strlen("IAGAIN"));
+			memcpy(vars[39].description,"Voltage Channel Gain A",strlen("Voltage Channel Gain A"));
+			memcpy(vars[39].label,"VGAIN",strlen("VGAIN"));
+			memcpy(vars[40].description,"Active Power Gain A",strlen("Active Power Gain A"));
+			memcpy(vars[40].label,"AWGAIN",strlen("AWGAIN"));
+			memcpy(vars[41].description,"Reactive Power Gain A",strlen("Reactive Power Gain A"));
+			memcpy(vars[41].label,"AVARG",strlen("AVARG"));
+			memcpy(vars[42].description,"Apparent Power Gain A",strlen("Apparent Power Gain A"));
+			memcpy(vars[42].label,"AVAG",strlen("AVAG"));
+			memcpy(vars[43].description,"IRMS Offset A",strlen("IRMS Offset A"));
+			memcpy(vars[43].label,"AIRMSOS",strlen("AIRMSOS"));
+			memcpy(vars[44].description,"VRMS Offset",strlen("VRMS Offset"));
+			memcpy(vars[44].label,"VRMSOS",strlen("VRMSOS"));
+			memcpy(vars[45].description,"Active Power Offset Correction A",strlen("Active Power Offset Correction A"));
+			memcpy(vars[45].label,"AWATTOS",strlen("AWATTOS"));
+			memcpy(vars[46].description,"Reactive Power Offset Correction A",strlen("Reactive Power Offset Correction A"));
+			memcpy(vars[46].label,"AVAROS",strlen("AVAROS"));
+			memcpy(vars[47].description,"Apparent Power Offset Correction A",strlen("Apparent Power Offset Correction A"));
+			memcpy(vars[47].label,"AVAOS",strlen("AVAOS"));
+			memcpy(vars[48].description,"Voltage Channel Gain B",strlen("Voltage Channel Gain B"));
+			memcpy(vars[48].label,"VGBIN",strlen("VGBIN"));
+			memcpy(vars[49].description,"Active Power Gain B",strlen("Active Power Gain B"));
+			memcpy(vars[49].label,"BWGBIN",strlen("BWGBIN"));
+			memcpy(vars[50].description,"Reactive Power Gain B",strlen("Reactive Power Gain B"));
+			memcpy(vars[50].label,"BVBRG",strlen("BVBRG"));
+			memcpy(vars[51].description,"Apparent Power Gain B",strlen("Apparent Power Gain B"));
+			memcpy(vars[51].label,"BVBG",strlen("BVBG"));
+			memcpy(vars[52].description,"IRMS Offset B",strlen("IRMS Offset B"));
+			memcpy(vars[52].label,"BIRMSOS",strlen("BIRMSOS"));
+			memcpy(vars[53].description,"Active Power Offset Correction B",strlen("Active Power Offset Correction B"));
+			memcpy(vars[53].label,"BWBTTOS",strlen("BWBTTOS"));
+			memcpy(vars[54].description,"Reactive Power Offset Correction B",strlen("Reactive Power Offset Correction B"));
+			memcpy(vars[54].label,"BVBROS",strlen("BVBROS"));
+			memcpy(vars[55].description,"Apparent Power Offset Correction B",strlen("Apparent Power Offset Correction B"));
+			memcpy(vars[55].label,"BVBOS",strlen("BVBOS"));
+
+			memcpy(vars[56].description,"VOLTAGE FACTOR",strlen("VOLTAGE FACTOR"));
+			vars[56].value = 136;
+			memcpy(vars[57].description,"CURRENT1 FACTOR",strlen("CURRENT1 FACTOR"));
+			vars[57].value = 1318;
+			memcpy(vars[58].description,"CURRENT2 FACTOR",strlen("CURRENT1 FACTOR"));
+			vars[58].value = 1318;
+			memcpy(vars[59].description,"POWER1 FACTOR",strlen("POWER1 FACTOR"));
+			vars[59].value = 164;
+			memcpy(vars[60].description,"POWER2 FACTOR",strlen("POWER2 FACTOR"));
+			vars[60].value = 164;
+			memcpy(vars[61].description,"ENERGY1 FACTOR",strlen("ENERGY1 FACTOR"));
+			vars[61].value = 25240;
+			memcpy(vars[62].description,"ENERGY2 FACTOR",strlen("ENERGY1 FACTOR"));
+			vars[62].value = 25240;
+			memcpy(inputs[0].description,"VOLTAGE",strlen("VOLTAGE"));
+			memcpy(inputs[1].description,"CURRENT1",strlen("CURRENT1"));
+			memcpy(inputs[2].description,"CURRENT2",strlen("CURRENT1"));
+			memcpy(inputs[3].description,"POWER1",strlen("POWER1"));
+			memcpy(inputs[4].description,"POWER2",strlen("POWER1"));
+			memcpy(inputs[5].description,"ENERGY1",strlen("ENERGY1"));
+			memcpy(inputs[6].description,"ENERGY1",strlen("ENERGY1"));
+		}
 		if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		{
 			ret = i2c_master_sensor_sht31(I2C_MASTER_NUM, sht31_data);//&sensor_data_h, &sensor_data_l);
 
-			memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
+			/*memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
 			memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
 			{
 				memcpy(inputs[2].description,"TEMP REMOTE",strlen("TEMP REMOTE"));
@@ -611,11 +814,11 @@ void i2c_task(void *arg)
 			memcpy(inputs[5].description,"THERMEL TEMP",strlen("THERMEL TEMP"));
 			memcpy(outputs[0].description,"FAN AO",strlen("FAN AO"));
 			memcpy(outputs[1].description,"FAN PWM",strlen("FAN PWM"));
-			//memcpy(inputs[4].description,"RPM",strlen("RPM"));
+			//memcpy(inputs[4].description,"RPM",strlen("RPM"));*/
 			xSemaphoreTake(print_mux, portMAX_DELAY);
-			if (ret == ESP_ERR_TIMEOUT) {Test[24]++;
+			if (ret == ESP_ERR_TIMEOUT) {
 				ESP_LOGE(TAG, "I2C Timeout");
-				Test[0] = 120;
+				//Test[0] = 120;
 			} else if (ret == ESP_OK) {
 				g_sensors.original_temperature = SHT3X_getTemperature(sht31_data);
 				g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
@@ -642,7 +845,7 @@ void i2c_task(void *arg)
 				//printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
 			} else {//Test[23]++;
 				//ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
-				Test[1] = ret;
+				//Test[1] = ret;
 			}
 			xSemaphoreGive(print_mux);
 		}
@@ -666,6 +869,9 @@ void i2c_task(void *arg)
 			{
 				g_sensors.temperature = (sht4x_temp)/100;
 				g_sensors.humidity = (sht4x_hum)/100;
+				Test[0] = g_sensors.temperature;
+				Test[1] = g_sensors.humidity;
+				Test[2] = g_sensors.co2;
 			}
 			xSemaphoreGive(print_mux);
         }

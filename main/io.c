@@ -52,10 +52,10 @@ U8_T far sub_no;
 
 U16_T far Test[50];
 //U16_T far input_raw[MAX_INS];
-
+extern uint8_t InputLed[32];
 U8_T change_value_by_range(U8_T channel)
 {
-	return 0;
+	return 1;
 }
 
 U32_T get_rpm(U8_T point)
@@ -66,7 +66,15 @@ U32_T get_rpm(U8_T point)
 void Set_Input_Type(U8_T point)
 {
 	// maybe not need it
+	if((Modbus.mini_type == MINI_BIG_ARM) || (Modbus.mini_type == MINI_SMALL_ARM))
+	{
+		InputLed[point] &= 0x0f;
+		if(input_type[point] >= 1)
+			InputLed[point] |= ((input_type[point] - 1) << 4);
+		else
+			InputLed[point] |= (input_type[point] << 4);
 
+	}
 }
 
 U16_T get_input_raw(U8_T point)

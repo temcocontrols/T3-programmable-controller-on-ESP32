@@ -17,6 +17,7 @@
 
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
+uint8_t count_reboot = 0;
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -104,6 +105,7 @@ esp_err_t read_default_from_flash(void)
 {
 	nvs_handle_t my_handle;
 	esp_err_t err;
+	uint8_t temp[4];
 
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -162,16 +164,46 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u8(my_handle, FLASH_SERIAL_NUM3, &Modbus.serialNum[2]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
-		Modbus.serialNum[0] = 4;
+		Modbus.serialNum[2] = 0;
 		nvs_set_u8(my_handle, FLASH_SERIAL_NUM3, Modbus.serialNum[2]);
 	}
 
 	err = nvs_get_u8(my_handle, FLASH_SERIAL_NUM4, &Modbus.serialNum[3]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
-		Modbus.serialNum[1] = 4;
+		Modbus.serialNum[3] = 0;
 		nvs_set_u8(my_handle, FLASH_SERIAL_NUM4, Modbus.serialNum[3]);
 	}
+
+	err = nvs_get_u8(my_handle, FLASH_INSTANCE1, &temp[0]);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		temp[0] = Modbus.serialNum[0];
+		nvs_set_u8(my_handle, FLASH_INSTANCE1, temp[0]);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_INSTANCE2, &temp[1]);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		temp[1] = Modbus.serialNum[1];
+		nvs_set_u8(my_handle, FLASH_INSTANCE2, temp[1]);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_INSTANCE3, &temp[2]);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		temp[2] = Modbus.serialNum[2];
+		nvs_set_u8(my_handle, FLASH_INSTANCE3, temp[2]);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_INSTANCE4, &temp[3]);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		temp[3] = Modbus.serialNum[3];
+		nvs_set_u8(my_handle, FLASH_INSTANCE4, temp[3]);
+	}
+	Instance = ((uint32)temp[3]<<24)+((uint32)temp[2]<<16)+((uint16)temp[1]<<8) + temp[0];
+
 
 	err = nvs_get_u8(my_handle, FLASH_UART_CONFIG, &Modbus.com_config[0]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
@@ -201,7 +233,15 @@ esp_err_t read_default_from_flash(void)
 	}
 
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
-
+	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
+	if(count_reboot >= 2)
+	{ // reboot
+		//start_fw_update();
+	}
+	else
+	{
+		nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
+	}
 
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{// old ISP, REV < 26
@@ -224,7 +264,10 @@ esp_err_t read_default_from_flash(void)
 	return ESP_OK;
 }
 
-
+void clear_count_reboot(void)
+{
+	save_uint8_to_flash(FLASH_COUNT_REBOOT,0);
+}
 
 typedef struct
 {
@@ -386,6 +429,15 @@ void Set_Object_Name(char * name)
 	save_block(FLASH_BLOCK2_PN);
 }
 
+
+void Store_Instance_To_Eeprom(uint32_t Instance)
+{
+	save_uint8_to_flash(FLASH_INSTANCE1,Instance);
+	save_uint8_to_flash(FLASH_INSTANCE2,(U8_T)(Instance >> 8));
+	save_uint8_to_flash(FLASH_INSTANCE3,(U8_T)(Instance >> 16));
+	save_uint8_to_flash(FLASH_INSTANCE4,(U8_T)(Instance >> 24));
+
+}
 
 esp_err_t save_block(uint8_t key)
 {

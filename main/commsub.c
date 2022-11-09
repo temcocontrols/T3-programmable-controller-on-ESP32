@@ -67,6 +67,7 @@ void Comm_Tstat_Initial_Data(void)
 	else /*if(Modbus.mini_type == MINI_NANO) */		{	base_in = 0;		base_out = 0;}
 	base_var = 0;
 
+
 	//memset(sub_map,0,sizeof(STR_MAP_table) * SUB_NO); //??????????????????????
 //	memset(RP_modbus_tb,0,sizeof(STR_SCAN_TB) * MAXREMOTEPOINTS);
 

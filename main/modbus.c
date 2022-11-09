@@ -16,7 +16,19 @@
 #include "rtc.h"
 
 
+uint32_t my_htonl(uint32_t val)
+{
+	/*uint8_t t1,t2,t3,t4;
+	t1 = val >> 24;
+	t2 = val >> 16;
+	t3 = val >> 8;
+	t4 = val;
 
+	return ((uint32_t)t4 << 24) + ((uint32_t)t3 << 16) +  ((uint16_t)t2 << 16) + t1;*/
+	return val;
+
+
+}
 
 #define EEPROM_VERSION	  105
 
@@ -57,6 +69,9 @@ U8_T update_flash;
 //extern U32_T Instance;
 U8_T CRChi = 0xff;
 U8_T CRClo = 0xff;
+
+extern uint8_t gIdentify;
+extern uint8_t count_gIdentify;
 
 void dealwith_write_setting(Str_Setting_Info * ptr);
 uint16_t read_user_data_by_block(uint16_t addr);
@@ -415,7 +430,7 @@ void modbus0_task(void *arg)
 				if(len>0)
 				{led_sub_rx++;
 					com_rx[0]++;
-
+					flagLED_sub_rx = 1;
 					if(checkdata(uart_rsv))
 					{
 						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
@@ -437,6 +452,7 @@ void modbus0_task(void *arg)
 				{
 					led_sub_rx++;
 					com_rx[0]++;
+					flagLED_sub_rx = 1;
 					if(checkdata(uart_rsv))
 					{
 						Modbus.com_config[0] = MODBUS_SLAVE;
@@ -467,6 +483,8 @@ void modbus2_task(void *arg)
 			{
 				led_main_rx++;
 				com_rx[2]++;
+				flagLED_main_rx = 1;
+
 				if(checkdata(uart_rsv))
 				{
 					if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
@@ -487,6 +505,7 @@ void modbus2_task(void *arg)
 			{
 				led_main_rx++;
 				com_rx[2]++;
+				flagLED_main_rx = 1;
 				if(checkdata(uart_rsv))
 				{
 					Modbus.com_config[2] = MODBUS_SLAVE;
@@ -746,12 +765,12 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          }
          else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)
 		 {
-        	if(address - MODBUS_TIMER_ADDRESS == 0)  // hour
+        	if(address - MODBUS_TIMER_ADDRESS == 0)  // second
 			{
 				temp1 = 0;
 				temp2 =  rtc_date.second;
 			}
-        	else if(address - MODBUS_TIMER_ADDRESS == 1)  // hour
+        	else if(address - MODBUS_TIMER_ADDRESS == 1)  // minute
 			{
 				temp1 = 0;
 				temp2 =  rtc_date.minute;
@@ -761,17 +780,17 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 				temp1 = 0;
 				temp2 =  rtc_date.hour;
 			}
-        	else if(address - MODBUS_TIMER_ADDRESS == 3)  // hour
+        	else if(address - MODBUS_TIMER_ADDRESS == 3)  // day
 			{
 				temp1 = 0;
 				temp2 =  rtc_date.day;
 			}
-			else if(address - MODBUS_TIMER_ADDRESS == 4)  // hour
+			else if(address - MODBUS_TIMER_ADDRESS == 4)  // weekday
 			{
 				temp1 = 0;
 				temp2 =  rtc_date.weekday;
 			}
-			else if(address - MODBUS_TIMER_ADDRESS == 5)  // hour
+			else if(address - MODBUS_TIMER_ADDRESS == 5)  // month
 			{
 				temp1 = 0;
 				temp2 =  rtc_date.month;
@@ -820,8 +839,8 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		{
 			U16_T temp;
 			temp = read_user_data_by_block(address);
-			temp2 = temp & 0xFF;
-			temp1 = (temp >> 8) & 0xFF;
+			temp2 = (temp >> 8) & 0xFF;//temp & 0xFF;
+			temp1 = temp & 0xFF;//(temp >> 8) & 0xFF;
 		}
 /*********************read IN OUT by block endf ***************************************/
 		else if( address >= MODBUS_IO_REG_START && address <= MODBUS_IO_REG_END)
@@ -1414,9 +1433,10 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			temp = temp & 0xffff0000L;
 			temp |= (*(bufadd + 5)) + (*(bufadd + 4)) * 256;
 			Instance = temp;
-			//E2prom_Write_Byte(EEP_INSTANCE1,pData[HeadLen + 5]);
-			//E2prom_Write_Byte(EEP_INSTANCE2,pData[HeadLen + 4]);
+			save_uint8_to_flash(FLASH_INSTANCE1,*(bufadd + 5));
+			save_uint8_to_flash(FLASH_INSTANCE2,*(bufadd + 4));
 			Device_Set_Object_Instance_Number(Instance);
+
 		}
       }
 	  else if(address == MODBUS_INSTANCE_HI)
@@ -1424,8 +1444,8 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			if((U16_T)(Instance >> 16) != (*(bufadd + 5)) + (*(bufadd + 4)) * 256)
 			{
 				Instance = ((U32_T)(*(bufadd + 5)) << 16) + ((U32_T)(*(bufadd + 5)) << 24) + (U16_T)Instance;
-				//E2prom_Write_Byte(EEP_INSTANCE3,pData[HeadLen + 5]);
-				//E2prom_Write_Byte(EEP_INSTANCE4,pData[HeadLen + 4]);
+				save_uint8_to_flash(FLASH_INSTANCE3,*(bufadd + 5));
+				save_uint8_to_flash(FLASH_INSTANCE4,*(bufadd + 4));
 				Device_Set_Object_Instance_Number(Instance);
 			}
 		}
@@ -2444,9 +2464,10 @@ void set_default_parameters(void);
 
 void dealwith_write_setting(Str_Setting_Info * ptr)
 {
+	Test[13]++;
 // compare sn to check whether it is current panel
 	if(ptr->reg.sn == (Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8)	+ ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24)))
-	{
+	{Test[14]++;
 		if(memcmp(panelname,ptr->reg.panel_name,20))
 		{
 			ptr->reg.panel_name[19] = 0;
@@ -2674,11 +2695,17 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			save_uint16_to_flash( FLASH_NETWORK_NUMBER, Modbus.network_number);
 		}
 
-		if((Instance != (ptr->reg.instance)) && (ptr->reg.instance != 0))
+		if((Instance != my_htonl(ptr->reg.instance)) && (ptr->reg.instance != 0))
 		{
-			Instance = (ptr->reg.instance);
+			Test[15]++;
+			//memcpy(&Test[16],&Instance,4);
+			//memcpy(&Test[18],&ptr->reg.instance,4);
+
+			Instance = my_htonl(ptr->reg.instance);
 			Device_Set_Object_Instance_Number(Instance);
 			Store_Instance_To_Eeprom(Instance);
+
+
 		}
 
 //		if(Modbus.refresh_flash_timer != ptr->reg.refresh_flash_timer)
@@ -2717,6 +2744,16 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			//ptr->reg.reset_default = 0;
 			set_default_parameters();
 		}
+		if(ptr->reg.reset_default == 77)	 // show identify
+		{
+			ptr->reg.reset_default = 0;
+			// show identify
+			// control led on/off
+			gIdentify = 1;
+			count_gIdentify = 0;
+			Test[0]++;
+		}
+
 #if 0
 		if(ptr->reg.reset_default == 111)	 // reboot
 		{

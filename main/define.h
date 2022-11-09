@@ -6,7 +6,13 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6203
+#define SOFTREV     6210
+
+
+#define		SW_OFF 	 0
+#define 	SW_HAND	 2
+#define		SW_AUTO	 1
+
 
 #define UIP_HEAD 6
 // must change library if change it
@@ -161,7 +167,12 @@ extern uint8 led_sub_rx;
 extern uint8 led_main_tx;
 extern uint8 led_main_rx;
 
-
+extern uint8 flagLED_ether_tx;
+extern uint8 flagLED_ether_rx;
+extern uint8 flagLED_sub_rx;
+extern uint8 flagLED_sub_tx;
+extern uint8 flagLED_main_rx;
+extern uint8 flagLED_main_tx;
 
 
 void modbus_task0(void *arg);

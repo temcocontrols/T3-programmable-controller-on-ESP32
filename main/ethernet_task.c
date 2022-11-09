@@ -96,7 +96,7 @@ void ethernet_init(void)
 
 	}
 	else*/
-	{	Test[9] = 20;
+	{
 		ret = esp_event_loop_create_default();
 		if(ret == ESP_OK)
 			debug_info("esp_event_loop_create_default() finished^^^^^^^^");

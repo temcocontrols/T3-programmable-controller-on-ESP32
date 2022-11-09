@@ -37,6 +37,7 @@ typedef struct
 }STR_SSID;
 
 extern bool re_init_wifi;
+extern char debug_array[100];
 
 extern STR_SSID	SSID_Info;
 extern void wifi_init_sta();

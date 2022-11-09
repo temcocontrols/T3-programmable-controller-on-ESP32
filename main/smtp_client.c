@@ -41,13 +41,23 @@
 #include <mbedtls/base64.h>
 #include <sys/param.h>
 
+#include "lwip/sockets.h"
 
 /* Constants that are configurable in menuconfig */
-#define MAIL_SERVER         "smtp.qq.com"//CONFIG_SMTP_SERVER
+#define MAIL_SERVER         "192.168.0.7"//CONFIG_SMTP_SERVER ¡°192.168.0.7¡±
 #define MAIL_PORT           "25"//CONFIG_SMTP_PORT_NUMBER
-#define SENDER_MAIL         "57440569@qq.com"//CONFIG_SMTP_SENDER_MAIL
-#define SENDER_PASSWORD     "903000lwh"//CONFIG_SMTP_SENDER_PASSWORD
+#define SENDER_MAIL         "chelsea@temcocontrols.com"//CONFIG_SMTP_SENDER_MAIL ¡°chelsea@temcocontrols.com¡±
+#define SENDER_PASSWORD     "GhyR$d@!@" //CONFIG_SMTP_SENDER_PASSWORD
 #define RECIPIENT_MAIL      "chelsea@temcocontrols.com"//CONFIG_SMTP_RECIPIENT_MAIL
+
+
+
+#define MAIL_SERVER1         "mail.smtp2go.com"//CONFIG_SMTP_SERVER ¡°192.168.0.7¡±
+#define MAIL_PORT1           "2525"//CONFIG_SMTP_PORT_NUMBER
+#define SENDER_MAIL1         "T3Controller@temcocontrols.com"//CONFIG_SMTP_SENDER_MAIL ¡°chelsea@temcocontrols.com¡±
+#define SENDER_PASSWORD1     "aHRwODV4eW1qcHcw" //CONFIG_SMTP_SENDER_PASSWORD
+#define RECIPIENT_MAIL1      "chelsea@temcocontrols.com"//CONFIG_SMTP_RECIPIENT_MAIL
+
 
 #define SERVER_USES_STARTSSL 1
 
@@ -56,6 +66,8 @@ static const char *TAG = "smtp_example";
 #define TASK_STACK_SIZE     (8 * 1024)
 #define BUF_SIZE            512
 
+extern unsigned int Test[50];
+void debug_info(char *string);
 #define VALIDATE_MBEDTLS_RETURN(ret, min_valid_ret, max_valid_ret, goto_label)  \
     do {                                                                        \
         if (ret < min_valid_ret || ret > max_valid_ret) {                       \
@@ -75,11 +87,11 @@ static const char *TAG = "smtp_example";
  * in the component.mk COMPONENT_EMBED_TXTFILES variable.
  */
 
- const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
- const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
+extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
+extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
 
- const uint8_t esp_logo_png_start[] asm("_binary_esp_logo_png_start");
- const uint8_t esp_logo_png_end[]   asm("_binary_esp_logo_png_end");
+extern const uint8_t esp_logo_png_start[] asm("_binary_esp_logo_png_start");
+extern const uint8_t esp_logo_png_end[]   asm("_binary_esp_logo_png_end");
 
 static int write_and_get_response(mbedtls_net_context *sock_fd, unsigned char *buf, size_t len)
 {
@@ -139,14 +151,16 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     unsigned char data[DATA_SIZE];
     char code[4];
     size_t i, idx = 0;
-
+    Test[10]++;
     if (len) {
         ESP_LOGD(TAG, "%s", buf);
+        printf("%s",buf);
     }
 
     while (len && (ret = mbedtls_ssl_write(ssl, buf, len)) <= 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-            ESP_LOGE(TAG, "mbedtls_ssl_write failed with error -0x%x", -ret);
+        	debug_info("mbedtls_ssl_write failed with error");
+            Test[11]++;
             goto exit;
         }
     }
@@ -159,8 +173,7 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
             continue;
         }
 
-        if (ret <= 0) {
-            ESP_LOGE(TAG, "mbedtls_ssl_read failed with error -0x%x", -ret);
+        if (ret <= 0) {Test[12]++;
             goto exit;
         }
 
@@ -177,7 +190,7 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
 
             if (idx == 4 && code[0] >= '0' && code[0] <= '9' && code[3] == ' ') {
                 code[3] = '\0';
-                ret = atoi(code);
+                ret = atoi(code);Test[13]++;
                 goto exit;
             }
 
@@ -186,6 +199,9 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     } while (1);
 
 exit:
+	Test[14]++;
+	Test[15] = ret;
+	debug_info("write_ssl_and_get_response end");
     return ret;
 }
 
@@ -214,29 +230,30 @@ static int perform_tls_handshake(mbedtls_ssl_context *ssl)
     char *buf = NULL;
     buf = (char *) calloc(1, BUF_SIZE);
     if (buf == NULL) {
-        ESP_LOGE(TAG, "calloc failed for size %d", BUF_SIZE);
+    	debug_info( "calloc failed for size ");
         goto exit;
     }
 
-    ESP_LOGI(TAG, "Performing the SSL/TLS handshake...");
+    debug_info("Performing the SSL/TLS handshake...");
 
     fflush(stdout);
     while ((ret = mbedtls_ssl_handshake(ssl)) != 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-            ESP_LOGE(TAG, "mbedtls_ssl_handshake returned -0x%x", -ret);
+        	debug_info("mbedtls_ssl_handshake returned");
             goto exit;
         }
     }
+    mbedtls_ssl_handshake(ssl);
 
-    ESP_LOGI(TAG, "Verifying peer X.509 certificate...");
+    debug_info("Verifying peer X.509 certificate...");
 
     if ((flags = mbedtls_ssl_get_verify_result(ssl)) != 0) {
         /* In real life, we probably want to close connection if ret != 0 */
-        ESP_LOGW(TAG, "Failed to verify peer certificate!");
+    	debug_info("Failed to verify peer certificate!");
         mbedtls_x509_crt_verify_info(buf, BUF_SIZE, "  ! ", flags);
-        ESP_LOGW(TAG, "verification info: %s", buf);
+        debug_info("verification info");
     } else {
-        ESP_LOGI(TAG, "Certificate verified.");
+    	debug_info("Certificate verified.");
     }
 
     ESP_LOGI(TAG, "Cipher suite is %s", mbedtls_ssl_get_ciphersuite(ssl));
@@ -248,26 +265,17 @@ exit:
     }
     return ret;
 }
-extern unsigned int Test[50];
-unsigned int stringtest[1000];
+
+
+
 void smtp_client_task(void)
 {
-/*	Test[2]++;
-	Test[3] = stringtest[900];
-	long i = 0;
-	for (;;)
-	{// 10ms
-		Test[2]++;
-		for(i = 0;i < 1000;i++)
-			stringtest[i] = i;
-		vTaskDelay(100);
-	}*/
-
-#if 1
 	char *buf = NULL;
     unsigned char base64_buffer[128];
     int ret, len;
     size_t base64_len;
+    int sock;
+    char rx_buffer[200];
 
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
@@ -275,50 +283,47 @@ void smtp_client_task(void)
     mbedtls_x509_crt cacert;
     mbedtls_ssl_config conf;
     mbedtls_net_context server_fd;
-
     mbedtls_ssl_init(&ssl);
+
     mbedtls_x509_crt_init(&cacert);
     mbedtls_ctr_drbg_init(&ctr_drbg);
-    ESP_LOGI(TAG, "Seeding the random number generator");
-    Test[1] = 1;
+
+
     mbedtls_ssl_config_init(&conf);
-    Test[1] = 2;
+#if 1
     mbedtls_entropy_init(&entropy);
 
     if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
                                      NULL, 0)) != 0) {
-        ESP_LOGE(TAG, "mbedtls_ctr_drbg_seed returned -0x%x", -ret);
+    	debug_info("mbedtls_ctr_drbg_seed returned error");
+
         goto exit;
     }
-    Test[1] = 3;
-    ESP_LOGI(TAG, "Loading the CA root certificate...");
+
 
     ret = mbedtls_x509_crt_parse(&cacert, server_root_cert_pem_start,
                                  server_root_cert_pem_end - server_root_cert_pem_start);
 
     if (ret < 0) {
-        ESP_LOGE(TAG, "mbedtls_x509_crt_parse returned -0x%x", -ret);
+        debug_info("mbedtls_x509_crt_parse error");
         goto exit;
     }
-    Test[1] = 4;
-    ESP_LOGI(TAG, "Setting hostname for TLS session...");
 
     /* Hostname set here should match CN in server certificate */
-    if ((ret = mbedtls_ssl_set_hostname(&ssl, MAIL_SERVER)) != 0) {
-        ESP_LOGE(TAG, "mbedtls_ssl_set_hostname returned -0x%x", -ret);
+    if ((ret = mbedtls_ssl_set_hostname(&ssl, MAIL_SERVER1)) != 0) {
+    	debug_info("mbedtls_ssl_set_hostname returned error");
         goto exit;
     }
 
-    ESP_LOGI(TAG, "Setting up the SSL/TLS structure...");
 
     if ((ret = mbedtls_ssl_config_defaults(&conf,
                                            MBEDTLS_SSL_IS_CLIENT,
                                            MBEDTLS_SSL_TRANSPORT_STREAM,
                                            MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-        ESP_LOGE(TAG, "mbedtls_ssl_config_defaults returned -0x%x", -ret);
+        debug_info("mbedtls_ssl_config_defaults error");
         goto exit;
     }
-    Test[1] = 5;
+
     mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
@@ -327,131 +332,185 @@ void smtp_client_task(void)
 #endif
 
     if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
-        ESP_LOGE(TAG, "mbedtls_ssl_setup returned -0x%x", -ret);
+        debug_info("mbedtls_ssl_setup error");
         goto exit;
     }
-    Test[1] = 6;
+
+#endif
     mbedtls_net_init(&server_fd);
 
-    ESP_LOGI(TAG, "Connecting to %s:%s...", MAIL_SERVER, MAIL_PORT);
+    debug_info("Connecting to ....");
 
-    if ((ret = mbedtls_net_connect(&server_fd, MAIL_SERVER,
-                                   MAIL_PORT, MBEDTLS_NET_PROTO_TCP)) != 0) {
-        ESP_LOGE(TAG, "mbedtls_net_connect returned -0x%x", -ret);
+    if ((ret = mbedtls_net_connect(&server_fd, MAIL_SERVER1,
+                                   MAIL_PORT1, MBEDTLS_NET_PROTO_TCP)) != 0) {
+    	debug_info("mbedtls_net_connect returned");
         goto exit;
     }
+    debug_info("connected...");
 
-    ESP_LOGI(TAG, "Connected.");
-    Test[1] = 7;
     mbedtls_ssl_set_bio(&ssl, &server_fd, mbedtls_net_send, mbedtls_net_recv, NULL);
 
     buf = (char *) calloc(1, BUF_SIZE);
     if (buf == NULL) {
-        ESP_LOGE(TAG, "calloc failed for size %d", BUF_SIZE);
         goto exit;
     }
+
+    sock = server_fd.fd;
 #if SERVER_USES_STARTSSL
     /* Get response */
+
+    debug_info(buf);
     ret = write_and_get_response(&server_fd, (unsigned char *) buf, 0);
     VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
 
-    ESP_LOGI(TAG, "Writing EHLO to server...");
-    len = snprintf((char *) buf, BUF_SIZE, "EHLO %s\r\n", "ESP32");
+    len = snprintf((char *) buf, BUF_SIZE, "EHLO %s\r\n", "chelsea");
+    debug_info(buf);
+
     ret = write_and_get_response(&server_fd, (unsigned char *) buf, len);
     VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
 
-    ESP_LOGI(TAG, "Writing STARTTLS to server...");
+
     len = snprintf((char *) buf, BUF_SIZE, "STARTTLS\r\n");
+    debug_info(buf);
+
     ret = write_and_get_response(&server_fd, (unsigned char *) buf, len);
     VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
 
+   // debug_info("@@@@@@@ perform_tls_handshakee...");
     ret = perform_tls_handshake(&ssl);
-    if (ret != 0) {
+    if (ret != 0) {debug_info("@@@@@@@ perform_tls_handshake error ");
         goto exit;
     }
-
+    debug_info("@@@@@@@ perform_tls_handshake OK");
 #else /* SERVER_USES_STARTSSL */
+#if 0
+    debug_info("@@@@@@@ perform_tls_handshake...");
+
     ret = perform_tls_handshake(&ssl);
     if (ret != 0) {
         goto exit;
     }
-
+    debug_info("@@@@@@@ write_ssl_and_get_response ...");
     /* Get response */
     ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, 0);
-    VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
-    ESP_LOGI(TAG, "Writing EHLO to server...");
-
-    len = snprintf((char *) buf, BUF_SIZE, "EHLO %s\r\n", "ESP32");
+    //VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
+#endif
+    debug_info("@@@@@@@ Writing EHLO to server ...");
+    len = snprintf((char *) buf, BUF_SIZE, "EHLO %s\r\n", "chelsea");
+    //len = snprintf((char *) buf, BUF_SIZE, "EHLO\r\n");
+    debug_info(buf);
     ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
 
+    Test[22] = ret;
+    VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
+    // wait....
 #endif /* SERVER_USES_STARTSSL */
 
     /* Authentication */
-    ESP_LOGI(TAG, "Authentication...");
-    Test[1] = 8;
-    ESP_LOGI(TAG, "Write AUTH LOGIN");
+
     len = snprintf( (char *) buf, BUF_SIZE, "AUTH LOGIN\r\n" );
-    ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 200, 399, exit);
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
+    //VALIDATE_MBEDTLS_RETURN(ret, 200, 399, exit);
+    len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
 
-    ESP_LOGI(TAG, "Write USER NAME");
+
     ret = mbedtls_base64_encode((unsigned char *) base64_buffer, sizeof(base64_buffer),
-                                &base64_len, (unsigned char *) SENDER_MAIL, strlen(SENDER_MAIL));
+                                &base64_len, (unsigned char *) SENDER_MAIL1, strlen(SENDER_MAIL1));
     if (ret != 0) {
-        ESP_LOGE(TAG, "Error in mbedtls encode! ret = -0x%x", -ret);
+        debug_info("@@@@@@@ Error in mbedtls encode! ");
         goto exit;
     }
     len = snprintf((char *) buf, BUF_SIZE, "%s\r\n", base64_buffer);
-    ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 300, 399, exit);
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
+    //VALIDATE_MBEDTLS_RETURN(ret, 300, 399, exit);
+    len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
 
-    ESP_LOGI(TAG, "Write PASSWORD");
     ret = mbedtls_base64_encode((unsigned char *) base64_buffer, sizeof(base64_buffer),
-                                &base64_len, (unsigned char *) SENDER_PASSWORD, strlen(SENDER_PASSWORD));
+                                &base64_len, (unsigned char *) SENDER_PASSWORD1, strlen(SENDER_PASSWORD1));
     if (ret != 0) {
-        ESP_LOGE(TAG, "Error in mbedtls encode! ret = -0x%x", -ret);
+        debug_info("@@@@@@@ Error in mbedtls encode!");
         goto exit;
     }
     len = snprintf((char *) buf, BUF_SIZE, "%s\r\n", base64_buffer);
-    ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 200, 399, exit);
-    Test[1] = 9;
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
+    //VALIDATE_MBEDTLS_RETURN(ret, 200, 399, exit);
+    len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
     /* Compose email */
-    ESP_LOGI(TAG, "Write MAIL FROM");
-    len = snprintf((char *) buf, BUF_SIZE, "MAIL FROM:<%s>\r\n", SENDER_MAIL);
-    ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
-    Test[1] = 10;
-    ESP_LOGI(TAG, "Write RCPT");
-    len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", RECIPIENT_MAIL);
-    ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
+    len = snprintf((char *) buf, BUF_SIZE, "MAIL FROM:<%s>\r\n", SENDER_MAIL1);
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
+    //VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
+    len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
 
-    ESP_LOGI(TAG, "Write DATA");
+
+    len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", RECIPIENT_MAIL1);
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
+    //VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
+    len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
     len = snprintf((char *) buf, BUF_SIZE, "DATA\r\n");
-    ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 300, 399, exit);
-    Test[1] = 11;
-    ESP_LOGI(TAG, "Write Content");
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
+    //VALIDATE_MBEDTLS_RETURN(ret, 300, 399, exit);
+    len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
     /* We do not take action if message sending is partly failed. */
     len = snprintf((char *) buf, BUF_SIZE,
                    "From: %s\r\nSubject: mbed TLS Test mail\r\n"
                    "To: %s\r\n"
                    "MIME-Version: 1.0 (mime-construct 1.9)\n",
-                   "ESP32 SMTP Client", RECIPIENT_MAIL);
+                   "ESP32 SMTP Client", RECIPIENT_MAIL1);
+    debug_info(buf);
 
     /**
      * Note: We are not validating return for some ssl_writes.
      * If by chance, it's failed; at worst email will be incomplete!
      */
-    ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
-    Test[1] = 12;
+    //ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+    ret = send(sock, buf,len, 0);
+
     /* Multipart boundary */
     len = snprintf((char *) buf, BUF_SIZE,
                    "Content-Type: multipart/mixed;boundary=XYZabcd1234\n"
                    "--XYZabcd1234\n");
-    ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+    debug_info(buf);
+    //ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+    ret = send(sock, buf,len, 0);
 
     /* Text */
     len = snprintf((char *) buf, BUF_SIZE,
@@ -459,14 +518,18 @@ void smtp_client_task(void)
                    "This is a simple test mail from the SMTP client example.\r\n"
                    "\r\n"
                    "Enjoy!\n\n--XYZabcd1234\n");
-    ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
-    Test[1] = 13;
+    debug_info(buf);
+    //ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+    ret = send(sock, buf,len, 0);
+#if 0
     /* Attachment */
     len = snprintf((char *) buf, BUF_SIZE,
                    "Content-Type: image/png;name=esp_logo.png\n"
                    "Content-Transfer-Encoding: base64\n"
                    "Content-Disposition:attachment;filename=\"esp_logo.png\"\r\n\n");
-    ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+    debug_info(buf);
+    //ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+    ret = send(sock, buf,len, 0);
 
     /* Image contents... */
     const uint8_t *offset = esp_logo_png_start;
@@ -480,36 +543,249 @@ void smtp_client_task(void)
         }
         offset += read_bytes;
         len = snprintf((char *) buf, BUF_SIZE, "%s\r\n", base64_buffer);
-        ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+        debug_info(buf);
+        //ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+        ret = send(sock, buf,len, 0);
     }
-    Test[1] = 14;
+#endif
     len = snprintf((char *) buf, BUF_SIZE, "\n--XYZabcd1234\n");
-    ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_data(&ssl, (unsigned char *) buf, len);
 
     len = snprintf((char *) buf, BUF_SIZE, "\r\n.\r\n");
-    ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
-    VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
-    ESP_LOGI(TAG, "Email sent!");
+    debug_info(buf);
+    ret = send(sock, buf,len, 0);
+    //ret = write_ssl_and_get_response(&ssl, (unsigned char *) buf, len);
+    //VALIDATE_MBEDTLS_RETURN(ret, 200, 299, exit);
+    len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
 
     /* Close connection */
     mbedtls_ssl_close_notify(&ssl);
+    debug_info("@@@@@@@ send email");
     ret = 0; /* No errors */
-    Test[1] = 15;
+
+
 exit:
+	debug_info("@@@@@@@ exit11");
     mbedtls_ssl_session_reset(&ssl);
     mbedtls_net_free(&server_fd);
-
     if (ret != 0) {
         mbedtls_strerror(ret, buf, 100);
         ESP_LOGE(TAG, "Last error was: -0x%x - %s", -ret, buf);
     }
-    Test[1] = 16;
+
     putchar('\n'); /* Just a new line */
     if (buf) {
         free(buf);
     }
-    vTaskDelete(NULL);
-#endif
+    //vTaskDelete(NULL);
+
+}
+
+void smtp_client_task3(void)
+{
+	char rx_buffer[200];
+	int addr_family;
+	int ip_protocol;
+	char *buf = NULL;
+	unsigned char base64_buffer[128];
+	int ret, len;
+	size_t base64_len;
+	int err;
+	int sock;
+	mbedtls_net_context server_fd;
+
+	mbedtls_net_init(&server_fd);
+	buf = (char *) calloc(1, BUF_SIZE);
+
+	debug_info("Connecting to ....");
+
+	if ((ret = mbedtls_net_connect(&server_fd, MAIL_SERVER,
+								   MAIL_PORT, MBEDTLS_NET_PROTO_TCP)) != 0) {
+		debug_info("mbedtls_net_connect returned");
+		goto exit;
+	}
+
+	sock = server_fd.fd;
+
+	len = snprintf((char *) buf, BUF_SIZE, "EHLO %s\r\n", "ESP32");
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = snprintf((char *) buf, BUF_SIZE, "STARTTLS\r\n");
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+
+	len = snprintf( (char *) buf, BUF_SIZE, "AUTH LOGIN\r\n" );
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+
+	ret = mbedtls_base64_encode((unsigned char *) base64_buffer, sizeof(base64_buffer),
+	                                &base64_len, (unsigned char *) SENDER_MAIL, strlen(SENDER_MAIL));
+	if (ret != 0) {
+		goto exit;
+	}
+	len = snprintf((char *) buf, BUF_SIZE, "%s\r\n", base64_buffer);
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+
+
+	ret = mbedtls_base64_encode((unsigned char *) base64_buffer, sizeof(base64_buffer),
+								&base64_len, (unsigned char *) SENDER_PASSWORD, strlen(SENDER_PASSWORD));
+	if (ret != 0){
+		goto exit;
+	}
+	len = snprintf((char *) buf, BUF_SIZE, "%s\r\n", base64_buffer);
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+	    /* Compose email */
+
+	len = snprintf((char *) buf, BUF_SIZE, "MAIL FROM:<%s>\r\n", SENDER_MAIL);
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+	len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", RECIPIENT_MAIL);
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+
+	len = snprintf((char *) buf, BUF_SIZE, "DATA\r\n");
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+	/* We do not take action if message sending is partly failed. */
+	len = snprintf((char *) buf, BUF_SIZE,
+				   "From: %s\r\nSubject: chelsea mail test3333\r\n"
+				   "To: %s\r\n"
+				   "MIME-Version: 1.0 (mime-construct 1.9)\n",
+				   "ESP32 SMTP Client", RECIPIENT_MAIL);
+
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	/*len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}*/
+
+	/* Multipart boundary */
+	len = snprintf((char *) buf, BUF_SIZE,
+				   "Content-Type: multipart/mixed;boundary=XYZabcd1234\n"
+				   "--XYZabcd1234\n");
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+			goto exit;
+	/*len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}*/
+
+	/* Text */
+	len = snprintf((char *) buf, BUF_SIZE,
+				   "--This is a test3333 by Chelsea. \n");
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+	/* Attachment
+	len = snprintf((char *) buf, BUF_SIZE,
+				   "Content-Type: image/png;name=esp_logo.png\n"
+				   "Content-Transfer-Encoding: base64\n"
+				   "Content-Disposition:attachment;filename=\"esp_logo.png\"\r\n\n");
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}*/
+
+	len = snprintf((char *) buf, BUF_SIZE, "\r\n.\r\n");
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+	exit:
+	 debug_info("exit");
 }
 
 #if 0

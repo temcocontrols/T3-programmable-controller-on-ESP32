@@ -11,7 +11,7 @@
 #define RW_TEST_LENGTH 128               /*!< Data length for r/w test, [0,DATA_LENGTH] */
 #define DELAY_TIME_BETWEEN_ITEMS_MS 1000 /*!< delay time between different test items */
 
-#define I2C_MASTER_NUM I2C_NUMBER(1) /*!< I2C port number for master dev */
+#define I2C_MASTER_NUM I2C_NUMBER(1) 	/*!< I2C port number for master dev */
 #define I2C_MASTER_FREQ_HZ 100000        /*!< I2C master clock frequency */
 #define I2C_MASTER_TX_BUF_DISABLE 0                           /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE 0                           /*!< I2C master doesn't need buffer */
@@ -50,8 +50,8 @@
 
 #pragma pack(push, 1)
 typedef struct{
-	uint16_t temperature;
-	uint16_t humidity;
+	int16_t temperature;
+	int16_t humidity;
 	uint16_t co2;
 	uint16_t tvoc_ppb;
 	uint16_t ethanol_raw_signal;
@@ -63,8 +63,11 @@ typedef struct{
 	uint32_t sound;
 	uint16_t ambient;
 	uint16_t object;
-	uint16_t co2_temp;
-	uint16_t co2_humi;
+	int16_t co2_temp;
+	int16_t co2_humi;
+	uint16_t absHumi;
+	int16_t dewpoint;
+	uint16_t enthalpy;
 	float original_temperature;
 	float original_humidity;
 	bool co2_ready;
@@ -82,4 +85,7 @@ extern esp_err_t sensirion_i2c_read(uint8_t address, uint8_t *data, uint16_t cou
 extern esp_err_t sensirion_i2c_write(uint8_t address, const uint8_t *data, uint16_t count);
 extern esp_err_t LED_i2c_write(uint8_t address, const uint8_t *data,uint16_t count);
 extern esp_err_t LED_i2c_read(uint8_t address, uint8_t *data, uint16_t count);
+
+extern esp_err_t stm_i2c_write(uint8_t reg,const uint8_t *data, uint16_t count) ;
+extern int32_t stm_i2c_read(int16_t reg, uint8_t *value,uint16_t len);
 #endif

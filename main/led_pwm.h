@@ -4,6 +4,34 @@
 
 #include "driver/ledc.h"
 
+#define BACNET_PROTOCAL		1
+#define MODBUS_PROTOCAL		0
+
+typedef enum
+{
+	TEMP_0_50,
+	TEMP_50_50,
+	TEMP_0_100,
+	TEMP_20_80,
+	TEMP_UNKNOW,
+
+} TEMP_RANGE;
+
+typedef enum
+{
+	OUT_0_10_V,
+	OUT_4_20_MA,
+} OUT_MODE;
+
+typedef enum{
+	HUMIDITY_TYPE,
+	ENTHALPY_TYPE,
+	DEWPOINT_TYPE,
+	ABS_HUM_TYPE,
+	UNKNOWN_TYPE,
+} HUMI_RANGE;
+
+
 //See register map for more information.
 #pragma pack(push, 1)
 typedef struct
@@ -41,6 +69,7 @@ typedef struct
     uint8_t which_project;
     uint16_t fan_module_pwm1;
     uint16_t fan_module_pwm2;
+    uint16_t fan_module_pwm3;
     uint16_t led_rx485_tx;
     uint16_t led_rx485_rx;
     uint16_t fan_module_pulse;
@@ -98,5 +127,6 @@ extern void led_pwm_init(void);
 extern void led_init(void);
 extern void my_pcnt_init(void);
 extern void adc_init(void);
+extern void transducer_switch_init(void);
 
 #endif

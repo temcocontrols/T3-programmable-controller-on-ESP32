@@ -41,7 +41,7 @@ U32_T get_input_value_by_range(U8_T range, U16_T raw);
 
 extern U16_T far Test[50];
 
-
+uint16_t crc16(uint8_t *p, uint8_t length);
 
 // do it in own code
 extern void Set_Input_Type(U8_T point);  

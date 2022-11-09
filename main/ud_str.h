@@ -361,7 +361,7 @@ typedef struct
 
 	int8_t auto_manual;  /* (1 bit; =o, 1=manual)*/
 	int8_t digital_analog;  /* (1 bit; 0=digital, 1=analog)*/
-	int8_t switch_status/*access_level*/;  /* (3 bits; 0-5)*/
+	uint8_t switch_status/*access_level*/;  /* (3 bits; 0-5)*/
 	int8_t control ;  /* (1 bit; 0=off, 1=on)*/
 	int8_t out_of_service;//read_remote;//digital_control;  /* (1 bit)*/
 	int8_t decom;  /* (1 bit; 0=ok, 1=point decommissioned)*/

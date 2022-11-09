@@ -6,6 +6,8 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
+#pragma pack(1)
+
 typedef struct
 {
 	U8_T buf[600];
@@ -219,7 +221,6 @@ typedef	union
 	U8_T network_number_hi;
 	}reg;
 }Str_Setting_Info;
-
 
 typedef union
 {
