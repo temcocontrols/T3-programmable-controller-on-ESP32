@@ -642,17 +642,6 @@ void init_panel(void)
 #endif
 }
 
-U32_T my_swap_double(U32_T val)
-{
-	U16_T temp1,temp2,temp3,temp4;
-	temp1 = val >> 24;
-	temp2 = val >> 16;
-	temp3 = val >> 8;
-	temp4 = val;
-	
-	return (((U32_T)temp4 << 24) + ((U32_T)temp3 << 16) + ((U32_T)temp2 << 8) + temp1);
-}
-
 void Initial_Panel_Info(void)
 {
 	memset(&Panel_Info,0,sizeof(Str_Panel_Info));
@@ -691,7 +680,6 @@ void Sync_Panel_Info(void)
 
 //	Setting_Info.reg.time_zone = timezone;
 	Setting_Info.reg.tcp_port = Modbus.tcp_port;	
-	
 	Setting_Info.reg.update_sntp_last_time =  (update_sntp_last_time);
 
 	
@@ -789,15 +777,12 @@ void Sync_Panel_Info(void)
 	Setting_Info.reg.com_baudrate[2] = Modbus.baudrate[2];
 
 	Setting_Info.reg.panel_number	= panel_number;
-
-
-	Setting_Info.reg.instance = Instance;
 	
+	Setting_Info.reg.instance = Instance;	
 	Setting_Info.reg.en_panel_name = 1;
 	memcpy(Setting_Info.reg.panel_name,panelname,20);
 
 	Setting_Info.reg.sd_exist = SD_exist;
-	Setting_Info.reg.BBMD_EN = 0;
 
 	Panel_Info.reg.product_type = 88;
 
@@ -816,6 +801,7 @@ void Sync_Panel_Info(void)
 	Setting_Info.reg.start_day = Modbus.start_day;
 	Setting_Info.reg.end_month = Modbus.end_month;
 	Setting_Info.reg.end_day = Modbus.end_day;
+	
 }
 
 
@@ -895,9 +881,9 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 {
 
 	U8_T i;	
-
+	
 	if(device_id == 0)
-	{	
+	{
 		return;
 	}
 	if(panel == 0) 
@@ -954,7 +940,7 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 
 			remote_panel_db[remote_panel_num].remote_iam_buf_len = pdu_len;
 			if(protocal == BAC_IP)
-			{
+			{	Test[31]++;
 				remote_panel_db[remote_panel_num].panel = panel;					
 				if(src->len == 1)  //  sub device,mstp device
 				{
@@ -969,7 +955,7 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 				
 			}
 			else // BAC_MSTP
-			{ 
+			{ 	Test[32]++;
 				remote_panel_db[remote_panel_num].panel = panel_number;//Modbus.network_ID[2];
 				remote_panel_db[remote_panel_num].sub_id = panel;
 				remote_panel_db[remote_panel_num].product_model = 0;
@@ -989,8 +975,7 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 			}
 			remote_panel_db[remote_panel_num].retry_reading_panel = 0;
 			remote_panel_num++;
-			Test[31] = remote_panel_num;
-			
+			Test[30] = remote_panel_num;			
 		}
 	}
 

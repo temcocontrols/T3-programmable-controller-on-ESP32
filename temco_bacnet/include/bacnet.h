@@ -13,7 +13,7 @@
 #define BAC_BVLC 3
 #define BAC_IP_CLIENT2 4  // for COV
 
-#pragma pack(1)
+
 // select current chip
 #define ASIX				0
 #define ARM					1
@@ -27,7 +27,7 @@
 #endif
 #endif
 
-#pragma pack(1)
+
 /* Define your processor architecture as
    Big Endian (PowerPC,68K,Sparc) or Little Endian (Intel,AVR)
    ARM and MIPS can be either - what is your setup? */
@@ -180,6 +180,7 @@
 #endif
 
 
+#pragma pack(1)
 
 // for ASIX
 void switch_to_modbus(void);   // receive modbus frame when current protocal is mstp,switch to modbus
@@ -213,7 +214,7 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_PRIVATE 		1
 #define BAC_TIMESYNC 		1
 #define BAC_TRENDLOG		1
-#define BAC_RANGE			1 // dont need range
+#define BAC_RANGE			1 // dont need range 
 #define BAC_BI				1
 #define BAC_BV				1
 #define BAC_DCC				0
@@ -482,7 +483,7 @@ void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len);
 void Transfer_Mstp_To_Bip_pdu( uint8_t src, uint8_t * pdu,uint16_t pdu_len);
 
 void push_bac_buf(U8_T *mtu,U8_T len);
-
+uint16_t get_network_number(void);
 
 void handler_conf_private_trans_ack(
     uint8_t * service_request,

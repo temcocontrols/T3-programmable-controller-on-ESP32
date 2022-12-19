@@ -336,7 +336,8 @@ static void MSTP_Send_Frame(
     /* now transmit the frame */
 	RS485_Turnaround_Delay();		 // tbd: changed by chelsea
 	RS485_Transmitter_Enable(true);
-	if(pdu_len == 0){Test[40]++;
+	Test[16]++;
+	if(pdu_len == 0){
 	RS485_Send_Data(buffer, 8);}
 		/* send any data */
 	else
@@ -657,7 +658,7 @@ void MSTP_Receive_Frame_FSM(
                 /* wait for the start of the next frame. */
                 Receive_State = MSTP_RECEIVE_STATE_IDLE;
             } 
-			else if (RS485_DataAvailable(&DataRegister,port)) {
+			else if (RS485_DataAvailable(&DataRegister,port)) {Test[32]++;
                 Timer_Silence_Reset();
                 INCREMENT_AND_LIMIT_UINT8(EventCount);
                 if (Index < DataLength) { 
@@ -669,13 +670,13 @@ void MSTP_Receive_Frame_FSM(
                     /* CRC1 */
                     DataCRC = CRC_Calc_Data(DataRegister, DataCRC);
                     Index++;
-                } else if (Index == (DataLength + 1)) {
+                } else if (Index == (DataLength + 1)) {Test[33]++;
                     /* CRC2 */
                     DataCRC = CRC_Calc_Data(DataRegister, DataCRC);
                     /* STATE DATA CRC - no need for new state */
                     /* indicate the complete reception of a valid frame */
 									
-                    if (DataCRC == 0xF0B8) {  
+                    if (DataCRC == 0xF0B8) {  Test[34]++;
                         if ((DestinationAddress == This_Station) ||
                             (DestinationAddress == MSTP_BROADCAST_ADDRESS)) {
                             /* ForUs */
@@ -684,7 +685,7 @@ void MSTP_Receive_Frame_FSM(
                             MSTP_Flag.ReceivedValidFrame = true; 
 							
                         }
-                    } else {  
+                    } else {  Test[35]++;
                         MSTP_Flag.ReceivedInvalidFrame = true; 
 	
 						check_mstp_packet_error();
@@ -780,7 +781,7 @@ static bool MSTP_Master_Node_FSM(
 
                 MSTP_Flag.ReceivedInvalidFrame = false;
                 /* wait for the next frame - remain in IDLE */
-            } else if (MSTP_Flag.ReceivedValidFrame == true) { 
+            } else if (MSTP_Flag.ReceivedValidFrame == true) { Test[24]++;
 							    switch (FrameType) {
                     case FRAME_TYPE_TOKEN:		
                         /* ReceivedToken */

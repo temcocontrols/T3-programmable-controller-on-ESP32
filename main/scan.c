@@ -290,7 +290,7 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 
 
 	if(length > 0)
-	{
+	{Test[8]++;Test[9] = length;
 		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
 		else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 		com_tx[port]++;

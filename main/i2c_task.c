@@ -563,7 +563,7 @@ void i2c_task(void *arg)
 	temp = 0;
 	while (sgp30_probe() != STATUS_OK) {
 		temp++;
-		if(temp>20)
+		if(temp > 20)
 		{
 			voc_ok = 0;
 			break;

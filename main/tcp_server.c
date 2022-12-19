@@ -92,6 +92,7 @@ void modbus0_task(void *arg);
 void modbus2_task(void *arg);
 void Bacnet_Control(void) ;
 void smtp_client_task(void);
+void Lcd_task(void *arg);
 //计数信号量相关 信号量句柄 最大计数值，初始化计数值 （计数信号量管理是否有资源可用。）
 //MAX_COUNT 最大计数量，最多有几个资源
 xSemaphoreHandle CountHandle;
@@ -554,11 +555,10 @@ static void udp_scan_task(void *pvParameters)
 									Scan_Infor.subnet_baudrate = 0;
 
 								int err = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
-							  if (err < 0) {
-								 ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
-								 break;
-							  }
-
+								if (err < 0) {
+									ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+									break;
+								}
 							}
 						}
 					}
@@ -1919,7 +1919,7 @@ void Master2_Node_task(void)
 				}
 			}
 			//Test[20]++;
-
+			Test[15]++;
 			pdu_len = dlmstp_receive(&src, &PDUBuffer2[0], sizeof(PDUBuffer), 2);
 			if(pdu_len)
 			{
@@ -2538,6 +2538,7 @@ void i2c_master_task(void)
 					for(uint8_t kk = 0;kk < 12;kk++)
 					{
 						i2c_send_buf[64 + kk] = output_raw[kk] > 512 ? 1 :0;
+						Test[10 + kk] = i2c_send_buf[64 + kk];
 					}
 					for(uint8_t kk = 0;kk < 12;kk++)
 					{
@@ -2867,6 +2868,10 @@ void app_main()
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER))
     	xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
 //#endif
+    Test[4] = 3;
+    if(Modbus.mini_type == PROJECT_TSTAT9)
+    	xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 8,NULL);
+
     xTaskCreate(modbus0_task,"modbus0_task",4096, NULL, 11, NULL);
     xTaskCreate(modbus2_task,"modbus2_task",4096, NULL, 3, NULL);
     xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, NULL);
@@ -2899,7 +2904,8 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 
 	}
 	else if(port == 2)
-	{
+	{Test[17]++;
+	memcpy(&Test[35],p,8);
 		uart_write_bytes(UART_NUM_2, (const char *)p, length);
 	}
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
@@ -2919,3 +2925,7 @@ U8_T RS485_Get_Baudrate(void)
 }
 
 
+void delay_ms(unsigned int t)
+{
+	usleep(t * 1000);
+}

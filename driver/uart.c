@@ -1108,7 +1108,16 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
         return 0;
     }
     size_t original_size = size;
-	Test[10]++;
+	if(uart_num == 2){ Test[13] = original_size;
+	Test[40] = src[0];
+	Test[41] = src[1];
+	Test[42] = src[2];
+	Test[43] = src[3];
+	Test[44] = src[4];
+	Test[45] = src[5];
+	Test[46] = src[6];
+	Test[47] = src[7];
+	}
     //lock for uart_tx
     xSemaphoreTake(p_uart_obj[uart_num]->tx_mux, (portTickType)portMAX_DELAY);
     p_uart_obj[uart_num]->coll_det_flg = false;
@@ -1132,7 +1141,7 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
             uart_enable_tx_intr(uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
         }
     } else {
-        while(size) {Test[42]++;
+        while(size) {if(uart_num == 2) Test[10]++;
             //semaphore for tx_fifo available
             if(pdTRUE == xSemaphoreTake(p_uart_obj[uart_num]->tx_fifo_sem, (portTickType)portMAX_DELAY)) {
                 uint32_t sent = 0;
@@ -1143,7 +1152,8 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
                     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
                 }
                 uart_hal_write_txfifo(&(uart_context[uart_num].hal), (const uint8_t*)src, size, &sent);
-                if(sent < size) {
+				if(uart_num == 2) Test[11]++;
+                if(sent < size) {if(uart_num == 2) Test[12]++;
                     p_uart_obj[uart_num]->tx_waiting_fifo = true;
                     uart_enable_tx_intr(uart_num, 1, UART_EMPTY_THRESH_DEFAULT);
                 }
@@ -1160,14 +1170,15 @@ static int uart_tx_all(uart_port_t uart_num, const char* src, size_t size, bool 
             xSemaphoreTake(p_uart_obj[uart_num]->tx_brk_sem, (portTickType)portMAX_DELAY);
         }
         xSemaphoreGive(p_uart_obj[uart_num]->tx_fifo_sem);
-    }Test[44]++;
+    }
     xSemaphoreGive(p_uart_obj[uart_num]->tx_mux);
+	
     return original_size;
 }
 
 int uart_write_bytes(uart_port_t uart_num, const void* src, size_t size)
 {
-    UART_CHECK((uart_num < UART_NUM_MAX), "uart_num error", (-1));
+	UART_CHECK((uart_num < UART_NUM_MAX), "uart_num error", (-1));
     UART_CHECK((p_uart_obj[uart_num] != NULL), "uart driver error", (-1));
     UART_CHECK(src, "buffer null", (-1));
     return uart_tx_all(uart_num, src, size, 0, 0);
@@ -1240,7 +1251,7 @@ int uart_read_bytes(uart_port_t uart_num, void* buf, uint32_t length, TickType_t
         memcpy((uint8_t *)buf + copy_len, p_uart_obj[uart_num]->rx_ptr, len_tmp);
 #if MSTP		
 		
-		if(get_protocal(uart_num)== 9)  // MSTP
+		if(get_protocal(uart_num)== 9 || get_protocal(uart_num)== 1)  // MSTP
 		{
 			uint16_t i;
 			uint8_t * tmp_ptr;			

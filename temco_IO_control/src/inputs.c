@@ -160,6 +160,7 @@ uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
 	ran_in = range;
 	range >>= 1;
 	end = 0;
+	chip_info[1] = 42;
 	//raw = raw * PT1K_para / 10000;
 	if(chip_info[1] >= 42)  // firmware rev is higher than 42, it is 12bit adc for arm chip
 	{
@@ -171,7 +172,7 @@ uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
 
 		
 		if( raw <= def_tbl[NO_TABLE_RANGES] )
-		return limit[ran_in][1];
+			return limit[ran_in][1];
 		if( raw >= def_tbl[0] )
 			return limit[ran_in][0];
 		index = MIDDLE_RANGE;
@@ -398,7 +399,7 @@ void control_input(void)
 	U8_T shift = 1;
 	ins = inputs;
 //	inx = in_aux;
-
+	chip_info[1] = 42;
 	if(chip_info[1] >= 42)
 		shift = 4;
 	else
@@ -410,12 +411,12 @@ void control_input(void)
 		if(change_value_by_range(point))
 		{
 		if(point < get_max_input())
-		{	
+		{
 #ifdef MANUAL_JUMPER			
 			input_type[point] = ins->decom >> 4;
 #endif
 
-#ifdef AUTO_JUMPER	
+
 			if((ins->range >= table1) && (ins->range <= table5))
 			{
 				if(ins->decom >> 4 == 0)
@@ -457,15 +458,10 @@ void control_input(void)
 			temp &= 0x0f;
 			temp |= (input_type[point] << 4);
 			ins->decom = temp;	
-#endif			
+		
 
-//#ifdef ASIX_CON			
+		
 			if(point < get_max_internal_input())
-//#endif
-//			
-//#ifdef ARM_CON
-//			if(point < get_max_input())
-//#endif
 			{
 				ins->sub_id = 0;
 				ins->sub_product = 0;
@@ -640,11 +636,11 @@ void control_input(void)
 							temp |= IN_NORMAL;
 							ins->decom = temp;
 							// if internal input
-//#ifdef ASIX_CON
+
 							if(point < get_max_internal_input())
 								ins->value = swap_double((U32_T)get_input_raw(point) / shift * 3000 / 1023);
 							else
-//#endif
+
 								ins->value = swap_double((U32_T)get_input_raw(point));
 					}	
 				}

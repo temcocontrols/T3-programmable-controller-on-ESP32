@@ -97,13 +97,14 @@ void npdu_handler(
             }					
 																 
         } else if ((apdu_offset > 0) && (apdu_offset <= pdu_len)) {	
-            if((dest.net == 0) || (dest.net == BACNET_BROADCAST_NETWORK)) {
+            if((dest.net == 0) || (dest.net == BACNET_BROADCAST_NETWORK)
+				|| ((dest.net == get_network_number()) && (dest.len == 6))) {
 			    /* only handle the version that we know how to handle */
                 /* and we are not a router, so ignore messages with
-                   routing information cause they are not for us */
-				
+                   routing information cause they are not for us */				
 				apdu_handler(src, &pdu[apdu_offset],
                     (uint16_t) (pdu_len - apdu_offset), protocal);
+				
 			//	printf("pdu: %s",pdu);
             } else {
 #if PRINT_ENABLED

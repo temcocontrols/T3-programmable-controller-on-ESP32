@@ -41,11 +41,11 @@
 /* This file has been customized for use with ATMEGA168 */
 //#include "hardware.h"
 #include "timer.h"
+#include "esp_attr.h"
 
 void uart_send_string(uint8_t *p, uint16_t length,uint8_t port);
 #define Tturnaround  (40UL)
 extern volatile uint16_t SilenceTime;
-extern FIFO_BUFFER Receive_Buffer2;
 extern uint16_t Test[50];
 /* Timers for turning off the TX,RX LED indications */
 /*static uint8_t LED1_Off_Timer;
@@ -64,7 +64,12 @@ uint8_t MSTP_Transmit_Finished;
 //static FIFO_BUFFER Receive_Buffer0;
 //static uint8_t Receive_Buffer_Data1[512];
 //static FIFO_BUFFER Receive_Buffer1;
-uint8_t Receive_Buffer_Data2[512];
+//uint8_t Receive_Buffer_Data2[512];
+
+
+
+extern EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer2;
+extern EXT_RAM_ATTR uint8_t Receive_Buffer_Data2[512];
 
 /****************************************************************************
 * DESCRIPTION: Initializes the RS485 hardware and variables, and starts in

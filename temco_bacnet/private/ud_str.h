@@ -7,6 +7,7 @@
 
 
 #include "esp_attr.h"
+//#define  EXT_RAM_ATTR
 #pragma pack(1) 
 
 #define MAXFRAMEBUFFER			      490 

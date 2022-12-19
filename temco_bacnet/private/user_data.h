@@ -3,10 +3,10 @@
 
 #include "ud_str.h"
 #include "monitor.h"
+#include "esp_attr.h"
 #include "bacnet.h"
-//#include "dyndns_app.h"
-//#include "datetime.h"
-#pragma pack(1) 
+
+#pragma pack(1)
 
 typedef struct
 {
@@ -217,7 +217,7 @@ typedef	union
 	U8_T end_month;
 	U8_T end_day;
 	
-	U8_T network_number_hi;
+	uint8_t network_number_hi;
 	}reg;
 }Str_Setting_Info;
 
@@ -355,14 +355,14 @@ extern U8_T  boot;
 //extern U32_T  changed_index;
 //extern U32_T  changed_index2;
 
-extern Str_Remote_TstDB        Remote_tst_db;
-extern Str_Panel_Info 	    		Panel_Info;
-extern Str_Setting_Info     		Setting_Info;
-extern Str_MISC  						 	MISC_Info;
-extern Str_Special  Write_Special;
+extern EXT_RAM_ATTR Str_Remote_TstDB        Remote_tst_db;
+extern EXT_RAM_ATTR Str_Panel_Info 	    		Panel_Info;
+extern EXT_RAM_ATTR Str_Setting_Info     		Setting_Info;
+extern EXT_RAM_ATTR Str_MISC  						 	MISC_Info;
+extern EXT_RAM_ATTR Str_Special  Write_Special;
 
-extern Str_in_point  inputs[MAX_INS];
-extern Str_out_point  	outputs[MAX_OUTS];
+extern EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];
+extern EXT_RAM_ATTR Str_out_point  	outputs[MAX_OUTS];
 //extern Str_out_point   	*outputs;
 extern uint8_t				 				 no_outs;
 //extern Str_in_point    	*inputs;
@@ -378,11 +378,11 @@ extern Con_aux				 							 con_aux[MAX_CONS];
 //extern Mon_aux                      mon_aux[MAX_MONITORS];
 extern EXT_RAM_ATTR Monitor_Block		 			mon_block[2 * MAX_MONITORS];
 //extern S8_T 				         mon_data_buf[sizeof(Monitor_Block) * 2 * MAX_MONITORS];
-extern Mon_Data 			 		*Graphi_data;
+extern EXT_RAM_ATTR Mon_Data 			 		*Graphi_data;
 extern S8_T 				 			Garphi_data_buf[sizeof(Mon_Data)];
 
-extern S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
-extern Str_Extio_point  extio_points[MAX_EXTIO];
+extern EXT_RAM_ATTR S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
+extern EXT_RAM_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
 
 //extern S16_T                          MAX_MONITOR_BLOCKS;
 //extern U8_T                         free_mon_blocks;
@@ -399,9 +399,9 @@ extern U8_T 			     							 ind_alarms_set;
 extern U16_T                 alarm_id;
 extern S8_T                         new_alarm_flag;
 
-extern Units_element		     				 digi_units[MAX_DIG_UNIT];
+extern EXT_RAM_ATTR Units_element		     				 digi_units[MAX_DIG_UNIT];
 extern U8_T 					 		ind_passwords;
-extern Password_point			 			passwords[ MAX_PASSW ];
+extern EXT_RAM_ATTR Password_point			 			passwords[ MAX_PASSW ];
 
 extern Str_Email_point Email_Setting;
 

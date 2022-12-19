@@ -1946,7 +1946,7 @@ float Get_Output_Relinguish(uint8_t type,uint8_t i)
 	else
 		return (float)output_relinquish[i + max_dos];
 }
-#if BAC_TRENDLOG
+
 void adjust_trend_log(void)
 {
 	int i;
@@ -1987,7 +1987,6 @@ void adjust_trend_log(void)
 		}
 	}
 }
-#endif
 uint8_t AI_Index_To_Instance[MAX_INS];
 uint8_t BI_Index_To_Instance[MAX_INS];
 uint8_t AO_Index_To_Instance[MAX_AOS];
@@ -2026,9 +2025,7 @@ void Count_IN_Object_Number(void)
 	}
 	AIS = count1;
 	BIS = count2;
-#if BAC_TRENDLOG
 	adjust_trend_log();  // adjust trend log if inputs are changed
-#endif
 }
 
 
@@ -2057,9 +2054,7 @@ void Count_OUT_Object_Number(void)
 	}
 	AOS = count1;
 	BOS = count2;
-#if BAC_TRENDLOG
 	adjust_trend_log(); // adjust trend log if outputs are changed
-#endif
 }
 
 
@@ -2086,9 +2081,7 @@ void Count_VAR_Object_Number(void)
 	}
 	AVS = count1;
 	BVS = count2;
-#if BAC_TRENDLOG
 	adjust_trend_log(); // adjust trend log if variables are changed
-#endif
 
 //#if ARM_TSTAT_WIFI 
 //	
@@ -2490,14 +2483,7 @@ bool Analog_Value_Change_Of_Value(unsigned int object_instance)
 }
 
 
-void Store_Instance_To_Eeprom(uint32_t Instance)
-{
-	/*//E2prom_Write_Byte(EEP_INSTANCE1, Instance);
-	//E2prom_Write_Byte(EEP_INSTANCE2, (U8_T)(Instance >> 8));
-	//E2prom_Write_Byte(EEP_INSTANCE3, (U8_T)(Instance >> 16));
-	//E2prom_Write_Byte(EEP_INSTANCE4, (U8_T)(Instance >> 24));*/
 
-}
 
 // tbd:
 //void Set_Vendor_ID(uint16_t vendor_id)
@@ -2673,7 +2659,7 @@ int Send_private_scan(U8_T index)
 
 	header_len = USER_DATA_HEADER_LEN;
 	transfer_len = 0;
-	
+	Test[22]++;
 	status = bacapp_parse_application_data(BACNET_APPLICATION_TAG_OCTET_STRING,(char *)&temp, &data_value);
 	
 	private_data_len = bacapp_encode_application_data(&test_value[0], &data_value);
@@ -2681,22 +2667,23 @@ int Send_private_scan(U8_T index)
 	private_data.serviceParametersLen = private_data_len;
 
 	if(count_hold_on_bip_to_mstp > 0)
-	{
+	{Test[23]++;
 		free(test_value);
 		//free(temp);
 		return -1;
 	}
+	Test[24] = remote_panel_db[index].sub_id; 
 	if(remote_panel_db[index].sub_id != 0)
 	{
 		flag_mstp_source = 2;   // T3-CONTROLLER
 		Send_Private_Flag = 3;   // send normal bacnet packet
 		TransmitPacket_panel = remote_panel_db[index].sub_id;
-		
+		Test[25]++;
 		status = address_get_by_device(remote_panel_db[index].device_id, &max_apdu, &dest);
 		if(status)
-		{
+		{Test[26] = TransmitPacket_panel;
 			if((TransmitPacket_panel < 255) && (TransmitPacket_panel > 0))
-			{
+			{Test[27]++;
 				invokeid_mstp = Send_ConfirmedPrivateTransfer(&dest,&private_data,BAC_MSTP);
 			}
 		}

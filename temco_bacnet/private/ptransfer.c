@@ -51,7 +51,7 @@
 //#include "flash.h"
 #include "esp_err.h"
 
-
+void debug_info(char *string);
 extern STR_MODBUS Modbus;
 void Send_Time_Sync_To_Network(void);
 void Get_RTC_by_timestamp(U32_T timestamp,/*TimeInfo *tt,*/UN_Time* Rtc,U8_T source);
@@ -191,8 +191,7 @@ void Get_Pkt_Bac_to_Modbus(Str_user_data_header * header)
 	buf[3] = header->point_start_instance;		// low_byte(start_addr)
 	crc_check = crc16(buf, len);
 	buf[len] = (crc_check >> 8);
-	buf[len + 1] = (U8_T)(crc_check);
-
+	buf[len + 1] = (U8_T)(crc_check);	
 	responseCmd(4/*BAC_TO_MODBUS*/,buf);	// get bacnet_to_modbus
 
 }
@@ -1279,7 +1278,7 @@ void handler_private_transfer(
 	 uint32_t len_value_type;
 //   decode ptransfer
 		delay_write_setting = 0;
-
+		
 		if(protocal < 0xa0)  // mstp or bip
 		{
 			len = ptransfer_decode_apdu(&apdu[0], apdu_len, &invoke_id, &rec_data);
@@ -1295,7 +1294,6 @@ void handler_private_transfer(
 			if(tag_number == BACNET_APPLICATION_TAG_OCTET_STRING)
 			{
 				decode_octet_string(&rec_data.serviceParameters[iLen], len_value_type,&Temp_CS);
-
 			}
 			private_data.vendorID =  rec_data.vendorID;
 			private_data.serviceNumber = rec_data.serviceNumber;
@@ -1305,11 +1303,11 @@ void handler_private_transfer(
 			if((apdu[7] + apdu[8] * 256) > (MAX_APDU - 6)) 
 				return;
 			memcpy(&Temp_CS.value[0],&apdu[7],apdu[7] + apdu[8] * 256);	
-
+		
 		}
 
 		 //bacapp_decode_application_data(rec_data.serviceParameters,
-			 //    rec_data.serviceParametersLen, &rec_data_value);	
+		 //    rec_data.serviceParametersLen, &rec_data_value);	
 		command = Temp_CS.value[2];
 
 		if( command  == READMONITORDATA_T3000 || command  == UPDATEMEMMONITOR_T3000
@@ -1335,7 +1333,6 @@ void handler_private_transfer(
 		}
 		else
 		{
-			
 			private_header.total_length = Temp_CS.value[1] * 256 + Temp_CS.value[0];
 			private_header.command = Temp_CS.value[2];
 			private_header.point_start_instance = Temp_CS.value[3];
@@ -1942,6 +1939,7 @@ void handler_private_transfer(
 	}
 	else  // read
 	{
+
 		if( Temp_CS.value[2]  == READMONITORDATA_T3000 || Temp_CS.value[2]  == UPDATEMEMMONITOR_T3000
 			|| command == READPIC_T3000)
 		{
@@ -1951,7 +1949,7 @@ void handler_private_transfer(
 			memcpy(&temp[5],Graphi_data->comm_arg.string,12);
 		}
 		else
-		{
+		{			
 			if(private_header.command == READ_BACNET_TO_MDOBUS)
 			{
 				transfer_len = private_header.entitysize * 2; 
@@ -1981,7 +1979,7 @@ void handler_private_transfer(
 		switch(command)
 		{
 			case READ_BACNET_TO_MDOBUS:
-			// get packet (transfer bacnet to modbus )	
+			// get packet (transfer bacnet to modbus )				
 				Get_Pkt_Bac_to_Modbus(&private_header);
 				ptr = (uint8_t *)(&bacnet_to_modbus[0]);
 				break;
@@ -2108,16 +2106,15 @@ void handler_private_transfer(
 //				ptr = (char *)(Graphi_data->asdu);UPDATEMEMMONITOR_T3000
 //				break;
 
-			/*case GET_PANEL_INFO:   // other commad
+			case GET_PANEL_INFO:   // other commad
 				Sync_Panel_Info();	
 				Panel_Info.reg.protocal = protocal;
 				ptr = (uint8_t *)(Panel_Info.all);	
-				break;*/
+				break;
 
 			case READ_SETTING:	
 				Sync_Panel_Info();
-				Test[24] = Setting_Info.reg.network_number_hi;
-			    ptr = (uint8_t *)(Setting_Info.all);
+			  ptr = (uint8_t *)(Setting_Info.all);
 				break;
 			case READVARUNIT_T3000:
 					ptr = (uint8_t *)(var_unit);
@@ -2249,7 +2246,7 @@ void handler_private_transfer(
 				}
 			}
 			else
-			{Test[25] = Setting_Info.reg.network_number_hi;
+			{
 				Send_UnconfirmedPrivateTransfer(src,&private_data,protocal);
 			}
 		}

@@ -16,19 +16,6 @@
 #include "rtc.h"
 
 
-uint32_t my_htonl(uint32_t val)
-{
-	/*uint8_t t1,t2,t3,t4;
-	t1 = val >> 24;
-	t2 = val >> 16;
-	t3 = val >> 8;
-	t4 = val;
-
-	return ((uint32_t)t4 << 24) + ((uint32_t)t3 << 16) +  ((uint16_t)t2 << 16) + t1;*/
-	return val;
-
-
-}
 
 #define EEPROM_VERSION	  105
 
@@ -401,10 +388,10 @@ extern uint8 led_main_tx;
 extern uint8 led_main_rx;
 void modbus0_task(void *arg)
 {
-	uint8_t modbus_send_buf[500];
-	uint16_t modbus_send_len;
-	memset(modbus_send_buf,0,500);
-	modbus_send_len = 0;
+//	uint8_t modbus_send_buf[500];
+//	uint16_t modbus_send_len;
+//	memset(modbus_send_buf,0,500);
+//	modbus_send_len = 0;
 	//uint8_t testCmd[8] = {0xff,0x03,0x00,0x00,0x00,0x64,0x51,0xff};
 	//uint8_t i;
 	//mb_param_info_t reg_info; // keeps the Modbus registers access information
@@ -425,11 +412,11 @@ void modbus0_task(void *arg)
 
 			if(Modbus.com_config[0] == MODBUS_SLAVE)
 			{
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 100 / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 20 / portTICK_RATE_MS);
 
 				if(len>0)
 				{led_sub_rx++;
-					com_rx[0]++;
+					com_rx[0]++;Test[30]++;
 					flagLED_sub_rx = 1;
 					if(checkdata(uart_rsv))
 					{
@@ -439,6 +426,7 @@ void modbus0_task(void *arg)
 						}
 						init_crc16();
 						responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
+
 					}
 				}
 
@@ -467,17 +455,17 @@ void modbus0_task(void *arg)
 
 void modbus2_task(void *arg)
 {
-	uint8_t modbus_send_buf[500];
-	uint16_t modbus_send_len;
-	memset(modbus_send_buf,0,500);
-	modbus_send_len = 0;
+	//uint8_t modbus_send_buf[500];
+	//uint16_t modbus_send_len;
+	//memset(modbus_send_buf,0,500);
+	//modbus_send_len = 0;
 	setup_reg_data();
 	uint8_t* uart_rsv = (uint8_t*)malloc(512);
 	//Test[2] = 100;
 	while (1) {
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 100 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 20 / portTICK_RATE_MS);
 
 			if(len>0)
 			{
@@ -2695,17 +2683,10 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			save_uint16_to_flash( FLASH_NETWORK_NUMBER, Modbus.network_number);
 		}
 
-		if((Instance != my_htonl(ptr->reg.instance)) && (ptr->reg.instance != 0))
+		if((Instance != ptr->reg.instance) && (ptr->reg.instance != 0))
 		{
-			Test[15]++;
-			//memcpy(&Test[16],&Instance,4);
-			//memcpy(&Test[18],&ptr->reg.instance,4);
-
-			Instance = my_htonl(ptr->reg.instance);
+			Instance = ptr->reg.instance;
 			Device_Set_Object_Instance_Number(Instance);
-			Store_Instance_To_Eeprom(Instance);
-
-
 		}
 
 //		if(Modbus.refresh_flash_timer != ptr->reg.refresh_flash_timer)

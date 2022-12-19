@@ -715,7 +715,7 @@ uint16_t bip_receive(
 extern Byte	Station_NUM;
 
 uint8_t flag_response_iam = 0;
-uint16_t get_network_number(void);
+
 uint32_t get_ip_addr();
 
 void bip_get_my_address(
@@ -739,9 +739,9 @@ void bip_get_my_address(
 		}
 		else 
 		{
-			if(flag_response_iam == 1) // added by chelsea
-				my_address->len = 0; 
-			else
+			//if(flag_response_iam == 1) // added by chelsea
+			//	my_address->len = 0; 
+			//else
 				my_address->len = 6;    /* no SLEN */
 			
 			memcpy(&my_address->adr[0], &ip, 4);

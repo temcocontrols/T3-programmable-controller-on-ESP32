@@ -479,6 +479,7 @@ void apdu_handler(
     uint32_t far error_class = 0;
     uint8_t far reason = 0;
     bool server = false;
+	
     if (apdu) {	
         /* PDU Type */
         switch (apdu[0] & 0xF0) {
@@ -521,16 +522,15 @@ void apdu_handler(
 										handler_write_property_multiple(service_request,
 												service_request_len, src, &service_data, protocal);
 	            }
-#if  BAC_PRIVATE
+
 							else if (service_choice == SERVICE_CONFIRMED_PRIVATE_TRANSFER) 
 							{
 
 					if(	protocal == BAC_MSTP)
-						count_hold_on_bip_to_mstp = 10;			
-								
+						count_hold_on_bip_to_mstp = 10;									
 								handler_private_transfer(apdu,apdu_len,src,protocal);	 // add private transfer by chelsea
 							}
-#endif							
+						
 #if BAC_RANGE 
 						else	if (service_choice == SERVICE_CONFIRMED_READ_RANGE) {
 								handler_read_range(service_request,service_request_len, src, &service_data, protocal);
@@ -733,13 +733,10 @@ void apdu_handler(
                     case SERVICE_CONFIRMED_PRIVATE_TRANSFER:
                         /* Virtual Terminal Services */
 										// tbd:
-#if ARM
-#if BAC_MASTER
 											handler_conf_private_trans_ack(
 										service_request,service_request_len, 
 										apdu,apdu_len,protocal);		
-#endif
-#endif										
+									
 											
 											break;
 //                    case SERVICE_CONFIRMED_VT_OPEN:
