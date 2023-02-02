@@ -19,3 +19,9 @@ You can change the default ESP IDF installation path, which will be used later.
 6.	You can get more help from 
 https://esp32.com/index.php
 https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.html
+
+
+
+## How to load the firmware to T3-nano
+Please refer to the documentation in the following path.
+./MultiSensor/Bootloader update guide for T3.pdf
