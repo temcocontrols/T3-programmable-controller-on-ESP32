@@ -24,4 +24,4 @@ https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.h
 
 ## How to load the firmware to T3-nano
 Please refer to the documentation in the following path.
-./MultiSensor/Bootloader update guide for T3.pdf
+./Bootloader update guide for T3.pdf
