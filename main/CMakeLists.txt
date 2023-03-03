@@ -29,7 +29,7 @@ idf_component_register(SRCS "tcp_server.c"
 							"ade7953.c"	
 							"lcd.c"						
 #							"pic.c"
-#							"smtp_client.c"
+							"smtp_client.c"
 #							"spi_master_arm.c"
 #							"ble_mesh.c"
 #							EMBED_TXTFILES server_root_cert.pem esp_logo.png

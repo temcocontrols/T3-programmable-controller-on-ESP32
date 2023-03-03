@@ -66,6 +66,7 @@ U32_T get_rpm(U8_T point)
 void Set_Input_Type(U8_T point)
 {
 	// maybe not need it
+#if 1//I2C_TASK
 	if((Modbus.mini_type == MINI_BIG_ARM) || (Modbus.mini_type == MINI_SMALL_ARM))
 	{
 		InputLed[point] &= 0x0f;
@@ -75,6 +76,7 @@ void Set_Input_Type(U8_T point)
 			InputLed[point] |= (input_type[point] << 4);
 
 	}
+#endif
 }
 
 U16_T get_input_raw(U8_T point)
@@ -117,22 +119,22 @@ U32_T conver_by_unit_5v(U32_T sample)
 U32_T conver_by_unit_10v(U32_T sample)
 {
 
-		if(Modbus.mini_type == MINI_BIG_ARM)
-		{
-			return (10000l * sample) >> 10;
-		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM) // rev4  use input moudle
-		{
-			return (10000l * sample) >> 10;
-		}
-		else if(Modbus.mini_type == MINI_TINY_ARM)
-		{
-			return (10000L * sample ) >> 10;
-		}
-		else //if(Modbus.mini_type == MINI_CM5)
-		{
-			return  ( 10000L * sample) >> 10;
-		}
+	if(Modbus.mini_type == MINI_BIG_ARM)
+	{
+		return (10000l * sample) >> 10;
+	}
+	else if(Modbus.mini_type == MINI_SMALL_ARM) // rev4  use input moudle
+	{
+		return (10000l * sample) >> 10;
+	}
+	else if(Modbus.mini_type == MINI_TINY_ARM)
+	{
+		return (10000L * sample ) >> 10;
+	}
+	else //if(Modbus.mini_type == MINI_CM5)
+	{
+		return  ( 10000L * sample) >> 10;
+	}
 }
 
 U32_T conver_by_unit_custable(U8_T point,U32_T sample)

@@ -59,7 +59,7 @@
 #define RECIPIENT_MAIL1      "chelsea@temcocontrols.com"//CONFIG_SMTP_RECIPIENT_MAIL
 
 
-#define SERVER_USES_STARTSSL 1
+#define SERVER_USES_STARTSSL 0//1
 
 static const char *TAG = "smtp_example";
 
@@ -87,12 +87,12 @@ void debug_info(char *string);
  * in the component.mk COMPONENT_EMBED_TXTFILES variable.
  */
 
-extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
-extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
+//extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
+//extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
 
-extern const uint8_t esp_logo_png_start[] asm("_binary_esp_logo_png_start");
-extern const uint8_t esp_logo_png_end[]   asm("_binary_esp_logo_png_end");
-
+//extern const uint8_t esp_logo_png_start[] asm("_binary_esp_logo_png_start");
+//extern const uint8_t esp_logo_png_end[]   asm("_binary_esp_logo_png_end");
+#if 0
 static int write_and_get_response(mbedtls_net_context *sock_fd, unsigned char *buf, size_t len)
 {
     int ret;
@@ -290,7 +290,7 @@ void smtp_client_task(void)
 
 
     mbedtls_ssl_config_init(&conf);
-#if 1
+#if 0
     mbedtls_entropy_init(&entropy);
 
     if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
@@ -586,8 +586,9 @@ exit:
     //vTaskDelete(NULL);
 
 }
+#endif
 
-void smtp_client_task3(void)
+void smtp_client_task_nossl(void)
 {
 	char rx_buffer[200];
 	int addr_family;
