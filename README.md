@@ -15,3 +15,5 @@ Please refer to the documentation in the following path.
 
 ## Schematic of T3-nano
 .\Document\T3_Nano_Schematic.pdf
+
+![images](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/t3nano.jpg)
