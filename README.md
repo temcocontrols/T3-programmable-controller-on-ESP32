@@ -7,13 +7,13 @@ This application establishes a TCP connection between Ethernet and WIFI, and an 
 ## How to compile
 
 Please refer to this documentation:
-.\Document\How to compile.txt
+[compile](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/How%20to%20compile.txt)
 
 ## How to load the firmware to T3-nano
 Please refer to the documentation in the following path.
-.\Document\Bootloader update guide for T3.pdf
+[firmware](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/Bootloader%20update%20guide%20for%20T3.pdf)
 
 ## Schematic of T3-nano
-.\Document\T3_Nano_Schematic.pdf
+[schematic](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/T3_Nano_Schematic.pdf)
 
 ![images](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/t3nano.jpg)
