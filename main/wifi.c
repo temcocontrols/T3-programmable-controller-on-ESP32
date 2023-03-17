@@ -344,12 +344,12 @@ void wifi_task(void *pvParameters)
 	//modbus_init();
 	debug_info("Finish flash init........");
 	//ESP_ERROR_CHECK(ret);
-	if(SSID_Info.MANUEL_EN == 1)
+	//if(SSID_Info.MANUEL_EN == 1)
 	wifi_init_sta();
     ESP_LOGI(TAG, "Finish wifi init");
-
+    task_test.enable[1] = 1;
 	while(1)
-	{
+	{task_test.count[1]++;
 		//if(re_init_wifi)
 		//	wifi_init_sta();
 		//esp_random();

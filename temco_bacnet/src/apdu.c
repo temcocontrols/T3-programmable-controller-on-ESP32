@@ -613,14 +613,28 @@ void apdu_handler(
 											handler_who_is(service_request,service_request_len, src);}
 										}
 										else 
-										if((protocal == BAC_IP) || (protocal == BAC_IP_CLIENT))
+											if((protocal == BAC_IP) || (protocal == BAC_IP_CLIENT))
 										{  
-											Send_I_Am(&Handler_Transmit_Buffer[1][0],protocal);
-#if BAC_MASTER
-											// transfer whois command only when rs485 port is mstp master
-											Send_whois_to_mstp();
+											uint8_t len = 0;
+											int32_t far low_limit = 0;
+											int32_t far high_limit = 0;
+											len =
+												whois_decode_service_request(service_request, service_request_len, &low_limit,
+												&high_limit);
+											if((len == 0) || (Device_Object_Instance_Number() == low_limit))
+											{
+												Send_I_Am(&Handler_Transmit_Buffer[1][0],protocal);
 											
-#endif
+												// transfer whois command only when rs485 port is mstp master
+												Send_whois_to_mstp(0);
+
+											}
+
+											else
+											
+												Send_whois_to_mstp(low_limit);
+											
+
 										}
 
 									}

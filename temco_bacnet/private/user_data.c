@@ -838,11 +838,12 @@ void Response_bacnet_Start(void);
 
 extern U16_T count_send_whois;
 //extern xSemaphoreHandle sem_mstp;
-void Send_whois_to_mstp(void)
+void Send_whois_to_mstp(uint32_t instance)
 {
 
 	U8_T count;
-	
+	if((Modbus.mini_type >= 5/*MINI_BIG_ARM*/) && (Modbus.mini_type <= 8/*MINI_NANO*/))
+	{
 	if(Modbus.com_config[2] == 9/*BACNET_MASTER*/ || Modbus.com_config[0] == 9/*BACNET_MASTER*/)
 	{
 // avoid sending out who_is frequently, interval is at least 30s
@@ -859,19 +860,32 @@ void Send_whois_to_mstp(void)
 		// wait send who is
 		if(remote_panel_num > 0)
 		{
-			U8_T i;
-			//rec_mstp_index = 0;
-			for(i = 0;i < remote_panel_num;i++)
-			{ 
-				if(remote_panel_db[i].protocal == BAC_MSTP)
+			U8_T i = 0;
+			if(instance == 0)  // send all
+			{
+				for(i = 0;i < remote_panel_num;i++)
 				{
-					Send_SUB_I_Am(i);  // mstp device
-				}					
+					if(remote_panel_db[i].protocal == BAC_MSTP)
+					{
+						Send_SUB_I_Am(i);  // mstp device
+					}					
+				}
+			}
+			else
+			{
+				for(i = 0;i < remote_panel_num;i++)
+				{
+					if((remote_panel_db[i].protocal == BAC_MSTP)
+						&& (remote_panel_db[i].device_id == instance))
+					{
+						Send_SUB_I_Am(i);  // mstp device
+					}					
+				}
 			}
 			
 		}
 	}
-
+	}
 
 }
 

@@ -354,7 +354,7 @@ void uart_init(uint8_t uart)
 
 
 
-bool checkdata(uint8_t* data)
+bool checkdata(uint8_t* data,uint8_t len)
 {
 	uint16_t crc_val ;
 
@@ -375,8 +375,20 @@ bool checkdata(uint8_t* data)
 		{
 			return false;
 		}
+		else
+			return true;
 	}
-	return true;
+
+	crc_val = crc16(data, len - 2);
+	if(crc_val == ((U16_T)data[len - 2] << 8 | data[len - 1]))
+	{
+		return TRUE;
+	}
+	else
+	{
+		return FALSE;
+	}
+
 }
 void debug_info(char *string);
 
@@ -406,10 +418,10 @@ void modbus0_task(void *arg)
 
 
 	debug_info("modbous initial \r\n");
-	//Modbus.com_config[0] = MODBUS_SLAVE;
-	while (1) {
+	task_test.enable[7] = 1;
+	while (1) {Test[10]++;
 		//Test[21] = inputs[0].range + 5;
-
+		task_test.count[7]++;
 			if(Modbus.com_config[0] == MODBUS_SLAVE)
 			{
 				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 20 / portTICK_RATE_MS);
@@ -418,7 +430,7 @@ void modbus0_task(void *arg)
 				{led_sub_rx++;
 					com_rx[0]++;Test[30]++;
 					flagLED_sub_rx = 1;
-					if(checkdata(uart_rsv))
+					if(checkdata(uart_rsv,len))
 					{
 						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
 						{
@@ -441,9 +453,12 @@ void modbus0_task(void *arg)
 					led_sub_rx++;
 					com_rx[0]++;
 					flagLED_sub_rx = 1;
-					if(checkdata(uart_rsv))
+					if(checkdata(uart_rsv,len))
 					{
-						Modbus.com_config[0] = MODBUS_SLAVE;
+						if(Modbus.com_config[0] != BACNET_MASTER)
+							Modbus.com_config[0] = MODBUS_SLAVE;
+						else
+							Test[20]++;
 					}
 				}
 				vTaskDelay(500 / portTICK_RATE_MS);
@@ -462,7 +477,9 @@ void modbus2_task(void *arg)
 	setup_reg_data();
 	uint8_t* uart_rsv = (uint8_t*)malloc(512);
 	//Test[2] = 100;
+	task_test.enable[10] = 1;
 	while (1) {
+		task_test.count[10]++;
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
 			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 20 / portTICK_RATE_MS);
@@ -473,7 +490,7 @@ void modbus2_task(void *arg)
 				com_rx[2]++;
 				flagLED_main_rx = 1;
 
-				if(checkdata(uart_rsv))
+				if(checkdata(uart_rsv,len))
 				{
 					if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
 					{
@@ -494,9 +511,12 @@ void modbus2_task(void *arg)
 				led_main_rx++;
 				com_rx[2]++;
 				flagLED_main_rx = 1;
-				if(checkdata(uart_rsv))
+				if(checkdata(uart_rsv,len))
 				{
-					Modbus.com_config[2] = MODBUS_SLAVE;
+					if(Modbus.com_config[2] != BACNET_MASTER)
+						Modbus.com_config[2] = MODBUS_SLAVE;
+					else
+						Test[21]++;
 				}
 			}
 			vTaskDelay(500 / portTICK_RATE_MS);
@@ -809,7 +829,31 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = (current_online[scan_db[address  - MODBUS_SUBADDR_FIRST].id / 8] & (1 << (scan_db[address  - MODBUS_SUBADDR_FIRST].id % 8))) ? 1 : 0;
 			temp2 =  scan_db[address  - MODBUS_SUBADDR_FIRST].id;
 		}
-
+		else if(address >= MODBUS_TASK_TEST && address < MODBUS_TASK_TEST + 64)
+		{
+			U16_T reg = (address - MODBUS_TASK_TEST) / 4;
+			U16_T index = (address - MODBUS_TASK_TEST) % 4;
+			if(index == 0)
+			{
+				temp1 = task_test.count[reg] >> 8;
+				temp2 = task_test.count[reg] & 0xff;
+			}
+			else if(index == 1)
+			{
+				temp1 = task_test.old_count[reg] >> 8;
+				temp2 = task_test.old_count[reg] & 0xff;
+			}
+			else if(index == 2)
+			{
+				temp1 = 0;
+				temp2 = task_test.enable[reg];
+			}
+			else if(index == 3)
+			{
+				temp1 = task_test.inactive_count[reg] >> 8;
+				temp2 = task_test.inactive_count[reg] & 0xff;
+			}
+		}
          else if(address == WIFI_RSSI)
          {
             temp1 = 0xff;
@@ -1408,6 +1452,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
          if((*(bufadd + 5)!=0)&&(*(bufadd + 5)!=0xff))
          {
         	 Modbus.address = *(bufadd + 5);
+        	 Station_NUM = Modbus.address;
+			Setting_Info.reg.MSTP_ID = Station_NUM;
+			dlmstp_init(NULL);
             save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
          }
       }
@@ -2645,9 +2692,8 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				//E2prom_Write_Byte(EEP_ADDRESS,Modbus.address);
 				Station_NUM = Modbus.address;
 				Setting_Info.reg.MSTP_ID = Station_NUM;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
 				dlmstp_init(NULL);
-#endif
+				save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
 			}
 		}
 		if((Station_NUM != ptr->reg.MSTP_ID) && (ptr->reg.MSTP_ID != 0) && (ptr->reg.MSTP_ID != 255))
@@ -2658,9 +2704,9 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			Modbus.address = Station_NUM;
 			//E2prom_Write_Byte(EEP_ADDRESS,  Modbus.address);
 // reboot mstp communication
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
+
 			dlmstp_init(NULL);
-#endif
+
 			save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
 		}
 

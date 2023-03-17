@@ -7,9 +7,11 @@ This application establishes a TCP connection between Ethernet and WIFI, and an 
 ## How to compile
 
 Please refer to this documentation:
-./How to compile.txt
-
+.\Document\How to compile.txt
 
 ## How to load the firmware to T3-nano
 Please refer to the documentation in the following path.
-./Bootloader update guide for T3.pdf
+.\Document\Bootloader update guide for T3.pdf
+
+## Schematic of T3-nano
+.\Document\T3_Nano_Schematic.pdf

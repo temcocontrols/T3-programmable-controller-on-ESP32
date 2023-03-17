@@ -124,6 +124,7 @@ enum {
 	MODBUS_SUBADDR_FIRST = 300 ,	// 193
 	MODBUS_SUBADDR_LAST = 400 , // 200
 
+
 /******** WIFI START ************************/
 	MODBUS_WIFI_START = 2000,
 	MODBUS_WIFI_SSID_MANUAL_EN = 2000,  // 2001 ~ 2009 reserved
@@ -148,6 +149,7 @@ enum {
 
 	MODBUS_WIFI_END = 2100,
 /******** WIFI END ************************/
+	MODBUS_TASK_TEST = 4000,
 
 
     MODBUS_TEST_1 = 7000,
@@ -311,6 +313,7 @@ enum {
 
 	MODBUS_USER_BLOCK_LAST = MDOBUS_WR_FLAG_LAST,
 //--------------------------------------------
+
 
 	MODBUS_EX_MOUDLE_EN = 65000,
 	MODBUS_EX_MOUDLE_FLAG12 = 65001,

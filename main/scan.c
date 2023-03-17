@@ -10,6 +10,8 @@
 #include "user_data.h"
 #include "driver/uart.h"
 
+
+extern xTaskHandle main_task_handle[20];
 #define MAX_REMOTE_PANEL_NUMBER 30
 
 #define ScanSTACK_SIZE					2048
@@ -2381,7 +2383,7 @@ void vStartScanTask(unsigned char uxPriority)
 	scan_port = 0xff;
     scan_baut = 0xff;
 
-    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (xTaskHandle *)&Handle_Scan);
+    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (xTaskHandle *)&main_task_handle[15]);
 
 }
 

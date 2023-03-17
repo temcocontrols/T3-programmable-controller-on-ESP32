@@ -65,6 +65,7 @@
 #define S_ALL_NEW  0x15
 #define G_ALL_NEW  0x25
 
+xTaskHandle main_task_handle[20];
 
 char debug_array[100];
 //static const char *TAG = "Example";
@@ -83,6 +84,8 @@ extern float mlx90614_ambient;
 extern float mlx90614_object;*/
 uint32_t Instance;
 
+STR_Task_Test task_test;
+
 extern uint8_t gIdentify;
 extern uint8_t count_gIdentify;
 
@@ -92,7 +95,7 @@ void modbus0_task(void *arg);
 void modbus2_task(void *arg);
 void Bacnet_Control(void) ;
 void smtp_client_task_nossl(void);
-void Lcd_task(void *arg);
+//void Lcd_task(void *arg);
 //计数信号量相关 信号量句柄 最大计数值，初始化计数值 （计数信号量管理是否有资源可用。）
 //MAX_COUNT 最大计数量，最多有几个资源
 xSemaphoreHandle CountHandle;
@@ -264,8 +267,8 @@ static void bip_task(void *pvParameters)
     uint16_t pdu_len = 0;
     BACNET_ADDRESS far src; /* source address */
     bip_set_socket(47808);
-
-    while (1) {
+    task_test.enable[5] = 1;
+    while (1) {task_test.count[5]++;
        //if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
        {
    #ifdef CONFIG_EXAMPLE_IPV4
@@ -372,8 +375,8 @@ static void udp_scan_task(void *pvParameters)
     char addr_str[128];
     int addr_family;
     int ip_protocol;
-
-    while (1) {
+    task_test.enable[4] = 1;
+    while (1) {task_test.count[4]++;
        //if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
        {
    #ifdef CONFIG_EXAMPLE_IPV4
@@ -984,10 +987,10 @@ static void tcp_server_task(void *pvParameters)
 	struct hostent *hostP = NULL;
 	int ip_protocol;
 	char debug_buffer[100] =  {0};
-
+	task_test.enable[2] = 0;
 	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BIT这里还需要处理 wifi是否连接的信号量
 	while(1)
-	{
+	{//task_test.count[2]++;
 			taskCount++;
 			debug_info("tcp_server_task is running\r");
 		    int addr_family;
@@ -1175,8 +1178,9 @@ static void tcp_client_task(void *pvParameters)
     static uint8_t index = 0;
     intial_tcp_client();
     memset(NP_node_write,0,sizeof(STR_NP_NODE_OPERATE) * STACK_LEN);
-
+    task_test.enable[3] = 1;
     while (1) {
+    	task_test.count[3]++;
     	if(number_of_network_points_modbus > 0)
     	{
     		// write modbus points
@@ -1663,18 +1667,21 @@ void Master0_Node_task(void)
 	}
 
 	if( Modbus.com_config[0] == BACNET_MASTER)
-		Send_Whois_Flag = 1;
-
+	{
+		Send_Whois_Flag = 1;Test[15]++;
+	}
 	remote_bacnet_index = 0;
 	number_of_remote_points_bacnet = 0;
+	task_test.enable[8] = 1;
 	for (;;)
 	{
-		if(count_start_task % 6000 == 0)	// 1 min
+		task_test.count[8]++;
+		if(count_start_task % 12000 == 0)	// 1 min
 		{
 			if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
 			{
 				if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
-					Send_Whois_Flag = 1;
+				{	Send_Whois_Flag = 1;Test[16]++;}
 				count_start_task = 0;
 			}
 		}
@@ -1787,7 +1794,6 @@ void Master0_Node_task(void)
 				pdu_len = dlmstp_receive(&src, &PDUBuffer[0], sizeof(PDUBuffer), 0);
 				if(pdu_len)
 				{
-					Test[29] = pdu_len;
 					npdu_handler(&src, &PDUBuffer[0], pdu_len,BAC_MSTP);
 				}
 
@@ -1795,7 +1801,7 @@ void Master0_Node_task(void)
 
 		}
 		count_start_task++;
-		vTaskDelay(50 / portTICK_RATE_MS);
+		vTaskDelay(5 / portTICK_RATE_MS);
 	}
 
 
@@ -1820,16 +1826,18 @@ void Master2_Node_task(void)
 		Send_I_Am_Flag = 1;
 	}
 
-	if( Modbus.com_config[2] == BACNET_MASTER)
-		Send_Whois_Flag = 1;
+	if( Modbus.com_config[2] == BACNET_MASTER){Test[17]++;
+		Send_Whois_Flag = 1;}
+	task_test.enable[11] = 1;
 	for (;;)
 	{
+		task_test.count[11]++;
 		if(count_start_task++ % 12000 == 0)	// 1 min
 		{
 			if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
 			{
 				if(Modbus.com_config[2] == BACNET_MASTER )
-				{
+				{Test[18]++;
 					Send_Whois_Flag = 1;
 				}
 			}
@@ -1939,7 +1947,7 @@ void Master2_Node_task(void)
 			}
 		}
 
-		vTaskDelay(50 / portTICK_RATE_MS);
+		vTaskDelay(5 / portTICK_RATE_MS);
 	}
 
 }
@@ -1952,13 +1960,14 @@ uint8_t get_protocal(uint8 port)
 void uart0_rx_task(void)
 {
 	uint8_t i;
-
+	task_test.enable[9] = 1;
 	for (;;)
 	{
+		task_test.count[9]++;
 		if(Modbus.com_config[0] == BACNET_MASTER)
 		{
 			uint8_t *uart_rsv = (uint8_t*)malloc(512);
-			int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
+			int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 10 / portTICK_RATE_MS);
 
 			if(len > 0)
 			{
@@ -1978,9 +1987,10 @@ void uart0_rx_task(void)
 void uart2_rx_task(void)
 {
 	uint8_t i;
-
+	task_test.enable[12] = 1;
 	for (;;)
 	{
+		task_test.count[11]++;
 		if(Modbus.com_config[2] == BACNET_MASTER)
 		{
 			uint8_t *uart_rsv = (uint8_t*)malloc(512);
@@ -2035,25 +2045,28 @@ void Timer_task(void)
 	system_timer = 0;
 	Mstp_ForUs = 0;
 	Mstp_NotForUs = 0;
-
+	task_test.enable[13] = 1;
 	//FOR TEST
 	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
 	for (;;)
 	{// 10ms
+		task_test.count[13]++;
 		//Test[0]++;
-		Test[10] = Mstp_ForUs;
-		Test[11] = Mstp_NotForUs;
+		//Test[10] = Mstp_ForUs;
+		//Test[11] = Mstp_NotForUs;
 		if((Mstp_ForUs > 100) && (Mstp_NotForUs > 10))
 		{// MSTP error, reboot
-			esp_restart();
+			//esp_restart();
 		}
+		Test[19] = SilenceTime;
+
 		SilenceTime = SilenceTime + TIMER_INTERVAL;
-		if(SilenceTime++ > 10000 / TIMER_INTERVAL)
+		if(SilenceTime > 10000 / TIMER_INTERVAL)
 		{
 			SilenceTime = 0;
 		}
 		// tbd:
-		if(0) // only for test
+		//if(0) // only for test
 		{	
 			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER))
 				PCF_GetDateTime(&rtc_date);
@@ -2063,9 +2076,9 @@ void Timer_task(void)
 			count = 0;
 		}
 		system_timer = system_timer + TIMER_INTERVAL;
-		Test[20] = system_timer;
+
 		if((system_timer > 10000) && (flag_clear_count_reboot == 0))
-		{Test[21]++;
+		{
 			flag_clear_count_reboot = 1;
 			save_uint8_to_flash(FLASH_COUNT_REBOOT,0); // clear reboot count
 		}
@@ -2466,10 +2479,10 @@ void i2c_master_task(void)
 		usleep(100000); // 500ms
 		gpio_set_level(GPIO_NUM_32, 1);
 	}
-
+	task_test.enable[0] = 1;
 	i2c_send_buf[0] = i2c_send_buf[1] = i2c_send_buf[2] = i2c_send_buf[3] = 0;
 	for (;;)
-	{
+	{task_test.count[1]++;
 		i2c_send_buf[0] = 0x55;
 		if(Modbus.mini_type == PROJECT_TSTAT9)
 		{
@@ -2659,7 +2672,7 @@ void Check_Net_Point_Table(void);
 
 #define PID_SAMPLE_COUNT 20
 #define PID_SAMPLE_TIME 10
-void smtp_client_task3(void);
+
 extern U8_T max_dos;
 extern U8_T max_aos;
 void Bacnet_Control(void)
@@ -2683,14 +2696,25 @@ void Bacnet_Control(void)
 	{
 		check_output_priority_array(i,0);
 #if OUTPUT_DEATMASTER
-			clear_dead_master();
+		clear_dead_master();
 #endif
 	}
 	Check_All_WR();
 
-
+	task_test.enable[14] = 1;
 	for(;;)
 	{
+		task_test.count[14]++;
+
+		/*{// TEST stack lenght;
+			u8 i= 0;
+			for(i = 0;i < 16;i++)
+			{
+			if(task_test.enable[i] == 1)
+				task_test.inactive_count[i] = uxTaskGetStackHighWaterMark( main_task_handle[i] );
+			}
+		}*/
+
 		control_input();
 		if(Test[39] == 100)
 		{
@@ -2699,7 +2723,7 @@ void Bacnet_Control(void)
 		}
 		if(Test[39] == 300)
 		{
-			smtp_client_task_nossl();
+			//smtp_client_task_nossl();
 			Test[39] = 0;
 		}
 
@@ -2765,6 +2789,7 @@ void Bacnet_Control(void)
 			calculate_RPM();
 #endif
 		}
+
 		// dealwith check_weekly_routines per 1 min
 
 		if(count_schedule < 5) 	count_schedule++;
@@ -2778,15 +2803,17 @@ void Bacnet_Control(void)
 		// count monitor task
 		if(just_load)
 			just_load = 0;
-
+#if BAC_TRENDLOG
 		//if( count_1s++  >= 1)
 		{
 			miliseclast_cur = miliseclast;
 			miliseclast = 0;
-    }
+		}
 //		else
 //			count_1s = 0;
 		check_trendlog_1s(2);
+#endif
+
 #if BAC_TRENDLOG
 		//trend_log_timer(0); // for standard trend log
 #endif
@@ -2843,7 +2870,7 @@ void app_main()
     //microphone_init();
     //SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
     //connect_wifi();
-   //Modbus.com_config[0] = MODBUS_SLAVE;
+   //Modbus.com_config[0] = MODBUS_SLAVE;  // ONLY FOR TEST
    Modbus.tcp_port = 502;
 #if 1//I2C_TASK
     if(Modbus.mini_type == PROJECT_FAN_MODULE)
@@ -2871,31 +2898,36 @@ void app_main()
 
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM
     		|| Modbus.mini_type == MINI_BIG_ARM)
-    	xTaskCreate(i2c_master_task,"i2c_master_task", 2048, NULL, 10, NULL);
+    	xTaskCreate(i2c_master_task,"i2c_master_task", 2048, NULL, 10, &main_task_handle[0]);
 #endif
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, NULL);
+    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, &main_task_handle[1]);
     network_EventHandle = xEventGroupCreate();
-    xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 2, NULL);
-    xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 5, NULL);
-    xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 5, NULL);
-    xTaskCreate(bip_task, "bacnet ip", 4096, NULL, 5, NULL);
+    xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 2, &main_task_handle[2]);
+    xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 5, &main_task_handle[3]);
+    xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 5, &main_task_handle[4]);
+    xTaskCreate(bip_task, "bacnet ip", 4096, NULL, 5, &main_task_handle[5]);
     //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
 //#if FAN
-
+    if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER))
+        xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
 //#endif
     Test[4] = 3;
-    if(Modbus.mini_type == PROJECT_TSTAT9)
-    	xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 8,NULL);
+    //if(Modbus.mini_type == PROJECT_TSTAT9)
+    //	xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 8,&main_task_handle[6]);
 
-    xTaskCreate(modbus0_task,"modbus0_task",4096, NULL, 11, NULL);
-    xTaskCreate(modbus2_task,"modbus2_task",4096, NULL, 3, NULL);
-    xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, NULL);
-    xTaskCreate(Master2_Node_task,"mstp2_task",4096, NULL, 4, NULL);
-    xTaskCreate(uart0_rx_task,"uart0_rx_task",2048, NULL, 6, NULL);
-    xTaskCreate(uart2_rx_task,"uart2_rx_task",2048, NULL, 6, NULL);
+    xTaskCreate(modbus0_task,"modbus0_task",4096, NULL, 11, &main_task_handle[7]);
+    xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
+    xTaskCreate(uart0_rx_task,"uart0_rx_task",2048, NULL, 6, &main_task_handle[9]);
 
-	xTaskCreate(Timer_task,"timer_task",2048, NULL, 7, NULL);
-	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL, tskIDLE_PRIORITY + 8,NULL);
+    if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
+    {
+	   xTaskCreate(modbus2_task,"modbus2_task",4096, NULL, 3, &main_task_handle[10]);
+	   xTaskCreate(Master2_Node_task,"mstp2_task",4096, NULL, 4, &main_task_handle[11]);
+	   xTaskCreate(uart2_rx_task,"uart2_rx_task",2048, NULL, 6, &main_task_handle[12]);
+    }
+
+ 	xTaskCreate(Timer_task,"timer_task",2048, NULL, 7, &main_task_handle[13]);
+	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL,  12,&main_task_handle[14]);
 //	xTaskCreate(rtc_task,"rtc_task", 2048, NULL, 10, NULL);
 	vStartScanTask(5);
 
@@ -2911,13 +2943,12 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 		holding_reg_params.led_rx485_tx = 2;
 //#endif
 	if(port == 0)
-	{
+	{ Test[12]++;
 		uart_write_bytes(UART_NUM_0, (const char *)p, length);
 
 	}
 	else if(port == 2)
-	{Test[17]++;
-	memcpy(&Test[35],p,8);
+	{
 		uart_write_bytes(UART_NUM_2, (const char *)p, length);
 	}
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}

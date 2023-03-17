@@ -213,7 +213,7 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_SCHEDULE 		1
 #define BAC_PRIVATE 		1
 #define BAC_TIMESYNC 		1
-#define BAC_TRENDLOG		1
+#define BAC_TRENDLOG		0//1
 #define BAC_RANGE			1 // dont need range 
 #define BAC_BI				1
 #define BAC_BV				1
@@ -444,7 +444,7 @@ void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,cha
 void write_Out_Of_Service(uint8_t type,uint8_t i,uint8_t am);
 void Set_Object_Name(char * name);
 
-void Send_whois_to_mstp(void);
+void Send_whois_to_mstp(uint32_t object_instance);
 
 
 U16_T Get_Vendor_ID(void);

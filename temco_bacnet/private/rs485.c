@@ -259,8 +259,7 @@ void RS485_Send_Data(
 //	}
 	
 	if(Modbus.com_config[2] == 9 || Modbus.com_config[2] == 1)
-	{
-		
+	{		
 		uart_send_string(buffer,nbytes,2);
 	}
 	else if(Modbus.com_config[0] == 9 || Modbus.com_config[0] == 1)

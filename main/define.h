@@ -6,12 +6,21 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6301
+#define SOFTREV     6302
 
 
 #define		SW_OFF 	 0
 #define 	SW_HAND	 2
 #define		SW_AUTO	 1
+
+typedef	struct
+{
+	u16 count[20];
+	u16 old_count[20];
+	u8  enable[20];
+	u16  inactive_count[20];
+}STR_Task_Test;
+extern STR_Task_Test task_test;
 
 
 #define UIP_HEAD 6
