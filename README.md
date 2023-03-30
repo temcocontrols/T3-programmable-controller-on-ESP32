@@ -9,7 +9,7 @@ The code can run on any ESP32-WRoom hardware, here is a low cost example of our 
 This product establishes a TCP connection between Ethernet and the two RS485 subnets. The device can be accessed through the standard modbus and bacnet protocols. Most of the setting up and configuring is done using our T3000 application which also appears in our repos here on Github.
 https://github.com/temcocontrols/T3000_Building_Automation_System
 
-Once the device is configured T3000 is not required, you can use your usual modbus and bacnet tools to read & write data through the various communications ports. T3000 can also be used to write programs running on the ESP as well as set up alarms, floorplans, data logging, emailed alarms and more. If you want to use the ESP32 as a router only that is fine as well, it will transaprently route messages from one network to the other using 'transparent mode'. 
+Once the device is configured T3000 is not required, you can use your usual modbus and bacnet tools to read & write data through the various communications ports. T3000 can also be used to write programs running on the ESP as well as set up alarms, floorplans, data logging, emailed alarms and more. If you want to use the ESP32 as a router only that is fine as well, it will transparently route messages from one network to the other using 'transparent mode'. 
 
 ## How to compile
 
