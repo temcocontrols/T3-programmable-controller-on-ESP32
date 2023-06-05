@@ -14,6 +14,7 @@
 #include "scd4x_i2c.h"
 #include "sht4x.h"
 #include "ade7953.h"
+#include "sht3x.h"
 
 static const char *TAG = "i2c-task";
 
@@ -510,7 +511,7 @@ esp_err_t i2c_master_init()
 {
 	print_mux = xSemaphoreCreateMutex();
     int i2c_master_port = I2C_MASTER_NUM;
-    i2c_config_t conf;
+    static i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
     if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER)||((Modbus.mini_type == PROJECT_POWER_METER)))
     	conf.sda_io_num = 12;//4;//I2C_MASTER_SDA_IO;
@@ -530,37 +531,48 @@ esp_err_t i2c_master_init()
     memcpy(inputs[0].description,"Temperature",strlen("Temperature"));
 }
 
-void i2c_task(void *arg)
+uint8_t hum_sensor_type = 0; // SHT3X exist
+float tem_org = 0;
+float hum_org = 0;
+// ------- for airlab, i2c sensor initial
+void SHT3X_Inital(void)  // humidity & temp
 {
-    int ret,i;
-    uint8_t voc_ok;
-	uint32_t temp;
-	uint32_t iaq_baseline;
-    uint32_t task_idx = (uint32_t)arg;
-    int16_t ambient_new_raw=0;
-    int16_t ambient_old_raw=0;
-    int16_t object_new_raw=0;
-    int16_t object_old_raw=0;
-    int32_t sht4x_temp, sht4x_hum;
+	SHT3X_Init(0x44);
+	for(u8 i=0;i<10;i++)
+	{
+		if(SHT3X_GetTempAndHumi(&tem_org, &hum_org, REPEATAB_HIGH, MODE_POLLING, 50) == 0)
+		hum_sensor_type = 1;
+	}
+	if(hum_sensor_type != 1)
+		hum_sensor_type = 0;
+}
 
-    g_sensors.co2_start_measure = false;
-//    uint8_t sensor_data_h, sensor_data_l;
-    int cnt = 0;
-    g_sensors.co2_ready = false;
-#if 0
-    g_sensors.voc_baseline[0] = 0;
-    g_sensors.voc_baseline[1] = 0;
-    g_sensors.voc_baseline[2] = 0;
-    g_sensors.voc_baseline[3] = 0;
-    //g_sensors.ambient = 100;
-    //g_sensors.object = 10;
-    uint16_t voc_buf[5];
-    static uint8_t voc_cnt;
-    static	uint16_t baseline_time = 0;
+void SCD4X_Inital(void) // humdity , temperature and co2
+{
 
-    voc_ok = 1;
-    voc_cnt = 0;
-	temp = 0;
+}
+
+uint8 voc_ok = 0;
+uint32_t iaq_baseline;
+uint8_t flag_voc_init;
+uint8_t count_voc_int;
+
+void VOC_Initial(void) // SGP30
+{
+	int16_t ret;
+	g_sensors.voc_baseline[0] = 0;
+	g_sensors.voc_baseline[1] = 0;
+	g_sensors.voc_baseline[2] = 0;
+	g_sensors.voc_baseline[3] = 0;
+	//g_sensors.ambient = 100;
+	//g_sensors.object = 10;
+	uint16_t voc_buf[5];
+	static uint8_t voc_cnt;
+	static	uint16_t baseline_time = 0;
+
+	voc_ok = 1;
+	voc_cnt = 0;
+	u8 temp = 0;
 	while (sgp30_probe() != STATUS_OK) {
 		temp++;
 		if(temp > 20)
@@ -611,8 +623,35 @@ void i2c_task(void *arg)
 			ESP_LOGW(TAG, "%s: No ack, SGP30 sensor not connected...skip...", esp_err_to_name(ret));
 		}
 	}
+}
+//-------end --- for airlab, i2c sensor initial
 
-	if(which_project == PROJECT_SAUTER){
+void i2c_task(void *arg)
+{
+    int ret,i;
+    uint8_t voc_ok;
+	uint32_t temp;
+	uint32_t iaq_baseline;
+    uint32_t task_idx = (uint32_t)arg;
+    int16_t ambient_new_raw=0;
+    int16_t ambient_old_raw=0;
+    int16_t object_new_raw=0;
+    int16_t object_old_raw=0;
+    int32_t sht4x_temp, sht4x_hum;
+
+    g_sensors.co2_start_measure = false;
+//    uint8_t sensor_data_h, sensor_data_l;
+    int cnt = 0;
+    g_sensors.co2_ready = false;
+
+    if(Modbus.mini_type == PROJECT_AIRLAB)
+    {
+    	VOC_Initial();
+    }
+
+
+#if 0  //????????????
+	if(Modbus.mini_type == PROJECT_SAUTER){
 		ret = mlx90632_init();
 		if(ret == 0)
 		{
@@ -849,6 +888,7 @@ void i2c_task(void *arg)
 			}
 			xSemaphoreGive(print_mux);
 		}
+
 #endif
         vTaskDelay(100 / portTICK_RATE_MS);
         if(Modbus.mini_type == PROJECT_TRANSDUCER)
@@ -1059,6 +1099,11 @@ void i2c_task(void *arg)
 			xSemaphoreGive(print_mux);
 			vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
 		}*/
+		if(Modbus.mini_type == PROJECT_AIRLAB)
+		{
+
+
+		}
 #if 0
 		//vTaskDelay(1000/portTICK_RATE_MS);
 

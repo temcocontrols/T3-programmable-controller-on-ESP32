@@ -14,6 +14,7 @@
 #include "scan.h"
 #include "user_data.h"
 #include "rtc.h"
+#include "rs485.h"
 
 
 
@@ -44,8 +45,8 @@
 #define GPIO_SUB_EN_PIN		GPIO_NUM_13
 #define GPIO_MAIN_EN_PIN 	GPIO_NUM_2
 
-#define SUB_EN_PIN_SEL	(1ULL<<GPIO_SUB_EN_PIN)
-#define MAIN_EN_PIN_SEL	(1ULL<<GPIO_MAIN_EN_PIN)
+//#define SUB_EN_PIN_SEL	(1ULL<<GPIO_SUB_EN_PIN)
+//#define MAIN_EN_PIN_SEL	(1ULL<<GPIO_MAIN_EN_PIN)
 //static const char *TAG = "MODBUS_SLAVE_APP";
 //uint8_t uart_sendB[512];
 const int uart_num_sub = UART_NUM_0;
@@ -345,10 +346,21 @@ void uart_init(uint8_t uart)
 	}
 	else if(uart == 2)//  (uart == 1) main port
 	{
-		uart_param_config(uart_num_main, &uart_config);
-		uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
-		uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
-		uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
+		if(Modbus.mini_type == PROJECT_FAN_MODULE)
+		{
+			uart_param_config(uart_num_main, &uart_config);
+			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
+			uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+			uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
+
+		}
+		else
+		{
+			uart_param_config(uart_num_main, &uart_config);
+			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
+			uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+			uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
+		}
 	}
 }
 
@@ -398,7 +410,7 @@ extern uint8 led_sub_tx;
 extern uint8 led_sub_rx;
 extern uint8 led_main_tx;
 extern uint8 led_main_rx;
-void modbus0_task(void *arg)
+void uart0_rx_task(void)
 {
 //	uint8_t modbus_send_buf[500];
 //	uint16_t modbus_send_len;
@@ -414,13 +426,13 @@ void modbus0_task(void *arg)
 //	char prefix[] = "RS485 Received: [";
 	//modbus_init();
 	setup_reg_data();
-	uint8_t* uart_rsv = (uint8_t*)malloc(512);
-
+	//uint8_t* uart_rsv = (uint8_t*)malloc(512);
+	uint8_t uart_rsv[512];
 
 	debug_info("modbous initial \r\n");
+
 	task_test.enable[7] = 1;
-	while (1) {Test[10]++;
-		//Test[21] = inputs[0].range + 5;
+	while (1) {
 		task_test.count[7]++;
 			if(Modbus.com_config[0] == MODBUS_SLAVE)
 			{
@@ -428,7 +440,7 @@ void modbus0_task(void *arg)
 
 				if(len>0)
 				{led_sub_rx++;
-					com_rx[0]++;Test[30]++;
+					com_rx[0]++;
 					flagLED_sub_rx = 1;
 					if(checkdata(uart_rsv,len))
 					{
@@ -443,9 +455,21 @@ void modbus0_task(void *arg)
 				}
 
 			}
+			else if(Modbus.com_config[0] == BACNET_MASTER)
+			{
+				int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
+
+				if(len > 0)
+				{
+					led_sub_rx++;
+					com_rx[0]++;
+					flagLED_sub_rx = 1;
+					Timer_Silence_Reset();
+
+				}
+			}
 			else
 			{
-				
 				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 				if(len>0)
@@ -455,28 +479,25 @@ void modbus0_task(void *arg)
 					flagLED_sub_rx = 1;
 					if(checkdata(uart_rsv,len))
 					{
-						if(Modbus.com_config[0] != BACNET_MASTER)
-							Modbus.com_config[0] = MODBUS_SLAVE;
-						else
-							Test[20]++;
+						Modbus.com_config[0] = MODBUS_SLAVE;
 					}
 				}
-				vTaskDelay(500 / portTICK_RATE_MS);
+				//vTaskDelay(500 / portTICK_RATE_MS);
 			}
 
 		}
 
 }
 
-void modbus2_task(void *arg)
+void uart2_rx_task(void)
 {
 	//uint8_t modbus_send_buf[500];
 	//uint16_t modbus_send_len;
 	//memset(modbus_send_buf,0,500);
 	//modbus_send_len = 0;
 	setup_reg_data();
-	uint8_t* uart_rsv = (uint8_t*)malloc(512);
-	//Test[2] = 100;
+	//uint8_t* uart_rsv = (uint8_t*)malloc(512);
+	uint8_t uart_rsv[512];
 	task_test.enable[10] = 1;
 	while (1) {
 		task_test.count[10]++;
@@ -502,6 +523,18 @@ void modbus2_task(void *arg)
 			}
 
 		}
+		else if(Modbus.com_config[2] == BACNET_MASTER)
+		{
+			int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 5 / portTICK_RATE_MS);
+
+			if(len > 0)
+			{
+				led_main_rx++;
+				com_rx[2]++;
+				flagLED_main_rx = 1;
+				Timer_Silence_Reset();
+			}
+		}
 		else
 		{		
 			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 100 / portTICK_RATE_MS);
@@ -513,13 +546,11 @@ void modbus2_task(void *arg)
 				flagLED_main_rx = 1;
 				if(checkdata(uart_rsv,len))
 				{
-					if(Modbus.com_config[2] != BACNET_MASTER)
-						Modbus.com_config[2] = MODBUS_SLAVE;
-					else
-						Test[21]++;
+					Modbus.com_config[2] = MODBUS_SLAVE;
+
 				}
 			}
-			vTaskDelay(500 / portTICK_RATE_MS);
+			//vTaskDelay(500 / portTICK_RATE_MS);
 		}
 	}
 }
@@ -1444,7 +1475,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		  {
 			  SSID_Info.MANUEL_EN = 1;
 			  save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
-			  wifi_init_sta();
+			  wifi_init_sta();Test[22]++;
 		  }
 	  }
       if(address == MODBUS_ADDRESS)
@@ -1478,7 +1509,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		{
 			if((U16_T)(Instance >> 16) != (*(bufadd + 5)) + (*(bufadd + 4)) * 256)
 			{
-				Instance = ((U32_T)(*(bufadd + 5)) << 16) + ((U32_T)(*(bufadd + 5)) << 24) + (U16_T)Instance;
+				Instance = ((U32_T)(*(bufadd + 5)) << 16) + ((U32_T)(*(bufadd + 4)) << 24) + (U16_T)Instance;
 				save_uint8_to_flash(FLASH_INSTANCE3,*(bufadd + 5));
 				save_uint8_to_flash(FLASH_INSTANCE4,*(bufadd + 4));
 				Device_Set_Object_Instance_Number(Instance);
@@ -1509,8 +1540,13 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		   {
 			  Modbus.com_config[0] = *(bufadd + 5);
 			  save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
-			 // uart_init(0);
+			  uart_init(0);
 			  Count_com_config();
+			  if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
+				{
+					//Send_Whois_Flag = 1;
+					Recievebuf_Initialize(0);
+				}
 		   }
 		}
 		else if(address == MODBUS_COM2_TYPE)
@@ -1519,8 +1555,12 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		   {
 			  Modbus.com_config[2] = *(bufadd + 5);
 			  save_uint8_to_flash( FLASH_UART2_CONFIG, Modbus.com_config[2]);
-			 // uart_init(2);
+			  uart_init(2);
 			  Count_com_config();
+			  if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
+				{
+					Recievebuf_Initialize(2);
+				}
 		   }
 		}
 		else if(address == MODBUS_MINI_TYPE)
@@ -2499,10 +2539,9 @@ void set_default_parameters(void);
 
 void dealwith_write_setting(Str_Setting_Info * ptr)
 {
-	Test[13]++;
 // compare sn to check whether it is current panel
 	if(ptr->reg.sn == (Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8)	+ ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24)))
-	{Test[14]++;
+	{
 		if(memcmp(panelname,ptr->reg.panel_name,20))
 		{
 			ptr->reg.panel_name[19] = 0;
@@ -2778,7 +2817,6 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			// control led on/off
 			gIdentify = 1;
 			count_gIdentify = 0;
-			Test[0]++;
 		}
 
 #if 0

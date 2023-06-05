@@ -214,7 +214,7 @@ void Get_Tst_DB_From_Flash(void)
 	sub_no = uart0_sub_no + uart1_sub_no + uart2_sub_no;
 // add T3 MAP
 #if T3_MAP
-	// ¸ù¾ÝÊý¾Ý¿âÖÐµÄÅÅÁÐË³Ðò°²ÅÅexpansion IOµÄÎ»ÖÃ
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¿ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ï¿½ï¿½ï¿½expansion IOï¿½ï¿½Î»ï¿½ï¿½
 	for(i = 0;i < sub_no;i++)
 	{
  		remap_table(i,scan_db[i].product_model);
@@ -292,7 +292,7 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 
 
 	if(length > 0)
-	{Test[8]++;Test[9] = length;
+	{
 		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
 		else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 		com_tx[port]++;
@@ -1284,7 +1284,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 					}
 				}
 				else
-				{	// ¶Á¶à¸ö×Ö½Ú			
+				{	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö½ï¿½			
 					for(i = 0;i < buf[5] / 2;i++)
 					{
 						if(Get_product_by_id(remote_points_list_modbus[index].tb.RP_modbus.id) == 203)  // only for PM test
@@ -2043,11 +2043,11 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		if(buf[9] < 100)  // read   command < 100
 		{
 			size = (U16_T)((buf[13] & 0x01)	<< 8)	+ buf[12]; // entysize
-			size0 = 16 + size * (buf[11] - buf[10] + 1); // »Ø¸´µÄ³¤¶ÈÊÇxx
+			size0 = 16 + size * (buf[11] - buf[10] + 1); // ï¿½Ø¸ï¿½ï¿½Ä³ï¿½ï¿½ï¿½ï¿½ï¿½xx
 		}
 		else  // private command > 100 write
 		{
-			size0 = 16;  // »Ø¸´µÄ³¤¶ÈÊÇ16
+			size0 = 16;  // ï¿½Ø¸ï¿½ï¿½Ä³ï¿½ï¿½ï¿½ï¿½ï¿½16
 		}		
 		
 	}
@@ -2230,7 +2230,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			}			
 		}
 		else
-		{// Ò»µ©read³ö´í£¬»Ø¸´È«0
+		{// Ò»ï¿½ï¿½readï¿½ï¿½ï¿½ï¿½ï¿½Ø¸ï¿½È«0
 			memset(&modbus_send_buf,0,size0 + 4);
 			modbus_send_len = size0 + 4;
 
@@ -2572,7 +2572,7 @@ void Check_whether_clear_conflict_id(void)
 	for(i = 0;i < index_id_conflict;i++)
 	{
 		if(id_conflict[i].count++ > 300)
-		{// É¾µô³åÍ»ÐÅÏ¢
+		{// É¾ï¿½ï¿½ï¿½ï¿½Í»ï¿½ï¿½Ï¢
 			memcpy(&id_conflict[i],&id_conflict[index_id_conflict],sizeof(Str_CONFILCT_ID));
 			memset(&id_conflict[index_id_conflict],0,sizeof(Str_CONFILCT_ID));
 			index_id_conflict--;

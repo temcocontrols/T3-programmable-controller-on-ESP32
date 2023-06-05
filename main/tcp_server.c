@@ -90,14 +90,16 @@ extern uint8_t gIdentify;
 extern uint8_t count_gIdentify;
 
 uint8_t flag_clear_count_reboot;
+void uart0_rx_task(void);
+void uart2_rx_task(void);
+//void modbus0_task(void *arg);
+//void modbus2_task(void *arg);
 
-void modbus0_task(void *arg);
-void modbus2_task(void *arg);
 void Bacnet_Control(void) ;
 void smtp_client_task_nossl(void);
-//void Lcd_task(void *arg);
-//¼ÆÊýÐÅºÅÁ¿Ïà¹Ø ÐÅºÅÁ¿¾ä±ú ×î´ó¼ÆÊýÖµ£¬³õÊ¼»¯¼ÆÊýÖµ £¨¼ÆÊýÐÅºÅÁ¿¹ÜÀíÊÇ·ñÓÐ×ÊÔ´¿ÉÓÃ¡££©
-//MAX_COUNT ×î´ó¼ÆÊýÁ¿£¬×î¶àÓÐ¼¸¸ö×ÊÔ´
+void Lcd_task(void *arg);
+//ï¿½ï¿½ï¿½ï¿½ï¿½Åºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Åºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Åºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½Ô´ï¿½ï¿½ï¿½Ã¡ï¿½ï¿½ï¿½
+//MAX_COUNT ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½ï¿½ï¿½Ô´
 xSemaphoreHandle CountHandle;
 
 uint8_t flag_suspend_scan = 0;
@@ -129,7 +131,7 @@ TaskFunction_t taskList[MAX_SOC_COUNT] = {tcp_server_dealwith0,
 										  tcp_server_dealwith5,
 										  tcp_server_dealwith6};
 TaskHandle_t Task_handle[MAX_SOC_COUNT] = {0};
-//WIFIÊÂ¼þ±êÖ¾×é Ò²¼æÓÃÓÚÈÎÎñÔËÐÐ±êÖ¾×é£¨ÈÎÎñ±»´´½¨¾Íset ±»É¾³ý¾Íclean Ïàµ±ÓÚ×ÊÔ´Çåµ¥ÄÄÐ©×ÊÔ´ÊÇ¿ÉÓÃµÄ£©
+//WIFIï¿½Â¼ï¿½ï¿½ï¿½Ö¾ï¿½ï¿½ Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½Ö¾ï¿½é£¨ï¿½ï¿½ï¿½ñ±»´ï¿½ï¿½ï¿½ï¿½ï¿½set ï¿½ï¿½É¾ï¿½ï¿½ï¿½ï¿½clean ï¿½àµ±ï¿½ï¿½ï¿½ï¿½Ô´ï¿½åµ¥ï¿½ï¿½Ð©ï¿½ï¿½Ô´ï¿½Ç¿ï¿½ï¿½ÃµÄ£ï¿½
 EventGroupHandle_t network_EventHandle = NULL;
 const int CONNECTED_BIT = BIT0;
 const int TASK1_BIT		= BIT1;
@@ -248,7 +250,7 @@ struct sockaddr_in6 bip_source_addr; // Large enough for both IPv4 or IPv6
 
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len)
 {
-	// Send_SUB_I_Am »òÕß°ÑMSTP°ü×ª»Øµ½ÍøÂç
+	// Send_SUB_I_Am ï¿½ï¿½ï¿½ß°ï¿½MSTPï¿½ï¿½×ªï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½
 	if(len > 0)
 	{
 		sendto(bip_sock, (uint8_t *)buf, len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
@@ -784,7 +786,7 @@ void tcp_server_handle(void *args, int task_index)
 
 	}
 
-	// ¸øremoteInfo.remoteIp ¿ª±ÙÒ»¶¨µÄ¿Õ¼ä ÇÒ×¢ÒâÊÍ·Å
+	// ï¿½ï¿½remoteInfo.remoteIp ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ä¿Õ¼ï¿½ ï¿½ï¿½×¢ï¿½ï¿½ï¿½Í·ï¿½
 	//remoteInfo.remoteIp = (char *)heap_caps_malloc(32,MALLOC_CAP_8BIT);
 	memset(remoteInfo.remoteIp,0,32);
 
@@ -800,10 +802,10 @@ void tcp_server_handle(void *args, int task_index)
 		debug_print("TASK _BIT clear failed",task_index);
 	}
 
-	int keepAlive = 1; // ¿ªÆôkeepaliveÊôÐÔ
-	int keepIdle = 10; // Èç¸ÃÁ¬½ÓÔÚ10ÃëÄÚÃ»ÓÐÈÎºÎÊý¾ÝÍùÀ´,Ôò½øÐÐÌ½²â
-	int keepInterval = 4; // Ì½²âÊ±·¢°üµÄÊ±¼ä¼ä¸ôÎª5 Ãë
-	int keepCount = 1; // Ì½²â³¢ÊÔµÄ´ÎÊý.Èç¹ûµÚ1´ÎÌ½²â°ü¾ÍÊÕµ½ÏìÓ¦ÁË,Ôòºó2´ÎµÄ²»ÔÙ·¢.
+	int keepAlive = 1; // ï¿½ï¿½ï¿½ï¿½keepaliveï¿½ï¿½ï¿½ï¿½
+	int keepIdle = 10; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½10ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½Îºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½
+	int keepInterval = 4; // Ì½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Îª5 ï¿½ï¿½
+	int keepCount = 1; // Ì½ï¿½â³¢ï¿½ÔµÄ´ï¿½ï¿½ï¿½.ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õµï¿½ï¿½ï¿½Ó¦ï¿½ï¿½,ï¿½ï¿½ï¿½2ï¿½ÎµÄ²ï¿½ï¿½Ù·ï¿½.
 
 	setsockopt(remoteInfo.sock,SOL_SOCKET,SO_KEEPALIVE,	(void *)&keepAlive,		sizeof(keepAlive));
 	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPIDLE,	(void *)&keepIdle,		sizeof(keepIdle));
@@ -831,7 +833,7 @@ void tcp_server_handle(void *args, int task_index)
         //}
 		debug_print("Readable_timeo ",task_index);
 
-		ret = Readable_timeo(remoteInfo.sock, 60);//Ò»·ÖÖÓÎÞÊý¾Ý¾Í¹Ø±ÕÌ×½Ó×Ö set timeout and add if
+		ret = Readable_timeo(remoteInfo.sock, 60);//Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¾Í¹Ø±ï¿½ï¿½×½ï¿½ï¿½ï¿½ set timeout and add if
         //if(task_index == 4)
         //{
         	char temp[20];
@@ -988,7 +990,7 @@ static void tcp_server_task(void *pvParameters)
 	int ip_protocol;
 	char debug_buffer[100] =  {0};
 	task_test.enable[2] = 0;
-	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BITÕâÀï»¹ÐèÒª´¦Àí wifiÊÇ·ñÁ¬½ÓµÄÐÅºÅÁ¿
+	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BITï¿½ï¿½ï¿½ï»¹ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ wifiï¿½Ç·ï¿½ï¿½ï¿½ï¿½Óµï¿½ï¿½Åºï¿½ï¿½ï¿½
 	while(1)
 	{//task_test.count[2]++;
 			taskCount++;
@@ -996,39 +998,39 @@ static void tcp_server_task(void *pvParameters)
 		    int addr_family;
 			addr_family 			 = AF_INET;
 			ip_protocol 			 = IPPROTO_IP;
-			// ±¾µØIPÉèÎª0 Ó¦¸Ãµ×²ã»á×Ô¶¯ÉèÖÃ±¾µØIP ¶Ë¿Ú¹Ì¶¨µ½7681
+			// ï¿½ï¿½ï¿½ï¿½IPï¿½ï¿½Îª0 Ó¦ï¿½Ãµ×²ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½Ã±ï¿½ï¿½ï¿½IP ï¿½Ë¿Ú¹Ì¶ï¿½ï¿½ï¿½7681
 			struct sockaddr_in localAddr;
 			localAddr.sin_addr.s_addr 	= htonl(INADDR_ANY);
 			localAddr.sin_family		= AF_INET;
 			localAddr.sin_port			= htons(502);
-			//ÐÂ½¨Ò»¸ö socket
+			//ï¿½Â½ï¿½Ò»ï¿½ï¿½ socket
 			int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
 			if (listen_sock < 0)
 			{
 				debug_info("Unable to create socket\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5ÃëÖÓºóÔÙÖØÐÂÖ´ÐÐ
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5ï¿½ï¿½ï¿½Óºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½
 				continue;
 			}
 			int err = bind(listen_sock, (struct sockaddr *)&localAddr, sizeof(localAddr));
 			if (err < 0) {
 				debug_info("Socket unable to bind: errno\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5ÃëÖÓºóÔÙÖØÐÂÖ´ÐÐ
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5ï¿½ï¿½ï¿½Óºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½
 				continue;
 			}
 
 
 
 
-			//¿ªÆô¼àÌý ¼àÌý7681¶Ë¿Ú
+			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½7681ï¿½Ë¿ï¿½
 			err = listen(listen_sock,0);
 			if(err != 0)
 			{
 				debug_info("Socket unable to connect: errno\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5ÃëÖÓºóÔÙÖØÐÂÖ´ÐÐ
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5ï¿½ï¿½ï¿½Óºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½
 				continue;
 			}
 			debug_info("Socket is listening\r");
-			//ÎªaccpetÁ¬½Ó´«Èë²ÎÊý³õÊ¼»¯
+			//Îªaccpetï¿½ï¿½ï¿½Ó´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
 			struct sockaddr_in6 sourceAddr;
 			uint addrLen = sizeof(sourceAddr);
 
@@ -1036,7 +1038,7 @@ static void tcp_server_task(void *pvParameters)
 			{
 				debug_info("ready to accept %d\r");
 
-				//»ñÈ¡ÐÅºÅÁ¿£¬ÕâÀïÏÈ×èÖÍportMAX_DELAY
+				//ï¿½ï¿½È¡ï¿½Åºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½portMAX_DELAY
 				if(CountHandle != NULL)
 				{
 					xSemaphoreTake(CountHandle,portMAX_DELAY);
@@ -1047,7 +1049,7 @@ static void tcp_server_task(void *pvParameters)
 				else
 					debug_info("SemaphoreHandle is NULL");
 
-				//acceptÊÇ»á×èÖÍÈÎÎñµÄ  Èç¹ûSemaphorTake Ò²Ò»Ö±×èÖÍ²»ÖªµÀÐÐ²»ÐÐ¡£
+				//acceptï¿½Ç»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½  ï¿½ï¿½ï¿½SemaphorTake Ò²Ò»Ö±ï¿½ï¿½ï¿½Í²ï¿½Öªï¿½ï¿½ï¿½Ð²ï¿½ï¿½Ð¡ï¿½
 				int sock = accept(listen_sock, (struct sockaddr *)&sourceAddr, &addrLen);
 				if (sock < 0)
 				{
@@ -1057,7 +1059,7 @@ static void tcp_server_task(void *pvParameters)
 				}
 				debug_info("Socket accepted\r");
 
-				//»ñÈ¡µ½acceptµÄIP sock ¶Ë¿ÚÐÅÏ¢±£´æ
+				//ï¿½ï¿½È¡ï¿½ï¿½acceptï¿½ï¿½IP sock ï¿½Ë¿ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½ï¿½
 				struct sockinfo remoteInfo;
 
 				remoteInfo.sock = sock;
@@ -1083,16 +1085,16 @@ static void tcp_server_task(void *pvParameters)
 				for(int i = 0; i < MAX_SOC_COUNT; i++)
 				{
 					if((uxBits & (1 << (i + 1))) != 0)
-					{ //ÕâÀïi + 1ÊÇÒòÎª ÊÂ¼þ±êÖ¾×éµÄ×îºóÒ»Î»ÊÇÓÉCONNECT_BITËùÕ¼ÓÃ TASK2_BITÊÇ´ÓµÚBIT1¿ªÊ¼
+					{ //ï¿½ï¿½ï¿½ï¿½i + 1ï¿½ï¿½ï¿½ï¿½Îª ï¿½Â¼ï¿½ï¿½ï¿½Ö¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»Î»ï¿½ï¿½ï¿½ï¿½CONNECT_BITï¿½ï¿½Õ¼ï¿½ï¿½ TASK2_BITï¿½Ç´Óµï¿½BIT1ï¿½ï¿½Ê¼
 						sprintf(taskName,"tcp_server_dealwith%d",i);
-						//´òÓ¡remoteInfoµÄÄÚÈÝÈ»ºóÔÙ½¨Á¢ÈÎÎñ
+						//ï¿½ï¿½Ó¡remoteInfoï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È»ï¿½ï¿½ï¿½Ù½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 						//ESP_LOGI(TAG,"Currently socket NO:%d IP is:%s PORT is:%d",sock,remoteInfo.remoteIp,remoteInfo.remotePort);
 						task_sock[i] = remoteInfo.sock;
 						int res1 = xTaskCreate(taskList[i], taskName,	4096, (void *)&remoteInfo,7, &Task_handle[i]);
 						//assert(res1 == pdTRUE);
 						sprintf(debug_buffer,"xTaskCreate %d\r",i);
 						debug_info(debug_buffer);
-						break; //Èç¹û³É¹¦µÄ´´½¨ÁËÒ»¸öÈÎÎñ¾ÍÓ¦¸Ã½áÊø±¾´Î²éÕÒÁË
+						break; //ï¿½ï¿½ï¿½ï¿½É¹ï¿½ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½Ã½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î²ï¿½ï¿½ï¿½ï¿½ï¿½
 					}
 				}
 				vTaskDelay(200 / portTICK_PERIOD_MS);
@@ -1105,7 +1107,7 @@ static void tcp_server_task(void *pvParameters)
 				close(listen_sock);
 			}
 
-			vTaskDelay(5000 / portTICK_PERIOD_MS); //5ÃëÖÓºóÔÙÖØÐÂÖ´ÐÐ
+			vTaskDelay(5000 / portTICK_PERIOD_MS); //5ï¿½ï¿½ï¿½Óºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½
 	}
 	vTaskDelete(NULL);
 }
@@ -1351,7 +1353,7 @@ static void tcp_client_task(void *pvParameters)
     		}
 
     	}
-    		// ¶Ánetwork modbus point
+    		// ï¿½ï¿½network modbus point
     		for(network_point_index = 0;network_point_index < number_of_network_points_modbus;network_point_index++)
     		{
     			if(network_points_list_modbus[network_point_index].lose_count > 3)
@@ -1525,7 +1527,7 @@ static void tcp_client_task(void *pvParameters)
 					}
 
 
-    		}// end ¶Ánetwork modbus point
+    		}// end ï¿½ï¿½network modbus point
     	}
     	else
     	{
@@ -1560,7 +1562,7 @@ void Inital_Bacnet_Server(void)
 			((panelname[0] == 255) && (panelname[1] == 255) && (panelname[2] == 255)) )
 	{
 
-			Set_Object_Name("T3-XB-ESP");
+		Set_Object_Name("T3-XB-ESP");
 	}
 	else
 		Set_Object_Name(panelname);
@@ -1598,6 +1600,13 @@ void Inital_Bacnet_Server(void)
 		BOS = 0;
 	}
 	if(Modbus.mini_type == PROJECT_POWER_METER)
+	{
+		AIS = 7;
+		AOS = 0;
+		AVS = 63;
+		BOS = 0;
+	}
+	if(Modbus.mini_type == PROJECT_AIRLAB)
 	{
 		AIS = 7;
 		AOS = 0;
@@ -1668,7 +1677,7 @@ void Master0_Node_task(void)
 
 	if( Modbus.com_config[0] == BACNET_MASTER)
 	{
-		Send_Whois_Flag = 1;Test[15]++;
+		Send_Whois_Flag = 1;
 	}
 	remote_bacnet_index = 0;
 	number_of_remote_points_bacnet = 0;
@@ -1681,7 +1690,7 @@ void Master0_Node_task(void)
 			if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
 			{
 				if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
-				{	Send_Whois_Flag = 1;Test[16]++;}
+					Send_Whois_Flag = 1;
 				count_start_task = 0;
 			}
 		}
@@ -1826,8 +1835,8 @@ void Master2_Node_task(void)
 		Send_I_Am_Flag = 1;
 	}
 
-	if( Modbus.com_config[2] == BACNET_MASTER){Test[17]++;
-		Send_Whois_Flag = 1;}
+	if( Modbus.com_config[2] == BACNET_MASTER)
+		Send_Whois_Flag = 1;
 	task_test.enable[11] = 1;
 	for (;;)
 	{
@@ -1837,7 +1846,7 @@ void Master2_Node_task(void)
 			if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
 			{
 				if(Modbus.com_config[2] == BACNET_MASTER )
-				{Test[18]++;
+				{
 					Send_Whois_Flag = 1;
 				}
 			}
@@ -1847,6 +1856,7 @@ void Master2_Node_task(void)
 		{
 			uint8_t count;
 			int invoke;
+#if 0
 			if(count_start_task % 100 == 0) // 1.5s
 			{
 				// check whether the device is online or offline
@@ -1935,14 +1945,13 @@ void Master2_Node_task(void)
 					}
 				}
 			}
-			//Test[20]++;
-			Test[15]++;
+#endif
 			pdu_len = dlmstp_receive(&src, &PDUBuffer2[0], sizeof(PDUBuffer), 2);
 			if(pdu_len)
 			{
-				led_main_rx++;
-				com_rx[2]++;
-				flagLED_main_rx = 1;
+				//led_main_rx++;
+				//com_rx[2]++;
+				//flagLED_main_rx = 1;
 				npdu_handler(&src, &PDUBuffer2[0], pdu_len, BAC_MSTP);
 			}
 		}
@@ -1957,6 +1966,7 @@ uint8_t get_protocal(uint8 port)
 	return Modbus.com_config[port];
 }
 
+#if 0
 void uart0_rx_task(void)
 {
 	uint8_t i;
@@ -2010,7 +2020,7 @@ void uart2_rx_task(void)
 	}
 
 }
-
+#endif
 uint32_t system_timer = 0;
 
 
@@ -2051,12 +2061,10 @@ void Timer_task(void)
 	for (;;)
 	{// 10ms
 		task_test.count[13]++;
-		//Test[0]++;
-		//Test[10] = Mstp_ForUs;
-		//Test[11] = Mstp_NotForUs;
+
 		if((Mstp_ForUs > 100) && (Mstp_NotForUs > 10))
 		{// MSTP error, reboot
-			//esp_restart();
+			//
 		}
 		Test[19] = SilenceTime;
 
@@ -2818,7 +2826,7 @@ void Bacnet_Control(void)
 		//trend_log_timer(0); // for standard trend log
 #endif
 		Check_Net_Point_Table();
-		vTaskDelay(500 / portTICK_RATE_MS);
+		vTaskDelay(1000 / portTICK_RATE_MS);
 
 	}
 
@@ -2834,11 +2842,7 @@ void app_main()
      * Read "Establishing Wi-Fi or Ethernet Connection" section in
      * examples/protocols/README.md for more information about this function.
      */
-    //ESP_ERROR_CHECK(example_connect());
-	/*#if FAN
-   Modbus.mini_type = PROJECT_FAN_MODULE;
-    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
-#endif  */
+
 	SW_REV = SOFTREV;
 	count_reboot = 0;
 	read_default_from_flash();
@@ -2849,29 +2853,6 @@ void app_main()
 #if 1//I2C_TASK
    i2c_master_init();
 #endif
-/*#if FAN
-   Modbus.mini_type = PROJECT_FAN_MODULE;
-    holding_reg_params.which_project = PROJECT_FAN_MODULE;//PROJECT_SAUTER;//
-#endif*/
-
-
-   /*if(holding_reg_params.which_project == PROJECT_SAUTER)
-   {
-      stm32_uart_init();
-   }
-   else if(holding_reg_params.which_project == PROJECT_FAN_MODULE)
-   {
-		holding_reg_params.fan_module_pwm2 = 0;
-		led_pwm_init();
-		led_init();
-		my_pcnt_init();
-		adc_init();
-   }*/
-    //microphone_init();
-    //SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
-    //connect_wifi();
-   //Modbus.com_config[0] = MODBUS_SLAVE;  // ONLY FOR TEST
-   Modbus.tcp_port = 502;
 #if 1//I2C_TASK
     if(Modbus.mini_type == PROJECT_FAN_MODULE)
     {
@@ -2882,7 +2863,6 @@ void app_main()
    		adc_init();
    		i2c_master_init();
     }
-
     if(Modbus.mini_type == PROJECT_TRANSDUCER)
 	{
 		led_pwm_init();
@@ -2897,8 +2877,8 @@ void app_main()
     }
 
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM
-    		|| Modbus.mini_type == MINI_BIG_ARM)
-    	xTaskCreate(i2c_master_task,"i2c_master_task", 2048, NULL, 10, &main_task_handle[0]);
+    		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == PROJECT_AIRLAB)
+    	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[0]);
 #endif
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, &main_task_handle[1]);
     network_EventHandle = xEventGroupCreate();
@@ -2908,29 +2888,25 @@ void app_main()
     xTaskCreate(bip_task, "bacnet ip", 4096, NULL, 5, &main_task_handle[5]);
     //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
 //#if FAN
-    if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER))
+    if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
+    		/*|| Modbus.mini_type == PROJECT_AIRLAB)*/)
         xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
 //#endif
-    Test[4] = 3;
-    //if(Modbus.mini_type == PROJECT_TSTAT9)
-    //	xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 8,&main_task_handle[6]);
+    if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
+    	xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 8,&main_task_handle[6]);
 
-    xTaskCreate(modbus0_task,"modbus0_task",4096, NULL, 11, &main_task_handle[7]);
     xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
-    xTaskCreate(uart0_rx_task,"uart0_rx_task",2048, NULL, 6, &main_task_handle[9]);
+    xTaskCreate(uart0_rx_task,"uart0_rx_task",4096, NULL, 6, &main_task_handle[9]);
 
     if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
     {
-	   xTaskCreate(modbus2_task,"modbus2_task",4096, NULL, 3, &main_task_handle[10]);
 	   xTaskCreate(Master2_Node_task,"mstp2_task",4096, NULL, 4, &main_task_handle[11]);
-	   xTaskCreate(uart2_rx_task,"uart2_rx_task",2048, NULL, 6, &main_task_handle[12]);
+	   xTaskCreate(uart2_rx_task,"uart2_rx_task",4096, NULL, 6, &main_task_handle[12]);
     }
 
  	xTaskCreate(Timer_task,"timer_task",2048, NULL, 7, &main_task_handle[13]);
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL,  12,&main_task_handle[14]);
-//	xTaskCreate(rtc_task,"rtc_task", 2048, NULL, 10, NULL);
 	vStartScanTask(5);
-
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
 }
@@ -2943,7 +2919,7 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 		holding_reg_params.led_rx485_tx = 2;
 //#endif
 	if(port == 0)
-	{ Test[12]++;
+	{
 		uart_write_bytes(UART_NUM_0, (const char *)p, length);
 
 	}
@@ -2951,6 +2927,7 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 	{
 		uart_write_bytes(UART_NUM_2, (const char *)p, length);
 	}
+
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
 	else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 	com_tx[port]++;

@@ -7,7 +7,7 @@
 #include <stdbool.h>
 
 //#include "sensirion_config.h"
-#define NO_ERROR 0
+//#define NO_ERROR 0
 /**
  * scd4x_start_periodic_measurement() - start periodic measurement, signal
  * update interval is 5 seconds.

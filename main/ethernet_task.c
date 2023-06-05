@@ -12,6 +12,8 @@
 #include "define.h"
 #include "wifi.h"
 
+void eth_start(void);
+
 static const char *TAG = "ethernet_task";
 //uint8_t mac_addr[6] = {0};
 
@@ -24,23 +26,23 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
 
     switch (event_id) {
-    case ETHERNET_EVENT_CONNECTED:
+    case ETHERNET_EVENT_CONNECTED:Test[24]++;
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr);
         ESP_LOGI(TAG, "Ethernet Link Up");
         //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        //memcpy(mac_addr, )
+        //memcpy(&Test[30],Modbus.mac_addr,6);
         Modbus.ethernet_status = ETHERNET_EVENT_CONNECTED;
         break;
-    case ETHERNET_EVENT_DISCONNECTED:
+    case ETHERNET_EVENT_DISCONNECTED:Test[25]++;
         ESP_LOGI(TAG, "Ethernet Link Down");
         Modbus.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
         break;
-    case ETHERNET_EVENT_START:
+    case ETHERNET_EVENT_START:Test[26]++;
         ESP_LOGI(TAG, "Ethernet Started");
         Modbus.ethernet_status = ETHERNET_EVENT_START;
         break;
-    case ETHERNET_EVENT_STOP:
+    case ETHERNET_EVENT_STOP:Test[27]++;
         ESP_LOGI(TAG, "Ethernet Stopped");
         Modbus.ethernet_status = ETHERNET_EVENT_STOP;
         break;
@@ -55,7 +57,7 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const tcpip_adapter_ip_info_t *ip_info = &event->ip_info;
-
+    Test[23]++;
     debug_info( "Ethernet Got IP Address");
     debug_info( "~~~~~~~~~~~");
     Modbus.ip_addr[0] = ip4_addr1(&ip_info->ip);
@@ -77,6 +79,7 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     debug_info( "~~~~~~~~~~~");
 }
 
+esp_eth_handle_t eth_handle = NULL;
 void ethernet_init(void)
 {
 	esp_err_t ret;
@@ -125,9 +128,20 @@ void ethernet_init(void)
 
 	esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
 	esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
-	esp_eth_handle_t eth_handle = NULL;
+//	esp_eth_handle_t eth_handle = NULL;
 	if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK){
 		debug_info("esp_eth_driver_install finished^^^^^^^^");}
 	if(esp_eth_start(eth_handle)){
 		debug_info("esp_eth_start finished^^^^^^^^");}
+}
+
+void eth_start(void)
+{
+	/*uint8_t ret;
+	//esp_eth_start(eth_handle);ret = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL);
+	ret = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL);
+	if(ret == ESP_OK)
+	{
+		debug_info("esp_event_handler_register(IP_EVENT_ETH_GOT_IP) finished^^^^^^^^");
+	}*/
 }

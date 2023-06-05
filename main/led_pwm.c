@@ -229,9 +229,9 @@ static void adc_task(void* arg)
         voltage = voltage*10/8;
         if(voltage>10000)
         	voltage = 10000;
-        Test[2] = adc_temp;
+       // Test[2] = adc_temp;
         holding_reg_params.fan_module_10k_temp = my_get_input_value_by_range(R10K_40_120DegC, adc_temp);
-        Test[3] = holding_reg_params.fan_module_10k_temp;
+       // Test[3] = holding_reg_params.fan_module_10k_temp;
         //holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
         holding_reg_params.fan_module_input_voltage = (uint16_t)voltage;
         //inputs[2].range = 1;
@@ -564,9 +564,9 @@ static void transducer_output_task(void* arg)
 				}
 			}
 			//tempDac /= 16;
-			Test[8] = target_temp_ad;
-			Test[9] = co2Dac;
-			Test[11]= target_co2_ad;
+			//Test[8] = target_temp_ad;
+			//Test[9] = co2Dac;
+			//Test[11]= target_co2_ad;
 			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, tempDac/16);
 			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, humDac/16);
 			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, co2Dac/16);
@@ -647,6 +647,8 @@ static void fan_led_task(void* arg)
 				gpio_set_level(LED_FAN_SPEED, (cnt) % 3);
 			else if((holding_reg_params.fan_module_pulse<256))//||(holding_reg_params.fan_module_pwm2>0))
 				gpio_set_level(LED_FAN_SPEED, (cnt) % 2);
+
+
 			if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
 			{
 				//gpio_set_level(LED_WIFI, 0);
@@ -839,6 +841,7 @@ typedef struct {
  */
 static void IRAM_ATTR pcnt_example_intr_handler(void *arg)
 {
+#if 0  // for test by chelsea
     uint32_t intr_status = PCNT.int_st.val;
     int i;
     pcnt_evt_t evt;
@@ -857,6 +860,7 @@ static void IRAM_ATTR pcnt_example_intr_handler(void *arg)
             //}
         }
     }
+#endif
 }
 
 /* Initialize PCNT functions:

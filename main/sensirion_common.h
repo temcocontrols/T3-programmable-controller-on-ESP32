@@ -34,6 +34,18 @@
 
 #include "sensirion_arch_config.h"
 
+typedef enum{
+  NO_ERROR       = 0x00, // no error
+  ACK_ERROR      = 0x01, // no acknowledgment error
+  CHECKSUM_ERROR = 0x02, // checksum mismatch error
+  TIMEOUT_ERROR  = 0x04, // timeout error
+  PARM_ERROR     = 0x80, // parameter out of range error
+}etError;
+
+typedef enum{
+  ACK  = 0,
+  NACK = 1,
+}etI2cAck;
 
 #define STATUS_OK 0
 #define STATUS_FAIL (-1)

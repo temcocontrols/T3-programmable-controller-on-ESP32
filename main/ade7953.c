@@ -233,14 +233,14 @@ void Ade7953GetData(void){
     } else {
         ade7953_active_power2 = Ade7953Read(0x212);  // Relay 2
     }
-	Test[8] = ((uint16_t)ade7953_voltage_rms) & 0xffff;
+	/*Test[8] = ((uint16_t)ade7953_voltage_rms) & 0xffff;
 	Test[9] = ((uint16_t)ade7953_voltage_rms >> 16) & 0xffff;
 
 
 	Test[10] = ade_7953_voltage & 0xffff;
 	Test[11] = (ade_7953_voltage >> 16) & 0xffff;
 	Test[12] = ade7953_active_power1 & 0xffff;
-	Test[13] = ade7953_active_power2 & 0xffff;
+	Test[13] = ade7953_active_power2 & 0xffff;*/
 
   //  os_printf("V: %d, A1: %d, A2: %d, P1: %d, P2: %d\n",ade7953_voltage_rms,ade7953_current_rms1,ade7953_current_rms2, ade7953_active_power1,ade7953_active_power2);
 }

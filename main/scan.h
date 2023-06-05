@@ -33,7 +33,7 @@ typedef struct
 }STR_NP_NODE_OPERATE;
 
 extern STR_NP_NODE_OPERATE NP_node_write[STACK_LEN];
-// À©Õ¹IOÓ³Éä
+// ï¿½ï¿½Õ¹IOÓ³ï¿½ï¿½
 typedef struct
 {
   U8_T sub_index;
@@ -89,8 +89,8 @@ extern U8_T current_online[32];
 extern U8_T current_online_ctr;
 extern U8_T reset_scan_db_flag;
 
-extern uint8_t flag_suspend_scan;
-extern uint8_t suspend_scan_count;
+extern U8_T flag_suspend_scan;
+extern U8_T suspend_scan_count;
 
 extern U8_T count_send_id_to_zigbee;
 

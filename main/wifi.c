@@ -68,21 +68,21 @@ void init_ssid_info()
 //#define WIFI_RETRY_NEED_INITIAL_COUNT  20
 unsigned char wifi_retry_count = 0;
 //unsigned char wifi_task_running = 1;
-//Fandu : µ÷ÓÃº¯Êý esp_wifi_connect()
-//ÈÃ wifi Çý¶¯ÔÙ´Î³¢ÊÔÓëÈÈµã½¨Á¢Á¬½Ó¡£Èç¹û½¨Á¢½¨Á¢³É¹¦£¬Ôò»áÔÙ´Î½øÈë CONNECT¡¢GOTIP ÕâÁ½¸ö×´Ì¬£»
-//Èç¹û½¨Á¢Á¬½ÓÊ§°Ü£¬»áÔÙ´Î½øÈë DISCONNECT ×´Ì¬£¬ÒÀ´Î·´¸´Ñ­»·£¬Ö±µ½Á¬½Ó³É¹¦ÎªÖ¹¡£ ¶ÏÍøÖØÁ¬
-//²»Ì«Ã÷°×ÎªÊ²Ã´ event_handler ÎªÊ²Ã´¶ÏÍøµÄÊ±ºò²»´¥·¢ SYSTEM_EVENT_STA_DISCONNECTED
+//Fandu : ï¿½ï¿½ï¿½Ãºï¿½ï¿½ï¿½ esp_wifi_connect()
+//ï¿½ï¿½ wifi ï¿½ï¿½ï¿½ï¿½ï¿½Ù´Î³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Èµã½¨ï¿½ï¿½ï¿½ï¿½ï¿½Ó¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù´Î½ï¿½ï¿½ï¿½ CONNECTï¿½ï¿½GOTIP ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½Ù´Î½ï¿½ï¿½ï¿½ DISCONNECT ×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½Î·ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½ï¿½ï¿½ï¿½Ó³É¹ï¿½ÎªÖ¹ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//ï¿½ï¿½Ì«ï¿½ï¿½ï¿½ï¿½ÎªÊ²Ã´ event_handler ÎªÊ²Ã´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ò²»´ï¿½ï¿½ï¿½ SYSTEM_EVENT_STA_DISCONNECTED
 esp_err_t event_handler_2(void *ctx, system_event_t *event)
 {
     switch (event->event_id)
     {
-    case SYSTEM_EVENT_STA_START:
+    case SYSTEM_EVENT_STA_START:Test[10]++;
         ESP_LOGI(TAG, "Connecting to AP...");
         debug_info("event_handler_2 esp_wifi_connect()");
         esp_wifi_connect();
         break;
 
-    case SYSTEM_EVENT_STA_GOT_IP:
+    case SYSTEM_EVENT_STA_GOT_IP:Test[11]++;
         ESP_LOGI(TAG, "Connected.");
         debug_info("event_handler_2 SYSTEM_EVENT_STA_GOT_IP");
         wifi_retry_count = 0;
@@ -90,7 +90,7 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
         //xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         break;
 
-    case SYSTEM_EVENT_STA_DISCONNECTED:
+    case SYSTEM_EVENT_STA_DISCONNECTED:Test[12]++;
     	//wifi_task_running = 0;
 
     	//debug_info("Wifi disconnected, try to connect ...");
@@ -152,7 +152,7 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
         //}
         break;
 
-    default:
+    default:Test[13]++;
         break;
     }
 
@@ -162,10 +162,10 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
-	/*
-	char temp_event[30];
-	sprintf(temp_event,"event_id %d ",(int)event_id);
+	/*char temp_event[30];
+	sprintf(temp_event,"event_id %d evernt base %d ",(int)event_id,(int)event_base);
 	debug_info(temp_event);
+
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
         esp_wifi_connect();
@@ -187,7 +187,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         }
         //ESP_LOGI(TAG,"connect to the AP fail");
     } else */
-    	if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+    	if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {Test[16]++;
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         const tcpip_adapter_ip_info_t *ip_info = &event->ip_info;
         //ESP_LOGI(TAG, "got ip:%s",
@@ -205,11 +205,79 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         SSID_Info.getway[1] = ip4_addr2(&ip_info->gw);
         SSID_Info.getway[2] = ip4_addr3(&ip_info->gw);
         SSID_Info.getway[3]= ip4_addr4(&ip_info->gw);
+        SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
 
+static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
+                               int32_t event_id, void *event_data)
+{
+    ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
+    esp_err_t err = esp_wifi_connect();
+    if (err == ESP_ERR_WIFI_NOT_STARTED) {
+        return;
+    }
+    SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+    ESP_ERROR_CHECK(err);
+}
+#if 0
+void wifi_init_sta()
+{
+	char *desc;
+	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+	esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
+	// Prefix the interface description with the module TAG
+	// Warning: the interface desc is used in tests to capture actual connection details (IP, gw, mask)
+	asprintf(&desc, "%s: %s", TAG, esp_netif_config.if_desc);
+	esp_netif_config.if_desc = desc;
+	esp_netif_config.route_prio = 128;
+	esp_netif_t *netif = esp_netif_create_wifi(WIFI_IF_STA, &esp_netif_config);
+	free(desc);
+	esp_wifi_set_default_wifi_sta_handlers();
+
+	ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect, NULL));
+	ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+
+	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+
+	wifi_config_t wifi_config = {
+	        .sta = {
+	            .pmf_cfg = {
+	                .capable = true,
+	                .required = false
+	            },
+	        },
+	    };
+	if(SSID_Info.name[0]!=0)
+	{
+		memcpy(wifi_config.sta.ssid, SSID_Info.name, 32);
+		memcpy(wifi_config.sta.password, SSID_Info.password, 32);
+	}
+	else
+	{
+		init_ssid_info();
+	}
+	SSID_Info.rev = 4;
+	if(SSID_Info.bacnet_port == 0)
+		SSID_Info.bacnet_port = 47808;
+	if(SSID_Info.modbus_port == 0)
+		SSID_Info.modbus_port = 502;
+
+	ESP_LOGI(TAG, "Connecting to %s...", wifi_config.sta.ssid);
+	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+	//ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+	if(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) != ESP_OK)
+		SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
+	ESP_ERROR_CHECK(esp_wifi_start());
+	esp_wifi_connect();
+
+}
+#endif
+#if 1
 void wifi_init_sta()
 {
 	//init_ssid_info();
@@ -293,12 +361,14 @@ void wifi_init_sta()
     	debug_info("wifi no connect\r");
     	SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
     }
+
     debug_info("esp_wifi_init");
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler));
     ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler));
     vEventGroupDelete(s_wifi_event_group);
 
 }
+#endif
 /*
 esp_err_t scan_event_handler(void *ctx, system_event_t *event)
 {
@@ -337,15 +407,24 @@ esp_err_t scan_event_handler(void *ctx, system_event_t *event)
 
 }
 */
+
+void check_rssi(void)
+{
+	uint8_t temp_rssi = 0;
+	esp_fill_random(&temp_rssi,1);
+	temp_rssi /= 15;
+	SSID_Info.rssi = temp_rssi - 95;
+}
+
 void wifi_task(void *pvParameters)
 {
 	uint8_t temp_rssi=0;
 	//read_default_from_flash();
 	//modbus_init();
-	debug_info("Finish flash init........");
+	//debug_info("Finish flash init........");
 	//ESP_ERROR_CHECK(ret);
-	//if(SSID_Info.MANUEL_EN == 1)
-	wifi_init_sta();
+	if(SSID_Info.MANUEL_EN == 1){	Test[20]++;
+		wifi_init_sta();}
     ESP_LOGI(TAG, "Finish wifi init");
     task_test.enable[1] = 1;
 	while(1)
@@ -373,6 +452,6 @@ void wifi_task(void *pvParameters)
 void connect_wifi(void)
 {
 	debug_info("Finish flash init........");
-	wifi_init_sta();
+	wifi_init_sta();Test[21]++;
 	debug_info("Finish wifi init%%%%%%%%%%");
 }

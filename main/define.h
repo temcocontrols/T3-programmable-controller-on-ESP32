@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6302
+#define SOFTREV     6303
 
 
 #define		SW_OFF 	 0
@@ -163,6 +163,7 @@ typedef	enum
 #define PROJECT_TRANSDUCER 	16
 #define PROJECT_TSTAT9		17
 #define PROJECT_SAUTER		18
+
 #define MAX_MINI_TYPE 		18
 
 extern STR_MODBUS Modbus;
