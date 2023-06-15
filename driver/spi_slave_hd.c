@@ -1,16 +1,8 @@
-// Copyright 2010-2020 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2010-2021 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -97,7 +89,7 @@ esp_err_t spi_slave_hd_init(spi_host_device_t host_id, const spi_bus_config_t *b
     host->dma_enabled = (config->dma_chan != SPI_DMA_DISABLED);
 
     if (host->dma_enabled) {
-        ret = spicommon_slave_dma_chan_alloc(host_id, config->dma_chan, &actual_tx_dma_chan, &actual_rx_dma_chan);
+        ret = spicommon_dma_chan_alloc(host_id, config->dma_chan, &actual_tx_dma_chan, &actual_rx_dma_chan);
         if (ret != ESP_OK) {
             goto cleanup;
         }
@@ -249,7 +241,7 @@ esp_err_t spi_slave_hd_deinit(spi_host_device_t host_id)
 
     spicommon_periph_free(host_id);
     if (host->dma_enabled) {
-        spicommon_slave_free_dma(host_id);
+        spicommon_dma_chan_free(host_id);
     }
     free(host);
     spihost[host_id] = NULL;
@@ -398,7 +390,7 @@ static IRAM_ATTR void spi_slave_hd_intr_append(void *arg)
     spi_slave_hd_callback_config_t *callback = &host->callback;
     spi_slave_hd_hal_context_t *hal = &host->hal;
     BaseType_t awoken = pdFALSE;
-    BaseType_t ret;
+    BaseType_t ret __attribute__((unused));
 
     bool tx_done = false;
     bool rx_done = false;

@@ -250,7 +250,6 @@ uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
 							val /= step;
 							val += limit[ran_in][0];
 						}
-						Test[8] = val / 1000;
 						return val;
 					}
 				}

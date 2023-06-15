@@ -1,16 +1,8 @@
-// Copyright 2015-2018 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 
 #include "sdkconfig.h"
@@ -138,6 +130,7 @@ static inline void twai_handle_rx_buffer_frames(BaseType_t *task_woken, int *ale
             //Valid frame copied from RX buffer
             if (xQueueSendFromISR(p_twai_obj->rx_queue, &frame, task_woken) == pdTRUE) {
                 p_twai_obj->rx_msg_count++;
+                twai_alert_handler(TWAI_ALERT_RX_DATA, alert_req);
             } else {    //Failed to send to queue
                 p_twai_obj->rx_missed_count++;
                 twai_alert_handler(TWAI_ALERT_RX_QUEUE_FULL, alert_req);
@@ -157,6 +150,7 @@ static inline void twai_handle_rx_buffer_frames(BaseType_t *task_woken, int *ale
             //Valid frame copied from RX buffer
             if (xQueueSendFromISR(p_twai_obj->rx_queue, &frame, task_woken) == pdTRUE) {
                 p_twai_obj->rx_msg_count++;
+                twai_alert_handler(TWAI_ALERT_RX_DATA, alert_req);
             } else {
                 p_twai_obj->rx_missed_count++;
                 twai_alert_handler(TWAI_ALERT_RX_QUEUE_FULL, alert_req);
@@ -399,8 +393,6 @@ cleanup:
     return NULL;
 }
 
-
-
 /* ---------------------------- Public Functions ---------------------------- */
 
 esp_err_t twai_driver_install(const twai_general_config_t *g_config, const twai_timing_config_t *t_config, const twai_filter_config_t *f_config)
@@ -446,6 +438,7 @@ esp_err_t twai_driver_install(const twai_general_config_t *g_config, const twai_
     periph_module_enable(PERIPH_TWAI_MODULE);            //Enable APB CLK to TWAI peripheral
     bool init = twai_hal_init(&twai_context);
     assert(init);
+    (void)init;
     twai_hal_configure(&twai_context, t_config, f_config, DRIVER_DEFAULT_INTERRUPTS, g_config->clkout_divider);
     TWAI_EXIT_CRITICAL();
 
@@ -572,6 +565,7 @@ esp_err_t twai_transmit(const twai_message_t *message, TickType_t ticks_to_wait)
                     //Manually start a transmission
                     int res = xQueueReceive(p_twai_obj->tx_queue, &tx_frame, 0);
                     assert(res == pdTRUE);
+                    (void)res;
                     twai_hal_set_tx_buffer_and_transmit(&twai_context, &tx_frame);
                     p_twai_obj->tx_msg_count++;
                     ret = ESP_OK;

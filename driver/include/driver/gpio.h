@@ -1,26 +1,22 @@
-// Copyright 2015-2019 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #pragma once
+
 #include "sdkconfig.h"
 #include "esp_err.h"
+#include <stdbool.h>
+#include "esp_intr_alloc.h"
+#if !CONFIG_IDF_TARGET_LINUX
 #include <esp_types.h>
 #include <esp_bit_defs.h>
 #include "esp_attr.h"
-#include "esp_intr_alloc.h"
 #include "soc/soc_caps.h"
 #include "soc/gpio_periph.h"
+#endif // !CONFIG_IDF_TARGET_LINUX
 #include "hal/gpio_types.h"
 
 // |================================= WARNING ====================================================== |
@@ -31,8 +27,14 @@
 #include "esp32/rom/gpio.h"
 #elif CONFIG_IDF_TARGET_ESP32S2
 #include "esp32s2/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rom/gpio.h"
 #elif CONFIG_IDF_TARGET_ESP32C3
 #include "esp32c3/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rom/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/rom/gpio.h"
 #endif
 
 #ifdef CONFIG_LEGACY_INCLUDE_COMMON_HEADERS
@@ -48,7 +50,9 @@ extern "C" {
 #define GPIO_IS_VALID_GPIO(gpio_num)        (((1ULL << (gpio_num)) & SOC_GPIO_VALID_GPIO_MASK) != 0)
 /// Check whether it can be a valid GPIO number of output mode
 #define GPIO_IS_VALID_OUTPUT_GPIO(gpio_num) (((1ULL << (gpio_num)) & SOC_GPIO_VALID_OUTPUT_GPIO_MASK) != 0)
-
+/// Check whether it can be a valid digital I/O pad
+#define GPIO_IS_VALID_DIGITAL_IO_PAD(gpio_num) ((gpio_num >= 0) && \
+                                                 (((1ULL << (gpio_num)) & SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK) != 0))
 
 typedef intr_handle_t gpio_isr_handle_t;
 
@@ -95,9 +99,9 @@ esp_err_t gpio_set_intr_type(gpio_num_t gpio_num, gpio_int_type_t intr_type);
 /**
  * @brief  Enable GPIO module interrupt signal
  *
- * @note Please do not use the interrupt of GPIO36 and GPIO39 when using ADC or Wi-Fi with sleep mode enabled.
+ * @note ESP32: Please do not use the interrupt of GPIO36 and GPIO39 when using ADC or Wi-Fi and Bluetooth with sleep mode enabled.
  *       Please refer to the comments of `adc1_get_raw`.
- *       Please refer to section 3.11 of 'ECO_and_Workarounds_for_Bugs_in_ESP32' for the description of this issue.
+ *       Please refer to Section 3.11 of <a href="https://espressif.com/documentation/eco_and_workarounds_for_bugs_in_esp32_en.pdf">ESP32 ECO and Workarounds for Bugs</a> for the description of this issue.
  *       As a workaround, call adc_power_acquire() in the app. This will result in higher power consumption (by ~1mA),
  *       but will remove the glitches on GPIO36 and GPIO39.
  *
@@ -167,7 +171,7 @@ esp_err_t gpio_set_direction(gpio_num_t gpio_num, gpio_mode_t mode);
 /**
  * @brief  Configure GPIO pull-up/pull-down resistors
  *
- * Only pins that support both input & output have integrated pull-up and pull-down resistors. Input-only GPIOs 34-39 do not.
+ * @note ESP32: Only pins that support both input & output have integrated pull-up and pull-down resistors. Input-only GPIOs 34-39 do not.
  *
  * @param  gpio_num GPIO number. If you want to set pull up or down mode for e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
  * @param  pull GPIO pull up/down mode.
@@ -213,9 +217,9 @@ esp_err_t gpio_wakeup_disable(gpio_num_t gpio_num);
  * per-GPIO ISRs.
  *
  * @param  fn  Interrupt handler function.
+ * @param  arg  Parameter for handler function
  * @param  intr_alloc_flags Flags used to allocate the interrupt. One or multiple (ORred)
  *            ESP_INTR_FLAG_* values. See esp_intr_alloc.h for more info.
- * @param  arg  Parameter for handler function
  * @param  handle Pointer to return handle. If non-NULL, a handle for the interrupt will be returned here.
  *
  * \verbatim embed:rst:leading-asterisk
@@ -482,7 +486,7 @@ esp_err_t gpio_sleep_set_direction(gpio_num_t gpio_num, gpio_mode_t mode);
 /**
  * @brief  Configure GPIO pull-up/pull-down resistors at sleep
  *
- * Only pins that support both input & output have integrated pull-up and pull-down resistors. Input-only GPIOs 34-39 do not.
+ * @note ESP32: Only pins that support both input & output have integrated pull-up and pull-down resistors. Input-only GPIOs 34-39 do not.
  *
  * @param  gpio_num GPIO number. If you want to set pull up or down mode for e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
  * @param  pull GPIO pull up/down mode.
@@ -496,7 +500,8 @@ esp_err_t gpio_sleep_set_pull_mode(gpio_num_t gpio_num, gpio_pull_mode_t pull);
 
 #if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
 
-#define GPIO_IS_DEEP_SLEEP_WAKEUP_VALID_GPIO(gpio_num)        ((gpio_num & ~SOC_GPIO_DEEP_SLEEP_WAKEUP_VALID_GPIO_MASK) == 0)
+#define GPIO_IS_DEEP_SLEEP_WAKEUP_VALID_GPIO(gpio_num)    ((gpio_num >= 0) && \
+                                                          (((1ULL << (gpio_num)) & SOC_GPIO_DEEP_SLEEP_WAKEUP_VALID_GPIO_MASK) != 0))
 
 /**
  * @brief Enable GPIO deep-sleep wake-up function.

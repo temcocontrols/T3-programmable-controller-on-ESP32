@@ -105,7 +105,7 @@ void handler_write_property_multiple(
             /* Opening tag 1 - List of Properties */
             if (decode_is_opening_tag_number(&service_request[decode_len++],
                     1)) {
-                do {Test[1]++;
+                do {
                     /* decode a 'Property Identifier'; (3) an optional 'Property Array Index' */
                     /* (4) a 'Property Value'; and (5) an optional 'Priority'. */
                     len =
@@ -127,7 +127,7 @@ void handler_write_property_multiple(
                             len = BACNET_STATUS_ERROR;
                             goto WPM_ABORT;
                         }
-                    } else {Test[2]++;
+                    } else {
 #if PRINT_ENABLED
                         fprintf(stderr, "WPM: Bad Encoding!\n");
 #endif

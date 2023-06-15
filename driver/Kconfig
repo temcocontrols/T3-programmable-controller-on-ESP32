@@ -21,6 +21,20 @@ menu "Driver configurations"
 
     endmenu  # ADC Configuration
 
+    menu "MCPWM configuration"
+
+        config MCPWM_ISR_IN_IRAM
+            bool "Place MCPWM ISR function into IRAM"
+            default n
+            help
+                If this option is not selected, the MCPWM interrupt will be deferred when the Cache
+                is in a disabled state (e.g. Flash write/erase operation).
+
+                Note that if this option is selected, all user registered ISR callbacks should never
+                try to use cache as well. (with IRAM_ATTR)
+
+    endmenu # MCPWM Configuration
+
     menu "SPI configuration"
 
         config SPI_MASTER_IN_IRAM
@@ -135,6 +149,7 @@ menu "Driver configurations"
 
         config UART_ISR_IN_IRAM
             bool "Place UART ISR function into IRAM"
+            depends on !RINGBUF_PLACE_ISR_FUNCTIONS_INTO_FLASH
             default n
             help
                 If this option is not selected, UART interrupt will be disabled for a long time and
@@ -169,5 +184,23 @@ menu "Driver configurations"
                 and about 450B of source codes would be placed into IRAM.
 
     endmenu # GPIO Configuration
+
+    menu "GDMA Configuration"
+        config GDMA_CTRL_FUNC_IN_IRAM
+            bool "Place GDMA control functions into IRAM"
+            default n
+            help
+                Place GDMA control functions (like start/stop/append/reset) into IRAM,
+                so that these functions can be IRAM-safe and able to be called in the other IRAM interrupt context.
+                Enabling this option can improve driver performance as well.
+
+        config GDMA_ISR_IRAM_SAFE
+            bool "GDMA ISR IRAM-Safe"
+            default n
+            help
+                This will ensure the GDMA interrupt handler is IRAM-Safe, allow to avoid flash
+                cache misses, and also be able to run whilst the cache is disabled.
+                (e.g. SPI Flash write).
+    endmenu # GDMA Configuration
 
 endmenu  # Driver configurations

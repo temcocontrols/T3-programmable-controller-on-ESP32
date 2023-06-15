@@ -578,7 +578,6 @@ unsigned Device_Object_List_Count( void)
 #if BAC_FILE
 	count += bacfile_count();
 #endif
-	Test[23] = count + 10;
     return count;
 }
 
@@ -1062,13 +1061,13 @@ int Device_Encode_Property_APDU(
         case TEMCO_REG2:  // VALUE
        // case TEMCO_REG3:
 			for (i = 0; i <= MAX_REG; i++)
-			{Test[32]++;
+			{
 				len = encode_application_unsigned(&apdu[apdu_len],
 								get_reg_value(i));
 				apdu_len += len;
 				/* assume next one is the same size as this one */
 				/* can we all fit into the APDU? */
-				if ((apdu_len + len) >= MAX_APDU) { Test[33]++;
+				if ((apdu_len + len) >= MAX_APDU) {
 						/* Abort response */
 						*error_code =
 								ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;

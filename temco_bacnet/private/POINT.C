@@ -677,7 +677,7 @@ void Check_Net_Point_Table(void)
 	REMOTE_POINTS *ptr;
 	NETWORK_POINTS *ptr1 = NULL;
 	U8_T i;
-	U8_T product = 0;
+	U8_T product;
 
 	ptr = &remote_points_list_modbus[0];
 	if(number_of_remote_points_modbus < MAXREMOTEPOINTS)

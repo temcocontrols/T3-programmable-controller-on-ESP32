@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 // RMT driver unit test is based on extended NEC protocol
 #include <stdio.h>
 #include <string.h>
@@ -13,11 +18,11 @@
 #include "test_utils.h"
 #include "esp_rom_gpio.h"
 
-#define RMT_RX_CHANNEL_ENCODING_START (SOC_RMT_CHANNELS_NUM-SOC_RMT_TX_CHANNELS_NUM)
-#define RMT_TX_CHANNEL_ENCODING_END   (SOC_RMT_TX_CHANNELS_NUM-1)
+#define RMT_RX_CHANNEL_ENCODING_START (SOC_RMT_CHANNELS_PER_GROUP-SOC_RMT_TX_CANDIDATES_PER_GROUP)
+#define RMT_TX_CHANNEL_ENCODING_END   (SOC_RMT_TX_CANDIDATES_PER_GROUP-1)
 
 // CI ONLY: Don't connect any other signals to this GPIO
-#define RMT_DATA_IO (4) // bind signal RMT_SIG_OUT0_IDX and RMT_SIG_IN0_IDX on the same GPIO
+#define RMT_DATA_IO (0) // bind signal RMT_SIG_OUT0_IDX and RMT_SIG_IN0_IDX on the same GPIO
 
 #define RMT_TESTBENCH_FLAGS_ALWAYS_ON (1<<0)
 #define RMT_TESTBENCH_FLAGS_CARRIER_ON (1<<1)
@@ -113,7 +118,7 @@ TEST_CASE("RMT wrong configuration", "[rmt]")
     TEST_ASSERT(rmt_config(&wrong_config) == ESP_ERR_INVALID_ARG);
 
     wrong_config = correct_config;
-    wrong_config.channel = SOC_RMT_CHANNELS_NUM;
+    wrong_config.channel = SOC_RMT_CHANNELS_PER_GROUP;
     TEST_ASSERT(rmt_config(&wrong_config) == ESP_ERR_INVALID_ARG);
 
     wrong_config = correct_config;
@@ -181,24 +186,24 @@ TEST_CASE("RMT miscellaneous functions", "[rmt]")
 TEST_CASE("RMT multiple channels", "[rmt]")
 {
     rmt_config_t tx_cfg = RMT_DEFAULT_CONFIG_TX(RMT_DATA_IO, 0);
-    for (int i = 0; i < SOC_RMT_TX_CHANNELS_NUM; i++) {
+    for (int i = 0; i < SOC_RMT_TX_CANDIDATES_PER_GROUP; i++) {
         tx_cfg.channel = i;
         TEST_ESP_OK(rmt_config(&tx_cfg));
         TEST_ESP_OK(rmt_driver_install(tx_cfg.channel, 0, 0));
     }
 
-    for (int i = 0; i < SOC_RMT_TX_CHANNELS_NUM; i++) {
+    for (int i = 0; i < SOC_RMT_TX_CANDIDATES_PER_GROUP; i++) {
         TEST_ESP_OK(rmt_driver_uninstall(i));
     }
 
     rmt_config_t rx_cfg = RMT_DEFAULT_CONFIG_RX(RMT_DATA_IO, RMT_RX_CHANNEL_ENCODING_START);
-    for (int i = RMT_RX_CHANNEL_ENCODING_START; i < SOC_RMT_CHANNELS_NUM; i++) {
+    for (int i = RMT_RX_CHANNEL_ENCODING_START; i < SOC_RMT_CHANNELS_PER_GROUP; i++) {
         rx_cfg.channel = i;
         TEST_ESP_OK(rmt_config(&rx_cfg));
         TEST_ESP_OK(rmt_driver_install(rx_cfg.channel, 0, 0));
     }
 
-    for (int i = RMT_RX_CHANNEL_ENCODING_START; i < SOC_RMT_CHANNELS_NUM; i++) {
+    for (int i = RMT_RX_CHANNEL_ENCODING_START; i < SOC_RMT_CHANNELS_PER_GROUP; i++) {
         TEST_ESP_OK(rmt_driver_uninstall(i));
     }
 }
@@ -206,11 +211,14 @@ TEST_CASE("RMT multiple channels", "[rmt]")
 TEST_CASE("RMT install/uninstall test", "[rmt]")
 {
     rmt_config_t tx_cfg = RMT_DEFAULT_CONFIG_TX(RMT_DATA_IO, RMT_TX_CHANNEL_ENCODING_END);
+    // uninstall function is allowed to be called at any time
+    TEST_ESP_OK(rmt_driver_uninstall(tx_cfg.channel));
     TEST_ESP_OK(rmt_config(&tx_cfg));
     for (int i = 0; i < 100; i++) {
         TEST_ESP_OK(rmt_driver_install(tx_cfg.channel, 1000, 0));
         TEST_ESP_OK(rmt_driver_uninstall(tx_cfg.channel));
     }
+    TEST_ESP_OK(rmt_driver_uninstall(tx_cfg.channel));
     rmt_config_t rx_cfg = RMT_DEFAULT_CONFIG_RX(RMT_DATA_IO, RMT_RX_CHANNEL_ENCODING_START);
     TEST_ESP_OK(rmt_config(&rx_cfg));
     for (int i = 0; i < 100; i++) {
@@ -343,12 +351,12 @@ TEST_CASE("RMT NEC TX and RX (Modulation/Demodulation)", "[rmt]")
 }
 #endif
 
-TEST_CASE("RMT TX (SOC_RMT_CHANNEL_MEM_WORDS-1) symbols", "[rmt][boundary]")
+TEST_CASE("RMT TX (SOC_RMT_MEM_WORDS_PER_CHANNEL-1) symbols", "[rmt][boundary]")
 {
     int tx_channel = 0;
     rmt_setup_testbench(tx_channel, -1, 0);
-    rmt_item32_t *items = malloc(sizeof(rmt_item32_t) * (SOC_RMT_CHANNEL_MEM_WORDS - 1));
-    for (int i = 0; i < SOC_RMT_CHANNEL_MEM_WORDS - 1; i++) {
+    rmt_item32_t *items = malloc(sizeof(rmt_item32_t) * (SOC_RMT_MEM_WORDS_PER_CHANNEL - 1));
+    for (int i = 0; i < SOC_RMT_MEM_WORDS_PER_CHANNEL - 1; i++) {
         items[i] = (rmt_item32_t) {
             {{
                     200, 1, 200, 0
@@ -356,7 +364,7 @@ TEST_CASE("RMT TX (SOC_RMT_CHANNEL_MEM_WORDS-1) symbols", "[rmt][boundary]")
             }
         };
     }
-    TEST_ESP_OK(rmt_write_items(tx_channel, items, SOC_RMT_CHANNEL_MEM_WORDS - 1, 1));
+    TEST_ESP_OK(rmt_write_items(tx_channel, items, SOC_RMT_MEM_WORDS_PER_CHANNEL - 1, 1));
     free(items);
     rmt_clean_testbench(tx_channel, -1);
 }
@@ -431,7 +439,7 @@ TEST_CASE("RMT Ping-Pong operation", "[rmt]")
 {
     int tx_channel = 0;
     int rx_channel = RMT_RX_CHANNEL_ENCODING_START + 1;
-    rmt_item32_t frames[SOC_RMT_CHANNEL_MEM_WORDS * 2]; // send two block data using ping-pong
+    rmt_item32_t frames[SOC_RMT_MEM_WORDS_PER_CHANNEL * 2]; // send two block data using ping-pong
     RingbufHandle_t rb = NULL;
     uint32_t size = sizeof(frames) / sizeof(frames[0]);
 
@@ -472,7 +480,7 @@ TEST_CASE("RMT Ping-Pong operation", "[rmt]")
     rmt_clean_testbench(tx_channel, rx_channel);
 }
 #endif
-#if SOC_RMT_SUPPORT_TX_GROUP
+#if SOC_RMT_SUPPORT_TX_SYNCHRO
 static uint32_t tx_end_time0, tx_end_time1;
 static void rmt_tx_end_cb(rmt_channel_t channel, void *arg)
 {
@@ -484,7 +492,7 @@ static void rmt_tx_end_cb(rmt_channel_t channel, void *arg)
 }
 TEST_CASE("RMT TX simultaneously", "[rmt]")
 {
-    rmt_item32_t frames[SOC_RMT_CHANNEL_MEM_WORDS];
+    rmt_item32_t frames[SOC_RMT_MEM_WORDS_PER_CHANNEL];
     uint32_t size = sizeof(frames) / sizeof(frames[0]);
     int channel0 = 0;
     int channel1 = 1;

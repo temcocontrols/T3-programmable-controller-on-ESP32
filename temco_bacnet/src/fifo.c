@@ -260,16 +260,14 @@ bool FIFO_Put(
 {
     bool status = false;        /* return value */
     unsigned index;
-	Test[6] = 1;
-	Test[5]++;
-    if (b) {Test[6] = 2;
+    if (b) {
         /* limit the buffer to prevent overwriting */
         if (!FIFO_Full(b)) 
 		{
             index = b->head % b->buffer_len;
             b->buffer[index] = data_byte;
-            b->head++;Test[9]++;
-            status = true;Test[6] = 3;
+            b->head++;
+            status = true;
         }
     }
 
@@ -345,7 +343,6 @@ void FIFO_Init(
         b->tail = 0;
         b->buffer = buffer;
         b->buffer_len = buffer_len;
-		Test[7] = b->buffer_len + 100;
     }
 	
     return;

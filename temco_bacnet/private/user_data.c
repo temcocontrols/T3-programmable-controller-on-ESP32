@@ -84,7 +84,7 @@ EXT_RAM_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
 EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];// _at_ 0x20000;
 EXT_RAM_ATTR Str_out_point outputs[MAX_OUTS];//_at_ 0x22000;
 U8_T  month_length[12];// = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-//U8_T  table_week[12];// = {0, 3, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5};	//ÔÂÐÞÕýÊý¾Ý±í	  
+//U8_T  table_week[12];// = {0, 3, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5};	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý±ï¿½	  
 
 Info_Table									 	info[18];// _at_ 0x41000;
 EXT_RAM_ATTR S8_T   							var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
@@ -674,7 +674,7 @@ void Sync_Panel_Info(void)
 	Panel_Info.reg.modbus_port = Modbus.tcp_port;
 	Panel_Info.reg.hw = Modbus.hardRev;
 
- //   E2prom_Read_Byte(EEP_TIME_ZONE_LO, &temp[0]); //fandu add timezone ÐèÒª´ÓEEPÀï¶ÁÈ¡
+ //   E2prom_Read_Byte(EEP_TIME_ZONE_LO, &temp[0]); //fandu add timezone ï¿½ï¿½Òªï¿½ï¿½EEPï¿½ï¿½ï¿½È¡
  //   E2prom_Read_Byte(EEP_TIME_ZONE_HI, &temp[1]);
  //   timezone = temp[1] * 256 + temp[0];
 
@@ -1253,17 +1253,17 @@ void Send_SUB_I_Am(uint8_t index)
 
 void chech_mstp_collision(void)
 {
-	Test[0]++;//collision[2]++;
+	//Test[0]++;//collision[2]++;
 }
 
 void check_mstp_packet_error(void)
 {
-	Test[1]++;//packet_error[2]++;
+	//Test[1]++;//packet_error[2]++;
 }
 
 void check_mstp_timeout(void)
 {
-	Test[2]++;//timeout[2]++;
+	//Test[2]++;//timeout[2]++;
 }
 
 #if 1 //BAC_POINT

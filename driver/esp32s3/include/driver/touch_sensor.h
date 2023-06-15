@@ -1,23 +1,16 @@
-// Copyright 2019-2020 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * SPDX-FileCopyrightText: 2019-2021 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #pragma once
+
+#include "driver/touch_sensor_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "driver/touch_sensor_common.h"
 
 /**
  * @brief Set touch sensor FSM start
@@ -46,15 +39,19 @@ esp_err_t touch_pad_sw_start(void);
  * @brief Set touch sensor times of charge and discharge and sleep time.
  *        Excessive total time will slow down the touch response.
  *        Too small measurement time will not be sampled enough, resulting in inaccurate measurements.
- *
+ * @note  Though this API name is same as ESP32, it has opposite logic of capacity.
+ *        The touch sensor on ESP32-S3 will fix the count of charge and discharge cycles (specified by the second parameter)
+ *        and then record the count of the clock cycles(which is 8 MHz) during the sensing period as the raw value.
+ *        That means the raw value will increase as the capacity of the touch pad increasing.
  * @note The greater the duty cycle of the measurement time, the more system power is consumed.
+ *
  * @param sleep_cycle The touch sensor will sleep after each measurement.
  *                    sleep_cycle decide the interval between each measurement.
  *                    t_sleep = sleep_cycle / (RTC_SLOW_CLK frequency).
  *                    The approximate frequency value of RTC_SLOW_CLK can be obtained using rtc_clk_slow_freq_get_hz function.
- * @param meas_times The times of charge and discharge in each measure process of touch channels.
- *                  The timer frequency is 8Mhz. Range: 0 ~ 0xffff.
- *                  Recommended typical value: Modify this value to make the measurement time around 1ms.
+ * @param meas_times The times of charge and discharge in each measurement of touch channels.  Range: 0 ~ 0xffff.
+ *                   Recommended typical value: Modify this value to make the measurement time around 1 ms.
+ *                   The clock frequency is 8 MHz, so the raw value will be about 8000 if the measurement time is 1 ms
  * @return
  *      - ESP_OK on success
  */
@@ -70,7 +67,7 @@ esp_err_t touch_pad_set_meas_time(uint16_t sleep_cycle, uint16_t meas_times);
 esp_err_t touch_pad_get_meas_time(uint16_t *sleep_cycle, uint16_t *meas_times);
 
 /**
- * @brief Set connection type of touch channel in idle status.
+ * @brief Set the connection type of touch channels in idle status.
  *        When a channel is in measurement mode, other initialized channels are in idle mode.
  *        The touch channel is generally adjacent to the trace, so the connection state of the idle channel
  *        affects the stability and sensitivity of the test channel.
@@ -83,7 +80,7 @@ esp_err_t touch_pad_get_meas_time(uint16_t *sleep_cycle, uint16_t *meas_times);
 esp_err_t touch_pad_set_idle_channel_connect(touch_pad_conn_type_t type);
 
 /**
- * @brief Set connection type of touch channel in idle status.
+ * @brief Get the connection type of touch channels in idle status.
  *        When a channel is in measurement mode, other initialized channels are in idle mode.
  *        The touch channel is generally adjacent to the trace, so the connection state of the idle channel
  *        affects the stability and sensitivity of the test channel.
@@ -187,6 +184,7 @@ uint32_t touch_pad_read_intr_status_mask(void);
 
 /**
  * @brief Enable touch sensor interrupt by bitmask.
+ * @note  This API can be called in ISR handler.
  * @param int_mask Pad mask to enable interrupts
  * @return
  *      - ESP_OK on success
@@ -195,6 +193,7 @@ esp_err_t touch_pad_intr_enable(touch_pad_intr_mask_t int_mask);
 
 /**
  * @brief Disable touch sensor interrupt by bitmask.
+ * @note  This API can be called in ISR handler.
  * @param int_mask Pad mask to disable interrupts
  * @return
  *      - ESP_OK on success
@@ -298,7 +297,7 @@ esp_err_t touch_pad_reset_benchmark(touch_pad_t touch_num);
  * @return
  *     - ESP_OK Success
  */
-esp_err_t touch_pad_filter_set_config(touch_filter_config_t *filter_info);
+esp_err_t touch_pad_filter_set_config(const touch_filter_config_t *filter_info);
 
 /**
  * @brief get parameter of touch sensor filter and detection algorithm.
@@ -336,7 +335,7 @@ esp_err_t touch_pad_filter_disable(void);
  * @return
  *     - ESP_OK Success
  */
-esp_err_t touch_pad_denoise_set_config(touch_pad_denoise_t *denoise);
+esp_err_t touch_pad_denoise_set_config(const touch_pad_denoise_t *denoise);
 
 /**
  * @brief get parameter of denoise pad (TOUCH_PAD_NUM0).
@@ -385,7 +384,7 @@ esp_err_t touch_pad_denoise_read_data(uint32_t *data);
  * @return
  *     - ESP_OK Success
  */
-esp_err_t touch_pad_waterproof_set_config(touch_pad_waterproof_t *waterproof);
+esp_err_t touch_pad_waterproof_set_config(const touch_pad_waterproof_t *waterproof);
 
 /**
  * @brief get parameter of waterproof function.
