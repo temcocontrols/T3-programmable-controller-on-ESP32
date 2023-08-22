@@ -77,6 +77,7 @@ int16_t sensirion_i2c_write_data(uint8_t address, const uint8_t* data,
     return sensirion_i2c_write(address, data, data_length);
 }
 
+extern uint16_t Test[50];
 int16_t sensirion_i2c_read_data_inplace(uint8_t address, uint8_t* buffer,
                                         uint16_t expected_data_length) {
     int16_t error;
@@ -84,22 +85,21 @@ int16_t sensirion_i2c_read_data_inplace(uint8_t address, uint8_t* buffer,
     uint16_t size = (expected_data_length / SENSIRION_WORD_SIZE) *
                     (SENSIRION_WORD_SIZE + CRC8_LEN);
 
-    if (expected_data_length % SENSIRION_WORD_SIZE != 0) {
+    if (expected_data_length % SENSIRION_WORD_SIZE != 0)
         return 4;//BYTE_NUM_ERROR
-    }
+
 
     error = sensirion_i2c_read(address, buffer, size);
-    if (error) {
-        return error;
-    }
+    if(error != 0)
+    	return 2;//I2C_BUS_ERROR
 
     for (i = 0, j = 0; i < size; i += SENSIRION_WORD_SIZE + CRC8_LEN) {
 
         error = sensirion_i2c_check_crc(&buffer[i], SENSIRION_WORD_SIZE,
                                         buffer[i + SENSIRION_WORD_SIZE]);
-        if (error) {
-            return error;
-        }
+        if(error != 0)
+            return 2;//I2C_BUS_ERROR
+
         buffer[j++] = buffer[i];
         buffer[j++] = buffer[i + 1];
     }
@@ -174,12 +174,8 @@ int16_t sensirion_i2c_read_bytes(uint8_t address, uint8_t *data,
     if (ret != STATUS_OK)
         return ret;
 
-    if(address == SCD40_SENSOR_ADDR)
-    {
-    	g_sensors.co2 = (uint16_t)(buf8[0]<<8) + buf8[1];
-    }
-    else
-    {
+
+
 		/* check the CRC for each word */
 		for (i = 0, j = 0; i < size; i += SENSIRION_WORD_SIZE + CRC8_LEN) {
 
@@ -191,7 +187,7 @@ int16_t sensirion_i2c_read_bytes(uint8_t address, uint8_t *data,
 			data[j++] = buf8[i];
 			data[j++] = buf8[i + 1];
 		}
-    }
+
 
     return STATUS_OK;
 }
@@ -205,15 +201,11 @@ int16_t sensirion_i2c_read_words(uint8_t address, uint16_t *data_words,
     if (ret != STATUS_OK)
         return ret;
 
-    if(address == SCD40_SENSOR_ADDR)
-    {
 
-    }
-    else
-    {
+
 		for (i = 0; i < num_words; ++i)
 			data_words[i] = be16_to_cpu(data_words[i]);
-    }
+
     return STATUS_OK;
 }
 
@@ -234,7 +226,6 @@ int16_t sensirion_i2c_write_cmd_with_args(uint8_t address, uint16_t command,
     return sensirion_i2c_write(address, buf, buf_size);
 }
 
-uint8_t tempBuf_CO2[9];
 
 int16_t sensirion_i2c_delayed_read_cmd(uint8_t address, uint16_t cmd,
                                        uint32_t delay_us, uint16_t *data_words,
@@ -244,16 +235,15 @@ int16_t sensirion_i2c_delayed_read_cmd(uint8_t address, uint16_t cmd,
 
     sensirion_fill_cmd_send_buf(buf, cmd, NULL, 0);
     ret = sensirion_i2c_write(address, buf, SENSIRION_COMMAND_SIZE);
+
     if (ret != STATUS_OK)
         return ret;
 
-    if (delay_us)
-        sensirion_sleep_usec(delay_us);
+     sensirion_sleep_usec(delay_us);
 
-    if(address == SCD40_SENSOR_ADDR)
-    	return sensirion_i2c_read(address, tempBuf_CO2, 9);
-    else
-    	return sensirion_i2c_read_words(address, data_words, num_words);
+   	ret = sensirion_i2c_read_words(address, data_words, num_words);
+
+    return ret;//STATUS_OK;
 }
 
 int16_t sensirion_i2c_read_cmd(uint8_t address, uint16_t cmd,

@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6303
+#define SOFTREV     6306
 
 
 #define		SW_OFF 	 0
@@ -88,6 +88,8 @@ typedef struct
 	U8_T led_rx485_tx;
 	U8_T led_rx485_rx;
 
+	U8_T enable_debug;
+
 }STR_MODBUS;
 
 typedef struct
@@ -116,8 +118,9 @@ typedef struct
 	U8_T subnet_protocal; // 0 - modbus, 12 - bip to mstp
 
 	U8_T  command_version; //65 version number
-  U8_T  subnet_port;  //1- MainPort      2-ZigbeePort      3-SubPort
-  U8_T  subnet_baudrate;   //
+	  U8_T  subnet_port;  //1- MainPort      2-ZigbeePort      3-SubPort
+	  U8_T  subnet_baudrate;   //
+	 U8_T mini_type;
 }STR_SCAN_CMD;
 
 
@@ -166,6 +169,8 @@ typedef	enum
 
 #define MAX_MINI_TYPE 		18
 
+
+
 extern STR_MODBUS Modbus;
 extern U16_T Test[50];
 //extern uint8_t modbus_wifi_buf[500];
@@ -189,4 +194,15 @@ void modbus_task0(void *arg);
 void modbus_task2(void *arg);
 void start_fw_update(void);
 void internalDeal(uint8_t  *bufadd,uint8_t type);
+
+
+#if 1// for UDP DEBUG
+extern char udp_debug_str[100];
+#define DEBUG_PORT 33333
+extern uint8_t flag_debug_rx;
+extern uint16_t debug_rx_len;
+#endif
+
+
+
 #endif

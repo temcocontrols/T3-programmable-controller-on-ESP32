@@ -26,23 +26,22 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
 
     switch (event_id) {
-    case ETHERNET_EVENT_CONNECTED:Test[24]++;
+    case ETHERNET_EVENT_CONNECTED:
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr);
         ESP_LOGI(TAG, "Ethernet Link Up");
         //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        //memcpy(&Test[30],Modbus.mac_addr,6);
         Modbus.ethernet_status = ETHERNET_EVENT_CONNECTED;
         break;
-    case ETHERNET_EVENT_DISCONNECTED:Test[25]++;
+    case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "Ethernet Link Down");
         Modbus.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
         break;
-    case ETHERNET_EVENT_START:Test[26]++;
+    case ETHERNET_EVENT_START:
         ESP_LOGI(TAG, "Ethernet Started");
         Modbus.ethernet_status = ETHERNET_EVENT_START;
         break;
-    case ETHERNET_EVENT_STOP:Test[27]++;
+    case ETHERNET_EVENT_STOP:
         ESP_LOGI(TAG, "Ethernet Stopped");
         Modbus.ethernet_status = ETHERNET_EVENT_STOP;
         break;
@@ -57,7 +56,7 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const tcpip_adapter_ip_info_t *ip_info = &event->ip_info;
-    Test[23]++;
+
     debug_info( "Ethernet Got IP Address");
     debug_info( "~~~~~~~~~~~");
     Modbus.ip_addr[0] = ip4_addr1(&ip_info->ip);

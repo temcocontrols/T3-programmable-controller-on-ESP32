@@ -57,6 +57,7 @@
 #include "rs485.h"
 #include "fifo.h"
 #include "freertos/event_groups.h"
+#include "airlab.h"
 
 
 //#include "types.h"
@@ -95,9 +96,14 @@ void uart2_rx_task(void);
 //void modbus0_task(void *arg);
 //void modbus2_task(void *arg);
 
-void Bacnet_Control(void) ;
+void Bacnet_Control(void);
+
 void smtp_client_task_nossl(void);
+void smtp_client_task_ssl(void);
 void Lcd_task(void *arg);
+void LCD_TEST(void);
+void vPM25Task(void *pvParameters);
+void vInputTask(void *pvParameters);
 //�����ź������ �ź������ ������ֵ����ʼ������ֵ �������ź��������Ƿ�����Դ���á���
 //MAX_COUNT ��������������м�����Դ
 xSemaphoreHandle CountHandle;
@@ -214,7 +220,8 @@ void UdpData(unsigned char type)
       memcpy(Scan_Infor.panelname,panelname,12);
    //else
    //   memcpy(Scan_Infor.panelname,(char*)"AirLab-esp32",12);
-
+      Scan_Infor.command_version = 1;
+      Scan_Infor.mini_type = Modbus.mini_type;
 //   state = 1;
 //   scanstart = 0;
 
@@ -259,6 +266,92 @@ void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len)
 
 }
 
+char udp_debug_str[100] = "udp test";
+uint8_t flag_debug_rx = 1;
+uint16_t debug_rx_len = 100;
+static void udp_debug_task(void *pvParameters)
+{
+    char rx_buffer[128];
+    char addr_str[128];
+    int addr_family;
+    int ip_protocol;
+    uint8_t ip;
+    flag_debug_rx = 1;
+    memcpy(&udp_debug_str,(char *)"udp test",9); debug_rx_len = 100;
+    while (1) {
+
+#ifdef CONFIG_EXAMPLE_IPV4
+        struct sockaddr_in dest_addr;
+        ip = 145;
+        dest_addr.sin_addr.s_addr =	((uint32_t)ip << 24) + ((uint32_t)Modbus.ip_addr[2] << 16) + \
+        							((uint16_t)Modbus.ip_addr[1] << 8) + Modbus.ip_addr[0];
+        dest_addr.sin_family = AF_INET;
+        dest_addr.sin_port = htons(DEBUG_PORT);
+        addr_family = AF_INET;
+        ip_protocol = IPPROTO_IP;
+        inet_ntoa_r(dest_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
+#else // IPV6
+        struct sockaddr_in6 dest_addr;
+        inet6_aton(HOST_IP_ADDR, &dest_addr.sin6_addr);
+        dest_addr.sin6_family = AF_INET6;
+        dest_addr.sin6_port = htons(PORT);
+        addr_family = AF_INET6;
+        ip_protocol = IPPROTO_IPV6;
+        inet6_ntoa_r(dest_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
+#endif
+
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (sock < 0) {debug_info("Unable to create socket");
+            //ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+        //ESP_LOGI(TAG, "Socket created, sending to %s:%d", HOST_IP_ADDR, PORT);
+        debug_info("create socket");
+        while (1) {
+        	if(flag_debug_rx == 1)
+        	{
+				int err = sendto(sock, udp_debug_str, debug_rx_len, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+				if (err < 0) {debug_info("Error occurred");
+					//ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+					break;
+				}
+				else
+				{
+					flag_debug_rx = 0;
+				}
+
+        	}
+        	/*struct sockaddr_in source_addr; // Large enough for both IPv4 or IPv6
+			socklen_t socklen = sizeof(source_addr);
+			int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+
+			// Error occurred during receiving
+			if (len < 0) {Test[3] = 6;
+			   // ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+				break;
+			}
+			// Data received
+			else {Test[3] = 7;
+				rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+				//ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
+				//ESP_LOGI(TAG, "%s", rx_buffer);
+			}
+*/
+            vTaskDelay(200 / portTICK_PERIOD_MS);
+        }
+
+        if (sock != -1) {
+            //ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+        }
+
+    }
+    vTaskDelete(NULL);
+}
+
+
+
 static void bip_task(void *pvParameters)
 {
    // char rx_buffer[600];
@@ -293,20 +386,20 @@ static void bip_task(void *pvParameters)
 
          bip_sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
          if (bip_sock < 0) {
-            ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
+            //ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
             break;
          }
          ESP_LOGI(UDP_TASK_TAG, "Socket created");
 
          int err = bind(bip_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
          if (err < 0) {
-            ESP_LOGE(UDP_TASK_TAG, "Socket unable to bind: errno %d", errno);
+            //ESP_LOGE(UDP_TASK_TAG, "Socket unable to bind: errno %d", errno);
          }
          ESP_LOGI(UDP_TASK_TAG, "Socket bound, port %d", PORT);
 
          while (1) {
 
-            ESP_LOGI(UDP_TASK_TAG, "Waiting for data");
+           // ESP_LOGI(UDP_TASK_TAG, "Waiting for data");
             //struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklen = sizeof(bip_source_addr);
             int len = recvfrom(bip_sock, PDUBuffer_BIP, sizeof(PDUBuffer_BIP) - 1, 0, (struct sockaddr *)&bip_source_addr, &socklen);
@@ -315,7 +408,7 @@ static void bip_task(void *pvParameters)
             bip_Data = PDUBuffer_BIP;
             // Error occurred during receiving
             if (len < 0) {
-               ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
+              // ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
                break;
             }
             // Data received
@@ -324,15 +417,15 @@ static void bip_task(void *pvParameters)
                // Get the sender's ip address as string
                if (bip_source_addr.sin6_family == PF_INET) {
                   inet_ntoa_r(((struct sockaddr_in *)&bip_source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-                  ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
+                 // ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
                } else if (bip_source_addr.sin6_family == PF_INET6) {
                   inet6_ntoa_r(bip_source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-                  ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
+                 // ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
                }
 
                //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-               ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
-               ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, PDUBuffer_BIP, len);
+               //ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
+              // ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, PDUBuffer_BIP, len);
 
 
 
@@ -362,7 +455,7 @@ static void bip_task(void *pvParameters)
          }
 
          if (bip_sock != -1) {
-            ESP_LOGE(UDP_TASK_TAG, "Shutting down socket and restarting...");
+           // ESP_LOGE(UDP_TASK_TAG, "Shutting down socket and restarting...");
             shutdown(bip_sock, 0);
             close(bip_sock);
          }
@@ -401,27 +494,27 @@ static void udp_scan_task(void *pvParameters)
 
          int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
          if (sock < 0) {
-            ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
+            //ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
             break;
          }
-         ESP_LOGI(UDP_TASK_TAG, "Socket created");
+         //ESP_LOGI(UDP_TASK_TAG, "Socket created");
 
          int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
          if (err < 0) {
-            ESP_LOGE(UDP_TASK_TAG, "Socket unable to bind: errno %d", errno);
+            //ESP_LOGE(UDP_TASK_TAG, "Socket unable to bind: errno %d", errno);
          }
-         ESP_LOGI(UDP_TASK_TAG, "Socket bound, port %d", PORT);
+         //ESP_LOGI(UDP_TASK_TAG, "Socket bound, port %d", PORT);
 
          while (1) {
 
-            ESP_LOGI(UDP_TASK_TAG, "Waiting for data");
+            //ESP_LOGI(UDP_TASK_TAG, "Waiting for data");
             struct sockaddr_in6 source_addr; // Large enough for both IPv4 or IPv6
             socklen_t socklen = sizeof(source_addr);
             int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
             flagLED_ether_rx = 1;
             // Error occurred during receiving
             if (len < 0) {//debug_info("udp1234 recv error\r\n");
-               ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
+               //ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
                break;
             }
             // Data received
@@ -430,23 +523,23 @@ static void udp_scan_task(void *pvParameters)
                // Get the sender's ip address as string
                if (source_addr.sin6_family == PF_INET) {
                   inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-                  ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
+                  //ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
                } else if (source_addr.sin6_family == PF_INET6) {
                   inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-                  ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
+                  //ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
                }
 
                //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-               ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
-               ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, rx_buffer, len);
+              // ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
+              // ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, rx_buffer, len);
 
                if(rx_buffer[0] == 0x64)
                {
                   UdpData(0);
-                  ESP_LOGI(UDP_TASK_TAG, "receive data buffer[0] = 0x64");
+                  //ESP_LOGI(UDP_TASK_TAG, "receive data buffer[0] = 0x64");
                   int err = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
                   if (err < 0) {
-                     ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+                    // ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
 
                      //debug_info("udp1234 send error\r\n");
                      break;
@@ -561,7 +654,7 @@ static void udp_scan_task(void *pvParameters)
 
 								int err = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
 								if (err < 0) {
-									ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
+									//ESP_LOGE(UDP_TASK_TAG, "Error occurred during sending: errno %d", errno);
 									break;
 								}
 							}
@@ -572,7 +665,7 @@ static void udp_scan_task(void *pvParameters)
          }
 
          if (sock != -1) {
-            ESP_LOGE(UDP_TASK_TAG, "Shutting down socket and restarting...");
+           // ESP_LOGE(UDP_TASK_TAG, "Shutting down socket and restarting...");
             shutdown(sock, 0);
             close(sock);
          }
@@ -609,7 +702,7 @@ int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 	modbus_send_len = 0;
 	if (len == 5)
 	{
-		ESP_LOGI(TCP_TASK_TAG, "Receive: %02x %02x %02x %02x %02x.", rx_buffer[0], rx_buffer[1], rx_buffer[2], rx_buffer[3], rx_buffer[4]);
+		//ESP_LOGI(TCP_TASK_TAG, "Receive: %02x %02x %02x %02x %02x.", rx_buffer[0], rx_buffer[1], rx_buffer[2], rx_buffer[3], rx_buffer[4]);
 	}
 
 	ESP_LOG_BUFFER_HEX(TCP_TASK_TAG, rx_buffer, len);
@@ -1448,7 +1541,7 @@ static void tcp_client_task(void *pvParameters)
 
 						err = send(tcp_client[index].socket, Modbus_Client_Command,Modbus_Client_CmdLen, 0);
 
-						if (err < 0) {Test[3]++;
+						if (err < 0) {
 							//ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
 							//break;
 							continue;
@@ -1599,21 +1692,21 @@ void Inital_Bacnet_Server(void)
 		AVS = 0;
 		BOS = 0;
 	}
-	if(Modbus.mini_type == PROJECT_POWER_METER)
+	else if(Modbus.mini_type == PROJECT_POWER_METER)
 	{
 		AIS = 7;
 		AOS = 0;
 		AVS = 63;
 		BOS = 0;
 	}
-	if(Modbus.mini_type == PROJECT_AIRLAB)
+	else if(Modbus.mini_type == PROJECT_AIRLAB)
 	{
-		AIS = 7;
+		AIS = 18;
 		AOS = 0;
-		AVS = 63;
+		AVS = 5;
 		BOS = 0;
 	}
-	if(Modbus.mini_type == PROJECT_TRANSDUCER)
+	else if(Modbus.mini_type == PROJECT_TRANSDUCER)
 	{
 		AIS = 3;
 		AOS = 3;
@@ -1627,16 +1720,16 @@ void Inital_Bacnet_Server(void)
 		AVS = MAX_AVS + 1;
 		BOS = 0;
 
-	}
+
 #if BAC_TRENDLOG
 	TRENDLOGS = 0;
 	//Trend_Log_Init();
 #endif
-
-	Count_VAR_Object_Number();
+	}
+	Count_VAR_Object_Number(AVS);
 	Count_IN_Object_Number();
 	Count_OUT_Object_Number();
-	//Test[29] = TRENDLOGS;
+
 }
 //EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer0;
 //EXT_RAM_ATTR uint8_t Receive_Buffer_Data0[512];
@@ -1895,7 +1988,7 @@ void Master2_Node_task(void)
 
 				if(remote_bacnet_index == number_of_remote_points_bacnet)
 				{
-					static uint8 j = 0;Test[34]++;
+					static uint8 j = 0;
 					if(j < remote_panel_num)
 					{
 						if(remote_panel_db[j].protocal == BAC_MSTP
@@ -1983,7 +2076,7 @@ void uart0_rx_task(void)
 			{
 				led_sub_rx++;
 				com_rx[0]++;
-				flagLED_sub_rx = 1;
+				flagLED_sub_rx = 1; flag_debug_rx = 1;
 				Timer_Silence_Reset();
 			}
 			free(uart_rsv);
@@ -2041,16 +2134,21 @@ uint8 flagLED_main_tx = 0;
 extern uint16_t Mstp_NotForUs;
 extern uint16_t Mstp_ForUs;
 esp_err_t save_point_info(uint8_t point_type);
-#define TIMER_INTERVAL 1
+#define TIMER_INTERVAL 10
 #define TIMER_LED_INTERVAL 100
 void Timer_task(void)
 {
 	//uint16_t count;
+	portTickType xLastWakeTime = xTaskGetTickCount();
 	uint16_t count = 0;
 	timezone = 800;
 	Daylight_Saving_Time = 0;
 	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER))
+	{
 		PCF_hctosys();
+		PCF_systohc();
+	}
+
 	update_timers();
 	system_timer = 0;
 	Mstp_ForUs = 0;
@@ -2066,7 +2164,6 @@ void Timer_task(void)
 		{// MSTP error, reboot
 			//
 		}
-		Test[19] = SilenceTime;
 
 		SilenceTime = SilenceTime + TIMER_INTERVAL;
 		if(SilenceTime > 10000 / TIMER_INTERVAL)
@@ -2074,18 +2171,19 @@ void Timer_task(void)
 			SilenceTime = 0;
 		}
 		// tbd:
-		//if(0) // only for test
+		if(system_timer % (1000 / TIMER_INTERVAL) == 0) // 1000ms,  only for test
 		{	
 			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER))
+			{
 				PCF_GetDateTime(&rtc_date);
-			update_timers();
+			}
 			if(count_hold_on_bip_to_mstp > 0)
 				count_hold_on_bip_to_mstp--;
 			count = 0;
 		}
 		system_timer = system_timer + TIMER_INTERVAL;
 
-		if((system_timer > 10000) && (flag_clear_count_reboot == 0))
+		if((system_timer > 10000 / TIMER_INTERVAL) && (flag_clear_count_reboot == 0))
 		{
 			flag_clear_count_reboot = 1;
 			save_uint8_to_flash(FLASH_COUNT_REBOOT,0); // clear reboot count
@@ -2100,11 +2198,16 @@ void Timer_task(void)
 			count_write_Flash = 0;
 			}
 		}
-
-		vTaskDelay(TIMER_INTERVAL / portTICK_RATE_MS);
-
+		if(Test[29] == 100)
+		{
+			Test[29] = 0;
+			read_point_info();
+		}
+		//vTaskDelay(TIMER_INTERVAL / portTICK_RATE_MS);
+		vTaskDelayUntil( &xLastWakeTime,TIMER_INTERVAL );
 
 	}
+
 
 }
 
@@ -2191,8 +2294,8 @@ void Update_Led(void)
 //	U8_T index,shift;
 //	U32_T tempvalue;
 	static U16_T pre_in[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	U8_T error_in; // error of input raw value
-	U8_T pre_status;
+	U8_T error_in = 0; // error of input raw value
+	U8_T pre_status = 0;
 	U8_T max_in = 0;
 	U8_T max_out = 0;
 	U8_T max_digout = 0;
@@ -2383,7 +2486,6 @@ void Update_Led(void)
 		for(loop = 0;loop < max_out;loop++)
 		{
 	//		OutputLed[loop] = loop / 4;
-			//Test[30 + loop] = output_raw[loop];
 			pre_status = OutputLed[loop];
 			if(outputs[loop].switch_status == SW_AUTO)
 			{
@@ -2595,13 +2697,13 @@ void i2c_master_task(void)
 			else if(index > 3)
 			{
 			// rcv
-				//if(Test[21] != 0)
+
 				{
 					uint8_t i = 0;
 					uint16_t temp = 0;
-					//if(Test[22] == 100)
+
 					{
-						//Test[22] = 0;
+
 						if(Modbus.mini_type == MINI_SMALL_ARM)
 						{
 							stm_i2c_read(G_ALL_NEW,&i2c_rcv_buf,50);
@@ -2625,7 +2727,6 @@ void i2c_master_task(void)
 								{// rev42 of top is 12U8_T, older rev is 10U8_T
 
 									input_raw[i] = temp;
-									//Test[23 + i] = temp;
 
 								}
 							}
@@ -2650,14 +2751,12 @@ void i2c_master_task(void)
 								{// rev42 of top is 12U8_T, older rev is 10U8_T
 
 									input_raw[i] = temp;
-									//Test[23 + i] = temp;
 
 								}
 							}
 						}
 					}
 
-					//Test[21] = 0;
 				}
 				vTaskDelay(1000 / portTICK_RATE_MS);
 			}
@@ -2687,6 +2786,7 @@ void Bacnet_Control(void)
 {
 	U16_T i,j;
 	U8_T decom;
+	portTickType xLastWakeTime = xTaskGetTickCount();
 	static U8_T count_wait_sample = 0;
 	static U8_T count_PID;
 	static U16_T count_schedule;
@@ -2708,12 +2808,16 @@ void Bacnet_Control(void)
 #endif
 	}
 	Check_All_WR();
-
 	task_test.enable[14] = 1;
 	for(;;)
 	{
+		Test[20]++;
 		task_test.count[14]++;
-
+		if(Test[46] == 1)
+		{	Test[45] = 100;
+			init_panel();
+			Test[46] = 0;
+		}
 		/*{// TEST stack lenght;
 			u8 i= 0;
 			for(i = 0;i < 16;i++)
@@ -2723,18 +2827,19 @@ void Bacnet_Control(void)
 			}
 		}*/
 
-		control_input();
 		if(Test[39] == 100)
 		{
-			//smtp_client_task();
+			smtp_client_task_ssl();
 			Test[39] = 0;
 		}
-		if(Test[39] == 300)
+		if(Test[39] == 200)
 		{
-			//smtp_client_task_nossl();
-			Test[39] = 0;
-		}
 
+			//smtp_client_task_nossl();
+		}
+#if 1
+		if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
+			control_input();
 		//if(check_whehter_running_code() == 1)
 		for( i = 0; i < MAX_PRGS; i++/*, ptr++*/ )
 		{
@@ -2759,8 +2864,8 @@ void Bacnet_Control(void)
 					programs[i].costtime = 0;
 
 		}
-
-		control_output();
+		if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
+			control_output();
 
 // check whether external IO are on line
 		/*for(i = 0;i < sub_no;i++)
@@ -2826,8 +2931,9 @@ void Bacnet_Control(void)
 		//trend_log_timer(0); // for standard trend log
 #endif
 		Check_Net_Point_Table();
-		vTaskDelay(1000 / portTICK_RATE_MS);
-
+#endif
+		//vTaskDelay(1000 / portTICK_RATE_MS);
+		vTaskDelayUntil( &xLastWakeTime,500 );
 	}
 
 }
@@ -2850,9 +2956,9 @@ void app_main()
    uart_init(2);
   // TEST_FLASH();
    ethernet_init();
-#if 1//I2C_TASK
+
    i2c_master_init();
-#endif
+
 #if 1//I2C_TASK
     if(Modbus.mini_type == PROJECT_FAN_MODULE)
     {
@@ -2861,7 +2967,7 @@ void app_main()
    		led_init();
    		my_pcnt_init();
    		adc_init();
-   		i2c_master_init();
+   		//i2c_master_init();
     }
     if(Modbus.mini_type == PROJECT_TRANSDUCER)
 	{
@@ -2869,15 +2975,15 @@ void app_main()
 		transducer_switch_init();
 		//led_init();
 		//adc_init();
-		i2c_master_init();
+		//i2c_master_init();
 	}
     if(Modbus.mini_type == PROJECT_POWER_METER)
     {
-    	i2c_master_init();
+    	//i2c_master_init();
     }
 
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM
-    		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == PROJECT_AIRLAB)
+    		|| Modbus.mini_type == MINI_BIG_ARM/* ||  Modbus.mini_type == PROJECT_AIRLAB*/)
     	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[0]);
 #endif
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, &main_task_handle[1]);
@@ -2885,27 +2991,34 @@ void app_main()
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 2, &main_task_handle[2]);
     xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 5, &main_task_handle[3]);
     xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 5, &main_task_handle[4]);
-    xTaskCreate(bip_task, "bacnet ip", 4096, NULL, 5, &main_task_handle[5]);
-    //if(holding_reg_params.which_project != PROJECT_FAN_MODULE)
-//#if FAN
+    xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 5, &main_task_handle[5]);
+// ok
+    if(Modbus.enable_debug == 1)
+    	xTaskCreate(udp_debug_task, "udp_debug",4096 , NULL, 5, &main_task_handle[17]);
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
-    		/*|| Modbus.mini_type == PROJECT_AIRLAB)*/)
-        xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 10, NULL);
-//#endif
-    if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
-    	xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 8,&main_task_handle[6]);
+    		|| (Modbus.mini_type == PROJECT_AIRLAB))
+        xTaskCreate(i2c_task,"i2c_task", 2048*2, NULL, 5, NULL);
 
+    if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
+    	xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[6]);
+
+    if(Modbus.mini_type == PROJECT_AIRLAB)
+    {
+    	Airlab_adc_init();
+    	xTaskCreate(vInputTask,"InputTask",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[7]);
+    	xTaskCreate(vPM25Task,"PM25Task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[15]);
+    }
     xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
-    xTaskCreate(uart0_rx_task,"uart0_rx_task",4096, NULL, 6, &main_task_handle[9]);
+    xTaskCreate(uart0_rx_task,"uart0_rx_task",4096, NULL, 8, &main_task_handle[9]);
 
     if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
     {
 	   xTaskCreate(Master2_Node_task,"mstp2_task",4096, NULL, 4, &main_task_handle[11]);
-	   xTaskCreate(uart2_rx_task,"uart2_rx_task",4096, NULL, 6, &main_task_handle[12]);
-    }
+	   xTaskCreate(uart2_rx_task,"uart2_rx_task",4096, NULL, 8, &main_task_handle[12]);
+    }// ok
 
  	xTaskCreate(Timer_task,"timer_task",2048, NULL, 7, &main_task_handle[13]);
-	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL,  12,&main_task_handle[14]);
+	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL,  12,&main_task_handle[14]);
 	vStartScanTask(5);
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
@@ -2914,14 +3027,12 @@ void app_main()
 // for bacnet lib
 void uart_send_string(U8_T *p, U16_T length,U8_T port)
 {
-//#if FAN
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		holding_reg_params.led_rx485_tx = 2;
-//#endif
+
 	if(port == 0)
 	{
 		uart_write_bytes(UART_NUM_0, (const char *)p, length);
-
 	}
 	else if(port == 2)
 	{
@@ -2929,6 +3040,7 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 	}
 
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
+	//else if(port == 1)
 	else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 	com_tx[port]++;
 }
@@ -2948,4 +3060,9 @@ U8_T RS485_Get_Baudrate(void)
 void delay_ms(unsigned int t)
 {
 	usleep(t * 1000);
+}
+
+U8_T Get_Mini_Type(void)
+{
+	return Modbus.mini_type;
 }

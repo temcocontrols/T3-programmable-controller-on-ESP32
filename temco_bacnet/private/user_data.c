@@ -26,7 +26,7 @@ U8_T send_mstp_index1;
 EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf1[10];*/
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
 
-extern S16_T time_zone = 0;
+extern S16_T	 timezone;
 extern U8_T  input_type[32];
 extern U8_T  input_type1[32];
 extern STR_MODBUS Modbus;
@@ -38,6 +38,7 @@ U8_T uart1_baudrate;
 U8_T uart2_baudrate;
 
 
+//Str_points_ptr 	point_str[3];
 
 U8_T SD_exist;
 #define DEFAULT_FILTER 5
@@ -76,9 +77,11 @@ BACNET_TIME Local_Time;
 
 U8_T  boot;
 
+uint16 max_inputs;
+uint16 max_outputs;
+uint16 max_vars;
 
-
- U32_T  update_sntp_last_time;
+U32_T  update_sntp_last_time;
 EXT_RAM_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
 
 EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];// _at_ 0x20000;
@@ -115,7 +118,7 @@ EXT_RAM_ATTR Units_element		    			digi_units[MAX_DIG_UNIT];
 U8_T 					 						ind_passwords;
 EXT_RAM_ATTR Password_point						passwords[ MAX_PASSW ];
 EXT_RAM_ATTR Str_program_point	    			programs[MAX_PRGS];// _at_ 0x24000;
-EXT_RAM_ATTR Str_variable_point					vars[MAX_VARS + 12];// _at_ 0x18000;
+EXT_RAM_ATTR Str_variable_point					vars[MAX_VARS];// _at_ 0x18000;
 EXT_RAM_ATTR Str_controller_point 				controllers[MAX_CONS];// _at_ 0x25000;
 EXT_RAM_ATTR Str_totalizer_point          		totalizers[MAX_TOTALIZERS];// _at_ 0x12500;
 
@@ -365,6 +368,75 @@ void init_panel(void)
 	just_load = 1;
 	miliseclast_cur = 0;
 	miliseclast = 0;
+	
+	Test[40]++;
+	#if 0
+	if(Test[45] == 100)
+	{Test[43]++;
+	/*if(max_inputs == 0)*/ 	max_inputs = MAX_INS;
+	/*if(max_outputs == 0)*/ 	max_outputs = MAX_OUTS;
+	/*if(max_vars == 0)*/ 		max_vars = MAX_VARS;
+	point_str[OUT].pout = (uint8_t*)malloc(max_outputs * sizeof(Str_out_point));
+	point_str[IN].pin = (uint8_t*)malloc(max_inputs * sizeof(Str_in_point));
+	point_str[VAR].pvar = (uint8_t*)malloc(max_vars * sizeof(Str_variable_point));
+	
+
+	for( i=0; i< max_inputs; i++, point_str[IN].pin++ )
+	{
+		point_str[IN].pin->value = 0;  
+		sprintf((S8_T *)&point_str[IN].pin->description,"IN %d",(U16_T)(i + 1));
+		point_str[IN].pin->filter = DEFAULT_FILTER;  /* (3 bits; 0=1,1=2,2=4,3=8,4=16,5=32, 6=64,7=128,)*/
+		point_str[IN].pin->decom = 0;	   /* (1 bit; 0=ok, 1=point decommissioned)*/
+//		point_str[IN].pin->sen_on = 1;/* (1 bit)*/
+//		point_str[IN].pin->sen_off = 1;  /* (1 bit)*/
+		point_str[IN].pin->control = 1; /*  (1 bit; 0=OFF, 1=ON)*/
+		point_str[IN].pin->auto_manual = 0; /* (1 bit; 0=auto, 1=manual)*/
+		point_str[IN].pin->digital_analog = 1; /* (1 bit; 1=analog, 0=digital)*/
+		point_str[IN].pin->calibration_sign = 1;; /* (1 bit; sign 0=positiv 1=negative )*/
+//		point_str[IN].pin->calibration_increment = 1;; /* (1 bit;  0=0.1, 1=1.0)*/
+		point_str[IN].pin->calibration_hi = 0;  /* (8 bits; -25.6 to 25.6 / -256 to 256 )*/
+		point_str[IN].pin->calibration_lo = 0; 
+//		memcpy(point_str[IN].pin->label,'\0',9);	
+
+		sprintf((S8_T *)&point_str[IN].pin->label,"IN%d",(U16_T)(i + 1));
+	}
+
+	for( i=0; i < max_outputs; i++, point_str[OUT].pout++ )
+	{
+		point_str[OUT].pout->value = 0; 		
+		point_str[OUT].pout->range = 0;
+		point_str[OUT].pout->digital_analog = 0;
+
+		if((i >= 0) && (i < 12))
+		{
+			point_str[OUT].pout->range = 1; // off-on
+			point_str[OUT].pout->digital_analog = 0;
+		}
+		else if((i >= 12) && (i < 24))
+		{
+			point_str[OUT].pout->range = 4;  // 0-100%
+			point_str[OUT].pout->digital_analog = 1;
+		}			
+		
+		
+		sprintf((S8_T *)&point_str[OUT].pout->description,"OUT%d",(U16_T)(i + 1));
+		sprintf((S8_T *)&point_str[OUT].pout->label,"OUT%d",(U16_T)(i + 1));
+		point_str[OUT].pout->auto_manual = 0;
+	} 
+
+	for( i=0; i < max_vars; i++, point_str[VAR].pvar++ )
+	{
+		point_str[VAR].pvar->value = 0;
+		point_str[VAR].pvar->auto_manual = 0;
+		point_str[VAR].pvar->digital_analog = 1; //analog point 
+		point_str[VAR].pvar->unused = 2; 
+		point_str[VAR].pvar->range = 0;
+	}
+
+	}
+	else
+#endif
+	{
 	memset(inputs, 0, MAX_INS *sizeof(Str_in_point) );
 
 	ptr.pin = inputs;
@@ -412,6 +484,19 @@ void init_panel(void)
 		sprintf((S8_T *)&ptr.pout->label,"OUT%d",(U16_T)(i + 1));
 		ptr.pout->auto_manual = 0;
 	} 
+	
+	memset(vars,0,MAX_VARS*sizeof(Str_variable_point));
+	ptr.pvar = vars;
+
+	for( i=0; i < MAX_VARS; i++, ptr.pvar++ )
+	{
+		ptr.pvar->value = 0;
+		ptr.pvar->auto_manual = 0;
+		ptr.pvar->digital_analog = 1; //analog point 
+		ptr.pvar->unused = 2; 
+		ptr.pvar->range = 0;
+	}
+	}
 	memset(controllers,'\0',MAX_CONS*sizeof(Str_controller_point));
 	ptr.pcon = controllers;
 	for( i = 0; i < MAX_CONS; i++, ptr.pcon++ )
@@ -434,17 +519,7 @@ void init_panel(void)
 		 prg_code[i][j] = 0;
 	}	
 //	total_length = 0;
-	memset(vars,0,MAX_VARS*sizeof(Str_variable_point));
-	ptr.pvar = vars;
-
-	for( i=0; i < MAX_VARS; i++, ptr.pvar++ )
-	{
-		ptr.pvar->value = 0;
-		ptr.pvar->auto_manual = 0;
-		ptr.pvar->digital_analog = 1; //analog point 
-		ptr.pvar->unused = 2; 
-		ptr.pvar->range = 0;
-	}
+	
 	
 	memset(points_header,0,MAXREMOTEPOINTS * sizeof(POINTS_HEADER));
 	memset(network_points_list_modbus,0,MAXNETWORKPOINTS * sizeof(NETWORK_POINTS));
@@ -678,7 +753,7 @@ void Sync_Panel_Info(void)
  //   E2prom_Read_Byte(EEP_TIME_ZONE_HI, &temp[1]);
  //   timezone = temp[1] * 256 + temp[0];
 
-//	Setting_Info.reg.time_zone = timezone;
+	Setting_Info.reg.time_zone = timezone;
 	Setting_Info.reg.tcp_port = Modbus.tcp_port;	
 	Setting_Info.reg.update_sntp_last_time =  (update_sntp_last_time);
 

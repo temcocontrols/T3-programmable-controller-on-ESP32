@@ -9,6 +9,7 @@
 #include "define.h"
 #include "ud_str.h"
 #include "user_data.h"
+#include "bacnet.h"
 
 #include "unity.h"
 #include "esp_partition.h"
@@ -18,6 +19,11 @@
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
 uint8_t count_reboot = 0;
+extern S16_T timezone;
+void Get_AVS(void);
+
+const uint8 Var_Description[12][21];
+const uint8 Var_label[12][9];
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -225,11 +231,19 @@ esp_err_t read_default_from_flash(void)
 	}
 
 	nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
-
+	nvs_get_u16(my_handle, FLASH_TIME_ZONE, (uint16 *)&timezone);
+	nvs_get_u16(my_handle, FLASH_DSL, &Daylight_Saving_Time);
 	if(Modbus.network_number == 0)
 	{
 		Modbus.network_number = 0xffff;
 		nvs_set_u16(my_handle, FLASH_NETWORK_NUMBER, Modbus.network_number);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_EN_USERNAME, &Modbus.en_username);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.en_username = MINI_NANO;
+		nvs_set_u8(my_handle, FLASH_EN_USERNAME, Modbus.en_username);
 	}
 
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
@@ -386,7 +400,6 @@ void Flash_Inital(void)
 
 		Flash_Position[loop].addr = baseAddr;
 		Flash_Position[loop].len = len;
-		//Test[30 + loop] = Flash_Position[loop].len;
 
 		//write_page_en[loop] = 0;
 	}
@@ -443,8 +456,6 @@ esp_err_t save_block(uint8_t key)
 {
 	nvs_handle_t my_handle;
 	esp_err_t err;
-
-	debug_info("save_wifi_info\n");
 	// Open
 	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
 	if (err != ESP_OK) return err;
@@ -477,7 +488,7 @@ typedef struct
 	U16_T index;
 	U8_T flag;
 	U32_T len;
-	U8_T dat[500];
+	//U8_T dat[500];
 }STR_flag_flash;
 
 
@@ -486,12 +497,12 @@ esp_err_t save_point_info(uint8_t point_type)
 	STR_flag_flash ptr_flash;
 	uint8_t err=0xff;
 	uint16_t loop;
-	//  step 1: Ñ°ÕÒÓÃ»§flash id
+	//  step 1: Ñ°ï¿½ï¿½ï¿½Ã»ï¿½flash id
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
 	//debug_info(" flash start");
-	// step 2: ²Á³ýflash
+	// step 2: ï¿½ï¿½ï¿½ï¿½flash
 
 	err = esp_partition_erase_range(partition, 0, partition->size);
 	if(err!=0)
@@ -584,7 +595,7 @@ esp_err_t save_point_info(uint8_t point_type)
 
 			}
 
-		// step 3£º»ñµÃÐèÒª±£´æµÄÓÃ»§Êý¾Ý
+		// step 3ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½
 			err = esp_partition_write(partition, Flash_Position[loop].addr,tempbuf,Flash_Position[loop].len);
 			//debug_info("write ...");
 			free(tempbuf);
@@ -621,7 +632,7 @@ void read_point_info(void)
 		ptr_flash.len = Flash_Position[loop].len;
 		base_addr = Flash_Position[loop].addr;*/
 		//debug_info("read start");
-		    // 1: read ¶Áº¯Êý
+		    // 1: read ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		//err = esp_partition_read(partition, 0, tempbuf, 500);
 		tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
 
@@ -634,148 +645,234 @@ void read_point_info(void)
 		{
 			case OUT:
 				memcpy(&outputs,tempbuf,sizeof(Str_out_point) * MAX_OUTS);
-				if(Modbus.mini_type == PROJECT_FAN_MODULE)
+				if((tempbuf[0] == 0x00 && tempbuf[1] == 0x00 && tempbuf[2] == 0x00) ||
+					(tempbuf[0] == 0xff && tempbuf[1] == 0xff && tempbuf[2] == 0xff))
 				{
-					memcpy(outputs[0].description,"FAN AO",strlen("FAN AO"));
-					memcpy(outputs[1].description,"FAN PWM",strlen("FAN PWM"));
-					if(outputs[0].range == 0)
+					if(Modbus.mini_type == PROJECT_FAN_MODULE)
 					{
-				        outputs[0].switch_status = 1;
-				        outputs[0].auto_manual = 1;
-				        outputs[0].digital_analog = 1;
-				        outputs[0].range = 4;
-						memcpy(outputs[0].description,"FAN PWM 1",strlen("FAN PWM 1"));
-						memcpy(outputs[0].label,"FANOUT1",strlen("FANOUT1"));
+						memcpy(outputs[0].description,"FAN AO",strlen("FAN AO"));
+						memcpy(outputs[1].description,"FAN PWM",strlen("FAN PWM"));
+						if(outputs[0].range == 0)
+						{
+							outputs[0].switch_status = 1;
+							outputs[0].auto_manual = 1;
+							outputs[0].digital_analog = 1;
+							outputs[0].range = 4;
+							memcpy(outputs[0].description,"FAN PWM 1",strlen("FAN PWM 1"));
+							memcpy(outputs[0].label,"FANOUT1",strlen("FANOUT1"));
+						}
+						if(outputs[1].range == 0)
+						{
+							outputs[1].switch_status = 1;
+							outputs[1].auto_manual = 1;
+							outputs[1].digital_analog = 1;
+							outputs[1].range = 4;
+							memcpy(outputs[1].description,"FAN PWM 2",strlen("FAN PWM 2"));
+							memcpy(outputs[1].label,"FANOUT2",strlen("FANOUT2"));
+						}
 					}
-					if(outputs[1].range == 0)
+					if(Modbus.mini_type == PROJECT_TRANSDUCER)
 					{
-				        outputs[1].switch_status = 1;
-				        outputs[1].auto_manual = 1;
-				        outputs[1].digital_analog = 1;
-				        outputs[1].range = 4;
-						memcpy(outputs[1].description,"FAN PWM 2",strlen("FAN PWM 2"));
-						memcpy(outputs[1].label,"FANOUT2",strlen("FANOUT2"));
-					}
-				}
-				if(Modbus.mini_type == PROJECT_TRANSDUCER)
-				{
-					memcpy(outputs[0].description,"TEMP OUTPUT",strlen("TEMP OUTPUT"));
-					memcpy(outputs[1].description,"HUMI OUTPUT",strlen("HUMI OUTPUT"));
-					memcpy(outputs[2].description,"CO2",strlen("CO2"));
-					if(outputs[0].range == 0)
-					{
-						outputs[0].switch_status = 1;
-						outputs[0].auto_manual = 1;
-						outputs[0].digital_analog = 1;
-						outputs[0].range = 4;
 						memcpy(outputs[0].description,"TEMP OUTPUT",strlen("TEMP OUTPUT"));
-						memcpy(outputs[0].label,"TEMPOUT",strlen("TEMPOUT"));
-					}
-					if(outputs[1].range == 0)
-					{
-						outputs[1].switch_status = 1;
-						outputs[1].auto_manual = 1;
-						outputs[1].digital_analog = 1;
-						outputs[1].range = 4;
 						memcpy(outputs[1].description,"HUMI OUTPUT",strlen("HUMI OUTPUT"));
-						memcpy(outputs[1].label,"HUMIOUT",strlen("HUMIOUT"));
-					}
-					if(outputs[2].range == 0)
-					{
-						outputs[2].switch_status = 1;
-						outputs[2].auto_manual = 1;
-						outputs[2].digital_analog = 1;
-						outputs[2].range = 4;
-						memcpy(outputs[2].description,"CO2 OUTPUT",strlen("CO2 OUTPUT"));
-						memcpy(outputs[2].label,"CO2OUT",strlen("CO2OUT"));
+						memcpy(outputs[2].description,"CO2",strlen("CO2"));
+						if(outputs[0].range == 0)
+						{
+							outputs[0].switch_status = 1;
+							outputs[0].auto_manual = 1;
+							outputs[0].digital_analog = 1;
+							outputs[0].range = 4;
+							memcpy(outputs[0].description,"TEMP OUTPUT",strlen("TEMP OUTPUT"));
+							memcpy(outputs[0].label,"TEMPOUT",strlen("TEMPOUT"));
+						}
+						if(outputs[1].range == 0)
+						{
+							outputs[1].switch_status = 1;
+							outputs[1].auto_manual = 1;
+							outputs[1].digital_analog = 1;
+							outputs[1].range = 4;
+							memcpy(outputs[1].description,"HUMI OUTPUT",strlen("HUMI OUTPUT"));
+							memcpy(outputs[1].label,"HUMIOUT",strlen("HUMIOUT"));
+						}
+						if(outputs[2].range == 0)
+						{
+							outputs[2].switch_status = 1;
+							outputs[2].auto_manual = 1;
+							outputs[2].digital_analog = 1;
+							outputs[2].range = 4;
+							memcpy(outputs[2].description,"CO2 OUTPUT",strlen("CO2 OUTPUT"));
+							memcpy(outputs[2].label,"CO2OUT",strlen("CO2OUT"));
+						}
 					}
 				}
 				break;
 			case IN:
 				memcpy(&inputs,tempbuf,sizeof(Str_in_point) * MAX_INS);
-				if(Modbus.mini_type == PROJECT_FAN_MODULE)
+				if((tempbuf[0] == 0x00 && tempbuf[1] == 0x00 && tempbuf[2] == 0x00) ||
+					(tempbuf[0] == 0xff && tempbuf[1] == 0xff && tempbuf[2] == 0xff))
 				{
-					memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
-					memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
-					memcpy(inputs[2].description,"TEMP REMOTE",strlen("TEMP REMOTE"));
-					memcpy(inputs[3].description,"FAN STATUS",strlen("FAN STATUS"));
-					memcpy(inputs[4].description,"FAN SPEED",strlen("FAN SPEED"));
-					memcpy(inputs[5].description,"THERMEL TEMP",strlen("THERMEL TEMP"));
-					memcpy(inputs[0].label,"TEMP1",strlen("TEMP1"));
-					memcpy(inputs[1].label,"HUM",strlen("HUM"));
-					memcpy(inputs[2].label,"TEMP2",strlen("TEMP2"));
-					memcpy(inputs[3].label,"FANSTAT",strlen("FANSTAT"));
-					memcpy(inputs[4].label,"FANSPD",strlen("FANSPD"));
-					memcpy(inputs[5].label,"TEMP3",strlen("TEMP3"));
-
-					if(inputs[0].range == 0)
+					if(Modbus.mini_type == PROJECT_FAN_MODULE)
 					{
-						inputs[0].digital_analog = 1;
-						inputs[0].range = 3;
 						memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
-					}
-					if(inputs[1].range == 0)
-					{
-						inputs[1].digital_analog = 1;
-						inputs[1].range = 27;
 						memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
-					}
-					if(inputs[2].range == 0)
-					{
-						inputs[2].digital_analog = 1;
-						inputs[2].range = 3;
 						memcpy(inputs[2].description,"TEMP REMOTE",strlen("TEMP REMOTE"));
-					}
-					if(inputs[3].range == 0)
-					{
-						inputs[3].digital_analog = 1;
-						inputs[3].range = 19;
 						memcpy(inputs[3].description,"FAN STATUS",strlen("FAN STATUS"));
-					}
-					if(inputs[4].range == 0)
-					{
-						inputs[4].digital_analog = 1;
-						inputs[4].range = 26;
 						memcpy(inputs[4].description,"FAN SPEED",strlen("FAN SPEED"));
-					}
-					if(inputs[5].range == 0)
-					{
-						inputs[5].digital_analog = 1;
-						inputs[5].range = 3;
 						memcpy(inputs[5].description,"THERMEL TEMP",strlen("THERMEL TEMP"));
-					}
-				}
-				if(Modbus.mini_type == PROJECT_TRANSDUCER)
-				{
-					memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
-					memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
-					memcpy(inputs[2].description,"CO2",strlen("CO2"));
-					memcpy(inputs[0].label,"TEMP1",strlen("TEMP1"));
-					memcpy(inputs[1].label,"HUM",strlen("HUM"));
-					memcpy(inputs[2].label,"CO2",strlen("CO2"));
+						memcpy(inputs[0].label,"TEMP1",strlen("TEMP1"));
+						memcpy(inputs[1].label,"HUM",strlen("HUM"));
+						memcpy(inputs[2].label,"TEMP2",strlen("TEMP2"));
+						memcpy(inputs[3].label,"FANSTAT",strlen("FANSTAT"));
+						memcpy(inputs[4].label,"FANSPD",strlen("FANSPD"));
+						memcpy(inputs[5].label,"TEMP3",strlen("TEMP3"));
 
-					if(inputs[0].range == 0)
+						if(inputs[0].range == 0)
+						{
+							inputs[0].digital_analog = 1;
+							inputs[0].range = 3;
+							memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
+						}
+						if(inputs[1].range == 0)
+						{
+							inputs[1].digital_analog = 1;
+							inputs[1].range = 27;
+							memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
+						}
+						if(inputs[2].range == 0)
+						{
+							inputs[2].digital_analog = 1;
+							inputs[2].range = 3;
+							memcpy(inputs[2].description,"TEMP REMOTE",strlen("TEMP REMOTE"));
+						}
+						if(inputs[3].range == 0)
+						{
+							inputs[3].digital_analog = 1;
+							inputs[3].range = 19;
+							memcpy(inputs[3].description,"FAN STATUS",strlen("FAN STATUS"));
+						}
+						if(inputs[4].range == 0)
+						{
+							inputs[4].digital_analog = 1;
+							inputs[4].range = 26;
+							memcpy(inputs[4].description,"FAN SPEED",strlen("FAN SPEED"));
+						}
+						if(inputs[5].range == 0)
+						{
+							inputs[5].digital_analog = 1;
+							inputs[5].range = 3;
+							memcpy(inputs[5].description,"THERMEL TEMP",strlen("THERMEL TEMP"));
+						}
+					}
+
+					if(Modbus.mini_type == PROJECT_TRANSDUCER)
 					{
-						inputs[0].digital_analog = 1;
-						inputs[0].range = 3;
 						memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
-					}
-					if(inputs[1].range == 0)
-					{
-						inputs[1].digital_analog = 1;
-						inputs[1].range = 27;
 						memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
-					}
-					if(inputs[2].range == 0)
-					{
-						inputs[2].digital_analog = 1;
-						inputs[2].range = 28;
 						memcpy(inputs[2].description,"CO2",strlen("CO2"));
+						memcpy(inputs[0].label,"TEMP1",strlen("TEMP1"));
+						memcpy(inputs[1].label,"HUM",strlen("HUM"));
+						memcpy(inputs[2].label,"CO2",strlen("CO2"));
+
+						if(inputs[0].range == 0)
+						{
+							inputs[0].digital_analog = 1;
+							inputs[0].range = 3;
+							memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
+						}
+						if(inputs[1].range == 0)
+						{
+							inputs[1].digital_analog = 1;
+							inputs[1].range = 27;
+							memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
+						}
+						if(inputs[2].range == 0)
+						{
+							inputs[2].digital_analog = 1;
+							inputs[2].range = 28;
+							memcpy(inputs[2].description,"CO2",strlen("CO2"));
+						}
+					}
+
+					if(Modbus.mini_type == PROJECT_AIRLAB)
+					{
+						memcpy(inputs[0].description,"TEMPERATURE",strlen("TEMPERATURE"));
+						memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
+						memcpy(inputs[2].description,"CO2 ",strlen("CO2 "));
+						memcpy(inputs[3].description,"TVOC",strlen("TVOC"));
+						memcpy(inputs[4].description,"PM1.0DEN",strlen("PM1.0DEN"));
+						memcpy(inputs[5].description,"PM2.5DEN",strlen("PM2.5DEN"));
+						memcpy(inputs[6].description,"PM4.0DEN",strlen("PM4.0DEN"));
+						memcpy(inputs[7].description,"PM10DEN",strlen("PM10DEN"));
+						memcpy(inputs[8].description,"PM0.5C",strlen("PM0.5C"));
+						memcpy(inputs[9].description,"PM1.0C",strlen("PM1.0C"));
+						memcpy(inputs[10].description,"PM2.5C",strlen("PM2.5C"));
+						memcpy(inputs[11].description,"PM4.0C",strlen("PM4.0C"));
+						memcpy(inputs[12].description,"PM10C",strlen("PM10C"));
+						memcpy(inputs[13].description,"P_size",strlen("P_size"));
+						memcpy(inputs[14].description,"SOUND",strlen("SOUND"));
+						memcpy(inputs[15].description,"LIGHT",strlen("LIGHT"));
+						memcpy(inputs[16].description,"OCCUPIED SENSOR",strlen("OCCUPIED SENSOR"));
+
+						memcpy(inputs[0].label,"TEMP",strlen("TEMP"));
+						memcpy(inputs[1].label,"HUM",strlen("HUM"));
+						memcpy(inputs[2].label,"CO2",strlen("CO2"));
+						memcpy(inputs[3].label,"TVOC",strlen("TVOC"));
+						memcpy(inputs[4].label,"PM1.0DEN",strlen("PM1.0DEN"));
+						memcpy(inputs[5].label,"PM2.5DEN",strlen("PM2.5DEN"));
+						memcpy(inputs[6].label,"PM4.0DEN",strlen("PM1.0DEN"));
+						memcpy(inputs[7].label,"PM10DEN",strlen("PM10DEN"));
+						memcpy(inputs[8].label,"PM0.5C",strlen("PM0.5C"));
+						memcpy(inputs[9].label,"PM1.0C",strlen("PM1.0C"));
+						memcpy(inputs[10].label,"PM2.5C",strlen("PM2.5C"));
+						memcpy(inputs[11].label,"PM4.0C",strlen("PM4.0C"));
+						memcpy(inputs[12].label,"PM10C",strlen("PM10C"));
+						memcpy(inputs[13].label,"P_size",strlen("P_size"));
+						memcpy(inputs[14].label,"SOUND",strlen("SOUND"));
+						memcpy(inputs[15].label,"LIGHT",strlen("LIGHT"));
+						memcpy(inputs[16].label,"OCC",strlen("OCC"));
+
+						for(i = 0;i < 18;i++)
+							inputs[i].digital_analog = 1;
+
+						inputs[0].range = R10K_40_120DegC;
+						inputs[1].range = Humidty;
+						inputs[2].range = CO2_PPM;
+						inputs[3].range = TVOC_PPB;
+						inputs[4].range = UG_M3;
+						inputs[5].range = UG_M3;
+						inputs[6].range = UG_M3;
+						inputs[7].range = UG_M3;
+						inputs[8].range = NUM_CM3;
+						inputs[9].range = NUM_CM3;
+						inputs[10].range = NUM_CM3;
+						inputs[11].range = NUM_CM3;
+						inputs[12].range = NUM_CM3;
+						inputs[14].range = DB;
+						inputs[15].range = LUX;
+						inputs[16].range = 0;
 					}
 				}
 				break;
 			case VAR:
 				memcpy(&vars,tempbuf,sizeof(Str_variable_point) * MAX_VARS);
+				// if initial status
+				if((tempbuf[0] == 0x00 && tempbuf[1] == 0x00 && tempbuf[2] == 0x00) ||
+						(tempbuf[0] == 0xff && tempbuf[1] == 0xff && tempbuf[2] == 0xff))
+				{
+					if(Modbus.mini_type == PROJECT_AIRLAB)
+					{
+						for(i = 0; i < 13; i++ )
+						{
+							memcpy(vars[i].description,Var_Description[i],strlen((char *)Var_Description[i]));
+							memcpy(vars[i].label,Var_label[i],strlen((char *)Var_label[i]));
+							//vars[i].value = 0;
+							vars[i].auto_manual = 0 ;
+							vars[i].digital_analog = 1;
+							vars[i].range = MAX_INPUT_RANGE;
+						}
+						Get_AVS();
+					}
+				}
 				break;
 #if 1
 			case CON:
@@ -799,14 +896,14 @@ void read_point_info(void)
 			case AMON:
 				memcpy(&monitors,tempbuf,sizeof(Str_monitor_point) * MAX_MONITORS);
 				break;
-		case GRP:
+			case GRP:
 				memcpy(&control_groups,tempbuf,sizeof(Control_group_point) * MAX_GRPS);
 				break;
 	/*			case ARRAY:
 				memcpy(&arrays,&tempbuf,sizeof(Str_array_point) * MAX_ARRAYS);
 				break; */
 			case ALARMM:
-			memcpy(&alarms,tempbuf,sizeof(Alarm_point) * MAX_ALARMS);
+				memcpy(&alarms,tempbuf,sizeof(Alarm_point) * MAX_ALARMS);
 				break;
 			/*case ALARM_SET:
 				memcpy(&alarms_set,tempbuf,sizeof(Alarm_set_point) * MAX_ALARMS_SET);

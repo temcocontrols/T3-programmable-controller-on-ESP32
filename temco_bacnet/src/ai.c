@@ -35,7 +35,7 @@
 
 #include "ai.h"
 
-#if BAC_COMMON
+#if 1//BAC_COMMON
 
 /* Analog Input = Photocell */
 

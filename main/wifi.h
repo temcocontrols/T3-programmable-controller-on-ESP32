@@ -19,7 +19,7 @@ typedef enum
 
 typedef struct
 {
-	uint8_t MANUEL_EN;
+	uint8_t MANUEL_EN;  // 0 - default    1 - enable     2-disable
 	uint8_t IP_Auto_Manual; //  0 Auto DHCP   1 static IP
 	uint16_t modbus_port;
 	uint16_t bacnet_port;

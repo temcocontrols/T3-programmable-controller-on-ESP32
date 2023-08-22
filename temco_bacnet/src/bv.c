@@ -36,7 +36,7 @@
 #include "wp.h"
 #include "bv.h"
 
-#if BAC_COMMON
+#if 1// BAC_COMMON
 
 #if BAC_BV
 uint8_t BVS;

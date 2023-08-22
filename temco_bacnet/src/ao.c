@@ -40,7 +40,7 @@
 
 
 
-#if BAC_COMMON
+#if 1//BAC_COMMON
 
 /* we choose to have a NULL level in our system represented by */
 /* a particular value.  When the priorities are not in use, they */

@@ -213,7 +213,7 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_SCHEDULE 		1
 #define BAC_PRIVATE 		1
 #define BAC_TIMESYNC 		1
-#define BAC_TRENDLOG		0//1
+#define BAC_TRENDLOG		1
 #define BAC_RANGE			1 // dont need range 
 #define BAC_BI				1
 #define BAC_BV				1
@@ -361,7 +361,7 @@ typedef	union
         U8_T reserved[4];
     }NEW;
 }UN_Time;
-extern UN_Time Rtc;//Ê±ÖÓ½á¹¹Ìå 
+extern UN_Time Rtc;//Ê±ï¿½Ó½á¹¹ï¿½ï¿½ 
 #endif	
 //U32_T Rtc_Set(U16_T syear, U8_T smon, U8_T sday, U8_T hour, U8_T min, U8_T sec, U8_T flag);
 uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8_t min, uint8_t sec, uint8_t flag);
@@ -469,7 +469,7 @@ extern uint8_t far MSTP_Rec_buffer[600];
 extern uint8_t MSTP_Write_OK;
 extern uint8_t MSTP_Transfer_OK;
 extern uint8_t remote_panel_num;
-extern uint8_t count_hold_on_bip_to_mstp; // µ±yabe»òÕßT3000Èí¼þÕýÔÚ·ÃÎÊÊ±£¬²»Òª¶ÁÐ´ÏÂÃæµÄÉè±¸
+extern uint8_t count_hold_on_bip_to_mstp; // ï¿½ï¿½yabeï¿½ï¿½ï¿½ï¿½T3000ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú·ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è±¸
 
 U8_T Get_current_panel(void);
 void chech_mstp_collision(void);
@@ -532,7 +532,7 @@ extern uint8_t BV_Instance_To_Index[MAX_AVS];
 
 void Count_IN_Object_Number(void);
 void Count_OUT_Object_Number(void);
-void Count_VAR_Object_Number(void);
+void Count_VAR_Object_Number(uint8 base_var);
 
 
 

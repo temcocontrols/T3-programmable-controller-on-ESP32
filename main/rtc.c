@@ -8,6 +8,7 @@
 //#include "deviceparams.h"
 #include "wifi.h"
 #include "user_data.h"
+#include "define.h"
 //#include "i2c_task.h"
 
 extern uint16_t Test[50];
@@ -312,29 +313,6 @@ fail:
 	return ret;
 }
 void update_timers( void );
-/*void rtc_task(void *arg)
-{
-	timezone = 800;
-	Daylight_Saving_Time = 0;
-	PCF_hctosys();
-	update_timers();
-	while (true) {
-
-	        int ret = PCF_hctosys();
-	        Test[30]++;
-	        if (ret != 0) {
-	        	Test[31]++;
-	            PCF_systohc();
-	            update_timers();
-	            //ESP_LOGE(LOG_TAG, "Error reading hardware clock: %d", ret);
-	        }
-
-	       // printf("ret %d time %ld\n ", ret, time(NULL));
-
-	        vTaskDelay(500 / portTICK_RATE_MS);
-
-	    }
-}*/
 
 
 void update_timers( void )
@@ -395,7 +373,7 @@ void update_timers( void )
 			time_since_1970 += 86400L;
 	}
 
-/*	if(timezone >= 0)
+	if(timezone >= 0)
 		time_since_1970 -= (U16_T)timezone * 36;
 	else
 		time_since_1970 -= (S16_T)timezone * 36;
@@ -404,7 +382,7 @@ void update_timers( void )
 	if(Daylight_Saving_Time)
 	{
 		time_since_1970 += 3600;
-	}*/
+	}
 
 	time_since_1970 += timestart;
 
@@ -667,6 +645,50 @@ void Get_RTC_by_timestamp(U32_T timestamp,UN_Time* rtc,U8_T source)
 //		flag_Updata_Clock = 1;
 //#endif
 }
+
+
+extern uint16_t 	start_day;
+extern uint16_t		end_day;
+void Calculate_DSL_Time(void)
+{
+	// calculate stat_time and end_time of DSL
+	uint8_t loop;
+	start_day = 0;
+	end_day = 0;
+	for ( loop = 0;loop < Modbus.start_month - 1; loop++)
+	{
+		start_day += mon_table[loop];
+	}
+	for ( loop = 0;loop < Modbus.end_month - 1; loop++)
+	{
+		end_day += mon_table[loop];
+	}
+	start_day += Modbus.start_day;
+	end_day += Modbus.end_day;
+	if(Is_Leap_Year(Rtc.Clk.year + 2000))
+	{
+		start_day++;
+		end_day++;
+	}
+
+}
+
+
+
+void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS)
+{
+	U32_T current;
+
+	current = get_current_time();
+	current += (newTZ - oldTZ) * 36;
+	if((Rtc.Clk.day_of_year >= start_day) && (Rtc.Clk.day_of_year <= end_day))
+		current += (newDLS - oldDLS) * 3600;
+	Get_RTC_by_timestamp(current,&Rtc,1);
+
+	Rtc_Set(Rtc.Clk.year,Rtc.Clk.mon,Rtc.Clk.day,Rtc.Clk.hour,Rtc.Clk.min,Rtc.Clk.sec,0);
+
+}
+
 
 #ifdef main
 

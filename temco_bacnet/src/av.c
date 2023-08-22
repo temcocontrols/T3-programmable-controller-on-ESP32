@@ -36,7 +36,7 @@
 #include "av.h"
 
 
-#if BAC_COMMON
+#if 1//BAC_COMMON
 
 #define AV_LEVEL_NULL 255
 /* When all the priorities are level null, the present value returns */

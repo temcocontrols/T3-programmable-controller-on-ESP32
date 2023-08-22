@@ -76,23 +76,25 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
 {
     switch (event->event_id)
     {
-    case SYSTEM_EVENT_STA_START:Test[10]++;
+    case SYSTEM_EVENT_STA_START:
         ESP_LOGI(TAG, "Connecting to AP...");
         debug_info("event_handler_2 esp_wifi_connect()");
         esp_wifi_connect();
+        SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
         break;
 
-    case SYSTEM_EVENT_STA_GOT_IP:Test[11]++;
+    case SYSTEM_EVENT_STA_GOT_IP:
         ESP_LOGI(TAG, "Connected.");
         debug_info("event_handler_2 SYSTEM_EVENT_STA_GOT_IP");
         wifi_retry_count = 0;
         //wifi_task_running = 1;
         //xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+        SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
         break;
 
-    case SYSTEM_EVENT_STA_DISCONNECTED:Test[12]++;
+    case SYSTEM_EVENT_STA_DISCONNECTED:
     	//wifi_task_running = 0;
-
+    	 SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
     	//debug_info("Wifi disconnected, try to connect ...");
 	   if(0)
 	   {// wifi
@@ -152,7 +154,7 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
         //}
         break;
 
-    default:Test[13]++;
+    default:
         break;
     }
 
@@ -187,11 +189,11 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         }
         //ESP_LOGI(TAG,"connect to the AP fail");
     } else */
-    	if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {Test[16]++;
+    	if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         const tcpip_adapter_ip_info_t *ip_info = &event->ip_info;
         //ESP_LOGI(TAG, "got ip:%s",
-        //         ip4addr_ntoa(&event->ip_info.ip));
+         //        ip4addr_ntoa(&event->ip_info.ip));
         debug_info("wifi got ip!");
         SSID_Info.ip_addr[0] = ip4_addr1(&ip_info->ip);
         SSID_Info.ip_addr[1] = ip4_addr2(&ip_info->ip);
@@ -205,10 +207,12 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         SSID_Info.getway[1] = ip4_addr2(&ip_info->gw);
         SSID_Info.getway[2] = ip4_addr3(&ip_info->gw);
         SSID_Info.getway[3]= ip4_addr4(&ip_info->gw);
-        SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
+        SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+
     }
+
 }
 
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
@@ -338,6 +342,7 @@ void wifi_init_sta()
     debug_info("wifi_init_sta finished.");
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
             pdFALSE,
@@ -350,21 +355,23 @@ void wifi_init_sta()
         //ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
         //         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
     	debug_info("wifi connected\r");
-    	SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
+    	//SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
     } else if (bits & WIFI_FAIL_BIT) {
         //ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
         //         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
     	debug_info("wifi disconnected\r");
-    	SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+    	//SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
     } else {
         //ESP_LOGE(TAG, "UNEXPECTED EVENT");
     	debug_info("wifi no connect\r");
-    	SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
+    	//SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
     }
 
     debug_info("esp_wifi_init");
+
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler));
     ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler));
+
     vEventGroupDelete(s_wifi_event_group);
 
 }
@@ -423,7 +430,7 @@ void wifi_task(void *pvParameters)
 	//modbus_init();
 	//debug_info("Finish flash init........");
 	//ESP_ERROR_CHECK(ret);
-	if(SSID_Info.MANUEL_EN == 1){	Test[20]++;
+	if(SSID_Info.MANUEL_EN == 1){
 		wifi_init_sta();}
     ESP_LOGI(TAG, "Finish wifi init");
     task_test.enable[1] = 1;
@@ -452,6 +459,6 @@ void wifi_task(void *pvParameters)
 void connect_wifi(void)
 {
 	debug_info("Finish flash init........");
-	wifi_init_sta();Test[21]++;
+	wifi_init_sta();
 	debug_info("Finish wifi init%%%%%%%%%%");
 }

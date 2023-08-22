@@ -498,6 +498,9 @@ extern Byte  MAX_MASTER;
 extern 	U8_T panel_number;
 extern U16_T SW_REV;
 
+extern S16_T timezone;
+extern U8_T Daylight_Saving_Time;
+
 //extern U8_T  flag_Moniter_changed;
 //extern U8_T count_monitor_changed;
 //extern U8_T  table_bank[TABLE_BANK_LENGTH];

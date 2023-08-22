@@ -2,6 +2,7 @@
 #include "sensirion_common.h"
 //#include "sensirion_i2c.h"
 //#include "sensirion_i2c_hal.h"
+#include "i2c_task.h"
 
 #define SCD4X_I2C_ADDRESS 98
 
@@ -18,25 +19,25 @@ int16_t scd4x_start_periodic_measurement() {
     sensirion_i2c_hal_sleep_usec(1000);
     return NO_ERROR;
 }
-
+extern uint16_t Test[50];
 int16_t scd4x_read_measurement_ticks(uint16_t* co2, uint16_t* temperature,
                                      uint16_t* humidity) {
-    int16_t error;
+    int16_t error = 0;
     uint8_t buffer[9];
     uint16_t offset = 0;
     offset = sensirion_i2c_add_command_to_buffer(&buffer[0], offset, 0xEC05);
 
     error = sensirion_i2c_write_data(SCD4X_I2C_ADDRESS, &buffer[0], offset);
-    if (error) {
+    if (error) {Test[24]++;
         return error;
     }
 
-    sensirion_i2c_hal_sleep_usec(1000);
+    error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, buffer, 6);
 
-    error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 6);
-    if (error) {
+    if (error) {Test[25]++;
         return error;
     }
+
     *co2 = sensirion_common_bytes_to_uint16_t(&buffer[0]);
     *temperature = sensirion_common_bytes_to_uint16_t(&buffer[2]);
     *humidity = sensirion_common_bytes_to_uint16_t(&buffer[4]);

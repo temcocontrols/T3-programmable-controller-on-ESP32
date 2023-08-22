@@ -41,7 +41,7 @@
 
 
 
-#if BAC_COMMON
+#if 1//BAC_COMMON
 
 #if BAC_BI
 /* stores the current value */

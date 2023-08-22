@@ -40,7 +40,7 @@
 
 
 
-#if BAC_COMMON
+#if 1//BAC_COMMON
 
 /* When all the priorities are level null, the present value returns */
 /* the Relinquish Default value */

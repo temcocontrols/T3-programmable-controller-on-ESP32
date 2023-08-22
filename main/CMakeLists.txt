@@ -30,10 +30,12 @@ idf_component_register(SRCS "tcp_server.c"
 							"ade7953.c"	
 							"lcd.c"						
 #							"pic.c"
-#							"smtp_client.c"
+							"smtp_client.c"
+							"airlab.c"
 #							"spi_master_arm.c"
 #							"ble_mesh.c"
-#							EMBED_TXTFILES server_root_cert.pem esp_logo.png
+							EMBED_TXTFILES server_root_cert.pem esp_logo.png
+#							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 set(COMPONENT_ADD_INCLUDEDIRS ".")

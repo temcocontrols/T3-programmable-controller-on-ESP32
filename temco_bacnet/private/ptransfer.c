@@ -124,10 +124,9 @@ extern uint16_t count_write_Flash;
 
 U8_T flag_writing_code;
 U8_T count_wring_code;
-// ±ÜÃâÐ´codeµÄÊ±ºòÖ´ÐÐ³öÎÊÌâ£¬Ð´ÍêºóÔÙÖ´ÐÐ
 U8_T check_whehter_running_code(void)
 {
-	if(flag_writing_code)  // ÕýÔÚÐ´code
+	if(flag_writing_code)  // ï¿½ï¿½ï¿½ï¿½Ð´code
 	{
 		if(count_wring_code-- > 0)
 			return 0;
@@ -408,7 +407,7 @@ uint8_t Send_Mstp(uint8_t flag,uint8_t * type)
 	return 0;
 }
 
-uint8_t count_hold_on_bip_to_mstp;  // µ±yabe»òÕßT3000Èí¼þÕýÔÚ·ÃÎÊÊ±£¬²»Òª¶ÁÐ´ÏÂÃæµÄÉè±¸
+uint8_t count_hold_on_bip_to_mstp;  // ï¿½ï¿½yabeï¿½ï¿½ï¿½ï¿½T3000ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú·ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è±¸
 int 	usleep (uint32_t __useconds);
 // BIP TO MSTP
 void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
@@ -1367,7 +1366,7 @@ void handler_private_transfer(
 		{
 			if((command != WRITETIME_COMMAND) && 
 				(command != WRITE_SETTING))
-			{
+			{Test[20]++;
 				ChangeFlash = 1;
 				count_write_Flash = 0;			
 			}
@@ -1406,13 +1405,13 @@ void handler_private_transfer(
 				case WRITE_BACNET_TO_MDOBUS:
 					ptr = (uint8_t *)(&bacnet_to_modbus);				
 					break;
-				case WRITEINPUT_T3000:
+				case WRITEINPUT_T3000:				
 					if(private_header.point_end_instance <= MAX_INS)
-					ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);				
+					ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
 					break;	
 				case WRITEOUTPUT_T3000:
 					if(private_header.point_end_instance <= MAX_OUTS)
-					ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
+						ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);					
 					break;
 				case WRITEVARIABLE_T3000:        /* write variables  */
 					if(private_header.point_end_instance <= MAX_VARS)
@@ -1428,11 +1427,11 @@ void handler_private_transfer(
 					ptr = (uint8_t *)(&annual_routines[private_header.point_start_instance]);
 					//check_annual_routines();
 					break;
-			 	case WRITEPROGRAM_T3000:
+			 	case WRITEPROGRAM_T3000:Test[21]++;
 					if(private_header.point_end_instance <= MAX_PRGS)
 					ptr = (uint8_t *)(&programs[private_header.point_start_instance]);
 					break;	
-				case WRITEPROGRAMCODE_T3000:
+				case WRITEPROGRAMCODE_T3000:Test[22]++;
 					if(private_header.point_end_instance <= MAX_PRGS)
 					ptr = (uint8_t *)(&prg_code[private_header.point_start_instance][CODE_ELEMENT * packet_index]);
 					break;
@@ -1565,16 +1564,17 @@ void handler_private_transfer(
 					}
 					break;
 #endif
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
+
 				case WRITE_MSV_COMMAND:			
-					write_page_en[25] = 1;
+					//write_page_en[25] = 1;
 					ptr = (uint8_t *)&msv_data[private_header.point_start_instance];
-					break;				
-			case WRITE_EMAIL_ALARM:
+					break;	
+#if 0					
+				case WRITE_EMAIL_ALARM:
 					write_page_en[4] = 1;
 					ptr = (uint8_t *)&Email_Setting;	
-					break;
-#endif
+#endif					break;
+
 				default:
 					break;	
 					
@@ -1602,9 +1602,13 @@ void handler_private_transfer(
 					}
 					if(command == WRITEVARIABLE_T3000)
 					{
+#if 0
+						if(Test[45] == 100)
+							memcpy(point_str[VAR].pvar + private_header.point_start_instance,&Temp_CS.value[header_len],private_header.total_length - header_len);
+#endif
 //						Count_Object_Number(OBJECT_ANALOG_VALUE);
 //						Count_Object_Number(OBJECT_BINARY_VALUE);
-						Count_VAR_Object_Number();
+						Count_VAR_Object_Number(AVS);
 					}
 					if(command == WRITEWEEKLYROUTINE_T3000)          /* write weekly routines*/	
 					{		
@@ -1648,7 +1652,12 @@ void handler_private_transfer(
 					if(command == WRITEINPUT_T3000)
 					{	 
 						uint8 i;
+						
 						i = private_header.point_start_instance;
+						#if 0
+						if(Test[45] == 100)
+							memcpy(point_str[IN].pin + i,&Temp_CS.value[header_len],private_header.total_length - header_len);
+						#endif
 						if(private_header.point_start_instance == private_header.point_end_instance)							
 						{							
 							// ONLY FOR NEW T3, work as external IO card
@@ -1699,7 +1708,12 @@ void handler_private_transfer(
 
 						//vTaskSuspend(xHandler_Output);  // do not control local io
 #endif
-						memcpy(ptr,&Temp_CS.value[header_len],private_header.total_length - header_len);
+					#if 0
+						if(Test[45] == 100)
+							memcpy(point_str[OUT].pout + private_header.point_start_instance,&Temp_CS.value[header_len],private_header.total_length - header_len);
+						else
+					#endif
+							memcpy(ptr,&Temp_CS.value[header_len],private_header.total_length - header_len);
 
 						for(i = private_header.point_start_instance;i <= private_header.point_end_instance;i++)
 						//i = private_header.point_start_instance;
@@ -1830,8 +1844,7 @@ void handler_private_transfer(
 						write_page_en[24] = 1;
 #endif
 						// deal with writen_setting
-						// Èç¹ûµ±Ç°ÊÇ´®¿Ú£¬ÑÓÊ±²Ù×÷²¨ÌØÂÊµÄÐÞ¸Ä
-						//if(protocal < 0xa0)
+						// ï¿½ï¿½ï¿½ï¿½ï¿½Ç°ï¿½Ç´ï¿½ï¿½Ú£ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½Þ¸ï¿?						//if(protocal < 0xa0)
 							dealwith_write_setting(&Setting_Info);
 //						else
 //						{
@@ -1984,12 +1997,42 @@ void handler_private_transfer(
 				ptr = (uint8_t *)(&bacnet_to_modbus[0]);
 				break;
 			case READOUTPUT_T3000:
+		#if 0
+			if(Test[45] == 100)
+			{
+				if(protocal < 0xa0)  // mstp or bip
+				memcpy(&temp[header_len],point_str[OUT].pout + private_header.point_start_instance,transfer_len);
+				else
+				{
+					memcpy(&temp,&apdu[0],14);
+					memcpy(&temp[14],point_str[OUT].pout + private_header.point_start_instance,transfer_len);
+				}
+			}
+			else
+		#endif
+			{
 				if(private_header.point_end_instance <= MAX_OUTS)
 				ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
+			}
 				break;
-			case READINPUT_T3000:
+			case READINPUT_T3000:Test[41]++;	
+		#if 0
+				if(Test[45] == 100)
+				{
+					if(protocal < 0xa0)  // mstp or bip
+					memcpy(&temp[header_len],point_str[IN].pin + private_header.point_start_instance,transfer_len);
+					else
+					{
+						memcpy(&temp,&apdu[0],14);
+						memcpy(&temp[14],point_str[IN].pin + private_header.point_start_instance,transfer_len);
+					}
+				} 
+				else
+		#endif
+				{
 				if(private_header.point_end_instance <= MAX_INS)
 				ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
+				}
 				break;
 			case READVARIABLE_T3000:
 				if(private_header.point_end_instance <= MAX_VARS)
@@ -2033,9 +2076,10 @@ void handler_private_transfer(
 				Rtc2.NEW.time_zone = timezone;
 				Rtc2.NEW.daylight_saving_time = Daylight_Saving_Time;
 				ptr = (uint8_t *)(Rtc2.all);
+
 				break;			
 			case READCONTROLLER_T3000:
-				/*if(private_header.point_end_instance <= MAX_CONS)
+				if(private_header.point_end_instance <= MAX_CONS)
 				{
 					ptr = (uint8_t *)(&controllers[private_header.point_start_instance]);
 
@@ -2044,7 +2088,7 @@ void handler_private_transfer(
 						get_point_value( (Point*)&controllers[j].input, &controllers[j].input_value );
 						get_point_value( (Point*)&controllers[j].setpoint, &controllers[j].setpoint_value );
 					}
-				}*/
+				}
 				break;
 			case READMONITOR_T3000 :
 				if(private_header.point_end_instance <= MAX_MONITORS)
@@ -2064,10 +2108,9 @@ void handler_private_transfer(
 				if(private_header.point_end_instance <= MAXREMOTEPOINTS)
 				ptr = (uint8_t *)(&points_header[private_header.point_start_instance]);
 				break;	 
-			case READMONITORDATA_T3000:				
+			case READMONITORDATA_T3000:
 			// check whether get correct data, if fail no response
 				flag_read_monitor = ReadMonitor(Graphi_data);
-				Test[33]++;
 				transfer_len = 400;
 				temp[22] = (U8_T)(Graphi_data->total_seg);
 				temp[23] = (Graphi_data->total_seg >> 8);
@@ -2175,10 +2218,10 @@ void handler_private_transfer(
 				}
 				ptr = (uint8_t *)(MISC_Info.all);
 				break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
 			case READ_MSV_COMMAND:	
 				ptr = (uint8_t *)&msv_data[private_header.point_start_instance];	
 				break;
+#if 0
 			case READ_EMAIL_ALARM:
 				ptr = (uint8_t *)&Email_Setting;	
 				break;
@@ -2261,7 +2304,7 @@ void handler_private_transfer(
 		temp[transfer_len + 15] = (U8_T)crc_check;
 		uart_send_string(temp,transfer_len + 16,protocal - 0xa0);
 		
-		// »Ø¸´ÍêÔÙÐÞ¸Ä
+		// ï¿½Ø¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ¸ï¿½
 //		if(delay_write_setting == 1)
 //			dealwith_write_setting(&Setting_Info);
 	}

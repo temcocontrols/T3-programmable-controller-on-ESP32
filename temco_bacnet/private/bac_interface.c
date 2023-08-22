@@ -44,6 +44,10 @@ char get_current_mstp_port(void)
 uint8_t get_max_internal_output(void);
 extern void set_output_raw(uint8_t point,uint16_t value);
 
+U8_T Get_Mini_Type(void);
+void Get_AVS(void);
+
+
 U8_T base_in;
 U8_T base_out;
 U8_T base_var;
@@ -512,11 +516,17 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 	uint8_t io_index;
 	switch(type)
 	{
-		case AV:		
-			Get_index_by_AVx(i,&io_index);
+		case AV:Test[10]++;
 //#if ARM_TSTAT_WIFI
 //		return (float)(vars[io_index].value) / 1000;
 //#endif
+			if(Get_Mini_Type() == 15/*PROJECT_AIRLAB*/)
+			{Test[11]++;
+				Get_AVS();
+				return vars[i].value;
+			}
+
+			Get_index_by_AVx(i,&io_index);
 			if(vars[io_index].range > 0)
 			{
 				if(vars[io_index].digital_analog == 1)  // av
@@ -524,6 +534,8 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 					return (float)(vars[io_index].value) / 1000;
 				}
 			}
+
+
 			return 0;
 			
 		case BV:
@@ -1696,7 +1708,7 @@ void write_annual_date(uint8_t index,BACNET_DATE date)
 U16_T Get_Vendor_ID(void)
 {
 	/*switch(Bacnet_Vendor_ID)
-	{// ±£Áô0 1 2 255 65535 Õâ¼¸¸öÌØÊâid£¬¼æÈÝÀÏµÄ×ö·¨
+	{// ï¿½ï¿½ï¿½ï¿½0 1 2 255 65535 ï¿½â¼¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½idï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½
 		case 1: //netixcontrols
 		case BACNET_VENDOR_ID_NETIX:
 			memcpy(bacnet_vendor_name,BACNET_VENDOR_NETIX,20);
@@ -1751,7 +1763,7 @@ const char*  Get_Vendor_Product(void)
 	return bacnet_vendor_product;
 }
 
-// T3-IOÀïÃæÓÐ¼ÓÏÂÃæµÄº¯Êý£¬ÈÃ¿Í»§×Ô¼º±à¼­£¬T3-Controller»¹Ã»ÓÐ¼Ó
+// T3-IOï¿½ï¿½ï¿½ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½ï¿½ï¿½Äºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¿Í»ï¿½ï¿½Ô¼ï¿½ï¿½à¼­ï¿½ï¿½T3-Controllerï¿½ï¿½Ã»ï¿½Ð¼ï¿½
 void Set_Vendor_Name(char* name)
 {
 	//write_page_en[25] = 1;
@@ -1990,15 +2002,15 @@ void adjust_trend_log(void)
 
 }
 #endif
-uint8_t AI_Index_To_Instance[MAX_INS];
-uint8_t BI_Index_To_Instance[MAX_INS];
+uint8_t AI_Index_To_Instance[MAX_AIS];
+uint8_t BI_Index_To_Instance[MAX_BIS];
 uint8_t AO_Index_To_Instance[MAX_AOS];
 uint8_t BO_Index_To_Instance[MAX_AOS];
 uint8_t AV_Index_To_Instance[MAX_AVS];
 uint8_t BV_Index_To_Instance[MAX_AVS];
 
-uint8_t AI_Instance_To_Index[MAX_INS];
-uint8_t BI_Instance_To_Index[MAX_INS];
+uint8_t AI_Instance_To_Index[MAX_AIS];
+uint8_t BI_Instance_To_Index[MAX_BIS];
 uint8_t AO_Instance_To_Index[MAX_AOS];
 uint8_t BO_Instance_To_Index[MAX_AOS];
 uint8_t AV_Instance_To_Index[MAX_AVS];
@@ -2066,12 +2078,14 @@ void Count_OUT_Object_Number(void)
 
 
 
-void Count_VAR_Object_Number(void)
+void Count_VAR_Object_Number(uint8_t base_var)
 {
 	U8_T count1,count2,i;
+
 	count1 = 0;
 	count2 = 0;
-	for(i = 0;i < MAX_VARS;i++)
+
+	for(i = 0;i < base_var;i++)
 	{
 		if((vars[i].range != 0) &&(vars[i].digital_analog == 1))
 		{
@@ -2247,6 +2261,7 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 		case OBJECT_BINARY_VALUE:
 			for(i = 0;i < MAX_VARS;i++)
 			{
+
 				if((vars[i].range != 0) &&(vars[i].digital_analog == 0))
 				{					
 					if(count == index)

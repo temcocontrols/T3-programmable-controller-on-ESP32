@@ -25,10 +25,10 @@
 #define  MAX_IO_POINTS	64
 
 
-#define MAX_INS     			64
-#define MAX_OUTS        	64
+#define MAX_INS     	64
+#define MAX_OUTS        64
 #define MAX_CONS       	 16
-#define MAX_VARS				128
+#define MAX_VARS		128
 
 #define MAX_EXTIO       12
 
@@ -278,9 +278,9 @@ typedef enum { not_used_input, Y3K_40_150DegC,Y3K_40_300DegF,/*PT100_40_1000DegC
 	V0_5, I0_100Amps,
 	I0_20ma, I0_20psi, N0_2_32counts,  /* N0_3000FPM_0_10V,*/P0_100_0_10V, P0_100_0_5V,
 	P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,	table5, 
-	HI_spd_count,   // HZ 56   		HUMIDTY 57  		CO2 PPM 58 
-	RPM = 29, PPB = 30/*TVOC*/,UG_M3 = 31,NUM_CM3=32,DB=33,LUX=34,
-	AC_PWM,
+	HI_spd_count,  Frequence, Humidty,CO2_PPM, // HZ 56   		HUMIDTY 57  		CO2 PPM 58
+	RPM = 29, TVOC_PPB = 30/*TVOC*/,UG_M3 = 31,NUM_CM3=32,DB=33,LUX=34,
+	AC_PWM, MAX_INPUT_RANGE = 100,
 	} Analog_input_range_equate;
 
 
@@ -618,14 +618,14 @@ typedef struct              /* 645 uint8_ts */
 	U8_T   	 no_used2[6];
 
 
-	U32_T          start_time;
+	U32_T   start_time;
 
-	U16_T          index;      /* pointer to the new free location in block */
+	U16_T   index;      /* pointer to the new free location in block */
 														/* equal with the number of samples in block */
-	U8_T          next_block; /* pointer to the next block in chain
+	U8_T    next_block; /* pointer to the next block in chain
 	                              255 = last block in chain */
-	U8_T          block_no;      /* position of block in chain */
-  U16_T      last_digital_state ;
+	U8_T    block_no;      /* position of block in chain */
+	U16_T   last_digital_state;
 
 
 //	U32_T    dat[MAX_MON_ELEMENT];
@@ -635,7 +635,7 @@ typedef struct              /* 645 uint8_ts */
   	U8_T           raw_byte[360];
   	U16_T           raw_int[180];
   	} dat;
-}	Monitor_Block;         /* 660uint8_ts */
+}Monitor_Block;         /* 660 uint8_ts */
 
 
 
@@ -673,17 +673,17 @@ typedef struct              /* 85 uint8_ts */
 	U8_T wrap_around  ;//   :1; /* 1 - wrapped  */
 
 // added by chelsea
-   U16_T    send_length;
-	 U8_T   	 no_used2[6];
+	U16_T    send_length;
+	U8_T   	 no_used2[6];
 
 
-		S32_T          start_time;
+	S32_T          start_time;
 
-		U16_T          index;      /* pointer to the new free location in block */
-															/* equal with the number of samples in block */
-		U8_T          next_block; /* pointer to the next block in chain
-																	255 = last block in chain */
-		U8_T          block_no;      /* position of block in chain */
+	U16_T          index;      /* pointer to the new free location in block */
+							/* equal with the number of samples in block */
+	U8_T          next_block; /* pointer to the next block in chain
+									255 = last block in chain */
+	U8_T          block_no;      /* position of block in chain */
 
 
   	U8_T      last_digital_state ;//: 14;

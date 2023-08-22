@@ -15,10 +15,11 @@
 #include "sht4x.h"
 #include "ade7953.h"
 #include "sht3x.h"
+#include "airlab.h"
 
 static const char *TAG = "i2c-task";
 
-SemaphoreHandle_t print_mux = NULL;
+//SemaphoreHandle_t print_mux = NULL;
 /**
  * @brief  code to operate on SHT31 sensor
  *
@@ -58,7 +59,10 @@ double ambient; /**< Ambient temperature in degrees Celsius */
 double object; /**< Object temperature in degrees Celsius */
 float mlx90614_ambient;
 float mlx90614_object;
-extern uint8_t tempBuf_CO2[9];
+uint8_t co2_present = 0;
+uint8_t scd4x_perform_forced = 0;
+uint16_t co2_asc = 0;
+uint16_t co2_frc = 0;
 
 int32_t mlx90632_i2c_read(int16_t register_address, uint16_t *value)
 {
@@ -377,12 +381,12 @@ static esp_err_t i2c_master_sensor_scd40(i2c_port_t i2c_num, uint8_t cmd_h, uint
 	int ret;
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, (SCD40_SENSOR_ADDR << 1) | WRITE_BIT, ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_h,ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_l,ACK_CHECK_EN);
 	vTaskDelay(500/portTICK_RATE_MS);
 	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
+	i2c_master_write_byte(cmd, (SCD40_SENSOR_ADDR << 1) | READ_BIT, ACK_CHECK_EN);
 	i2c_master_read(cmd,data,9,ACK_VAL);
 	i2c_master_stop(cmd);
 	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
@@ -392,19 +396,18 @@ static esp_err_t i2c_master_sensor_scd40(i2c_port_t i2c_num, uint8_t cmd_h, uint
 
 esp_err_t sensirion_i2c_write(uint8_t address, const uint8_t *data,
                            uint16_t count) {
-    int ret;
+    int ret = 0;
     uint16_t i;
 
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-
-    i2c_master_write_byte(cmd,address << 1| WRITE_BIT, ACK_CHECK_EN);
+    ret = i2c_master_start(cmd);
+    ret = i2c_master_write_byte(cmd,address << 1| WRITE_BIT, ACK_CHECK_EN);
     for (i = 0; i < count; i++) {
         ret = i2c_master_write_byte(cmd, data[i],ACK_CHECK_EN);
     }
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 5000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -417,12 +420,13 @@ esp_err_t sensirion_i2c_read(uint8_t address, uint8_t *data, uint16_t count) {
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd,address << 1| READ_BIT, ACK_CHECK_EN);
     //usleep(600);
+    vTaskDelay(5/portTICK_RATE_MS);
     for (i = 0; i < count; i++) {
-		send_ack = i < (count - 1); /* last byte must be NACK'ed */
+		send_ack = i < (count - 1); // last byte must be NACK'ed
 		i2c_master_read_byte(cmd, &data[i],!send_ack);
 	}
     i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 2000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
     return ret;
 }
@@ -509,7 +513,7 @@ void sensirion_sleep_usec(uint32_t useconds) {
  */
 esp_err_t i2c_master_init()
 {
-	print_mux = xSemaphoreCreateMutex();
+//	print_mux = xSemaphoreCreateMutex();
     int i2c_master_port = I2C_MASTER_NUM;
     static i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
@@ -557,7 +561,7 @@ uint32_t iaq_baseline;
 uint8_t flag_voc_init;
 uint8_t count_voc_int;
 
-void VOC_Initial(void) // SGP30
+void VOC_Initial(void) 	// SGP30
 {
 	int16_t ret;
 	g_sensors.voc_baseline[0] = 0;
@@ -568,7 +572,7 @@ void VOC_Initial(void) // SGP30
 	//g_sensors.object = 10;
 	uint16_t voc_buf[5];
 	static uint8_t voc_cnt;
-	static	uint16_t baseline_time = 0;
+	static uint16_t baseline_time = 0;
 
 	voc_ok = 1;
 	voc_cnt = 0;
@@ -624,12 +628,17 @@ void VOC_Initial(void) // SGP30
 		}
 	}
 }
-//-------end --- for airlab, i2c sensor initial
 
+
+void Refresh_SCD40(void);
+//-------end --- for airlab, i2c sensor initial
 void i2c_task(void *arg)
 {
     int ret,i;
-    uint8_t voc_ok;
+    uint16 voc_buf[5] = {0,0,0,0,0};
+    uint8 voc_cnt = 0;
+
+    uint16 baseline_time = 0;
 	uint32_t temp;
 	uint32_t iaq_baseline;
     uint32_t task_idx = (uint32_t)arg;
@@ -646,9 +655,12 @@ void i2c_task(void *arg)
 
     if(Modbus.mini_type == PROJECT_AIRLAB)
     {
+    	//voc_value_raw = 0;
     	VOC_Initial();
-    }
+    	// check SCD40
+    	co2_present = 1;
 
+    }
 
 #if 0  //????????????
 	if(Modbus.mini_type == PROJECT_SAUTER){
@@ -670,8 +682,9 @@ void i2c_task(void *arg)
 		scd4x_reinit();
 		scd4x_start_periodic_measurement();
 	}
-	while (1) {//Test[20]++;
-#if 1
+
+	while (1) {
+
 		if(Modbus.mini_type == PROJECT_POWER_METER)
 		{
 			Ade7953GetData();
@@ -835,71 +848,52 @@ void i2c_task(void *arg)
 			memcpy(inputs[5].description,"ENERGY1",strlen("ENERGY1"));
 			memcpy(inputs[6].description,"ENERGY1",strlen("ENERGY1"));
 		}
-		if(Modbus.mini_type == PROJECT_FAN_MODULE)
+		if(Modbus.mini_type == PROJECT_FAN_MODULE || Modbus.mini_type == PROJECT_AIRLAB)
 		{
 			ret = i2c_master_sensor_sht31(I2C_MASTER_NUM, sht31_data);//&sensor_data_h, &sensor_data_l);
-
-			/*memcpy(inputs[0].description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
-			memcpy(inputs[1].description,"HUMIDITY",strlen("HUMIDITY"));
-			{
-				memcpy(inputs[2].description,"TEMP REMOTE",strlen("TEMP REMOTE"));
-			}
-			{
-				memcpy(inputs[3].description,"FAN STATUS",strlen("FAN STATUS"));
-			}
-			{
-				memcpy(inputs[4].description,"FAN SPEED",strlen("FAN SPEED"));
-			}
-			memcpy(inputs[5].description,"THERMEL TEMP",strlen("THERMEL TEMP"));
-			memcpy(outputs[0].description,"FAN AO",strlen("FAN AO"));
-			memcpy(outputs[1].description,"FAN PWM",strlen("FAN PWM"));
-			//memcpy(inputs[4].description,"RPM",strlen("RPM"));*/
-			xSemaphoreTake(print_mux, portMAX_DELAY);
+//			xSemaphoreTake(print_mux, portMAX_DELAY);
 			if (ret == ESP_ERR_TIMEOUT) {
 				ESP_LOGE(TAG, "I2C Timeout");
 				//Test[0] = 120;
 			} else if (ret == ESP_OK) {
+				hum_sensor_type = 1;
 				g_sensors.original_temperature = SHT3X_getTemperature(sht31_data);
 				g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
 				g_sensors.temperature = (uint16_t)(g_sensors.original_temperature*10);
 				g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
-				if(!inputs[0].calibration_sign)
+
+				/*if(!inputs[0].calibration_sign)
 					g_sensors.temperature += (inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
 				else
 					g_sensors.temperature += -(inputs[0].calibration_hi * 256 + inputs[0].calibration_lo);
 				if(!inputs[1].calibration_sign)
 					g_sensors.humidity += (inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
 				else
-					g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);
+					g_sensors.humidity += -(inputs[1].calibration_hi * 256 + inputs[1].calibration_lo);*/
 				if(inputs[0].range == 3)
 					inputs[0].value = g_sensors.temperature*100;
 				if(inputs[0].range == 4)
 					inputs[0].value = (g_sensors.temperature*9/5)*100+32000;
 				inputs[1].value = g_sensors.humidity*100;
-				//Test[21]++;
-				//Test[22] = g_sensors.humidity;
-				//g_sensors.temperature = Filter(0,g_sensors.temperature);
-				//g_sensors.humidity = Filter(9,g_sensors.humidity);
-				//g_sensors.temperature += holding_reg_params.sht31_temp_offset;
-				//printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
-			} else {//Test[23]++;
+
+			} else {
 				//ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
-				//Test[1] = ret;
+
 			}
-			xSemaphoreGive(print_mux);
+//			xSemaphoreGive(print_mux);
 		}
 
-#endif
+
         vTaskDelay(100 / portTICK_RATE_MS);
         if(Modbus.mini_type == PROJECT_TRANSDUCER)
         {
-			xSemaphoreTake(print_mux, portMAX_DELAY);
+//			xSemaphoreTake(print_mux, portMAX_DELAY);
 			scd4x_start_periodic_measurement();
 			vTaskDelay(100 / portTICK_RATE_MS);
 			scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
-			xSemaphoreGive(print_mux);
-
-			xSemaphoreTake(print_mux, portMAX_DELAY);
+//			xSemaphoreGive(print_mux);
+			Test[22]++;
+//			xSemaphoreTake(print_mux, portMAX_DELAY);
 			ret = sht4x_measure_blocking_read( &sht4x_temp, &sht4x_hum);
 			if(ret != ESP_OK)
 			{
@@ -909,11 +903,8 @@ void i2c_task(void *arg)
 			{
 				g_sensors.temperature = (sht4x_temp)/100;
 				g_sensors.humidity = (sht4x_hum)/100;
-				Test[0] = g_sensors.temperature;
-				Test[1] = g_sensors.humidity;
-				Test[2] = g_sensors.co2;
 			}
-			xSemaphoreGive(print_mux);
+//			xSemaphoreGive(print_mux);
         }
 #if 0
 		xSemaphoreTake(print_mux, portMAX_DELAY);
@@ -927,6 +918,7 @@ void i2c_task(void *arg)
 			// printf("data_h: %02x\n", light_data[1]);//sensor_data_h);
 			// printf("data_l: %02x\n", light_data[0]);//sensor_data_l);
 			g_sensors.light_value = ((uint16_t)light_data[1]<<8)+light_data[0];
+
 			//g_sensors.light_value = Filter(8,g_sensors.light_value);
 		}else {
 			ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
@@ -973,17 +965,11 @@ void i2c_task(void *arg)
 			xSemaphoreGive(print_mux);
 			vTaskDelay(100/ portTICK_RATE_MS);
 		}
-
+#endif
 		//-----------------tVOC
-		xSemaphoreTake(print_mux, portMAX_DELAY);
-		/*ret = sensirion_i2c_delayed_read_cmd(
-				SGP30_SENSOR_ADDR, sgp30_cmd_get_serial_id,
-		        SGP_CMD_GET_SERIAL_ID_DURATION_US, client_data.buffer.words,
-		        SGP_CMD_GET_SERIAL_ID_WORDS);*/
-		/*if(sgp30_measure_tvoc() == ESP_OK)
-		{
-			vTaskDelay(100/ portTICK_RATE_MS);
-		}*/
+
+//		xSemaphoreTake(print_mux, portMAX_DELAY);
+
 		if(voc_ok)
 		{
 			if(sgp30_measure_tvoc() == STATUS_OK)
@@ -1003,10 +989,7 @@ void i2c_task(void *arg)
 						temp += voc_buf[i];
 
 					g_sensors.voc_value = temp/5;
-					//g_sensors.voc_value = Filter(7,g_sensors.voc_value);
-				 //TXEN = SEND;
-				//	printf("tVOC  Concentration: %dppb\n", tvoc_ppb);
-				 //TXEN = RECEIVE;
+					inputs[3].value = g_sensors.voc_value * 1000;
 				}
 			}
 
@@ -1022,118 +1005,83 @@ void i2c_task(void *arg)
 			  //write_eeprom(EEP_BASELINE3, (iaq_baseline>>16) & 0XFF);
 			  //write_eeprom(EEP_BASELINE4, (iaq_baseline>>24) & 0XFF);
 			  g_sensors.voc_baseline[0] = iaq_baseline & 0XFF;
-			  g_sensors.voc_baseline[1] = (iaq_baseline>>8)& 0XFF;
+			  g_sensors.voc_baseline[1] = (iaq_baseline>>8) & 0XFF;
 			  g_sensors.voc_baseline[2] = (iaq_baseline>>16) & 0XFF;
 			  g_sensors.voc_baseline[3] = (iaq_baseline>>24) & 0XFF;
      		}
 		}
 
-			if(g_sensors.voc_ini_baseline == 1)
-			{
-				ret = sgp30_iaq_init();
-				if (ret == STATUS_OK) {
-					g_sensors.voc_ini_baseline = 0;
-					printf("sgp30_iaq_init done\n");
-				} else
-					printf("sgp30_iaq_init failed!\n");
-			}
-	  }
-		xSemaphoreGive(print_mux);
-		vTaskDelay(500/portTICK_RATE_MS);
-		//------------------SCD40
-
-		xSemaphoreTake(print_mux, portMAX_DELAY);
-		//ret = i2c_master_sensor_scd40(I2C_MASTER_NUM,0x36,0x82,scd40_data);
-		//ret = sensirion_i2c_delayed_read_cmd(SCD40_SENSOR_ADDR, 0x3682,	200, scd40_data, 3);
-		ret = ESP_OK;
-		if (ret == ESP_ERR_TIMEOUT) {
-			ESP_LOGE(TAG, "I2C Timeout");
-		} else if (ret == ESP_OK) {
-			if(g_sensors.co2_start_measure != true)
-			{
-				sensirion_i2c_write_cmd(SCD40_SENSOR_ADDR, 0x3608);
-				g_sensors.co2_start_measure = true;
-			}
-			vTaskDelay(1000/portTICK_RATE_MS);
-			ret = sensirion_i2c_delayed_read_cmd(
-							SCD40_SENSOR_ADDR, 0xEC05,
-							2000, scd40_data,
-							3);
-			if(ret == ESP_OK)
-			{
-				//sensirion_i2c_write_cmd(SCD40_SENSOR_ADDR, 0x3F86);
-				//g_sensors.co2 = scd40_data[0];//(uint16_t)(scd40_data[0]<<8) + scd40_data[1];
-				g_sensors.co2 = BUILD_UINT16(tempBuf_CO2[1],tempBuf_CO2[0]);//(uint16_t)(tempBuf_CO2[0]<<8) + tempBuf_CO2[1];//tempBuf_CO2
-				//g_sensors.co2 = Filter(2, g_sensors.co2);
-			}
-			// printf("*******************\n");
-			// printf("TASK[%d]  MASTER READ SENSOR( SCD40 )\n", task_idx);
-			// printf("*******************\n");
-			// printf("data_1: %02x\n", tempBuf_CO2[0]);//sensor_data_h);
-			// printf("data_2: %02x\n", tempBuf_CO2[1]);//sensor_data_l);
-			// printf("data_3: %02x\n", scd40_data[2]);//sensor_data_h);
-			// printf("data_4: %02x\n", scd40_data[3]);//sensor_data_l);
-			// printf("data_5: %02x\n", scd40_data[4]);//sensor_data_h);
-			// printf("data_6: %02x\n", scd40_data[5]);//sensor_data_l);
-			//printf("sensor val: %.02f [Lux]\n", (sensor_data_h << 8 | sensor_data_l) / 1.2);
-			//uart_write_bytes(0, "\r\n", 2);
-			//uart_write_bytes(0, (const char*)&g_sensors.co2, 2);
-			//uart_write_bytes(0, (const char*)&tempBuf_CO2[0], 1);
-			//uart_write_bytes(0, (const char*)&tempBuf_CO2[1], 1);
-		} else {
-			// ESP_LOGW(TAG, "%s: No ack, scd40 sensor not connected...skip...", esp_err_to_name(ret));
-		}
-		xSemaphoreGive(print_mux);
-		vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
-#endif
-		//if(which_project == PROJECT_FAN_MODULE)
-		/*{
-			xSemaphoreTake(print_mux, portMAX_DELAY);
-			//ret = i2c_master_sensor_mlx90614(I2C_MASTER_NUM, mlx90614_data);
-			MLX90614_GetTa(MLX90614_SENSOR_ADDR, &mlx90614_ambient);
-			MLX90614_GetTo(MLX90614_SENSOR_ADDR, &mlx90614_object);
-			g_sensors.ambient = (uint16_t)(mlx90614_ambient*10);
-			g_sensors.object = (uint16_t )(mlx90614_object*10);
-			//g_sensors.ambient += holding_reg_params.ambient_temp_offset;
-			//g_sensors.object += holding_reg_params.object_temp_offset;
-			xSemaphoreGive(print_mux);
-			vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
-		}*/
-		if(Modbus.mini_type == PROJECT_AIRLAB)
+		if(g_sensors.voc_ini_baseline == 1)
 		{
+			ret = sgp30_iaq_init();
+			if (ret == STATUS_OK) {
+				g_sensors.voc_ini_baseline = 0;
+				printf("sgp30_iaq_init done\n");
+			} else
+				printf("sgp30_iaq_init failed!\n");
+		}
 
+//		xSemaphoreGive(print_mux);
+		vTaskDelay(500/portTICK_RATE_MS);
+	}
+
+		//------------------SCD40
+#if 1
+//		xSemaphoreTake(print_mux, portMAX_DELAY);
+		// get  serial number
+		if(co2_present == 1)
+		{
+			uint16_t co2;
+			int32_t temperature;
+			int32_t humidity;
+			static uint8_t count_err = 0;
+			if(scd4x_perform_forced == 1)
+			{
+				scd4x_stop_periodic_measurement();
+				vTaskDelay(1000/portTICK_RATE_MS);
+				scd4x_perform_forced_recalibration(co2_frc,&co2_asc);
+				vTaskDelay(1000/portTICK_RATE_MS);
+				scd4x_start_periodic_measurement();
+				vTaskDelay(5000/portTICK_RATE_MS);
+				scd4x_perform_forced = 0;
+			}
+			uint8_t error = scd4x_read_measurement(&co2, &temperature, &humidity);
+			if (error) { count_err++;
+					//printf("Error executing scd4x_read_measurement(): %i\n", error);
+			} else if (co2 == 0) {
+				 // printf("Invalid sample detected, skipping.\n");
+			} else {count_err = 0;
+				//CO2_get_value(co2,temperature / 100,humidity / 100);
+				if(hum_sensor_type == 1)
+				{
+
+				}
+				else
+				{
+					g_sensors.temperature = temperature / 100;
+					g_sensors.humidity = humidity/ 100;
+
+					inputs[0].value = g_sensors.temperature;
+					inputs[1].value = g_sensors.humidity;
+				}
+
+				g_sensors.co2 = co2;
+				inputs[2].value = g_sensors.co2 * 1000;
+			}
+			if(count_err > 10)
+				co2_present = 0;
 
 		}
-#if 0
-		//vTaskDelay(1000/portTICK_RATE_MS);
-
-		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-		i2c_master_start(cmd);
-		i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
-		i2c_master_write_byte(cmd, 0x36,ACK_CHECK_EN);
-		i2c_master_write_byte(cmd, 0x08,ACK_CHECK_EN);
-		//i2c_master_stop(cmd);
-		//vTaskDelay(2100/portTICK_RATE_MS);
-		//i2c_master_start(cmd);
-		//i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
-		//i2c_master_read(cmd,scd40_data,9,ACK_VAL);
-		ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
-		i2c_cmd_link_delete(cmd);
-		vTaskDelay(2050/portTICK_RATE_MS);
-		cmd = i2c_cmd_link_create();
-		i2c_master_start(cmd);
-		i2c_master_write_byte(cmd, SCD40_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
-		i2c_master_read(cmd,scd40_data,8,ACK_VAL);
-		i2c_master_read(cmd,&scd40_data[8],1,NACK_VAL);
-		i2c_master_stop(cmd);
-		ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
-		i2c_cmd_link_delete(cmd);
-        //vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_RATE_MS);
-		vTaskDelay(5000 / portTICK_RATE_MS);
+//		xSemaphoreGive(print_mux);
+		vTaskDelay(2000 / portTICK_RATE_MS);
 #endif
+		//Refresh_SCD40();
+
         //---------------------------------------------------
 
     }
-    vSemaphoreDelete(print_mux);
+//    vSemaphoreDelete(print_mux);
     vTaskDelete(NULL);
 }
+
+

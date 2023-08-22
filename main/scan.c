@@ -2154,11 +2154,10 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		else
 			length = 0; // tbd:
 #if 1
-		//Test[40]++;
 		if(length > 0)
-		{//Test[41]++;Test[42] = length;
+		{
 			if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-					else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
+			else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
 			com_tx[port]++;
 			crc_check = crc16(subnet_response_buf, length - 2);		
 			if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])

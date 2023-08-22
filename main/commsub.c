@@ -63,7 +63,8 @@ void Comm_Tstat_Initial_Data(void)
 	else if (Modbus.mini_type == MINI_TINY_ARM) {	base_in = 8;		base_out = 14;}
 	else if(Modbus.mini_type == MINI_TSTAT10) 	{	base_in = TSTAT10_MAX_AIS;		base_out = TSTAT10_MAX_DOS + TSTAT10_MAX_AOS;}
 	else if(Modbus.mini_type == MINI_T10P) 		{	base_in = T10P_MAX_AIS;			base_out = T10P_MAX_DOS + T10P_MAX_AOS;}
-	else if(Modbus.mini_type == 13)	{	base_in = 6;		base_out = 2;}
+	else if(Modbus.mini_type == PROJECT_FAN_MODULE)	{	base_in = 6;		base_out = 2;}
+	else if(Modbus.mini_type == PROJECT_AIRLAB)	{	base_in = 16;		base_out = 0;}
 	else /*if(Modbus.mini_type == MINI_NANO) */		{	base_in = 0;		base_out = 0;}
 	base_var = 0;
 
@@ -1024,7 +1025,7 @@ void update_extio_to_database(void)
 		if(ptr->reg.product_id == PM_T322AI || ptr->reg.product_id == PM_T38AI8AO6DO
 			|| ptr->reg.product_id == PM_T3PT12)
 		{  // external io must be T3 module
-			// À©Õ¹µÄIOÊÖ¶¯Ìí¼ÓÊ±portÊÇÓÐÓÅÏÈË³ÐòµÄget_baut_by_port(0) uart2>uart0>uart1
+			// ï¿½ï¿½Õ¹ï¿½ï¿½IOï¿½Ö¶ï¿½ï¿½ï¿½ï¿½Ê±portï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ï¿½ï¿½get_baut_by_port(0) uart2>uart0>uart1
 #if (ASIX_MINI || ASIX_CM5)
 			check_id_in_database(ptr->reg.modbus_id,ptr->reg.sn,ptr->reg.port,get_baut_by_port(0),ptr->reg.product_id);
 #else			

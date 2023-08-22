@@ -405,7 +405,7 @@ extern EXT_RAM_ATTR Password_point			 			passwords[ MAX_PASSW ];
 
 extern Str_Email_point Email_Setting;
 
-extern EXT_RAM_ATTR Str_variable_point		 		 vars[MAX_VARS + 12];
+extern EXT_RAM_ATTR Str_variable_point		 		 vars[MAX_VARS];
 extern EXT_RAM_ATTR Str_controller_point 	 			 controllers[MAX_CONS];
 extern EXT_RAM_ATTR Str_totalizer_point           totalizers[MAX_TOTALIZERS];
 extern EXT_RAM_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];   

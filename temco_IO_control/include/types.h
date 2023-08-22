@@ -19,6 +19,7 @@
 #define uint16		unsigned short int
 #define uint8		unsigned char
 #define uint32		unsigned long
+#define int16      signed short int
 
 #define u16		unsigned short int
 #define u8		unsigned char
