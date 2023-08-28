@@ -1,4 +1,4 @@
-Please download ESP idf integrated development environment of Espressif Company to compile the code, the version is 4.0.1
+Please download ESP idf integrated development environment of Espressif Company to compile the code, the version is 4.4.4
 1.	Install the ESP-IDF tool installer
 Enter the 
 https://dl.espressif.com/dl/esp-idf/?idf=4.4 
