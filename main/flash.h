@@ -11,6 +11,7 @@ enum
 {
 	FLASH_BLOCK1_SSID,
 	FLASH_BLOCK2_PN,
+	FLASH_BLOCK3_NET,
 }E_BLOCK;
 /*#define STORAGE_NAMESPACE   "storage"
 #define FLASH_SSID_INFO		"SSID_INFO"
@@ -29,9 +30,13 @@ enum
 
 #define FLASH_BOOTLOADER    "BOOTLOADER"*/
 
+#define STORAGE_TRENDLOG	"trendlog"
+
 
 #define STORAGE_NAMESPACE   "storage"
 #define FLASH_SSID_INFO		"SSID_INFO"
+#define FLASH_NET_INFO		"NET_INFO"
+
 #define FLASH_MODBUS_ID		"MODBUS_ID"
 #define FLASH_BAUD_RATE		"BAUD_RATE"
 #define FLASH_INPUT_INFO	"INPUT_INFO"
@@ -52,6 +57,7 @@ enum
 #define FLASH_SN_WRITE		"SN_WRITE"
 #define FLASH_MINI_TYPE		"MINI_TYPE"
 #define FLASH_NETWORK_NUMBER "NETWORK_NUMBER"
+#define FLASH_MSTP_NETWORK  "MSTP_NETWORK"
 #define FLASH_BAUD_RATE2	"BAUD_RATE2"
 #define FLASH_INSTANCE1		"INSTANCE1"
 #define FLASH_INSTANCE2		"INSTANCE2"
@@ -61,6 +67,12 @@ enum
 #define FLASH_EN_USERNAME	"EN_USERNAME"
 #define FLASH_TIME_ZONE		"TIME_ZONE"
 #define FLASH_DSL			"DSL"
+#define FLASH_MAX_VARS		"MAX_VARS"
+#define FLASH_MAX_INS		"MAX_INS"
+#define FLASH_MAX_OUTS		"MAX_OUTS"
+#define FLASH_TCP_PORT      "TCP_PORT"
+#define FLASH_TCP_TYPE		"TCP_TYPE"
+
 
 
 #define FLASH_ENABLE_DEBUG
@@ -116,6 +128,8 @@ extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t leng
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_int16_to_flash(const char* key, int16_t value);
 extern void clear_count_reboot(void);
+
+esp_err_t Save_Ethernet_Info(void);
 
 extern void Flash_Inital(void);
 extern void read_point_info(void);

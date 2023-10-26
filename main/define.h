@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6306
+#define SOFTREV     6402
 
 
 #define		SW_OFF 	 0
@@ -41,9 +41,9 @@ typedef struct
 	U8_T  base_addr;
 	U8_T  tcp_type;   /* 0 -- DHCP, 1-- STATIC */
 	U8_T  ip_addr[4];
+	U8_T  subnet[4];
+	U8_T  getway[4];
 	U8_T  mac_addr[6];
-	U8_T  	subnet[4];
-	U8_T  	getway[4];
 	U8_T  ethernet_status;
 	U16_T 	tcp_port;
 	U8_T  mini_type;
@@ -89,6 +89,7 @@ typedef struct
 	U8_T led_rx485_rx;
 
 	U8_T enable_debug;
+	U16_T mstp_network;
 
 }STR_MODBUS;
 

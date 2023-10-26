@@ -584,8 +584,8 @@ static void fan_led_task(void* arg)
 	uint8_t heart_stat=0;
 	uint8_t identify_cn = 0;
 	uint8_t identify_count = 0;
-	holding_reg_params.led_rx485_rx = 0;
-	holding_reg_params.led_rx485_tx = 0;
+	static uint8 last_comm_display; // 0 - tx 1 - rx
+
 
     for(;;) {
 		//gpio_set_level(LED_HEART_BEAT, (cnt++) % 8);
@@ -634,7 +634,10 @@ static void fan_led_task(void* arg)
 				//heart_stat = 1;
 				heart_stat = 0;
 				gpio_set_level(LED_HEART_BEAT, 0);
+
 			}
+    	}
+
 			if((holding_reg_params.fan_module_pulse==0))//||(holding_reg_params.fan_module_pwm2==255))
 				gpio_set_level(LED_FAN_SPEED, 1);
 			else if((holding_reg_params.fan_module_pulse<50))//||(holding_reg_params.fan_module_pwm2>200))
@@ -648,8 +651,43 @@ static void fan_led_task(void* arg)
 			else if((holding_reg_params.fan_module_pulse<256))//||(holding_reg_params.fan_module_pwm2>0))
 				gpio_set_level(LED_FAN_SPEED, (cnt) % 2);
 
+			if((led_sub_tx > 0) || (led_sub_rx > 0))
+			{
+				if(led_sub_tx == 0)  // only rx
+				{
+					gpio_set_level(LED_RS485_RX, 0);
+					last_comm_display = 1;
+					led_sub_rx--;
+				}
+				else if(led_sub_rx == 0)  // only tx
+				{
+					gpio_set_level(LED_RS485_TX, 0);
+					led_sub_tx--;
+					last_comm_display = 0;
+				}
+				else // tx and rx
+				{
+					if(last_comm_display == 1) // TX
+					{
+						gpio_set_level(LED_RS485_TX, 0);
+						led_sub_tx--;
+						last_comm_display = 0;
+					}
+					else  // RX
+					{
+						gpio_set_level(LED_RS485_RX, 0);
+						last_comm_display = 1;
+						led_sub_rx--;
+					}
+				}
+			}
+			else
+			{
+				gpio_set_level(LED_RS485_TX, 1);
+				gpio_set_level(LED_RS485_RX, 1);
+			}
 
-			if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
+			if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL)
 			{
 				//gpio_set_level(LED_WIFI, 0);
 				if(holding_reg_params.wifi_led > 0)
@@ -663,21 +701,7 @@ static void fan_led_task(void* arg)
 			else
 				gpio_set_level(LED_WIFI, 1);
 
-			if(holding_reg_params.led_rx485_tx>0){
-				gpio_set_level(LED_RS485_TX, 0);
-				holding_reg_params.led_rx485_tx--;
-			}
-			else
-				gpio_set_level(LED_RS485_TX, 1);
 
-			if(holding_reg_params.led_rx485_rx>0)
-			{
-				gpio_set_level(LED_RS485_RX, 0);
-				holding_reg_params.led_rx485_rx--;
-			}
-			else
-				gpio_set_level(LED_RS485_RX, 1);
-    	}
 
 		//outputs[1].value = 200;
         //holding_reg_params.fan_module_pwm1 = get_output_raw(0);

@@ -16,6 +16,7 @@
 #include "rtc.h"
 #include "rs485.h"
 #include "airlab.h"
+#include "flash.h"
 
 
 
@@ -58,6 +59,9 @@ U8_T update_flash;
 //extern U32_T Instance;
 U8_T CRChi = 0xff;
 U8_T CRClo = 0xff;
+
+uint8_t Eth_IP_Change = 0;
+uint8_t ip_change_count = 0;
 
 extern uint8_t gIdentify;
 extern uint8_t count_gIdentify;
@@ -378,10 +382,9 @@ void uart_init(uint8_t uart)
 
 
 
-bool checkdata(uint8_t* data,uint8_t len)
+bool checkdata(uint8_t* data,uint16_t len)
 {
 	uint16_t crc_val ;
-
 	if((data[0] != 255) && (data[0] != Modbus.address) && (data[0] != 0))
 		return false;
 
@@ -446,6 +449,7 @@ void uart0_rx_task(void)
 	task_test.enable[7] = 1;
 	while (1) {
 		task_test.count[7]++;
+
 			if(Modbus.com_config[0] == MODBUS_SLAVE)
 			{
 				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 20 / portTICK_RATE_MS);
@@ -454,31 +458,45 @@ void uart0_rx_task(void)
 				{led_sub_rx++;
 					com_rx[0]++;
 					flagLED_sub_rx = 1; flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+
 					if(checkdata(uart_rsv,len))
 					{
 						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
 						{
-							handler_private_transfer(uart_rsv,0,NULL,0xa0);
+							if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+							{
+								handler_private_transfer(uart_rsv,0,NULL,0xa0);
+							}
 						}
-						init_crc16();
-						responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
-
+						else
+						{
+							if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+							{
+								init_crc16();
+								responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
+							}
+						}
 					}
 				}
 
 			}
 			else if(Modbus.com_config[0] == BACNET_MASTER)
 			{
-				int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
-
-				if(len > 0)
+				if(system_timer / 1000 > 10)
 				{
-					led_sub_rx++;
-					com_rx[0]++;
-					flagLED_sub_rx = 1; flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
-					Timer_Silence_Reset();
+					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
+					if(len > 0)
+					{
+						led_sub_rx++;
+						com_rx[0]++;
+						flagLED_sub_rx = 1; flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+						Timer_Silence_Reset();
+
+					}
 				}
+				else
+					vTaskDelay(500 / portTICK_RATE_MS);
 			}
 			else
 			{
@@ -497,7 +515,7 @@ void uart0_rx_task(void)
 				//vTaskDelay(500 / portTICK_RATE_MS);
 			}
 
-		}
+	}
 
 }
 
@@ -527,25 +545,37 @@ void uart2_rx_task(void)
 				{
 					if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
 					{
-						handler_private_transfer(uart_rsv,0,NULL,0xa2);
+						if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+							handler_private_transfer(uart_rsv,0,NULL,0xa2);
 					}
-					init_crc16();
-					responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,2);
+					else
+					{
+						if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+						{
+							init_crc16();
+							responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,2);
+						}
+					}
 				}
 			}
 
 		}
 		else if(Modbus.com_config[2] == BACNET_MASTER)
 		{
-			int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 5 / portTICK_RATE_MS);
-
-			if(len > 0)
+			if(system_timer / 1000 > 10)
 			{
-				led_main_rx++;
-				com_rx[2]++;
-				flagLED_main_rx = 1;
-				Timer_Silence_Reset();
+				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 5 / portTICK_RATE_MS);
+
+				if(len > 0)
+				{
+					led_main_rx++;
+					com_rx[2]++;
+					flagLED_main_rx = 1;
+					Timer_Silence_Reset();
+				}
 			}
+			else
+				vTaskDelay(500 / portTICK_RATE_MS);
 		}
 		else
 		{		
@@ -584,11 +614,13 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
       headlen = UIP_HEAD;
       uart_sendB = malloc(512);
    }
-   else{
+   else
+   {
       headlen = 0;
       uart_send = malloc(512);
    }
-   if(*(bufadd + 1 + headlen) == WRITE_VARIABLES){
+   if(*(bufadd + 1 + headlen) == WRITE_VARIABLES)
+   {
       if(type == WIFI){ // for wifi
          for(i = 0; i < 6; i++)
             uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
@@ -600,34 +632,32 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_sendB[4] = 0;   //   Len
          uart_sendB[5] = 6;
 
-         //memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
-         //modbus_wifi_len = UIP_HEAD + send_cout;
-      }else{
+         memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
+         *modbus_send_len = UIP_HEAD + send_cout;
+      }
+	  else
+	  {
          //uart_write_bytes(UART_NUM_0, "WRITE_VARIABLES\r\n", sizeof("WRITE_VARIABLES\r\n"));
          for(i = 0; i < rece_size; i++)
             uart_send[send_cout++] = *(bufadd+i);
-         if(type == BAC_TO_MODBUS){
-        	
-        	 memcpy(&bacnet_to_modbus,&bufadd[3],bufadd[5] * 2);
+         if(type == BAC_TO_MODBUS)
+         {
+        	memcpy(&bacnet_to_modbus,&bufadd[3],bufadd[5] * 2);
          }
-         else
+         else if(type == SERIAL) // MODBUS
          {
             uart_send_string((const char *)uart_send, send_cout,port);
          }
-		if(type == WIFI)
-			free(uart_sendB);
-		else
-			free(uart_send);
-		Test[6]++;
-         return;
       }
-   }else if(*(bufadd + 1 + headlen) == MULTIPLE_WRITE){
+   }
+   else if(*(bufadd + 1 + headlen) == MULTIPLE_WRITE)
+   {
       //init_crc16();
       for(i = 0; i < 6; i++)
       {
           if(type != WIFI)
                uart_send[send_cout++] = *(bufadd+i) ;
-          else//zigbee
+          else
           {
                uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
 
@@ -635,36 +665,34 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          crc16_byte(*(bufadd+i));
       }
 
-      if(type != WIFI){
-         if(type == BAC_TO_MODBUS){
-           
-            memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
-         }
-         else{
-            uart_send[6] = CRChi;
-            uart_send[7] = CRClo;
-            uart_send_string((const char *)uart_send, 8,port);
-            
-    		if(type == WIFI)
-    			free(uart_sendB);
-    		else
-    			free(uart_send);
-    		Test[7]++;
-            return;
-         }
-      }else{
-         uart_sendB[0] = *bufadd;//0;         //   TransID
-         uart_sendB[1] = *(bufadd + 1);//TransID++;
-         uart_sendB[2] = 0;         //   ProtoID
-         uart_sendB[3] = 0;
-         uart_sendB[4] = 0;   //   Len
-         uart_sendB[5] = 6;
-         //memcpy(modbus_wifi_buf,uart_sendB,UIP_HEAD + send_cout);
-         //modbus_wifi_len = UIP_HEAD + send_cout;
-      }
-   }else if(*(bufadd + 1 + headlen) == READ_VARIABLES){
+      
+		if(type == BAC_TO_MODBUS)
+		{
+			memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
+		}
+		else if(type == SERIAL)
+		{
+			uart_send[6] = CRChi;
+			uart_send[7] = CRClo;
+			uart_send_string((const char *)uart_send, 8,port);
+
+		}      
+		else  // WIFI OR ETHERNET
+		{
+			 uart_sendB[0] = *bufadd;//0;         //   TransID
+			 uart_sendB[1] = *(bufadd + 1);//TransID++;
+			 uart_sendB[2] = 0;         //   ProtoID
+			 uart_sendB[3] = 0;
+			 uart_sendB[4] = 0;   //   Len
+			 uart_sendB[5] = 6;
+			 memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
+			*modbus_send_len = UIP_HEAD + send_cout;
+		}
+   }
+   else if(*(bufadd + 1 + headlen) == READ_VARIABLES)
+   {
       num = *(bufadd+5 + headlen);
-      if(type!=WIFI)
+      if(type == SERIAL || type == BAC_TO_MODBUS)
       {
          uart_send[send_cout++] = *(bufadd) ;
          uart_send[send_cout++] = *(bufadd+1) ;
@@ -724,15 +752,12 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             temp2 = Modbus.serialNum[3];
          }
          else if(address == VERSION_NUMBER_LO)
-         {
-            
+         {            
             temp1 = 0;
             temp2 = SW_REV % 100;
          }
-
          else if(address == VERSION_NUMBER_HI)
-         {
-            
+         {            
             temp1 = 0;
             temp2 = SW_REV / 100;
          }
@@ -826,6 +851,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = Modbus.network_number >> 8;
 			temp2 = Modbus.network_number;
 		}
+		else if(address == MODBUS_MSTP_NETWORK)
+		{
+			temp1 = Modbus.mstp_network >> 8;
+			temp2 = Modbus.mstp_network;
+		}
 		else if(address == MODBUS_TIME_ZONE)
 		{
 			temp1 = timezone >> 8;
@@ -835,6 +865,16 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		{
 			temp1 = 0;
 			temp2 = Daylight_Saving_Time;
+		}
+		else if(address == MODBUS_TCP_PORT)
+		{
+			temp1 = Modbus.tcp_port >> 8;
+			temp2 = Modbus.tcp_port;
+		}
+		else if(address == IP_MODE)
+		{
+			temp1 = 0;
+			temp2 = Modbus.tcp_type;
 		}
          else if((address >= MAC_ADDR_1) && (address <= MAC_ADDR_6))
          {
@@ -895,7 +935,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 				temp2 =  rtc_date.year;
 			}
 		}
-         else if(address == MODBUS_RUN_TIME_LO)
+        else if(address == MODBUS_RUN_TIME_LO)
 		{
         	 temp1 = (system_timer / 1000) >> 8;
         	 temp2 = (system_timer / 1000);
@@ -905,7 +945,22 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = (system_timer / 1000) >> 24;
 			temp2 = (system_timer / 1000) >> 16;
 		}
-         else if(address == MODBUS_TOTAL_NO)
+		else if(address == MODBUS_MAX_VARS)
+		{
+			 temp1 = 0;
+			 temp2 = max_vars;
+		}
+		else if(address == MODBUS_MAX_INS)
+		{
+			 temp1 = 0;
+			 temp2 = max_inputs;
+		}
+		else if(address == MODBUS_MAX_OUTS)
+		{
+			 temp1 = 0;
+			 temp2 = max_outputs;
+		}
+        else if(address == MODBUS_TOTAL_NO)
 		{
         	 temp1 = 0;
         	 temp2 =  sub_no;
@@ -978,18 +1033,18 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
         	 temp1 = 0;
         	 temp2 = 0x55;
          }
-
          else
          {
             temp1 = 0 ;
             temp2 = 0;
          }
-         if(type!=WIFI)//
+		 
+         if(type == SERIAL || type == BAC_TO_MODBUS)
          {
-            uart_send[send_cout++] = temp1 ;
-            uart_send[send_cout++] = temp2 ;
-            crc16_byte(temp1);
-            crc16_byte(temp2);
+			uart_send[send_cout++] = temp1 ;
+			uart_send[send_cout++] = temp2 ;
+			crc16_byte(temp1);
+			crc16_byte(temp2);
          }
          else
          {
@@ -1004,8 +1059,29 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             uart_sendB[5] = (uint8_t)(3 + num * 2) ;
          }
       }
-   }else if(*(bufadd+1 + headlen) == CHECKONLINE){
-      if(type!=WIFI){
+   
+	   temp1 = CRChi ;
+	   temp2 = CRClo;
+	   if(type == BAC_TO_MODBUS)
+	   {
+		 memcpy(&bacnet_to_modbus,&uart_send[3],num*2);
+	   }
+	   else if(type == WIFI)
+	   {
+		  memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
+		  *modbus_send_len = UIP_HEAD + send_cout;
+	   }
+	   else  // MODBUS/485
+	   {
+		  uart_send[send_cout++] = temp1 ;
+		  uart_send[send_cout++] = temp2 ;
+		  uart_send_string((const char *)uart_send, send_cout,port);
+	   }
+   }
+   else if(*(bufadd+1 + headlen) == CHECKONLINE)
+   { // only support modbus
+      if(type == SERIAL)
+	  {
          uart_send[send_cout++] = 0xff;
          uart_send[send_cout++] = 0x19;
          uart_send[send_cout++] = Modbus.address;
@@ -1014,37 +1090,26 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_send[send_cout++] = Modbus.serialNum[2];
          uart_send[send_cout++] = Modbus.serialNum[3];
          for(i=0;i<send_cout;i++)
-            crc16_byte(uart_send[i]);
-      }
+            crc16_byte(uart_send[i]);      	  
+	  
+		   temp1 = CRChi ;
+		   temp2 = CRClo;
+		   
+		   uart_send[send_cout++] = temp1 ;
+		   uart_send[send_cout++] = temp2 ;
+		   uart_send_string((const char *)uart_send, send_cout,port);
+	  }
+   }
+   
+
+   if(type == WIFI)
+   {
+      free(uart_sendB);
    }
    else
    {
-	if(type == WIFI)
-		free(uart_sendB);
-	else
-		free(uart_send);
-	Test[8]++;
-      return;
-   }
-
-   temp1 = CRChi ;
-   temp2 = CRClo;
-   if(type == BAC_TO_MODBUS){
-
-          memcpy(&bacnet_to_modbus,&uart_send[3],num*2);
-           }
-   if(type == WIFI)
-   {
-      memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
-      *modbus_send_len = UIP_HEAD + send_cout;
-      free(uart_sendB);
-   }else{
-      uart_send[send_cout++] = temp1 ;
-      uart_send[send_cout++] = temp2 ;
-      uart_send_string((const char *)uart_send, send_cout,port);
       free(uart_send);
    }
-
 
 }
 
@@ -1058,14 +1123,12 @@ void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resDa
       responseModbusData(pData,WIFI, len,resData,modbus_send_len,port);
       internalDeal(pData,WIFI);
    }
-  
    else if(type == BAC_TO_MODBUS)
    {
-   
    	   responseModbusData(pData,BAC_TO_MODBUS,len,resData,modbus_send_len,port);
-        internalDeal(pData,BAC_TO_MODBUS);
+       internalDeal(pData,BAC_TO_MODBUS);
    }
-   else
+   else  // MODBUS/RS485
    {
       reg_num = pData[4]*256 + pData[5];
       responseModbusData(pData,SERIAL,len,resData,modbus_send_len,port);
@@ -1077,7 +1140,7 @@ void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resDa
 void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
 {
 	U8_T far i,j;
-
+	uint8_t *ptr;
 	if(StartAdd  >= MODBUS_SETTING_BLOCK_FIRST && StartAdd  <= MODBUS_SETTING_BLOCK_LAST)
 	{
 		if((StartAdd - MODBUS_SETTING_BLOCK_FIRST) % 100 == 0)
@@ -1099,18 +1162,34 @@ void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
 		{
 			S32_T old_value;
 			i = (StartAdd - MODBUS_OUTPUT_BLOCK_FIRST) / ((sizeof(Str_out_point) + 1) / 2);
+#if NEW_IO
+			if(i < max_outputs)
+			{
+				ptr = new_outputs + i;
+				memcpy(ptr,&pData[HeadLen + 7],sizeof(Str_out_point));
+			}
+#else
 			memcpy(&outputs[i],&pData[HeadLen + 7],sizeof(Str_out_point));
-
+#endif
 			check_output_priority_array(i,0);
 
 		}
 	}
 	else if(StartAdd  >= MODBUS_INPUT_BLOCK_FIRST && StartAdd  <= MODBUS_INPUT_BLOCK_LAST)
 	{
+		uint8_t *ptr;
 		if((StartAdd - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1	) / 2) == 0)
 		{
 			i = (StartAdd - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
+#if NEW_IO
+			if(i < max_inputs)
+			{
+				ptr = new_inputs + i;
+				memcpy(ptr,&pData[HeadLen + 7],sizeof(Str_in_point));
+			}
+#else
 			memcpy(&inputs[i],&pData[HeadLen + 7],sizeof(Str_in_point));
+#endif
 
 		}
 	}
@@ -1119,8 +1198,15 @@ void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
 		if((StartAdd - MODBUS_VAR_BLOCK_FIRST) % ((sizeof(Str_variable_point) + 1	) / 2) == 0)
 		{
 			i = (StartAdd - MODBUS_VAR_BLOCK_FIRST) / ((sizeof(Str_variable_point) + 1) / 2);
+#if NEW_IO
+			if(i < max_vars)
+			{
+				ptr = new_vars + i;
+				memcpy(ptr,&pData[HeadLen + 7],sizeof(Str_variable_point));
+			}
+#else
 			memcpy(&vars[i],&pData[HeadLen + 7],sizeof(Str_variable_point));
-
+#endif
 		}
 	}
 	else if(StartAdd  >= MODBUS_PRG_BLOCK_FIRST && StartAdd  <= MODBUS_PRG_BLOCK_LAST)
@@ -1182,6 +1268,59 @@ void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
 		}
 
 	}
+	//
+	else if(StartAdd >= MODBUS_EX_POINTS_START && StartAdd < MODBUS_USER_BLOCK_LAST)
+	{
+		U16_T ex_out_start = MODBUS_EX_POINTS_START;
+		U16_T ex_out_end = 0;
+		U16_T ex_in_start = 0;
+		U16_T ex_in_end = 0;
+		U16_T ex_var_start = 0;
+		U16_T ex_var_end = 0;
+		// addtional outputs
+		if(max_outputs > ORIGINAL_OUTS)
+		{
+			ex_out_end = ex_out_start + ( (sizeof(Str_out_point) + 1) / 2) * (256 - ORIGINAL_OUTS) - 1;
+			ex_in_start = ex_out_end + 1;
+			ex_in_end = ex_in_start;
+			ex_var_start = ex_in_start;
+			ex_var_end = ex_in_start;
+		}
+		// addtional inputs
+		if(max_inputs > ORIGINAL_INS)
+		{
+			ex_in_end = ex_in_start + ( (sizeof(Str_in_point) + 1) / 2) * (256 - ORIGINAL_INS) - 1;
+			ex_var_start = ex_in_end + 1;
+			ex_var_end = ex_var_start;
+		}
+		// addtional vars
+		if(max_vars > ORIGINAL_VARS)
+		{
+			ex_var_end = ex_var_start + ( (sizeof(Str_variable_point) + 1) / 2) * (256 - ORIGINAL_VARS) - 1;
+		}
+
+		if( StartAdd >= ex_out_start && StartAdd <= ex_out_end )
+		{
+			i = (StartAdd - ex_out_start) / ( (sizeof(Str_out_point) + 1) / 2);
+			if(new_outputs != NULL)
+				if(ORIGINAL_OUTS + i < max_outputs)
+					ptr = new_outputs + ORIGINAL_INS + i;
+		}
+		else if( StartAdd >= ex_in_start && StartAdd <= ex_in_end )
+		{
+			i = (StartAdd - ex_in_start) / ((sizeof(Str_in_point) + 1) / 2);
+			if(new_inputs != NULL)
+				if(ORIGINAL_INS + i < max_inputs)
+					ptr = new_inputs + ORIGINAL_INS + i;
+		}
+		else if( StartAdd >= ex_var_start && StartAdd <= ex_var_end )
+		{
+			i = (StartAdd - ex_var_start) / ((sizeof(Str_variable_point) + 1) / 2);
+			if(new_vars != NULL)
+				if(ORIGINAL_VARS + i < max_vars)
+					ptr = new_vars + ORIGINAL_VARS + i;
+		}
+	}
 }
 
 
@@ -1198,19 +1337,34 @@ uint16_t read_user_data_by_block(uint16_t addr)
 	else if( addr >= MODBUS_OUTPUT_BLOCK_FIRST && addr <= MODBUS_OUTPUT_BLOCK_LAST )
 	{
 		index = (addr - MODBUS_OUTPUT_BLOCK_FIRST) / ( (sizeof(Str_out_point) + 1) / 2);
+#if NEW_IO
+		if(index < max_outputs)
+			block = (U16_T *)(new_outputs + index);
+#else
 		block = (U16_T *)&outputs[index];
+#endif
 		item = (addr - MODBUS_OUTPUT_BLOCK_FIRST) % ((sizeof(Str_out_point) + 1) / 2);
 	}
 	else if( addr >= MODBUS_INPUT_BLOCK_FIRST && addr <= MODBUS_INPUT_BLOCK_LAST )
 	{
 		index = (addr - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
+#if NEW_IO
+		if(index < max_inputs)
+			block = (U16_T *)(new_inputs + index);
+#else
 		block = (U16_T *)&inputs[index];
+#endif
 		item = (addr - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1) / 2);
 	}
 	else if( addr >= MODBUS_VAR_BLOCK_FIRST && addr <= MODBUS_VAR_BLOCK_LAST )
 	{
 		index = (addr - MODBUS_VAR_BLOCK_FIRST) / ((sizeof(Str_variable_point) + 1) / 2);
+#if NEW_IO
+		if(index < max_vars)
+			block = (U16_T *)(new_vars + index);
+#else
 		block = (U16_T *)&vars[index];
+#endif
 		item = (addr - MODBUS_VAR_BLOCK_FIRST) % ((sizeof(Str_variable_point) + 1) / 2);
 	}
 	else if( addr >= MODBUS_PRG_BLOCK_FIRST && addr <= MODBUS_PRG_BLOCK_LAST )
@@ -1261,6 +1415,58 @@ uint16_t read_user_data_by_block(uint16_t addr)
 		index = (addr - MODBUS_WR_FLAG_FIRST) / ((MAX_SCHEDULES_PER_WEEK * 8 + 1) / 2);
 		block = (U16_T *)&wr_time_on_off[index];
 		item = (addr - MODBUS_WR_FLAG_FIRST) % ((MAX_SCHEDULES_PER_WEEK * 8 + 1) / 2);
+	}
+	else if(addr >= MODBUS_EX_POINTS_START && addr < MODBUS_USER_BLOCK_LAST)
+	{
+		U16_T ex_out_start = MODBUS_EX_POINTS_START;
+		U16_T ex_out_end = 0;
+		U16_T ex_in_start = 0;
+		U16_T ex_in_end = 0;
+		U16_T ex_var_start = 0;
+		U16_T ex_var_end = 0;
+		// addtional outputs
+		if(max_outputs > ORIGINAL_OUTS)
+		{
+			ex_out_end = ex_out_start + ( (sizeof(Str_out_point) + 1) / 2) * (256 - ORIGINAL_OUTS) - 1;
+			ex_in_start = ex_out_end + 1;
+			ex_in_end = ex_in_start;
+			ex_var_start = ex_in_start;
+			ex_var_end = ex_in_start;
+		}
+		// addtional inputs
+		if(max_inputs > ORIGINAL_INS)
+		{
+			ex_in_end = ex_in_start + ( (sizeof(Str_in_point) + 1) / 2) * (256 - ORIGINAL_INS) - 1;
+			ex_var_start = ex_in_end + 1;
+			ex_var_end = ex_var_start;
+		}
+		// addtional vars
+		if(max_vars > ORIGINAL_VARS)
+		{
+			ex_var_end = ex_var_start + ( (sizeof(Str_variable_point) + 1) / 2) * (256 - ORIGINAL_VARS) - 1;
+		}
+
+		if( addr >= ex_out_start && addr <= ex_out_end )
+		{
+			index = (addr - ex_out_start) / ( (sizeof(Str_out_point) + 1) / 2);
+			//block = (U16_T *)&outputs[ORIGINAL_OUTS + index];
+			block = new_outputs + ORIGINAL_OUTS + index;
+			item = (addr - ex_out_start) % ((sizeof(Str_out_point) + 1) / 2);
+		}
+		else if( addr >= ex_in_start && addr <= ex_in_end )
+		{
+			index = (addr - ex_in_start) / ((sizeof(Str_in_point) + 1) / 2);
+			//block = (U16_T *)&inputs[ORIGINAL_INS + index];
+			block = new_inputs + ORIGINAL_INS + index;
+			item = (addr - ex_in_start) % ((sizeof(Str_in_point) + 1) / 2);
+		}
+		else if( addr >= ex_var_start && addr <= ex_var_end )
+		{
+			index = (addr - ex_var_start) / ((sizeof(Str_variable_point) + 1) / 2);
+			//block = (U16_T *)&vars[ORIGINAL_VARS + index];
+			block = new_vars + ORIGINAL_VARS + index;
+			item = (addr - ex_var_start) % ((sizeof(Str_variable_point) + 1) / 2);
+		}
 	}
 	return block[item];
 }
@@ -1350,7 +1556,7 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
 
    if(StartAdd == MODBUS_WIFI_SSID_MANUAL_EN)
    {
-      SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
+      SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;Test[12]++;
       SSID_Info.MANUEL_EN = pData[HeadLen + 5];
       save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
       //re_init_wifi = true;
@@ -1365,6 +1571,10 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
    {
       SSID_Info.IP_Auto_Manual = pData[HeadLen + 5];
 //      write_eeprom(WIFI_IP_AM,pData[HeadLen + 5]);
+      save_wifi_info();
+      		//re_init_wifi = true;
+      //esp_restart();
+
    }
    else if(StartAdd == MODBUS_WIFI_BACNET_PORT)
    {
@@ -1426,6 +1636,8 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
          SSID_Info.getway[2] = pData[HeadLen + 28];
          SSID_Info.getway[3] = pData[HeadLen + 30];
 
+         save_wifi_info();
+
       }
    }
    else if(StartAdd == MDOBUS_WIFI_MACADDR)
@@ -1470,7 +1682,6 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
       {
     	write_airlab_by_block(temp_i,0,bufadd,0);
       }
-
       if(temp_i >= MODBUS_WIFI_START && temp_i <= MODBUS_WIFI_END)
       {
          write_wifi_data_by_block(temp_i,0,bufadd,0);
@@ -1532,7 +1743,11 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			}
 			save_uint8_to_flash(FLASH_SN_WRITE,SNWriteflag);
 		}
-	  if(address == MODBUS_WIFI_START)
+	   if(address >= MODBUS_WIFI_START && address <= MODBUS_WIFI_END)
+		{
+			write_wifi_data_by_block(address,0,bufadd,0);
+		}
+	  /*if(address == MODBUS_WIFI_START)
 	  {
 		  if(*(bufadd + 5)== 2)
 		  {
@@ -1549,7 +1764,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			 //wifi_init_sta();
 
 		  }
-	  }
+	  }*/
       if(address == MODBUS_ADDRESS)
       {
          if((*(bufadd + 5)!=0)&&(*(bufadd + 5)!=0xff))
@@ -1623,6 +1838,16 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		  save_uint8_to_flash( FLASH_DSL, Daylight_Saving_Time);
 
 	   }
+      else if(address == MODBUS_TCP_PORT)
+	   {
+    	  Modbus.tcp_port = *(bufadd + 5) + (*(bufadd + 4)) * 256;
+		  save_uint16_to_flash( FLASH_TCP_PORT,Modbus.tcp_port);
+	   }
+      else if(address == IP_MODE)
+      {
+    	  Modbus.tcp_type = *(bufadd + 5);
+    	  save_uint8_to_flash( FLASH_TCP_TYPE, Modbus.tcp_type);
+      }
 	  else if(address == MODBUS_COM0_TYPE)
 		{
 		   if(*(bufadd + 5) < MAX_COM_TYPE)
@@ -1665,6 +1890,27 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			Modbus.network_number = (*(bufadd + 5)) + (*(bufadd + 4)) * 256;
 			save_uint16_to_flash(FLASH_NETWORK_NUMBER,Modbus.network_number);
 		}
+		else if(address == MODBUS_MSTP_NETWORK)
+		{
+			Modbus.mstp_network = (*(bufadd + 5)) + (*(bufadd + 4)) * 256;
+			save_uint16_to_flash(FLASH_MSTP_NETWORK,Modbus.mstp_network);
+		}
+		else if(address == MODBUS_MAX_VARS)
+		{
+			max_vars = *(bufadd + 5);
+			save_uint8_to_flash(FLASH_MAX_VARS,max_vars);
+		}
+		else if(address == MODBUS_MAX_INS)
+		{
+			max_inputs = *(bufadd + 5);
+			save_uint8_to_flash(FLASH_MAX_INS,max_inputs);
+		}
+		else if(address == MODBUS_MAX_OUTS)
+		{
+			max_outputs = *(bufadd + 5);
+			save_uint8_to_flash(FLASH_MAX_OUTS,max_outputs);
+		}
+
       else if(address == MODBUS_OUTPUT_BLOCK_FIRST)
       {
          //save_uint16_to_flash(FLASH_INPUT_FLAG, 0);
@@ -2857,6 +3103,12 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			save_uint16_to_flash( FLASH_NETWORK_NUMBER, Modbus.network_number);
 		}
 
+		if(Modbus.mstp_network != ptr->reg.mstp_network_number)
+		{
+			Modbus.mstp_network = ptr->reg.mstp_network_number;
+			save_uint16_to_flash( FLASH_MSTP_NETWORK, Modbus.mstp_network);
+		}
+
 		if((Instance != ptr->reg.instance) && (ptr->reg.instance != 0))
 		{
 			Instance = ptr->reg.instance;
@@ -2915,7 +3167,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 
 		if(ptr->reg.reset_default == 111)	 // reboot
 		{
-			if(system_timer > 10)
+			if(system_timer / 1000 > 10)
 				esp_restart();//flag_reboot = 1;//SoftReset();
 			ptr->reg.reset_default = 0;
 		}
@@ -2927,7 +3179,6 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 
 
 
-#if !(ARM_TSTAT_WIFI )
 		if((memcmp(Modbus.ip_addr,ptr->reg.ip_addr,4) && !((ptr->reg.ip_addr[0] == 0) && (ptr->reg.ip_addr[1] == 0) \
 				&& (ptr->reg.ip_addr[2] == 0) && (ptr->reg.ip_addr[3] == 0)))
 			|| (memcmp(Modbus.subnet,ptr->reg.subnet,4) && !((ptr->reg.subnet[0] == 0) && (ptr->reg.subnet[1] == 0) \
@@ -2942,21 +3193,6 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				&& (ptr->reg.ip_addr[2] == 0) && (ptr->reg.ip_addr[3] == 0)))
 			{
 				memcpy(Modbus.ip_addr,ptr->reg.ip_addr,4);
-#if (ASIX_MINI || ASIX_CM5)
-				E2prom_Write_Byte(EEP_IP + 3, Modbus.ip_addr[0]);
-				E2prom_Write_Byte(EEP_IP + 2, Modbus.ip_addr[1]);
-				E2prom_Write_Byte(EEP_IP + 1, Modbus.ip_addr[2]);
-				E2prom_Write_Byte(EEP_IP + 0, Modbus.ip_addr[3]);
-#endif
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-				E2prom_Write_Byte(EEP_IP + 0, Modbus.ip_addr[0]);
-				E2prom_Write_Byte(EEP_IP + 1, Modbus.ip_addr[1]);
-				E2prom_Write_Byte(EEP_IP + 2, Modbus.ip_addr[2]);
-				E2prom_Write_Byte(EEP_IP + 3, Modbus.ip_addr[3]);
-#endif
-				//flag_reboot = 1;
-
-
 				if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER
 					|| Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
 				{
@@ -2967,64 +3203,29 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				&& (ptr->reg.subnet[2] == 0) && (ptr->reg.subnet[3] == 0)))
 			{
 				memcpy(Modbus.subnet,ptr->reg.subnet,4);
-#if (ASIX_MINI || ASIX_CM5)
-				E2prom_Write_Byte(EEP_SUBNET + 3, Modbus.subnet[0]);
-				E2prom_Write_Byte(EEP_SUBNET + 2, Modbus.subnet[1]);
-				E2prom_Write_Byte(EEP_SUBNET + 1, Modbus.subnet[2]);
-				E2prom_Write_Byte(EEP_SUBNET + 0, Modbus.subnet[3]);
-#endif
-
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-				E2prom_Write_Byte(EEP_SUBNET + 0, Modbus.subnet[0]);
-				E2prom_Write_Byte(EEP_SUBNET + 1, Modbus.subnet[1]);
-				E2prom_Write_Byte(EEP_SUBNET + 2, Modbus.subnet[2]);
-				E2prom_Write_Byte(EEP_SUBNET + 3, Modbus.subnet[3]);
-#endif
-
-				//flag_reboot = 1;
 			}
 			if(memcmp(Modbus.getway,ptr->reg.getway,4) && !((ptr->reg.getway[0] == 0) && (ptr->reg.getway[1] == 0) \
 				&& (ptr->reg.getway[2] == 0) && (ptr->reg.getway[3] == 0)))
 			{
 
 				memcpy(Modbus.getway,ptr->reg.getway,4);
-#if (ASIX_MINI || ASIX_CM5)
-				E2prom_Write_Byte(EEP_GETWAY + 3, Modbus.getway[0]);
-				E2prom_Write_Byte(EEP_GETWAY + 2, Modbus.getway[1]);
-				E2prom_Write_Byte(EEP_GETWAY + 1, Modbus.getway[2]);
-				E2prom_Write_Byte(EEP_GETWAY + 0, Modbus.getway[3]);
-#endif
-
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-				E2prom_Write_Byte(EEP_GETWAY + 0, Modbus.getway[0]);
-				E2prom_Write_Byte(EEP_GETWAY + 1, Modbus.getway[1]);
-				E2prom_Write_Byte(EEP_GETWAY + 2, Modbus.getway[2]);
-				E2prom_Write_Byte(EEP_GETWAY + 3, Modbus.getway[3]);
-#endif
-				//flag_reboot = 1;
 			}
 			if(Modbus.tcp_port != (ptr->reg.tcp_port) && (Modbus.tcp_port != 0))
 			{
 				Modbus.tcp_port = (ptr->reg.tcp_port);
-				//E2prom_Write_Byte(EEP_PORT_LOW,Modbus.tcp_port);
-				//E2prom_Write_Byte(EEP_PORT_HIGH,Modbus.tcp_port >> 8);
-				//flag_reboot = 1;
+				save_uint16_to_flash( FLASH_TCP_PORT,Modbus.tcp_port);
 			}
 			if(Modbus.tcp_type != ptr->reg.tcp_type)
 			{
-				if(ptr->reg.tcp_type <= 1)
-				{
 				Modbus.tcp_type = ptr->reg.tcp_type;
-				//E2prom_Write_Byte(EEP_TCP_TYPE,  Modbus.tcp_type );
-				}
-				//flag_reboot = 1;
+				save_uint8_to_flash( FLASH_TCP_TYPE,Modbus.tcp_type);
 			}
+			Eth_IP_Change = 1;
+			ip_change_count = 0;
+			Test[10]++;
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-			IP_Change = 1;
-#endif
 		}
-#endif
+
 
 
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
@@ -3051,7 +3252,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		}
 #endif
 
-#if 1//ARM_MINI
+
 			if(Modbus.start_month != ptr->reg.start_month)
 			{
 				Modbus.start_month = ptr->reg.start_month;
@@ -3075,6 +3276,37 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				Modbus.end_day = ptr->reg.end_day;
 				//E2prom_Write_Byte(EEP_DLS_END_DAY, ptr->reg.end_day);
 				Calculate_DSL_Time();
+			}
+#if NEW_IO
+			if(max_vars != ptr->reg.max_var)
+			{
+				max_vars = ptr->reg.max_var;
+				save_uint8_to_flash(FLASH_MAX_VARS,max_vars);
+				//free(new_vars);
+				new_vars = NULL;
+				init_panel();
+				Flash_Inital();
+				save_point_info(0);
+			}
+			if(max_inputs != ptr->reg.max_in)
+			{
+				max_inputs = ptr->reg.max_in;
+				save_uint8_to_flash(FLASH_MAX_INS,max_inputs);
+				//free(new_inputs);
+				new_inputs = NULL;
+				Flash_Inital();
+				init_panel();
+				save_point_info(0);
+			}
+			if(max_outputs != ptr->reg.max_out)
+			{
+				max_outputs = ptr->reg.max_out;
+				save_uint8_to_flash(FLASH_MAX_OUTS,max_outputs);
+				//free(new_outputs);
+				new_outputs = NULL;
+				Flash_Inital();
+				init_panel();
+				save_point_info(0);
 			}
 #endif
 	 }

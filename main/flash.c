@@ -15,6 +15,9 @@
 #include "esp_partition.h"
 #include "esp_system.h"
 #include <string.h>
+#include "ud_str.h"
+#include "user_data.h"
+#include "driver/uart.h"
 
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
@@ -24,6 +27,14 @@ void Get_AVS(void);
 
 const uint8 Var_Description[12][21];
 const uint8 Var_label[12][9];
+
+
+#define POINT_INFO_ADDR	0
+#define POINT_INFO_LEN 	0x10000
+
+#define TRENDLOG_ADDR	0x10000
+#define TRENDLOG_LEN	0x10000
+
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -112,6 +123,7 @@ esp_err_t read_default_from_flash(void)
 	nvs_handle_t my_handle;
 	esp_err_t err;
 	uint8_t temp[4];
+	uint32_t len;
 
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -125,7 +137,7 @@ esp_err_t read_default_from_flash(void)
 	if (err != ESP_OK) return err;
 	debug_info("read_default_from_flash nvs_open\n");
 
-	uint32_t len = sizeof(STR_SSID);
+	/*uint32_t len = sizeof(STR_SSID);
 	err = nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
 
 	if(err == ESP_ERR_NVS_NOT_FOUND)
@@ -133,6 +145,9 @@ esp_err_t read_default_from_flash(void)
 		//init_ssid_info();
 		debug_info("The value is not initialized yet!\n");
 	}
+
+	len = 12;
+	err = nvs_get_blob(my_handle, FLASH_NET_INFO, &Modbus.ip_addr[0], &len);*/
 	//if (err != ESP_OK) return err;
 
 	err = nvs_get_u8(my_handle,FLASH_MODBUS_ID, &Modbus.address);
@@ -224,23 +239,65 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_UART2_CONFIG, Modbus.com_config[2]);
 	}
 	err = nvs_get_u8(my_handle, FLASH_MINI_TYPE, &Modbus.mini_type);
-	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
 		Modbus.mini_type = MINI_NANO;
 		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
 	}
 
-	nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
-	nvs_get_u16(my_handle, FLASH_TIME_ZONE, (uint16 *)&timezone);
-	nvs_get_u16(my_handle, FLASH_DSL, &Daylight_Saving_Time);
-	if(Modbus.network_number == 0)
+	err = nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
+
+	if((Modbus.network_number == 0) || (err == ESP_ERR_NVS_NOT_FOUND))
 	{
 		Modbus.network_number = 0xffff;
 		nvs_set_u16(my_handle, FLASH_NETWORK_NUMBER, Modbus.network_number);
 	}
 
+	err = nvs_get_u16(my_handle, FLASH_MSTP_NETWORK, &Modbus.mstp_network);
+	if((Modbus.mstp_network == 0) ||((Modbus.mstp_network == 0xffff)) || (err == ESP_ERR_NVS_NOT_FOUND))
+	{
+		Modbus.mstp_network = 1;
+		nvs_set_u16(my_handle, FLASH_MSTP_NETWORK, Modbus.mstp_network);
+	}
+
+	err = nvs_get_u16(my_handle, FLASH_TCP_PORT, &Modbus.tcp_port);
+	if((Modbus.tcp_port == 0) ||((Modbus.tcp_port == 0xffff)) || (err == ESP_ERR_NVS_NOT_FOUND))
+	{
+		Modbus.tcp_port = 502;
+		nvs_set_u16(my_handle, FLASH_TCP_PORT, Modbus.tcp_port);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_TCP_TYPE, &Modbus.tcp_type);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.tcp_type = 1;  //AUTO
+		nvs_set_u8(my_handle, FLASH_TCP_TYPE, Modbus.tcp_type);
+	}
+
+	nvs_get_u16(my_handle, FLASH_TIME_ZONE, (uint16 *)&timezone);
+	nvs_get_u16(my_handle, FLASH_DSL, &Daylight_Saving_Time);
+
+	err = nvs_get_u8(my_handle, FLASH_MAX_VARS, &max_vars);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		max_vars = 128;
+		nvs_set_u8(my_handle, FLASH_MAX_VARS, max_vars);
+	}
+	err = nvs_get_u8(my_handle, FLASH_MAX_OUTS, &max_outputs);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		max_outputs = 64;
+		nvs_set_u8(my_handle, FLASH_MAX_OUTS, max_outputs);
+	}
+	err = nvs_get_u8(my_handle, FLASH_MAX_INS, &max_inputs);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		max_inputs = 64;
+		nvs_set_u8(my_handle, FLASH_MAX_INS, max_inputs);
+	}
+
 	err = nvs_get_u8(my_handle, FLASH_EN_USERNAME, &Modbus.en_username);
-	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
 		Modbus.en_username = MINI_NANO;
 		nvs_set_u8(my_handle, FLASH_EN_USERNAME, Modbus.en_username);
@@ -264,7 +321,11 @@ esp_err_t read_default_from_flash(void)
 
 	}
 
-	err = nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
+	len = sizeof(STR_SSID);
+	nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
+
+	len = 12;
+	nvs_get_blob(my_handle, FLASH_NET_INFO, &Modbus.ip_addr[0], &len);
 
 	// panel name
 	err = nvs_get_blob(my_handle, FLASH_PANEL_NAME, &panelname, &len);
@@ -287,6 +348,7 @@ typedef struct
 {
 	U16_T addr;
 	U16_T len;
+	U8_T valid;
 }STR_Flash_POS;
 
 STR_Flash_POS  Flash_Position[24];
@@ -300,19 +362,41 @@ void Flash_Inital(void)
 	count_write_Flash = 0;
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
+		Flash_Position[loop].valid = 1;
 		switch(loop)
 		{
-	  case OUT:
+		case OUT:
 			baseAddr = 0;
+#if NEW_IO
+			if(max_outputs <= MAX_OUTS)
+				len = sizeof(Str_out_point) * MAX_OUTS;
+			else
+				len = sizeof(Str_out_point) * max_outputs;
+#else
 			len = sizeof(Str_out_point) * MAX_OUTS;
+#endif
 			break;
 		case IN:
 			baseAddr += len;
+#if NEW_IO
+			if(max_inputs <= MAX_INS)
+				len = sizeof(Str_in_point) * MAX_INS;
+			else
+				len = sizeof(Str_in_point) * max_inputs;
+#else
 			len = sizeof(Str_in_point) * MAX_INS;
+#endif
 			break;
 		case VAR:
 			baseAddr += len;
+#if NEW_IO
+			if(max_vars <= MAX_VARS)
+				len = sizeof(Str_variable_point) * max_vars;
+			else
+				len = sizeof(Str_variable_point) * max_vars;
+#else
 			len = sizeof(Str_variable_point) * MAX_VARS;
+#endif
 			break;
 		case CON:
 			baseAddr += len;
@@ -391,7 +475,8 @@ void Flash_Inital(void)
 			len = STORE_ID_LEN * 254;
 			break;*/
 		default:
-	//		len = 0;
+			//len = 0;
+			Flash_Position[loop].valid = 0;
 			break;
 		}
 
@@ -400,14 +485,12 @@ void Flash_Inital(void)
 
 		Flash_Position[loop].addr = baseAddr;
 		Flash_Position[loop].len = len;
-
 		//write_page_en[loop] = 0;
 	}
-
 	for(loop = 0;loop < MAX_PRGS;loop++)
 		programs[loop].real_byte = 0;
 }
-/*
+
 esp_err_t save_wifi_info(void)
 {
 	nvs_handle_t my_handle;
@@ -433,7 +516,7 @@ esp_err_t save_wifi_info(void)
 	nvs_close(my_handle);
 	return ESP_OK;
 }
-*/
+
 
 void Set_Object_Name(char * name)
 {
@@ -442,6 +525,12 @@ void Set_Object_Name(char * name)
 	save_block(FLASH_BLOCK2_PN);
 }
 
+esp_err_t Save_Ethernet_Info(void)
+{
+	esp_err_t err = 0;
+	err = save_block(FLASH_BLOCK3_NET);
+	return err;
+}
 
 void Store_Instance_To_Eeprom(uint32_t Instance)
 {
@@ -468,6 +557,9 @@ esp_err_t save_block(uint8_t key)
 		break;
 	case FLASH_BLOCK2_PN:
 		err = nvs_set_blob(my_handle, FLASH_PANEL_NAME, (const void*)(&panelname[0]), 20);
+		if (err != ESP_OK) return err;
+	case FLASH_BLOCK3_NET:
+		err = nvs_set_blob(my_handle, FLASH_NET_INFO, (const void*)(&Modbus.ip_addr[0]), 12);
 		if (err != ESP_OK) return err;
 		break;
 	default:
@@ -498,39 +590,70 @@ esp_err_t save_point_info(uint8_t point_type)
 	uint8_t err=0xff;
 	uint16_t loop;
 	//  step 1: Ѱ���û�flash id
+
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
-	//debug_info(" flash start");
-	// step 2: ����flash
 
-	err = esp_partition_erase_range(partition, 0, partition->size);
+	err = esp_partition_erase_range(partition, POINT_INFO_ADDR, POINT_INFO_LEN/*partition->size*/);
 	if(err!=0)
-   {
-	 return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
-   }
+	{
+		return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
+	}
+
+
 	//debug_info(" erase ok");
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
 		//if(loop == point_type)
 		{
+			uint8_t *tempbuf = NULL;
 			ptr_flash.table = loop;
 			ptr_flash.len = Flash_Position[loop].len;
-			uint8_t *tempbuf = (uint8_t*)malloc(ptr_flash.len);
 
+#if NEW_IO
+			if(loop == OUT)
+			{
+				if(new_outputs != NULL)
+				{
+					tempbuf = new_outputs;
+					Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
+				}
+			}
+			else if(loop == IN)
+			{
+				if(new_inputs != NULL)
+				{
+					tempbuf = new_inputs;
+					Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
+				}
+			}
+			else if(loop == VAR)
+			{
+				if(new_vars != NULL)
+				{
+					tempbuf = new_vars;
+					Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
+				}
+			}
+			else
+				tempbuf = (uint8_t*)malloc(ptr_flash.len);
+#else
+			tempbuf = (uint8_t*)malloc(ptr_flash.len);
+#endif
 			switch(loop)
 			{
+#if !NEW_IO
 			case OUT:
 				memcpy(tempbuf,&outputs,sizeof(Str_out_point) * MAX_OUTS);
 				break;
 			case IN:
 				memcpy(tempbuf,&inputs,sizeof(Str_in_point) * MAX_INS);
 				break;
-
 			case VAR:
 				memcpy(tempbuf,&vars,sizeof(Str_variable_point) * MAX_VARS);
 				break;
-
+#endif
 			case CON:
 				memcpy(tempbuf,&controllers,sizeof(Str_controller_point) * MAX_CONS);
 				break;
@@ -566,7 +689,7 @@ esp_err_t save_point_info(uint8_t point_type)
 				case ALARM_SET:
 				memcpy(tempbuf,&alarms_set,sizeof(Alarm_set_point) * MAX_ALARMS_SET);
 				break;*/
-		case PRG_CODE: //prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
+			case PRG_CODE: //prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 				memcpy(tempbuf,&prg_code,MAX_CODE * CODE_ELEMENT * MAX_PRGS);
 				break;
 			case UNIT:
@@ -596,14 +719,18 @@ esp_err_t save_point_info(uint8_t point_type)
 			}
 
 		// step 3�������Ҫ������û�����
-			err = esp_partition_write(partition, Flash_Position[loop].addr,tempbuf,Flash_Position[loop].len);
-			//debug_info("write ...");
+			if(Flash_Position[loop].valid == 1)
+			{
+				err = esp_partition_write(partition, Flash_Position[loop].addr,tempbuf,Flash_Position[loop].len);
+				//debug_info("write ...");
+
+			}
+#if NEW_IO
+		if((loop != OUT) && (loop != IN) && (loop != VAR))
 			free(tempbuf);
-		   if(err != 0)
-		   {//debug_info("user  flash write error");
-			// ESP_LOGI(TAG, "user  flash write header ----1111%d",err);
-			   return err ;
-		   }
+#else
+		free(tempbuf);
+#endif
 
 		}
 	   //debug_info("user  flash write success");
@@ -621,28 +748,57 @@ void read_point_info(void)
 	//U16_T base_addr;
 	U8_T loop,i;
 	U8_T page;
-	uint8_t  err =0xff;
-	uint8_t *tempbuf;
+	uint8_t  err = 0xff;
+	uint8_t *tempbuf = NULL;
 
-#if 1
+
+	Test[31]++;
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
-		/*ptr_flash.table = loop;
 
-		ptr_flash.len = Flash_Position[loop].len;
-		base_addr = Flash_Position[loop].addr;*/
-		//debug_info("read start");
-		    // 1: read ������
-		//err = esp_partition_read(partition, 0, tempbuf, 500);
+		if(Flash_Position[loop].valid == 0)
+			continue;
+
+#if NEW_IO
+
+		if(loop == OUT)
+		{
+			if(new_outputs != NULL)
+			{
+				tempbuf = new_outputs;
+				Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
+			}
+		}
+		else if(loop == IN)
+		{
+			if(new_inputs != NULL)
+			{
+				tempbuf = new_inputs;
+				Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
+			}
+		}
+		else if(loop == VAR)
+		{
+			if(new_vars != NULL)
+			{
+				tempbuf = new_vars;
+				Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
+			}
+		}
+		else
+		{
+			tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
+
+		}
+#else
 		tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
+#endif
 
 		err = esp_partition_read(partition, Flash_Position[loop].addr, tempbuf, Flash_Position[loop].len);
-		if(err == 0)
-			;//debug_info("read ok");
-
 
 		switch(loop)
 		{
+#if !NEW_IO
 			case OUT:
 				memcpy(&outputs,tempbuf,sizeof(Str_out_point) * MAX_OUTS);
 				if((tempbuf[0] == 0x00 && tempbuf[1] == 0x00 && tempbuf[2] == 0x00) ||
@@ -705,6 +861,7 @@ void read_point_info(void)
 						}
 					}
 				}
+
 				break;
 			case IN:
 				memcpy(&inputs,tempbuf,sizeof(Str_in_point) * MAX_INS);
@@ -852,6 +1009,7 @@ void read_point_info(void)
 						inputs[16].range = 0;
 					}
 				}
+
 				break;
 			case VAR:
 				memcpy(&vars,tempbuf,sizeof(Str_variable_point) * MAX_VARS);
@@ -874,6 +1032,8 @@ void read_point_info(void)
 					}
 				}
 				break;
+#endif
+
 #if 1
 			case CON:
 				memcpy(&controllers,tempbuf,sizeof(Str_controller_point) * MAX_CONS);
@@ -940,66 +1100,98 @@ void read_point_info(void)
 				break;
 
 			}
-		free(tempbuf);
-	}
 
-	/*for (i = 0; i < MAX_INS; i++)
-	{
-		if(inputs[i].range == 0)
-			inputs[i].digital_analog = 1;
-	}
-	for (i = 0; i < MAX_OUTS; i++)
-	{
-		if(outputs[i].range == 0)
-			outputs[i].digital_analog = 1;
-	}
-	for (i = 0; i < MAX_VARS; i++)
-	{
-		if(vars[i].range == 0)
-			vars[i].digital_analog = 1;
-	}*/
+
+#if NEW_IO
+		if((loop != OUT) && (loop != IN) && (loop != VAR)){
+
+			free(tempbuf);
+		}
+#else
+		free(tempbuf);
 #endif
 
-//	Flash_Read_Code();
+	}
 
-//	Flash_Read_Other();
 
 }
 
+#if 1//TRENDLOG
 
-#if 0
-esp_err_t save_blob_info(const char* key, const void* pValue, size_t length)
+// SPI_FLASH_SEC_SIZE = 4k
+#define 	MAX_TREND_PAGE 16	// max page is 16, 16 * 4k = 64k
+uint16_t current_page;  //
+uint16_t total_page;
+
+esp_err_t save_trendlog(void)
 {
-	nvs_handle_t my_handle;
-	esp_err_t err;
+	STR_flag_flash ptr_flash;
+	uint8_t err=0xff;
+	uint16_t loop;
+	//  step 1: Ѱ���û�flash id
+	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
-	// Open
-	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-	if (err != ESP_OK) return err;
+	assert(partition != NULL);
 
-	err = nvs_set_blob(my_handle, key, pValue, length);
-	if (err != ESP_OK) return err;
+	err = esp_partition_erase_range(partition, TRENDLOG_ADDR + current_page * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);
+	if(err != 0)
+	{
+	 return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
+	}
 
-	err = nvs_commit(my_handle);
-	if (err != ESP_OK) return err;
+	memcpy(&Test[10],write_mon_point_buf_to_flash,sizeof(Str_mon_element));
+	err = esp_partition_write(partition, TRENDLOG_ADDR + current_page * SPI_FLASH_SEC_SIZE,write_mon_point_buf_to_flash,SPI_FLASH_SEC_SIZE);
 
-	nvs_close(my_handle);
+   if(err != 0)
+   {//debug_info("user  flash write error");
+	   return err ;
+   }
+   current_page++;
+   if(current_page > MAX_TREND_PAGE)
+	   current_page = 0;
+
 	return ESP_OK;
 }
 
-esp_err_t read_blob_info(const char* key, const void* pValue, size_t length)
+
+esp_err_t read_trendlog(uint8_t page,uint8_t seg)
 {
-	nvs_handle_t my_handle;
-	esp_err_t err;
+	// Find the partition map in the partition table
+	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+	debug_info(" read 1");
+	assert(partition != NULL);
+	//STR_flag_flash ptr_flash;
+	//U16_T base_addr;
+	U8_T loop,i;
+	uint8_t  err = 0xff;
 
-	// Open
-	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-	if (err != ESP_OK) return err;
+	// 400(read packet length)
+	// bacnet trasfer length is defined 400 by us
+	// total 11 packets, 400 * 10 + 96 = 4096
+	if(seg < 10)
+		err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 400);
+	else if(seg == 10)
+		err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 96);
+	else
+		err = 1;
 
-	err = nvs_get_blob(my_handle, key, pValue, &length);
-	if (err != ESP_OK) return err;
+	if(err == 0)
+		debug_info("read ok");
+	else
+		debug_info("read fail");
+	//free(tempbuf);
 
-	nvs_close(my_handle);
-	return ESP_OK;
+	memcpy(&Test[0],&read_mon_point_buf_from_flash[0],sizeof(Str_mon_element));
+	return err;
+
 }
+
+
+void TRENLOG_TEST(void)
+{
+	save_trendlog();
+	Test[28] = read_trendlog(0,0);
+	memcpy(&Test[0],&read_mon_point_buf_from_flash[Test[27]],sizeof(Str_mon_element));
+}
+
 #endif

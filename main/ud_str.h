@@ -25,6 +25,11 @@
 #define  MAX_IO_POINTS	64
 
 
+#define ORIGINAL_INS     64
+#define ORIGINAL_OUTS     64
+#define ORIGINAL_VARS     128
+
+
 #define MAX_INS     	64
 #define MAX_OUTS        64
 #define MAX_CONS       	 16
@@ -639,7 +644,8 @@ typedef struct              /* 645 uint8_ts */
 
 
 
-#define 	MAX_MON_POINT 	25
+#define 	MAX_MON_POINT_READ		25
+#define 	MAX_MON_POINT_FLASH 	256
 typedef struct
 {
 	U8_T index;   // monitor

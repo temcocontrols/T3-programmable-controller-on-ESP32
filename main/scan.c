@@ -682,7 +682,6 @@ void set_baut_by_port(U8_T port,U8_T baut)
 //			if((status == UNIQUE_ID) || (status == UNIQUE_ID_FROM_MULTIPLE))
 //			{
 //				// detect ID conflict, decide whether change id automatically by flag external_nodes_plug_and_play	
-//				//Test[13]++;
 ////				if(Modbus.external_nodes_plug_and_play == 1)
 ////				{				
 //					if(occupy_id == current_db.id)

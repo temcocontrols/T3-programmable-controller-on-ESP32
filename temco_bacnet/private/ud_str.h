@@ -640,7 +640,8 @@ typedef struct              /* 645 uint8_ts */
 
 
 
-#define 	MAX_MON_POINT 	25
+#define 	MAX_MON_POINT_READ 	25
+#define 	MAX_MON_POINT_FLASH 256
 typedef struct
 {
 	U8_T index;   // monitor

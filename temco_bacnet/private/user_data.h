@@ -6,6 +6,8 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
+#define NEW_IO  0//1
+
 #pragma pack(1)
 
 typedef struct
@@ -209,7 +211,7 @@ typedef	union
 //	USART_StopBits_1        0             
 // 	USART_StopBits_0_5      1          
 // 	USART_StopBits_2        2           
-// 	USART_StopBits_1_5  		3
+// 	USART_StopBits_1_5  	3
 	
 	lcdconfig display_lcd;
 	U8_T start_month;
@@ -217,7 +219,13 @@ typedef	union
 	U8_T end_month;
 	U8_T end_day;
 	
-	uint8_t network_number_hi;
+	U8_T network_number_hi;
+	U8_T webview_json_flash; //value 1 old way     value 2  new way for jsaon
+	
+	U8_T max_var;
+	U8_T max_in;
+	U8_T max_out;
+	
 	}reg;
 }Str_Setting_Info;
 
@@ -361,6 +369,10 @@ extern EXT_RAM_ATTR Str_Setting_Info     		Setting_Info;
 extern EXT_RAM_ATTR Str_MISC  						 	MISC_Info;
 extern EXT_RAM_ATTR Str_Special  Write_Special;
 
+extern Str_in_point 		*new_inputs;
+extern Str_out_point 		*new_outputs;
+extern Str_variable_point 	*new_vars;
+
 extern EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];
 extern EXT_RAM_ATTR Str_out_point  	outputs[MAX_OUTS];
 //extern Str_out_point   	*outputs;
@@ -412,16 +424,18 @@ extern EXT_RAM_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];
 extern EXT_RAM_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;	
 //extern Aux_group_point        	 		 aux_groups[MAX_GRPS];
 //extern S8_T                     		 Icon_names[MAX_ICONS][14];
-extern EXT_RAM_ATTR Control_group_point  	 		 control_groups[MAX_GRPS];
-extern EXT_RAM_ATTR Str_grp_element			 	    		 group_data[MAX_ELEMENTS];
-extern S16_T 					 							 total_elements;
-extern S16_T 					 							 group_data_length;
+extern EXT_RAM_ATTR Control_group_point  	 			control_groups[MAX_GRPS];
+extern EXT_RAM_ATTR Str_grp_element			 	     	group_data[MAX_ELEMENTS];
+extern S16_T 					 						total_elements;
+extern S16_T 					 						group_data_length;
 
 //extern U32_T 				 		SD_lenght[MAX_MONITORS * 2];
 //extern U32_T 				 		SD_block_num[MAX_MONITORS * 2];
 
-extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
-extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
+//extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
+//extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
+extern Str_mon_element 		write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
+extern Str_mon_element      read_mon_point_buf_from_flash[MAX_MON_POINT_READ];
 
 extern EXT_RAM_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
 extern EXT_RAM_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
@@ -496,6 +510,10 @@ extern EXT_RAM_ATTR STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER
 extern Byte	 Station_NUM;
 extern Byte  MAX_MASTER;
 extern 	U8_T panel_number;
+
+extern U8_T max_inputs;
+extern U8_T max_outputs;
+extern U8_T max_vars;
 
 
 //extern U8_T  flag_Moniter_changed;

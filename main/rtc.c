@@ -235,7 +235,7 @@ int PCF_hctosys(){
 	struct timeval tv = {0};
 
 	ret = PCF_Init(0);
-	printf("PCF_Init %d\n", ret);
+//	printf("PCF_Init %d\n", ret);
 	debug_info("PCF_Init");
 	if(ret == 0)
 	{
@@ -246,7 +246,7 @@ int PCF_hctosys(){
 		goto fail;
 	}
     ret = PCF_GetDateTime(&rtc_date);
-	printf("PCF_GetDateTime %d\n", ret);
+//	printf("PCF_GetDateTime %d\n", ret);
     if (ret != 0) {
 		goto fail;
     }
@@ -394,14 +394,14 @@ U32_T get_current_time(void)
 	{
 		if((rtc_date.day_of_year >= start_day) && (rtc_date.day_of_year <= end_day))
 		{
-			return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36 - 3600;
+			return time_since_1970 + system_timer / 1000;// - (S16_T)timezone * 36 - 3600;
 		}
 		else
-			return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36;
+			return time_since_1970 + system_timer / 1000;// - (S16_T)timezone * 36;
 
 	}
 	else
-		return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36;
+		return time_since_1970 + system_timer / 1000;// - (S16_T)timezone * 36;
 
 	return 0;
 	//return time_since_1970 + system_timer / 1000;//timezone ?????????????

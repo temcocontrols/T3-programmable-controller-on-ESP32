@@ -156,7 +156,6 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     unsigned char data[DATA_SIZE];
     char code[4];
     size_t i, idx = 0;
-    Test[10]++;
     if (len) {
         ESP_LOGD(TAG, "%s", buf);
         printf("%s",buf);
@@ -195,7 +194,7 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
 
             if (idx == 4 && code[0] >= '0' && code[0] <= '9' && code[3] == ' ') {
                 code[3] = '\0';
-                ret = atoi(code);Test[13]++;
+                ret = atoi(code);
                 goto exit;
             }
 
@@ -274,8 +273,8 @@ exit:
 #if 1
 void debug_info2(char *str)
 {
-    sprintf(debug_array,str/*"mbedtls_ssl_init\r\n"*/);
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+    //sprintf(debug_array,str/*"mbedtls_ssl_init\r\n"*/);
+    //uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
 }
 #endif
 
@@ -544,7 +543,7 @@ exit:
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
 
-#if 1
+#if 0
     sprintf(debug_array,"exit %d,%d",ret,Test[40]);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
 #endif

@@ -65,7 +65,8 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port);
 extern U8_T send_mstp_index;
 extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];*/
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
-
+U32_T 	flash_trendlog_num[MAX_MONITORS * 2];
+extern uint16_t flash_trendlog_seg;
 /** @file ptransfer.c  Encode/Decode Private Transfer data */
 /* 
 	handler roution for private transfer
@@ -414,7 +415,6 @@ void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
 {
 
 	U8_T i;
-	U8_T mstp_network = 1;
 	U8_T start = 0;
 	U8_T count = 0;
 	if(pdu_len < 7) 
@@ -436,8 +436,8 @@ void Transfer_Bip_To_Mstp_pdu( uint8_t * pdu,uint16_t pdu_len)
 	TransmitPacket_panel = pdu[5];
 	TransmitPacket[0] = pdu[0];
 	TransmitPacket[1] = 0x0c;
-	TransmitPacket[2] = (U8_T)(mstp_network >> 8);
-	TransmitPacket[3] = mstp_network;
+	TransmitPacket[2] = (U8_T)(Modbus.mstp_network >> 8);
+	TransmitPacket[3] = Modbus.mstp_network;
 	TransmitPacket[4] = 0x06;
 	TransmitPacket[5] = Modbus.ip_addr[0];
 	TransmitPacket[6] = Modbus.ip_addr[1];
@@ -1298,24 +1298,24 @@ void handler_private_transfer(
 			private_data.serviceNumber = rec_data.serviceNumber;
 		}
 		else  // TEMCO modbus private
-		{
+		{	
 			if((apdu[7] + apdu[8] * 256) > (MAX_APDU - 6)) 
-				return;
+				return;			
+			
 			memcpy(&Temp_CS.value[0],&apdu[7],apdu[7] + apdu[8] * 256);	
-		
+			
 		}
 
 		 //bacapp_decode_application_data(rec_data.serviceParameters,
 		 //    rec_data.serviceParametersLen, &rec_data_value);	
-		command = Temp_CS.value[2];
-
+		command = Temp_CS.value[2];		
 		if( command  == READMONITORDATA_T3000 || command  == UPDATEMEMMONITOR_T3000
 			|| command == READPIC_T3000 || command == WRITEPIC_T3000)
 		{
 			 header_len = 26;//18;
 
 			 Graphi_data->command = Temp_CS.value[2];
-			 Graphi_data->index = Temp_CS.value[3];	  // monitor table index
+			 Graphi_data->index = Temp_CS.value[3];	  // monitor table index			 
 			 Graphi_data->sample_type = Temp_CS.value[4];  // 1 - an 0 - digital
 
 			 memcpy(Graphi_data->comm_arg.string,&Temp_CS.value[5],4);  // size oldest_time most_recent_time
@@ -1360,13 +1360,13 @@ void handler_private_transfer(
 
 		if(command ==  WRITEPRGFLASH_COMMAND)   // other commad
 		{		
-			//ChangeFlash = 2;
+			ChangeFlash = 2;
 		} 
 		else
 		{
 			if((command != WRITETIME_COMMAND) && 
 				(command != WRITE_SETTING))
-			{Test[20]++;
+			{
 				ChangeFlash = 1;
 				count_write_Flash = 0;			
 			}
@@ -1405,17 +1405,41 @@ void handler_private_transfer(
 				case WRITE_BACNET_TO_MDOBUS:
 					ptr = (uint8_t *)(&bacnet_to_modbus);				
 					break;
-				case WRITEINPUT_T3000:				
+				case WRITEINPUT_T3000:
+#if NEW_IO
+					if(new_inputs != NULL)
+					{
+						if(private_header.point_end_instance <= max_inputs)
+							ptr = (uint8_t *)(new_inputs + private_header.point_start_instance);
+					}
+#else
 					if(private_header.point_end_instance <= MAX_INS)
-					ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
+						ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
+#endif
 					break;	
 				case WRITEOUTPUT_T3000:
+#if NEW_IO
+					if(new_outputs != NULL)
+					{
+						if(private_header.point_end_instance <= max_outputs)
+							ptr = (uint8_t *)(new_outputs + private_header.point_start_instance);
+					}
+#else
 					if(private_header.point_end_instance <= MAX_OUTS)
-						ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);					
+						ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
+#endif
 					break;
 				case WRITEVARIABLE_T3000:        /* write variables  */
+#if NEW_IO
+					if(new_vars != NULL)
+					{
+						if(private_header.point_end_instance <= max_vars)
+							ptr = (uint8_t *)(new_vars + private_header.point_start_instance);
+					}
+#else
 					if(private_header.point_end_instance <= MAX_VARS)
-					ptr = (uint8_t *)(&vars[private_header.point_start_instance]);
+						ptr = (uint8_t *)(&vars[private_header.point_start_instance]);
+#endif
 					break;
 			 	case WRITEWEEKLYROUTINE_T3000:         /* write weekly routines*/
 					if(private_header.point_end_instance <= MAX_WR)
@@ -1427,11 +1451,11 @@ void handler_private_transfer(
 					ptr = (uint8_t *)(&annual_routines[private_header.point_start_instance]);
 					//check_annual_routines();
 					break;
-			 	case WRITEPROGRAM_T3000:Test[21]++;
+			 	case WRITEPROGRAM_T3000:
 					if(private_header.point_end_instance <= MAX_PRGS)
 					ptr = (uint8_t *)(&programs[private_header.point_start_instance]);
 					break;	
-				case WRITEPROGRAMCODE_T3000:Test[22]++;
+				case WRITEPROGRAMCODE_T3000:
 					if(private_header.point_end_instance <= MAX_PRGS)
 					ptr = (uint8_t *)(&prg_code[private_header.point_start_instance][CODE_ELEMENT * packet_index]);
 					break;
@@ -1459,7 +1483,6 @@ void handler_private_transfer(
 					if(private_header.point_end_instance <= MAX_MONITORS)
 					ptr = (uint8_t *)&monitors[private_header.point_start_instance];
 					break;
-
 			 	case WRITESCREEN_T3000  :   //CONTROL_GROUP
 					if(private_header.point_end_instance <= MAX_GRPS)
 					ptr = (uint8_t *)&control_groups[private_header.point_start_instance];
@@ -1468,14 +1491,13 @@ void handler_private_transfer(
 					if(private_header.point_end_instance <= MAX_ELEMENTS)
 					ptr = (uint8_t *)(&group_data[private_header.point_start_instance]);
 					break;
-
 				case WRITEREMOTEPOINT:
 					if(private_header.point_end_instance <= MAXREMOTEPOINTS)
 					ptr = (uint8_t *)(&remote_points_list_modbus[private_header.point_start_instance]);
 					break;
 					break;
 //
-				case WRITE_SETTING:
+				case WRITE_SETTING:	
 					ptr = (uint8_t *)(&Setting_Info.all[0]);
 					break;
 				case WRITEALARM_T3000:
@@ -1501,13 +1523,8 @@ void handler_private_transfer(
 					ptr = (uint8_t *)(Write_Special.all);	
 					break;
 				case WRITEVARUNIT_T3000:
-//#if ASIX
-					ptr = (uint8_t *)(var_unit);
-//#endif				
+					ptr = (uint8_t *)(var_unit);				
 					break;
-//				case WRITEWEATHER_T3000:
-//					ptr = (char *)(&weather);
-//					break;
 				case WRITEEXT_IO_T3000:					
 					ptr = (uint8_t *)(extio_points);	
 				// update database
@@ -1534,7 +1551,7 @@ void handler_private_transfer(
 #endif	
 #endif				
 
-#if 0//STORE_TO_SD
+
 				case CLEAR_MONITOR:
 					// check whether clear moniotr
 					{
@@ -1543,7 +1560,12 @@ void handler_private_transfer(
 						{
 							if(Temp_CS.value[header_len + i] == 1) // clear current monitor
 							{ // clear current monitor
+#if STORE_TO_SD
 								SD_block_num[i] = 0;	
+#else
+								flash_trendlog_num[i] = 0;
+								flash_trendlog_seg = 0;
+#endif
 								if(i % 2 == 0)
 								{// analog data
 								/*	E2prom_Write_Byte(EEP_SD_BLOCK_A1 + i,(SD_block_num[i] >> 8));
@@ -1563,15 +1585,15 @@ void handler_private_transfer(
 						}
 					}
 					break;
-#endif
+
 
 				case WRITE_MSV_COMMAND:			
 					//write_page_en[25] = 1;
 					ptr = (uint8_t *)&msv_data[private_header.point_start_instance];
 					break;	
-#if 0					
+#if 1					
 				case WRITE_EMAIL_ALARM:
-					write_page_en[4] = 1;
+					//write_page_en[4] = 1;
 					ptr = (uint8_t *)&Email_Setting;	
 #endif					break;
 
@@ -1585,6 +1607,7 @@ void handler_private_transfer(
 			{	 
 				status = true;
 				//				TST_INFO old_tst_info;
+
 #if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 				if(command == WRITE_BACNET_TO_MDOBUS)
 				{
@@ -1602,10 +1625,6 @@ void handler_private_transfer(
 					}
 					if(command == WRITEVARIABLE_T3000)
 					{
-#if 0
-						if(Test[45] == 100)
-							memcpy(point_str[VAR].pvar + private_header.point_start_instance,&Temp_CS.value[header_len],private_header.total_length - header_len);
-#endif
 //						Count_Object_Number(OBJECT_ANALOG_VALUE);
 //						Count_Object_Number(OBJECT_BINARY_VALUE);
 						Count_VAR_Object_Number(AVS);
@@ -1654,10 +1673,6 @@ void handler_private_transfer(
 						uint8 i;
 						
 						i = private_header.point_start_instance;
-						#if 0
-						if(Test[45] == 100)
-							memcpy(point_str[IN].pin + i,&Temp_CS.value[header_len],private_header.total_length - header_len);
-						#endif
 						if(private_header.point_start_instance == private_header.point_end_instance)							
 						{							
 							// ONLY FOR NEW T3, work as external IO card
@@ -1708,11 +1723,6 @@ void handler_private_transfer(
 
 						//vTaskSuspend(xHandler_Output);  // do not control local io
 #endif
-					#if 0
-						if(Test[45] == 100)
-							memcpy(point_str[OUT].pout + private_header.point_start_instance,&Temp_CS.value[header_len],private_header.total_length - header_len);
-						else
-					#endif
 							memcpy(ptr,&Temp_CS.value[header_len],private_header.total_length - header_len);
 
 						for(i = private_header.point_start_instance;i <= private_header.point_end_instance;i++)
@@ -1794,19 +1804,15 @@ void handler_private_transfer(
 									Code_total_length = MAX_CODE_SIZE;
 						}
 						
-					}
-					
-#if 1//STORE_TO_SD
+					}				
+
 					else if(command == WRITEMONITOR_T3000)
 					{ 
-//						char i;	
-//						i = private_header.point_start_instance;
-//						if(private_header.point_start_instance == private_header.point_end_instance)							
+						char i;	
+						i = private_header.point_start_instance;
+						if(private_header.point_start_instance == private_header.point_end_instance)							
 							dealwithMonitor(private_header.point_start_instance);
-					}					
-#endif
-
-
+					}	
 					else if(command == WRITETIME_COMMAND)
 					{ 
 						UN_Time Rtc;
@@ -1844,7 +1850,7 @@ void handler_private_transfer(
 						write_page_en[24] = 1;
 #endif
 						// deal with writen_setting
-						// �����ǰ�Ǵ��ڣ���ʱ���������ʵ��޸�?						//if(protocal < 0xa0)
+						// �����ǰ�Ǵ��ڣ���ʱ���������ʵ��޸�?						//if(protocal < 0xa0)
 							dealwith_write_setting(&Setting_Info);
 //						else
 //						{
@@ -1997,46 +2003,47 @@ void handler_private_transfer(
 				ptr = (uint8_t *)(&bacnet_to_modbus[0]);
 				break;
 			case READOUTPUT_T3000:
-		#if 0
-			if(Test[45] == 100)
-			{
-				if(protocal < 0xa0)  // mstp or bip
-				memcpy(&temp[header_len],point_str[OUT].pout + private_header.point_start_instance,transfer_len);
-				else
-				{
-					memcpy(&temp,&apdu[0],14);
-					memcpy(&temp[14],point_str[OUT].pout + private_header.point_start_instance,transfer_len);
+#if NEW_IO
+				if(private_header.point_end_instance <= max_outputs)
+				{	if(new_outputs != NULL)
+						ptr = (uint8_t *)(new_outputs + private_header.point_start_instance);
 				}
-			}
-			else
-		#endif
-			{
+				else
+					ptr = NULL;
+#else
 				if(private_header.point_end_instance <= MAX_OUTS)
-				ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
-			}
+					ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
+#endif
 				break;
-			case READINPUT_T3000:Test[41]++;	
-		#if 0
-				if(Test[45] == 100)
-				{
-					if(protocal < 0xa0)  // mstp or bip
-					memcpy(&temp[header_len],point_str[IN].pin + private_header.point_start_instance,transfer_len);
-					else
-					{
-						memcpy(&temp,&apdu[0],14);
-						memcpy(&temp[14],point_str[IN].pin + private_header.point_start_instance,transfer_len);
-					}
-				} 
-				else
-		#endif
-				{
-				if(private_header.point_end_instance <= MAX_INS)
-				ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
+			case READINPUT_T3000:
+#if NEW_IO
+				if(private_header.point_end_instance <= max_inputs)
+				{	if(new_inputs != NULL)
+						ptr = (uint8_t *)(new_inputs + private_header.point_start_instance);
 				}
+				else
+					ptr = NULL;
+#else
+				if(private_header.point_end_instance <= MAX_INS)
+					ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
+#endif
 				break;
 			case READVARIABLE_T3000:
+
+#if NEW_IO
+				if(private_header.point_end_instance <= max_vars)
+				{
+					if(new_vars != NULL)
+					{
+						ptr = (uint8_t *)(new_vars + private_header.point_start_instance);
+					}
+				}
+				else
+					ptr = NULL;
+#else
 				if(private_header.point_end_instance <= MAX_VARS)
-				ptr = (uint8_t *)(&vars[private_header.point_start_instance]);
+					ptr = (uint8_t *)(&vars[private_header.point_start_instance]);
+#endif
 				break;
 			case READWEEKLYROUTINE_T3000:
 				if(private_header.point_end_instance <= MAX_WR)
@@ -2070,7 +2077,7 @@ void handler_private_transfer(
 				// if daylight_saving_time
 				 
 //				if(Rtc.Clk.year % 5 == 0)
-					Rtc2.NEW.timestamp = get_current_time() + timezone * 36;
+					Rtc2.NEW.timestamp = get_current_time();// + timezone * 36;
 //				else
 //					Rtc2.NEW.timestamp = swap_double(get_current_time()) - 86400;
 				Rtc2.NEW.time_zone = timezone;
@@ -2110,6 +2117,9 @@ void handler_private_transfer(
 				break;	 
 			case READMONITORDATA_T3000:
 			// check whether get correct data, if fail no response
+				Test[30]++;
+				Test[31] = Graphi_data->seg_index;
+				Test[32] = Graphi_data->total_seg;
 				flag_read_monitor = ReadMonitor(Graphi_data);
 				transfer_len = 400;
 				temp[22] = (U8_T)(Graphi_data->total_seg);
@@ -2203,8 +2213,14 @@ void handler_private_transfer(
 			case READ_MISC:
 				{
 					uint8 i;
-					//for( i = 0; i < 24;i++)
-						//MISC_Info.reg.monitor_block_num[i] = (SD_block_num[i]);
+					for( i = 0; i < 24;i++)
+					{
+#if STORE_TO_SD
+						MISC_Info.reg.monitor_block_num[i] = (SD_block_num[i]);
+#endif
+						MISC_Info.reg.monitor_block_num[i] = (flash_trendlog_num[i] * MAX_MON_POINT_FLASH + flash_trendlog_seg);
+					}
+						
 					MISC_Info.reg.flag = (0xff55);
 					MISC_Info.reg.flag1 = 0x55;
 					for( i = 0; i < 3;i++)
@@ -2221,7 +2237,7 @@ void handler_private_transfer(
 			case READ_MSV_COMMAND:	
 				ptr = (uint8_t *)&msv_data[private_header.point_start_instance];	
 				break;
-#if 0
+#if 1
 			case READ_EMAIL_ALARM:
 				ptr = (uint8_t *)&Email_Setting;	
 				break;
@@ -2241,6 +2257,7 @@ void handler_private_transfer(
 			}
 
 		}
+		
 		status = bacapp_parse_application_data(BACNET_APPLICATION_TAG_OCTET_STRING,	&temp, &data_value);
 	} 
 	
@@ -2266,7 +2283,6 @@ void handler_private_transfer(
 
 			private_data.serviceParameters = &temp[0];
 			private_data.serviceParametersLen = private_data_len;
-
 
 			len = uptransfer_encode_apdu(&apdu[0], &private_data);
 #if 0		

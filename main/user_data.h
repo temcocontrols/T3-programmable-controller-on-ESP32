@@ -6,6 +6,8 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
+#define NEW_IO 0//1
+
 #pragma pack(1)
 
 typedef struct
@@ -219,6 +221,12 @@ typedef	union
 	U8_T end_day;
 	
 	U8_T network_number_hi;
+	U8_T webview_json_flash; //value 1 old way     value 2  new way for jsaon
+	
+	U8_T max_var;
+	U8_T max_in;
+	U8_T max_out;
+	
 	}reg;
 }Str_Setting_Info;
 
@@ -361,6 +369,10 @@ extern EXT_RAM_ATTR Str_Setting_Info     		Setting_Info;
 extern EXT_RAM_ATTR Str_MISC  						 	MISC_Info;
 extern EXT_RAM_ATTR Str_Special  Write_Special;
 
+
+extern Str_in_point 		*new_inputs;
+extern Str_out_point 		*new_outputs;
+extern Str_variable_point 	*new_vars;
 extern EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];
 extern EXT_RAM_ATTR Str_out_point  	outputs[MAX_OUTS];
 //extern Str_out_point   	*outputs;
@@ -420,8 +432,10 @@ extern S16_T 					 							 group_data_length;
 //extern U32_T 				 		SD_lenght[MAX_MONITORS * 2];
 extern U32_T 				 		SD_block_num[MAX_MONITORS * 2];
 
-extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
-extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
+//extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
+//extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
+extern Str_mon_element 		write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
+extern Str_mon_element      read_mon_point_buf_from_flash[MAX_MON_POINT_READ];
 
 extern EXT_RAM_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
 extern EXT_RAM_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
@@ -497,6 +511,11 @@ extern Byte	 Station_NUM;
 extern Byte  MAX_MASTER;
 extern 	U8_T panel_number;
 extern U16_T SW_REV;
+
+
+extern uint8 max_inputs;
+extern uint8 max_outputs;
+extern uint8 max_vars;
 
 extern S16_T timezone;
 extern U8_T Daylight_Saving_Time;
