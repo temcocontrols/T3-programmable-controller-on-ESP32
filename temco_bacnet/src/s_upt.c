@@ -128,7 +128,7 @@ int Send_ConfirmedPrivateTransfer(
 	 invoke_id = tsm_next_free_invokeID();
 
 	 if(invoke_id == 0)//???????????ID??????ID???;????;
-	 tsm_free_all_invoke_id();
+	  tsm_free_all_invoke_id();
 		 
 	len =
 		ptransfer_encode_apdu(&Handler_Transmit_Buffer[protocal][pdu_len],invoke_id,private_data);	//???????? Invoke ID

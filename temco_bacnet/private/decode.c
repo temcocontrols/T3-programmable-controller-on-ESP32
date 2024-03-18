@@ -19,6 +19,9 @@ S32_T pop(void);
 void pushlong(unsigned long value);
 unsigned long poplong(void);
 
+extern uint8_t flag_start_scan_network;
+extern uint8_t start_scan_network_count;
+
 extern UN_Time Rtc;
 extern U16_T Test[50];
 #if (ARM_MINI || ARM_CM5 )
@@ -58,11 +61,11 @@ S16_T isdelimit(S8_T c)
 #if 1
 
 /*
-1. floatºÍunsigned long¾ßÓÐÏàÍ¬µÄÊý¾Ý½á¹¹³¤¶È
+1. floatï¿½ï¿½unsigned longï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¬ï¿½ï¿½ï¿½ï¿½ï¿½Ý½á¹¹ï¿½ï¿½ï¿½ï¿½
 */
 
 /*
-½«¸¡µãÊý×ª»¯Îª4¸ö×Ö½ÚÊý¾Ý·ÅÔÚbyte
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½Îª4ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½ï¿½ï¿½byte
 */
 		
 
@@ -110,7 +113,7 @@ void Float_to_Byte(float f, unsigned char *mybyte,  unsigned char ntype)
 
 
 /*
-½«4¸ö×Ö½Úbyte[4]×ª»¯Îª¸¡µãÊý´æ·ÅÔÚfÖÐ
+ï¿½ï¿½4ï¿½ï¿½ï¿½Ö½ï¿½byte[4]×ªï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½fï¿½ï¿½
 */
 void Byte_to_Float(float *f, S32_T val_ptr,unsigned char ntype)
 {
@@ -148,8 +151,8 @@ void Byte_to_Float(float *f, S32_T val_ptr,unsigned char ntype)
     fl.ldata = 0;
     fl.ldata = (U8_T)transfer_byte[0];
     fl.ldata = (U16_T)(fl.ldata << 8) | (U8_T)transfer_byte[1];
-    fl.ldata = (U32_T)(fl.ldata << 8) | (U8_T)transfer_byte[2];
-    fl.ldata = (U32_T)(fl.ldata << 8) | (U8_T)transfer_byte[3];
+    fl.ldata = (uint32_t)(fl.ldata << 8) | (U8_T)transfer_byte[2];
+    fl.ldata = (uint32_t)(fl.ldata << 8) | (U8_T)transfer_byte[3];
     *f = fl.fdata;
 }
 
@@ -170,21 +173,21 @@ U16_T convert_pointer_to_word( U8_T *iAddr ) //	 mGetPointWord
 //  	return( temp2 | (U16_T)temp1 << 8 );
 //}
 
-
-U32_T convert_pointer_to_double( U8_T *iAddr )	  // DoulbemGetPointWord
+/*
+uint32_t convert_pointer_to_double( U8_T *iAddr )	  // DoulbemGetPointWord
 {
-	return( iAddr[0] | (U16_T)iAddr[1] << 8 | (U32_T)iAddr[2] << 16 |  (U32_T)iAddr[3] << 24);
+	return( iAddr[0] | (U16_T)iAddr[1] << 8 | (uint32_t)iAddr[2] << 16 |  (uint32_t)iAddr[3] << 24);
 }
+*/
 
-
-//U32_T swap_double( U32_T dat ) 	 //swap_double
+//uint32_t swap_double( uint32_t dat ) 	 //swap_double
 //{ 
 //	U8_T temp1,temp2,temp3,temp4;
 //	temp1 = (U8_T)dat;
 //	temp2 = (U8_T)(dat >> 8);
 //	temp3 = (U8_T)(dat >> 16);
 //	temp4 = (U8_T)(dat >> 24);
-//	return( temp4 | (U16_T)temp3 << 8 | (U32_T)temp2 << 16 |  (U32_T)temp1 << 24);
+//	return( temp4 | (U16_T)temp3 << 8 | (uint32_t)temp2 << 16 |  (uint32_t)temp1 << 24);
 //}
 
 //extern u32 uip_timer;
@@ -205,7 +208,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	S8_T then_else = 0;
 	S8_T ana_dig = 0;
 	U8_T *return_pointer, /**decl_prog,*/ *p_buf, *p, *q;
-	U32_T r = 0;
+	uint32_t r = 0;
 	U8_T type_var = 0;
 	S32_T value, v1, v2;
 	U8_T *local = NULL;
@@ -252,6 +255,8 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	p_buf = (U8_T*)prog + nbytes;
 	
 	time_buf = (U8_T*)prog;
+// modify program bytes
+	//programs[current_prg].bytes = base_len + local_len + time_len;
 
 //	memcpy(&ind_remote_local_list,prog+nbytes,2);
 //	ind_remote_local_list = swap_word(ind_remote_local_list);
@@ -450,7 +455,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			{
 				if( id==ASSIGNAR )
 				{
-					ana_dig = (int)(veval_exp(local)/1000)-1;
+					ana_dig = (int)(veval_exp(local)/1000);
 					value=veval_exp(local);
 				}
 				else
@@ -461,15 +466,14 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			}
 			if (type_var == LOCAL_POINT_PRG)
 			{		
-					put_point_value( &p_var, &value, ana_dig, PROGR );
+				put_point_value( &p_var, &value, ana_dig, PROGR );
 			}
 			// added for remote point by chelsa
 			else if(type_var == REMOTE_POINT_PRG)
 			{  
-#if (ARM_MINI || ARM_CM5)
 			flag_start_scan_network = 1;			
 			start_scan_network_count = 0;
-#endif				
+
 				put_net_point_value(&point_net,&value,ana_dig,PROGR,0);
 			}
 			break;
@@ -814,7 +818,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								}
 								else
 								{
-									r = (U32_T)veval_exp(local);									
+									r = (uint32_t)veval_exp(local);									
 								}
 								
 								memcpy(&value,prog,4);
@@ -850,7 +854,23 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	return 0;
 }
 
+void get_ay_elem(long *value, U8_T *local)
+{
+	S32_T num = 0;
+	Byte point_type,num_point;
+	long *p;
 
+	point_type = (((Point *)(prog))->point_type)-1;
+	num_point = ((Point *)(prog))->number;
+	prog += sizeof(Point);
+	num = veval_exp(local)/1000L;
+	
+	if( ( num < arrays[num_point].length ) & ( num >= 0 ) )
+	{
+		p = arrays_address[num_point];
+		*value = *(p + num);
+	}
+}
 //void check_totalizers( void )
 //{
 //	U8_T i;
@@ -936,7 +956,7 @@ S32_T veval_exp(U8_T *local)
 	U8_T time_sign; 
 	
 	/* S32_T timer;*/
-	U32_T temp1,temp2 = 0;
+	uint32_t temp1,temp2 = 0;
 
 	Str_points_ptr sptr;
 	if(*prog >= LOCAL_VARIABLE && *prog <= REMOTE_POINT_PRG )
@@ -1105,7 +1125,7 @@ S32_T veval_exp(U8_T *local)
 		case INTERVAL:
 							if(just_load)
 							{
-								n = (U32_T)pop();
+								n = (uint32_t)pop();
 								push(0);
 							}
 							else
@@ -1122,12 +1142,12 @@ S32_T veval_exp(U8_T *local)
 							 {
 									 if(n + miliseclast_cur == LONGTIMETEST )
 									 {
-										 n = (U32_T)pop();
+										 n = (uint32_t)pop();
 										 push(0);
 									 }
 									 else
 									 {
-										n = (U32_T)pop();
+										n = (uint32_t)pop();
 										
 										push(1);
 									 }
@@ -1485,7 +1505,7 @@ S32_T veval_exp(U8_T *local)
 	 	//	push( outputd( local + (pop()/1000), pop()/1000, port)*1000l );				 
 			break;
 		case ASSIGNARRAY: /* local var */
-						if (*prog >= LOCAL_VARIABLE && *prog <= STRING_TYPE_ARRAY)   
+						if (*prog >= LOCAL_VARIABLE && *prog <= STRING_TYPE_ARRAY)
 							push( ((S32_T)*((S16_T *)(prog+1)))*1000L );
 						 prog += 3;
 						 break;
@@ -1518,6 +1538,7 @@ S32_T veval_exp(U8_T *local)
  * Note: this function is called in veval_exp() routions
  * ----------------------------------------------------------------------------
  */
+
 S32_T operand(U8_T **buf,U8_T *local)
 {
 	U8_T *p;
@@ -1533,12 +1554,12 @@ S32_T operand(U8_T **buf,U8_T *local)
 	
 	if (*prog == LOCAL_POINT_PRG)
 	{
-		/*if( (((Point *)(prog+1))->point_type)-1 == ARRAY )
+		if( (((Point *)(prog+1))->point_type)-1 == 11/*ARRAY*/ )
 		{
 			++prog;
 			get_ay_elem(&value, local);
 		}
-		else */
+		else 
 		{	
 			get_point_value( ( (Point *)(++prog) ), &value );
 			prog += sizeof(Point);
@@ -1548,7 +1569,7 @@ S32_T operand(U8_T **buf,U8_T *local)
 	}
 	if (*prog == REMOTE_POINT_PRG)
 	{	
-		if( (((Point_Net *)(prog+1))->point_type)-1 == ARRAY)
+		if( (((Point_Net *)(prog+1))->point_type)-1 == 11/*ARRAY*/)
 		{
 			++prog;
 			p = prog;
@@ -1558,10 +1579,9 @@ S32_T operand(U8_T **buf,U8_T *local)
 		}
 		else
 		{	// if exist remote point, try to scan network
-#if (ARM_MINI || ARM_CM5 )
+
 			flag_start_scan_network = 1;
 			start_scan_network_count = 0;
-#endif
 			get_net_point_value( ( (Point_Net *)(++prog) ), &value,0,0 );
 			prog += sizeof( Point_Net );
 		}	

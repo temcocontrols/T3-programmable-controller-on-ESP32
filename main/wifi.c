@@ -31,7 +31,7 @@ STR_SSID	SSID_Info;
 bool re_init_wifi = false;
 extern unsigned short int Test[50];
 static int s_retry_num = 0;
-TaskHandle_t Task_handle[7] ;
+TaskHandle_t Task_handle[7];
 extern int task_sock[7];
 char debug_array[100];
 void debug_print(char *string,char task_index)
@@ -47,7 +47,7 @@ void debug_print(char *string,char task_index)
 
 void debug_info(char *string)
 {
-#if 0//DEBUG_INFO_UART0
+#if DEBUG_INFO_UART0
  	//uart_write_bytes(UART_NUM_0, "\r\n", 1);
  	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 

@@ -8,6 +8,8 @@
 
 #define NEW_IO  0//1
 
+Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
+
 #pragma pack(1)
 
 typedef struct
@@ -20,9 +22,9 @@ typedef struct
 {
 	uint8 harware_rev;
 	uint16 firmware_asix;	// ASIX
-	uint8 frimware_pic;    // PIC
-	uint8 firmware_rev;	// C8051
-	uint8 hardware_rev;	// SM5964
+	uint8 frimware_pic;    	// PIC
+	uint8 firmware_rev;		// C8051
+	uint8 hardware_rev;		// SM5964
 	uint8 bootloader_rev;
 
 	uint8 no_used[10];
@@ -448,8 +450,9 @@ extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
 extern EXT_RAM_ATTR U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
-//extern Str_array_point 	     			 arrays[MAX_ARRAYS];
+extern Str_array_point 	     			 arrays[MAX_ARRAYS];
 extern S32_T  			    				*arrays_address[MAX_ARRAYS];
+extern long			    					arrays_data[MAX_ARRAYS_DATA];
 extern EXT_RAM_ATTR Str_table_point			 				 custom_tab[MAX_TBLS];
 extern U16_T                         PRG_crc;
 extern U8_T  *prog;
@@ -474,29 +477,18 @@ extern U32_T                       miliseclast;
 extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
-extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
-extern Byte                  			 number_of_network_points_bacnet; 
+extern EXT_RAM_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern Byte              			  number_of_network_points_bacnet;
+extern Byte              			  number_of_network_points_modbus;
 
-extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
-extern Byte                  			 number_of_network_points_modbus;
-//extern U8_T  NT_bacnet_tb_func[MAXNETWORKPOINTS];
-//extern STR_BAC_TB  NT_bacnet_tb[MAXNETWORKPOINTS];
-
-extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
-//extern STR_SCAN_TB  RP_modbus_tb[MAXREMOTEPOINTS]; 
-//extern U8_T  RP_modbus_tb_func[MAXREMOTEPOINTS];
-extern Byte                 			 number_of_remote_points_modbus;
-
-extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
-//extern U8_T  RP_bacnet_tb_func[MAXREMOTEPOINTS];
-//extern STR_BAC_TB  RP_bacnet_tb[MAXREMOTEPOINTS];
-extern Byte                 			 number_of_remote_points_bacnet;
+extern EXT_RAM_ATTR REMOTE_POINTS		   		  remote_points_list[MAXREMOTEPOINTS];
+extern Byte              			  number_of_remote_points_bacnet;
+extern Byte              			  number_of_remote_points_modbus;
 
 
-extern U16_T Last_Contact_Network_points_bacnet[MAXNETWORKPOINTS];
-extern U16_T Last_Contact_Network_points_modbus[MAXNETWORKPOINTS];
-extern U16_T Last_Contact_Remote_points_bacnet[MAXREMOTEPOINTS];
-extern U16_T Last_Contact_Remote_points_modbus[MAXREMOTEPOINTS];
+extern U16_T Last_Contact_Network_points[MAXNETWORKPOINTS];
+extern U16_T Last_Contact_Remote_points[MAXREMOTEPOINTS];
+
 
 
 extern U8_T remote_panel_num;

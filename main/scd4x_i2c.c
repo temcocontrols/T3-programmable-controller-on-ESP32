@@ -28,13 +28,13 @@ int16_t scd4x_read_measurement_ticks(uint16_t* co2, uint16_t* temperature,
     offset = sensirion_i2c_add_command_to_buffer(&buffer[0], offset, 0xEC05);
 
     error = sensirion_i2c_write_data(SCD4X_I2C_ADDRESS, &buffer[0], offset);
-    if (error) {Test[24]++;
+    if (error) {
         return error;
     }
 
     error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, buffer, 6);
 
-    if (error) {Test[25]++;
+    if (error) {
         return error;
     }
 

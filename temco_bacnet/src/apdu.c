@@ -479,7 +479,7 @@ void apdu_handler(
     uint32_t far error_class = 0;
     uint8_t far reason = 0;
     bool server = false;
-	
+
     if (apdu) {	
         /* PDU Type */
         switch (apdu[0] & 0xF0) {
@@ -605,12 +605,10 @@ void apdu_handler(
 											{
 												flag_suspend_mstp = 1;
 												count_suspend_mstp = service_request[2] * 60;
-												
 											}
-											else{	
-											
-												// supposed it is "10 08"
-											handler_who_is(service_request,service_request_len, src);}
+											else{	// supposed it is "10 08"
+											handler_who_is(service_request,service_request_len, src);
+											}
 										}
 										else 
 											if((protocal == BAC_IP) || (protocal == BAC_IP_CLIENT))
@@ -618,11 +616,15 @@ void apdu_handler(
 											uint8_t len = 0;
 											int32_t far low_limit = 0;
 											int32_t far high_limit = 0;
+											Test[40]++;
 											len =
 												whois_decode_service_request(service_request, service_request_len, &low_limit,
 												&high_limit);
+											Test[41] = len;
+											Test[43] = Device_Object_Instance_Number();
+											Test[44] = low_limit;
 											if((len == 0) || (Device_Object_Instance_Number() == low_limit))
-											{
+											{Test[42]++;
 												Send_I_Am(&Handler_Transmit_Buffer[1][0],protocal);
 											
 												// transfer whois command only when rs485 port is mstp master
@@ -661,13 +663,12 @@ void apdu_handler(
 							}
 							
 #endif
-									else if (service_choice == SERVICE_UNCONFIRMED_I_AM) 
-									{
-											handler_i_am_add(service_request,service_request_len, src,protocal);	
-								
-									}
-									
-								 }
+							else if (service_choice == SERVICE_UNCONFIRMED_I_AM)
+							{
+								handler_i_am_add(service_request,service_request_len, src,protocal);
+							}
+
+						 }
                 break;
             case PDU_TYPE_SIMPLE_ACK:
                 invoke_id = apdu[1];
@@ -717,7 +718,7 @@ void apdu_handler(
                     service_ack_data.sequence_number = apdu[len++];
                     service_ack_data.proposed_window_number = apdu[len++];
                 }	
-				
+
                 service_choice = apdu[len++];
                 service_request = &apdu[len];
                 service_request_len = apdu_len - (uint16_t) len; 
@@ -730,10 +731,9 @@ void apdu_handler(
 //                    case SERVICE_CONFIRMED_ATOMIC_WRITE_FILE:											
 //                        /* Object Access Services */
 //                    case SERVICE_CONFIRMED_CREATE_OBJECT:
-                    case SERVICE_CONFIRMED_READ_PROPERTY:					
-#if BAC_MASTER
-										Handler_Complex_Ack(apdu,apdu_len,protocal);
-#endif
+                    case SERVICE_CONFIRMED_READ_PROPERTY:
+						Handler_Complex_Ack(apdu,apdu_len,protocal);
+
 											break;
 //                    case SERVICE_CONFIRMED_READ_PROP_CONDITIONAL:
 //                    case SERVICE_CONFIRMED_READ_PROP_MULTIPLE:

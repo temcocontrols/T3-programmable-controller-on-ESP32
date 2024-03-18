@@ -1464,7 +1464,7 @@ bool bacapp_parse_application_data(
                 }
                 break;
             case BACNET_APPLICATION_TAG_OBJECT_ID:
-                count = sscanf(argv, "%4d:%7d", &object_type, &instance);
+                count = sscanf(argv, "%4d:%7d", &object_type, (int *)&instance);
                 if (count == 2) {
                     value->type.Object_Id.type = (uint16_t) object_type;
                     value->type.Object_Id.instance = instance;

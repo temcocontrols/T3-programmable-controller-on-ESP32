@@ -67,6 +67,8 @@ extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];*/
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
 U32_T 	flash_trendlog_num[MAX_MONITORS * 2];
 extern uint16_t flash_trendlog_seg;
+extern U8_T Send_bip_address[6];
+U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
 /** @file ptransfer.c  Encode/Decode Private Transfer data */
 /* 
 	handler roution for private transfer
@@ -146,7 +148,7 @@ extern int16_t  timezone;
 extern uint8_t  Daylight_Saving_Time;
 
 extern uint8_t write_page_en[26];
-void refresh_zone(void);
+
 //void responseCmd(U8_T type,U8_T* pData);
 void udpate_zone_table(uint8 i);
 U16_T crc16(U8_T *p, U8_T length);
@@ -490,7 +492,7 @@ S8_T get_rbp_index_by_invoke_id(uint8_t invokeid)
 		return -1;
 	for(i = 0;i < number_of_remote_points_bacnet;i++)
 	{
-		if(invokeid == remote_points_list_bacnet[i].invoked_id)
+		if(invokeid == remote_points_list[i].invoked_id)
 			return i;
 	}
 	
@@ -499,14 +501,16 @@ S8_T get_rbp_index_by_invoke_id(uint8_t invokeid)
 }
 
 
-S8_T get_netpoint_index_by_invoke_id(uint8_t invokeid)
+int get_netpoint_index_by_invoke_id(uint8_t invokeid)
 {
 	uint8_t i = 0;
+
 	if(invokeid == 0) 
 		return -1;
+
 	for(i = 0;i < number_of_network_points_bacnet;i++)
 	{
-		if(invokeid == network_points_list_bacnet[i].invoked_id)
+		if(invokeid == network_points_list[i].invoked_id)
 		{
 			return i;
 		}
@@ -515,14 +519,14 @@ S8_T get_netpoint_index_by_invoke_id(uint8_t invokeid)
 }
 
 
-S8_T get_netpoint_index_by_invoke_id_modbus(uint8_t invokeid)
+int get_netpoint_index_by_invoke_id_modbus(uint8_t invokeid)
 {
 	uint8_t i = 0;
 	if(invokeid == 0) 
 		return -1;
 	for(i = 0;i < number_of_network_points_modbus;i++)
 	{
-		if(invokeid == network_points_list_modbus[i].invoked_id)
+		if(invokeid == network_points_list[i].invoked_id)
 		{
 			return i;
 		}
@@ -544,12 +548,11 @@ void Handler_Complex_Ack(
 	float val_ptr = 0;
 //	uint8_t index;
 	U8_T invokeid_bip = 0;
-//	S8_T far network_point_index;	
+	int network_point_index = 0;
 //	U8_T far remote_bacnet_index;	
 	
-	
 	if(protocal == BAC_MSTP)
-	{ 
+	{
 		if(flag_mstp_source == 1) // source is BIP client, T3000 or yabe or other panel...
 		{ // it is for BIP TO MSTP, need transfer to BIP cilent
 // BIP TO MSTP
@@ -568,9 +571,9 @@ void Handler_Complex_Ack(
 		}
 		else if(flag_mstp_source == 2)
 		{ //  packet's source is from T3-BB,dont need transfer to BIP client
-			
+
 			if(apdu[1] == invokeid_mstp && invokeid_mstp >= 0)
-			{	
+			{
 				flag_receive_rmbp	= 1;	
 //				BACNET_DEVICE_OBJECT_PROPERTY_REFERENCE value;
 //				bacapp_decode_context_device_obj_property_ref(apdu,0,&value);
@@ -585,15 +588,16 @@ void Handler_Complex_Ack(
 14 00 5e 00 00 0a 00 
 00 9d 00 00 00 01 00 00 00 4d 00 00 00 10 00 09 00 03 00 00 
 2f
-*/		
-					
+*/
+
 					if(apdu[12] == READ_BACNET_TO_MDOBUS)	
 					{
 						uint8_t len;
 						uint16_t reg;								
 						len = apdu[10];
+
 						if(len == apdu[15] * 2)
-						{							
+						{
 					remote_panel_db[remote_mstp_panel_index].sn = 
 						apdu[18] + ((U16_T)apdu[20] << 8) + ((U32_T)apdu[22] << 16) + ((U32_T)apdu[24] << 24);
 					remote_panel_db[remote_mstp_panel_index].product_model = apdu[32];
@@ -612,29 +616,29 @@ void Handler_Complex_Ack(
 						val_ptr = apdu[12];					
 					}	
 
-					add_remote_point(remote_points_list_bacnet[remote_bacnet_index].tb.RP_bacnet.panel,
-					remote_points_list_bacnet[remote_bacnet_index].tb.RP_bacnet.object + 
-					(U8_T)((remote_points_list_bacnet[remote_bacnet_index].tb.RP_bacnet.instance & 0xff00) >> 3),
+					add_remote_point(remote_points_list[remote_bacnet_index].tb.RP_bacnet.panel,
+					remote_points_list[remote_bacnet_index].tb.RP_bacnet.object + 
+					(U8_T)((remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance & 0xff00) >> 3),
 					0,
-					remote_points_list_bacnet[remote_bacnet_index].tb.RP_bacnet.instance & 0xff,
+					remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance & 0xff,
 					val_ptr * 1000,2,0);
+
 				}
 				
-			}			
+			}
 		}
 			
 		flag_mstp_source = 0;
 	}
-#if 0
-	else if(protocal == BAC_IP)
-	{	
+#if 1//NETWORK
+	else if(protocal == BAC_IP || protocal == BAC_IP_CLIENT)
+	{
 // response from ptranfer reading
 // check invoke_id		
 		invokeid_bip = apdu[1];
 		network_point_index = get_netpoint_index_by_invoke_id(invokeid_bip);
 		if(network_point_index != -1)
-		{	
-	
+		{
 			flag_receive_netp = 1;
 			if(apdu[11] == 0x44) // decode real
 			{
@@ -648,6 +652,7 @@ void Handler_Complex_Ack(
 			}	
 			else 
 			{ // temco private bacnet to modbus
+
 				if(apdu[13] == READ_BACNET_TO_MDOBUS)
 				{
 					uint8_t len;
@@ -665,22 +670,22 @@ void Handler_Complex_Ack(
 					return;
 				}
 			}
-			
-			add_network_point( network_points_list_bacnet[network_point_index].point.panel,
-			network_points_list_bacnet[network_point_index].point.sub_id,
-			network_points_list_bacnet[network_point_index].point.point_type - 1,
-			network_points_list_bacnet[network_point_index].point.number + 1,
-			val_ptr * 1000,
-			2);
+			add_network_point( network_points_list[(U8_T)network_point_index].point.panel,\
+			network_points_list[(U8_T)network_point_index].point.sub_id,\
+			network_points_list[(U8_T)network_point_index].point.point_type - 1,\
+			network_points_list[(U8_T)network_point_index].point.number + 1,\
+			val_ptr * 1000,\
+			2,0);
+
 
 		}
 		else
-		{ // PROPRIETARY_BACNET_OBJECT_TYPE panel number
+		{// PROPRIETARY_BACNET_OBJECT_TYPE panel number
 			//char index;
 			//index = get_rbp_index_by_invoke_id(remote_panel_db[0].device_id);
 // read VARX or REGX	
 			if(temcovar_panel_invoke == invokeid_bip)
-			{	
+			{
 				if(apdu[11] == 0x44) // decode real
 				{
 					apdu[11] = 0xac;
@@ -688,25 +693,7 @@ void Handler_Complex_Ack(
 					flag_receive_netp_temcovar = 1;
 					temcovar_panel = val_ptr;
 				}
-			}						
-//			if(temcoreg_panel_invoke == invokeid_bip)
-//			{
-//				if(apdu[13] == READ_BACNET_TO_MDOBUS)
-//				{
-//					uint8_t len;
-//					uint16_t reg;
-//									
-
-//					len = apdu[11];
-//					reg = apdu[14] * 256 + apdu[15];
-//					if(len == apdu[16] * 2)
-//					{
-//						flag_receive_netp_temcoreg = 1;
-//						memcpy(&temcoreg,&apdu[19],len);
-//					}
-//					
-//				}				
-//			}
+			}
 		}
 		
 	}
@@ -907,17 +894,14 @@ int WriteRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,
 				return 1;//invokeid_mstp;
 			}
 		}
-#if 0//(ARM_MINI || ASIX_MINI || ARM_CM5)
+
 		else if(protocal == BAC_IP_CLIENT)
 		{
-			Send_bip_Flag = 1;	
-			count_send_bip = 0;
-			Get_address_by_panel(panel,Send_bip_address);						
-			Send_bip_count = MAX_RETRY_SEND_BIP;			
+			Get_address_by_panel(panel,Send_bip_address);
 
 			return	Send_Write_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,&val,0,value,BACNET_ARRAY_ALL,protocal);
 		}
-#endif
+
 	}
 	return -1;
 
@@ -941,6 +925,7 @@ int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,ui
 	invokeid_bip = -1;
 #if 1
 	deviceid = Get_device_id_by_panel(panel,sub_id,protocal);
+
 	if(deviceid > 0)
 	{	
 		if(protocal == BAC_MSTP)
@@ -958,11 +943,7 @@ int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,ui
 
 		else if(protocal == BAC_IP_CLIENT)
 		{
-			/*Send_bip_Flag = 1;	
-			count_send_bip = 0;
-			Get_address_by_panel(panel,Send_bip_address);	
-			Send_bip_count = MAX_RETRY_SEND_BIP;
-			*/
+			Get_address_by_panel(panel,Send_bip_address);
 			if(object_type == VAR + 1 || object_type == IN + 1 || object_type == OUT + 1)
 			{
 				uint16_t databuf[10];
@@ -970,6 +951,7 @@ int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,ui
 				uint8_t len;
 				reg = get_reg_from_list(object_type,object_instance,&len);
 				invokeid_bip = GetPrivateBacnetToModbusData(deviceid,reg,len,databuf,BAC_IP_CLIENT);
+
 			}
 			else if(object_type == BAC_AV + 1)
 			{
@@ -1000,6 +982,7 @@ int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,ui
 			{
 				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_INPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
 			}
+			//Test[39] = invokeid_bip;
 			return invokeid_bip;
 		}
 
@@ -1268,7 +1251,7 @@ void handler_private_transfer(
 		
 		uint8_t flag_read_monitor = 0;
 		uint8_t delay_write_setting;
-		
+		Str_points_ptr sptr;
 	 U8_T j;
 
 	 int iLen;   /* Index to current location in data */
@@ -1406,40 +1389,16 @@ void handler_private_transfer(
 					ptr = (uint8_t *)(&bacnet_to_modbus);				
 					break;
 				case WRITEINPUT_T3000:
-#if NEW_IO
-					if(new_inputs != NULL)
-					{
-						if(private_header.point_end_instance <= max_inputs)
-							ptr = (uint8_t *)(new_inputs + private_header.point_start_instance);
-					}
-#else
-					if(private_header.point_end_instance <= MAX_INS)
-						ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
-#endif
+					sptr = put_io_buf(IN,private_header.point_start_instance);
+					ptr =  (uint8_t *)sptr.pin;
 					break;	
 				case WRITEOUTPUT_T3000:
-#if NEW_IO
-					if(new_outputs != NULL)
-					{
-						if(private_header.point_end_instance <= max_outputs)
-							ptr = (uint8_t *)(new_outputs + private_header.point_start_instance);
-					}
-#else
-					if(private_header.point_end_instance <= MAX_OUTS)
-						ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
-#endif
+					sptr = put_io_buf(OUT,private_header.point_start_instance);
+					ptr =  (uint8_t *)sptr.pout;
 					break;
 				case WRITEVARIABLE_T3000:        /* write variables  */
-#if NEW_IO
-					if(new_vars != NULL)
-					{
-						if(private_header.point_end_instance <= max_vars)
-							ptr = (uint8_t *)(new_vars + private_header.point_start_instance);
-					}
-#else
-					if(private_header.point_end_instance <= MAX_VARS)
-						ptr = (uint8_t *)(&vars[private_header.point_start_instance]);
-#endif
+					sptr = put_io_buf(VAR,private_header.point_start_instance);
+					ptr =  (uint8_t *)sptr.pvar;
 					break;
 			 	case WRITEWEEKLYROUTINE_T3000:         /* write weekly routines*/
 					if(private_header.point_end_instance <= MAX_WR)
@@ -1493,7 +1452,7 @@ void handler_private_transfer(
 					break;
 				case WRITEREMOTEPOINT:
 					if(private_header.point_end_instance <= MAXREMOTEPOINTS)
-					ptr = (uint8_t *)(&remote_points_list_modbus[private_header.point_start_instance]);
+					ptr = (uint8_t *)(&remote_points_list[private_header.point_start_instance]);
 					break;
 					break;
 //
@@ -1528,7 +1487,6 @@ void handler_private_transfer(
 				case WRITEEXT_IO_T3000:					
 					ptr = (uint8_t *)(extio_points);	
 				// update database
-				 
 					break;
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 				case WRITE_ZONE_T3000:
@@ -1541,14 +1499,14 @@ void handler_private_transfer(
 					ptr = (uint8_t *)(Graphi_data->asdu);
 					memcpy(ptr,&Temp_CS.value[header_len],400);
 				 	//Write_Picture(Graphi_data->index,Graphi_data->asdu,Graphi_data->seg_index);
-					flag_write_pic = store_PIC_to_buffer(Graphi_data->asdu,Graphi_data->index,Graphi_data->seg_index);					
+					flag_write_pic = store_PIC_to_buffer(Graphi_data->asdu,Graphi_data->index,Graphi_data->seg_index);
 					break;
 #endif
 #if USB_HOST
  				case WRITE_AT_CMD:
 					ptr = (uint8_t *)gsm_str;
 					break;
-#endif	
+#endif
 #endif				
 
 
@@ -1606,7 +1564,6 @@ void handler_private_transfer(
 			if(ptr != NULL)	
 			{	 
 				status = true;
-				//				TST_INFO old_tst_info;
 
 #if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 				if(command == WRITE_BACNET_TO_MDOBUS)
@@ -1671,23 +1628,13 @@ void handler_private_transfer(
 					if(command == WRITEINPUT_T3000)
 					{	 
 						uint8 i;
-						
 						i = private_header.point_start_instance;
 						if(private_header.point_start_instance == private_header.point_end_instance)							
-						{							
-							// ONLY FOR NEW T3, work as external IO card
-//							if(inputs[i].sub_product == PM_T38AI8AO6DO || inputs[i].sub_product == PM_T322AI)
-//							{
-//								write_parameters_to_nodes(0x10,inputs[i].sub_id,MODBUS_INPUT_BLOCK_FIRST + inputs[i].sub_number * ((sizeof(Str_in_point) + 1) / 2),
-//									(uint16*)&inputs[i],((sizeof(Str_in_point) + 1)));						
-//								
-//							}
-#if  T3_MAP
-							push_expansion_in_stack(&inputs[i]);
-#endif
-
+						{
+							sptr = put_io_buf(IN,i);
+							push_expansion_in_stack(sptr.pin);
 						}	
-#if (ARM_MINI || ASIX_MINI || ARM_TSTAT_WIFI)
+#if 0//ARM
 						for(i = private_header.point_start_instance;i <= private_header.point_end_instance;i++)
 						{					
 							if(inputs[i].auto_manual == 1)  // manual
@@ -1707,72 +1654,41 @@ void handler_private_transfer(
 								}
 							}							
 						}	
-					
 #endif
+
 						Count_IN_Object_Number();
 					}
 					if(command == WRITEOUTPUT_T3000)
 					{	 
-						char i;	
-
+						uint8 i = 0;
+						Str_points_ptr  sptr;
 						// suspend output task			
 						// if expasion io
-#if (ARM_MINI || ASIX_MINI || ARM_CM5)
-						//vTaskSuspend(Handle_Scan);	// dont not read expansion io
-						// if local io
-
-						//vTaskSuspend(xHandler_Output);  // do not control local io
-#endif
-							memcpy(ptr,&Temp_CS.value[header_len],private_header.total_length - header_len);
-
+						memcpy(ptr,&Temp_CS.value[header_len],private_header.total_length - header_len);
 						for(i = private_header.point_start_instance;i <= private_header.point_end_instance;i++)
 						//i = private_header.point_start_instance;
 						//if(private_header.point_start_instance == private_header.point_end_instance)
-						{		
+						{
 							check_output_priority_array(i,0);
-#if OUTPUT_DEATMASTER
-			clear_dead_master();
-#endif
 							// if extern io, write extern output
-#if  T3_MAP	
-							//if(outputs[i].sub_product == PM_T38AI8AO6DO || outputs[i].sub_product == PM_T36CTA || outputs[i].sub_product == PM_T3LC )  // new T3
-							{		
-								push_expansion_out_stack(&outputs[i],i,1);								
+							sptr = put_io_buf(OUT,i);
+							if(sptr.pout->sub_product == 44/*PM_T38AI8AO6DO*/ || sptr.pout->sub_product == 43/*PM_T36CTA || ptr.pout->sub_product == PM_T3LC*/ )  // new T3
+							{
+								push_expansion_out_stack(sptr.pout,i,1);
 							}
-
-#endif
 									
 						}							
 						// resume output task
 						// if local io	
-#if (ARM_MINI || ASIX_MINI || ARM_CM5)
-						//vTaskResume(xHandler_Output); 
 
-						// if expasion io		
-						
-						//vTaskResume(Handle_Scan);							
-#endif
 //						Count_Object_Number(OBJECT_ANALOG_OUTPUT);
 //						Count_Object_Number(OBJECT_BINARY_OUTPUT);
 						Count_OUT_Object_Number();
 					}
-#if  T3_MAP	
-					if(command == WRITEEXT_IO_T3000)
-						update_extio_to_database();
-#endif
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-					if(command == WRITE_ZONE_T3000)
-					{
-						if(ID_Config_Sche[private_header.point_start_instance] != ID_Config[private_header.point_start_instance].Str.schedule)
-						{
-							ID_Config_Sche[private_header.point_start_instance] = ID_Config[private_header.point_start_instance].Str.schedule;
-							Sch_To_T8[private_header.point_start_instance].f_schedule_sync = 1;
-							Sch_To_T8[private_header.point_start_instance].count_send_schedule = 0;
-							Sch_To_T8[private_header.point_start_instance].f_time_sync = 1;						
-						}
-						udpate_zone_table(private_header.point_start_instance);
-					}
-#endif
+
+//					if(command == WRITEEXT_IO_T3000)
+//						update_extio_to_database();
+
 					if(command == WRITEPROGRAMCODE_T3000)
 					{	
 						flag_writing_code = 1;
@@ -1894,35 +1810,12 @@ void handler_private_transfer(
 
 					else if(command == WRITEREMOTEPOINT)
 					{	// write remote point value
-						put_net_point_value(&(remote_points_list_modbus[private_header.point_start_instance].point), \
-						&(remote_points_list_modbus[private_header.point_start_instance].point_value) \
+						put_net_point_value(&(remote_points_list[private_header.point_start_instance].point), \
+						&(remote_points_list[private_header.point_start_instance].point_value) \
 						,0,1,1);  // OPERATOR  1					   		
 					}
 
-#if USB_HOST
-					else if(command == WRITE_AT_CMD)
-					{	
-						if(gsm_str[0] == 0)  // clear send buf
-						{
-							flag_clear_send_buf = 1;
-						}
-						else if(gsm_str[0] == 1)  // at cmd
-						{
-						 	flag_receive_AT_CMD = 1;
-						}
-						else if(gsm_str[0] == 2)   // open T3000 at cmd window
-						{
-							flag_open_windows = 1;
-							flag_close_windows = 0;
-							flag_reinit_APN = 0;
-						}
-						else if(gsm_str[0] == 3)   // close T3000 at cmd window
-						{
-						  flag_close_windows = 1;
-							flag_open_windows = 0;
-						}
-					}
-#endif	
+
 #endif					
 					else if(command == WRITE_MISC)
 					{
@@ -2003,47 +1896,17 @@ void handler_private_transfer(
 				ptr = (uint8_t *)(&bacnet_to_modbus[0]);
 				break;
 			case READOUTPUT_T3000:
-#if NEW_IO
-				if(private_header.point_end_instance <= max_outputs)
-				{	if(new_outputs != NULL)
-						ptr = (uint8_t *)(new_outputs + private_header.point_start_instance);
-				}
-				else
-					ptr = NULL;
-#else
-				if(private_header.point_end_instance <= MAX_OUTS)
-					ptr = (uint8_t *)(&outputs[private_header.point_start_instance]);
-#endif
+				sptr = put_io_buf(OUT,private_header.point_start_instance);
+				ptr =  (uint8_t *)sptr.pout;
 				break;
 			case READINPUT_T3000:
-#if NEW_IO
-				if(private_header.point_end_instance <= max_inputs)
-				{	if(new_inputs != NULL)
-						ptr = (uint8_t *)(new_inputs + private_header.point_start_instance);
-				}
-				else
-					ptr = NULL;
-#else
-				if(private_header.point_end_instance <= MAX_INS)
-					ptr = (uint8_t *)(&inputs[private_header.point_start_instance]);
-#endif
+				sptr = put_io_buf(IN,private_header.point_start_instance);
+				ptr =  (uint8_t *)sptr.pin;
+
 				break;
 			case READVARIABLE_T3000:
-
-#if NEW_IO
-				if(private_header.point_end_instance <= max_vars)
-				{
-					if(new_vars != NULL)
-					{
-						ptr = (uint8_t *)(new_vars + private_header.point_start_instance);
-					}
-				}
-				else
-					ptr = NULL;
-#else
-				if(private_header.point_end_instance <= MAX_VARS)
-					ptr = (uint8_t *)(&vars[private_header.point_start_instance]);
-#endif
+				sptr = put_io_buf(VAR,private_header.point_start_instance);
+				ptr =  (uint8_t *)sptr.pvar;
 				break;
 			case READWEEKLYROUTINE_T3000:
 				if(private_header.point_end_instance <= MAX_WR)
@@ -2117,9 +1980,6 @@ void handler_private_transfer(
 				break;	 
 			case READMONITORDATA_T3000:
 			// check whether get correct data, if fail no response
-				Test[30]++;
-				Test[31] = Graphi_data->seg_index;
-				Test[32] = Graphi_data->total_seg;
 				flag_read_monitor = ReadMonitor(Graphi_data);
 				transfer_len = 400;
 				temp[22] = (U8_T)(Graphi_data->total_seg);

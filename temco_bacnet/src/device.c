@@ -1038,8 +1038,6 @@ int Device_Encode_Property_APDU(
         case TEMCO_REG1:  // REGISTER NAME
         	for(i = 0; i <= MAX_REG; i++)
 			{
-        		Test[30]++;
-
         		//characterstring_init_ansi(&char_string, Get_Object_Name());
         		//apdu_len = encode_application_character_string(&apdu[0], &char_string);
 
@@ -1049,7 +1047,7 @@ int Device_Encode_Property_APDU(
         		apdu_len += len;
 				/* assume next one is the same size as this one */
 				/* can we all fit into the APDU? */
-				if ((apdu_len + len) >= MAX_APDU) {Test[31]++;
+				if ((apdu_len + len) >= MAX_APDU) {
 						/* Abort response */
 						*error_code =
 								ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;

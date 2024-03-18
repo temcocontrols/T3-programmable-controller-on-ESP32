@@ -152,11 +152,7 @@ LOCAL uint32_t Ade7953Read(uint16_t reg){
         	response = BUILD_UINT32(holding_reg_params.testBuf[3],holding_reg_params.testBuf[1],holding_reg_params.testBuf[0],holding_reg_params.testBuf[2]);
         else
         	response = BUILD_UINT32(holding_reg_params.testBuf[3],holding_reg_params.testBuf[1],holding_reg_params.testBuf[0],holding_reg_params.testBuf[2]);
-        Test[15] = holding_reg_params.testBuf[0];//tempBuf[0];
-        Test[16] = holding_reg_params.testBuf[1];//tempBuf[1];
-        Test[17] = holding_reg_params.testBuf[2];//tempBuf[2];
-        Test[18] = holding_reg_params.testBuf[3];//tempBuf[3];
-    	//i2c_master_read_byte(cmd, &temp_data, NACK_VAL);
+        	//i2c_master_read_byte(cmd, &temp_data, NACK_VAL);
     	//response = response << 8 | temp_data;
     	//response =  temp_data;
         //response = response << 8 | i2c_master_readByte();

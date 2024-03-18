@@ -3,6 +3,9 @@
 
 #include "types.h"
 #pragma pack(1)
+
+
+
 typedef struct
 {
 	U8_T serialNum[4];
@@ -57,7 +60,7 @@ typedef struct
 	U16_T zigbee_module_id;
 	U8_T dead_master;
 	U8_T disable_tstat10_display;  // display icons and scrolling string
-//	lcdconfig display_lcd;
+	//lcdconfig display_lcd;
 	U8_T start_month;
 	U8_T start_day;
 	U8_T end_month;

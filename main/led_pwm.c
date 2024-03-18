@@ -205,6 +205,7 @@ static void adc_task(void* arg)
 	uint32_t adc_reading = 0;
 	uint32_t adc_temp = 0;
 	uint32_t voltage =0;
+	Str_points_ptr ptr;
 	int i = 0;
     //Continuously sample ADC1//Characterize ADC
 	adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
@@ -234,22 +235,23 @@ static void adc_task(void* arg)
        // Test[3] = holding_reg_params.fan_module_10k_temp;
         //holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
         holding_reg_params.fan_module_input_voltage = (uint16_t)voltage;
-        //inputs[2].range = 1;
-        if(!inputs[2].calibration_sign)
-        	holding_reg_params.fan_module_10k_temp += (inputs[2].calibration_hi * 256 + inputs[2].calibration_lo);
+        
+		ptr = put_io_buf(IN,2);
+        if(!ptr.pin->calibration_sign)
+        	holding_reg_params.fan_module_10k_temp += (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 		else
-			holding_reg_params.fan_module_10k_temp += -(inputs[2].calibration_hi * 256 + inputs[2].calibration_lo);
-        if(inputs[2].range == 3)
-        	inputs[2].value = holding_reg_params.fan_module_10k_temp*100;
-        if(inputs[2].range == 4)
-        	inputs[2].value = (holding_reg_params.fan_module_10k_temp*9/5)*100+32000;
+			holding_reg_params.fan_module_10k_temp += -(ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+        if(ptr.pin->range == 3)
+        	ptr.pin->value = holding_reg_params.fan_module_10k_temp*100;
+        if(ptr.pin->range == 4)
+        	ptr.pin->value = (holding_reg_params.fan_module_10k_temp*9/5)*100+32000;
 
-        //inputs[3].range = 19;
-        if(!inputs[3].calibration_sign)
-			holding_reg_params.fan_module_input_voltage += (inputs[3].calibration_hi * 256 + inputs[3].calibration_lo);
+        ptr = put_io_buf(IN,3);
+        if(!ptr.pin->calibration_sign)
+			holding_reg_params.fan_module_input_voltage += (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 		else
-			holding_reg_params.fan_module_input_voltage += -(inputs[3].calibration_hi * 256 + inputs[3].calibration_lo);
-        inputs[3].value = holding_reg_params.fan_module_input_voltage;
+			holding_reg_params.fan_module_input_voltage += -(ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+        ptr.pin->value = holding_reg_params.fan_module_input_voltage;
 
 
 
@@ -300,13 +302,9 @@ static void transducer_output_task(void* arg)
 	uint32_t adc_feedback1 = 0;
 	uint32_t adc_feedback2 = 0;
 	uint32_t adc_feedback3 =0;
-
+	Str_points_ptr ptr;
 	float temp_val_real,humi_val_real,dew_point,enthalpy,humi_val_abs;
 	int i = 0;
-	Test[6] = 2400;
-	Test[7] = 390;
-	Test[16] = 1580;
-	Test[17] = 238;
     //Continuously sample ADC1//Characterize ADC
 	adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
 	esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
@@ -332,10 +330,6 @@ static void transducer_output_task(void* arg)
         adc_feedback1 /= NO_OF_SAMPLES;
         adc_feedback2 /= NO_OF_SAMPLES;
         adc_feedback3 /= NO_OF_SAMPLES;
-
-        Test[13] = adc_feedback1;
-        Test[14] = adc_feedback2;
-        Test[15] = adc_feedback3;
 
 		gSwtich_range_1 = gpio_get_level(TRANSDUCER_SWITCH_6);
 		gSwtich_range_2 = gpio_get_level(TRANSDUCER_SWITCH_5);
@@ -391,29 +385,30 @@ static void transducer_output_task(void* arg)
 		//Test[7] = gSwtich_protocol_select;
 		//Test[8] = gSwtich_temp_range;
 		//Test[9] = gSwitch_hum_range;
-
-		if(outputs[0].range == 1)
-			if((outputs[0].value<=10000)&&(outputs[0].value>=0))
-				holding_reg_params.fan_module_pwm1 = outputs[0].value*10/391;
-		if(outputs[1].range == 1)
-			if((outputs[1].value<=10000)&&(outputs[1].value>=0))
-				holding_reg_params.fan_module_pwm2 = outputs[1].value*10/391;
-		if(outputs[2].range == 1)
-			if((outputs[2].value<=10000)&&(outputs[2].value>=0))
-				holding_reg_params.fan_module_pwm3 = outputs[2].value*10/391;
-		if((outputs[0].range == 4)||(outputs[0].range == 7))
-			if((outputs[0].value<=100000)&&(outputs[0].value>=0))
-				holding_reg_params.fan_module_pwm1 = outputs[0].value/391;
-		if((outputs[1].range == 4)||(outputs[1].range == 7))
-			if((outputs[1].value<=100000)&&(outputs[1].value>=0))
-				holding_reg_params.fan_module_pwm2 = outputs[1].value/391;
-		if((outputs[2].range == 4)||(outputs[2].range == 7))
-			if((outputs[2].value<=100000)&&(outputs[2].value>=0))
-				holding_reg_params.fan_module_pwm3 = outputs[2].value/391;
-		//Test[0] = holding_reg_params.fan_module_pwm1;
-		//Test[1] = holding_reg_params.fan_module_pwm2;
-	//        Test[2] = outputs[0].switch_status;
-	//        Test[3] = outputs[1].switch_status;
+		ptr = put_io_buf(OUT,0);
+		if(ptr.pout->range == 1)
+			if((ptr.pout->value<=10000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm1 = ptr.pout->value*10/391;
+		ptr = put_io_buf(OUT,1);
+		if(ptr.pout->range == 1)
+			if((ptr.pout->value<=10000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm2 = ptr.pout->value*10/391;
+		ptr = put_io_buf(OUT,2);
+		if(ptr.pout->range == 1)
+			if((ptr.pout->value<=10000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm3 = ptr.pout->value*10/391;
+		ptr = put_io_buf(OUT,0);
+		if((ptr.pout->range == 4)||(ptr.pout->range == 7))
+			if((ptr.pout->value<=100000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm1 = ptr.pout->value/391;
+		ptr = put_io_buf(OUT,1);
+		if((ptr.pout->range == 4)||(ptr.pout->range == 7))
+			if((ptr.pout->value<=100000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm2 = ptr.pout->value/391;
+		ptr = put_io_buf(OUT,2);
+		if((ptr.pout->range == 4)||(ptr.pout->range == 7))
+			if((ptr.pout->value<=100000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm3 = ptr.pout->value/391;
 
 		switch(gSwtich_temp_range)
 		{
@@ -585,7 +580,7 @@ static void fan_led_task(void* arg)
 	uint8_t identify_cn = 0;
 	uint8_t identify_count = 0;
 	static uint8 last_comm_display; // 0 - tx 1 - rx
-
+	Str_points_ptr ptr;
 
     for(;;) {
 		//gpio_set_level(LED_HEART_BEAT, (cnt++) % 8);
@@ -701,35 +696,26 @@ static void fan_led_task(void* arg)
 			else
 				gpio_set_level(LED_WIFI, 1);
 
-
-
-		//outputs[1].value = 200;
-        //holding_reg_params.fan_module_pwm1 = get_output_raw(0);
-        //holding_reg_params.fan_module_pwm2 = get_output_raw(1);
-        /*outputs[0].switch_status = 1;
-        outputs[1].switch_status = 1;
-        outputs[0].auto_manual = 1;
-        outputs[1].auto_manual = 1;
-        outputs[0].digital_analog = 1;
-        outputs[1].digital_analog = 1;
-        outputs[0].range = 1;
-        outputs[1].range = 1;*/
-		if(outputs[0].range == 1)
-			if((outputs[0].value<=10000)&&(outputs[1].value>=0))
-				holding_reg_params.fan_module_pwm1 = outputs[0].value*10/391;
-		if(outputs[1].range == 1)
-			if((outputs[1].value<=10000)&&(outputs[1].value>=0))
-				holding_reg_params.fan_module_pwm2 = outputs[1].value*10/391;
-		if((outputs[0].range == 4)||(outputs[0].range == 7))
-			if((outputs[0].value<=100000)&&(outputs[1].value>=0))
-				holding_reg_params.fan_module_pwm1 = outputs[0].value/391;
-		if((outputs[1].range == 4)||(outputs[1].range == 7))
-			if((outputs[1].value<=100000)&&(outputs[1].value>=0))
-				holding_reg_params.fan_module_pwm2 = outputs[1].value/391;
+		ptr = put_io_buf(OUT,0);
+		if(ptr.pout->range == 1)
+			if((ptr.pout->value<=10000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm1 = ptr.pout->value*10/391;
+		ptr = put_io_buf(OUT,1);
+		if(ptr.pout->range == 1)
+			if((ptr.pout->value<=10000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm2 = ptr.pout->value*10/391;
+		ptr = put_io_buf(OUT,0);
+		if((ptr.pout->range == 4)||(ptr.pout->range == 7))
+			if((ptr.pout->value<=100000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm1 = ptr.pout->value/391;
+		ptr = put_io_buf(OUT,1);
+		if((ptr.pout->range == 4)||(ptr.pout->range == 7))
+			if((ptr.pout->value<=100000)&&(ptr.pout->value>=0))
+				holding_reg_params.fan_module_pwm2 = ptr.pout->value/391;
         //Test[0] = holding_reg_params.fan_module_pwm1;
         //Test[1] = holding_reg_params.fan_module_pwm2;
-//        Test[2] = outputs[0].switch_status;
-//        Test[3] = outputs[1].switch_status;
+//        Test[2] = ptr.pout->switch_status;
+//        Test[3] = ptr.pout->switch_status;
         ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
 		ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, (255-holding_reg_params.fan_module_pwm2));
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
@@ -790,10 +776,6 @@ void led_init(void)
 	io_conf.pull_up_en = 0;
 	//configure GPIO with the given settings
 	gpio_config(&io_conf);
-
-//	outputs[0].switch_status = 0;
-//	outputs[1].switch_status = 1;
-//	outputs[2].switch_status = 2;
 
 	xTaskCreate(fan_led_task, "fan_led_task", 2048, NULL, 1, NULL);
 }
@@ -936,7 +918,7 @@ static void pcnt_task(void* arg)
 	/* Initialize PCNT event queue and PCNT functions */
 	//pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
 	//pcnt_init();
-
+	Str_points_ptr ptr;
     int16_t count = 0;
     //pcnt_evt_t evt;
     //portBASE_TYPE res;
@@ -949,13 +931,12 @@ static void pcnt_task(void* arg)
 			pcnt_get_counter_value(PCNT_TEST_UNIT, &count);
 			holding_reg_params.fan_module_pulse = (uint16_t)count;
 			pcnt_counter_clear(PCNT_TEST_UNIT);
-			//inputs[4].range = 26;
-			//if(inputs[4].range == 26)
 
-			if(inputs[4].range == 29)
-				inputs[4].value = holding_reg_params.fan_module_pulse*100*60;
+			ptr = put_io_buf(IN,4);
+			if(ptr.pin->range == 29)
+				ptr.pin->value = holding_reg_params.fan_module_pulse*100*60;
 			else
-				inputs[4].value = holding_reg_params.fan_module_pulse*100;
+				ptr.pin->value = holding_reg_params.fan_module_pulse*100;
 		//}
 			//count = 0;
 			vTaskDelay(10000 / portTICK_RATE_MS);

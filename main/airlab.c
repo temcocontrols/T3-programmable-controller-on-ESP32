@@ -276,7 +276,7 @@ uint8 Process_Rece_Data(uint8 *p,uint8 rece_count)
 	u8 check_sum;
 	u8 i = 0;
 	uint16 pm25_org, pm100_org;
-	
+	Str_points_ptr ptr;
 	if(pm25_current_cmd == SENSIRION_READ_MEASUREMENT)
 	{
 		if(p[0] != 0x7E || p[2] != 0x03)
@@ -332,16 +332,16 @@ uint8 Process_Rece_Data(uint8 *p,uint8 rece_count)
 //				pm25_number_25 -= pm25_number_10;
 //				pm25_number_10 -= pm25_number_05;
 
-				inputs[4].value = pm25_weight_10 * 1000;
-				inputs[5].value = pm25_weight_25 * 1000;
-				inputs[6].value = pm25_weight_40 * 1000;
-				inputs[7].value = pm25_weight_100 * 1000;
-				inputs[8].value = pm25_number_05 * 1000;
-				inputs[9].value = pm25_number_10 * 1000;
-				inputs[10].value = pm25_number_25 * 1000;
-				inputs[11].value = pm25_number_40 * 1000;
-				inputs[12].value = pm25_number_100 * 1000;
-				inputs[13].value = typical_partical_size * 1000;
+				ptr = put_io_buf(IN,4);ptr.pin->value = pm25_weight_10 * 1000;
+				ptr = put_io_buf(IN,5);ptr.pin->value = pm25_weight_25 * 1000;
+				ptr = put_io_buf(IN,6);ptr.pin->value = pm25_weight_40 * 1000;
+				ptr = put_io_buf(IN,7);ptr.pin->value = pm25_weight_100 * 1000;
+				ptr = put_io_buf(IN,8);ptr.pin->value = pm25_number_05 * 1000;
+				ptr = put_io_buf(IN,9);ptr.pin->value = pm25_number_10 * 1000;
+				ptr = put_io_buf(IN,10);ptr.pin->value = pm25_number_25 * 1000;
+				ptr = put_io_buf(IN,11);ptr.pin->value = pm25_number_40 * 1000;
+				ptr = put_io_buf(IN,12);ptr.pin->value = pm25_number_100 * 1000;
+				ptr = put_io_buf(IN,13);ptr.pin->value = typical_partical_size * 1000;
 			}
 		}
 
@@ -409,7 +409,7 @@ void vPM25Task(void *pvParameters )
 // 4. PIC sensor
 void vInputTask( void *pvParameters )
 {
-	static uint16 i = 0;
+	//static uint16 i = 0;
 	uint8 j = 0;
 /*	static uint8 occ_trigged = 0;
 
@@ -498,7 +498,7 @@ static void Airlab_adc_task(void* arg)
 	uint32_t adc_pir = 0;
 	uint32_t adc_voice = 0;
 	uint32_t adc_rs485 = 0;
-	
+	Str_points_ptr ptr;
 	uint32_t temp_adc_voice;
 
 
@@ -562,8 +562,9 @@ static void Airlab_adc_task(void* arg)
 		}
         
         sound_level = check_voice_table(adc_voice);
-        inputs[14].value = sound_level * 1000;
-        inputs[17].value = pir_trigger;
+        ptr = put_io_buf(IN,14);
+        ptr.pin->value = sound_level * 1000;
+        ptr.pin->value = pir_trigger;
 
         vTaskDelay(1000 / portTICK_RATE_MS);
     }
@@ -888,6 +889,7 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 
 void Get_AVS(void)
 {
+	Str_points_ptr ptr;
 	uint32 baud;
 	switch(Modbus.baudrate[0])
 	{
@@ -931,11 +933,10 @@ void Get_AVS(void)
 		baud = 115200;
 		break;
 	}
-	
-	vars[0].value = baud;
-	vars[1].value = Station_NUM;
-	vars[2].value = Modbus.com_config[0];
-	vars[3].value = (uint32)Instance;
-	vars[4].value = DEGCorF;
+	ptr = put_io_buf(VAR,0);ptr.pvar->value = baud;
+	ptr = put_io_buf(VAR,1);ptr.pvar->value = Station_NUM;
+	ptr = put_io_buf(VAR,2);ptr.pvar->value = Modbus.com_config[0];
+	ptr = put_io_buf(VAR,3);ptr.pvar->value = (uint32)Instance;
+	ptr = put_io_buf(VAR,4);ptr.pvar->value = DEGCorF;
 	  
 }

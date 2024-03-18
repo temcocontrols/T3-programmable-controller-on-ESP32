@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "modbus.h"
+
 
 #define TSTAT10_MAX_AIS 13
 #define TSTAT10_MAX_DOS 5
@@ -48,8 +50,9 @@ EXT_RAM_ATTR U16_T far sub_info_DO[SUB_NO][13];
 //U8_T far sub_info_Range[SUB_NO][32];
 #endif
 
-
-
+S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag);
+void recount_sub_addr(void);
+void Count_VAR_Object_Number(uint8_t base_var);
 
 U8_T base_in;
 U8_T base_out;
@@ -65,6 +68,7 @@ void Comm_Tstat_Initial_Data(void)
 	else if(Modbus.mini_type == MINI_T10P) 		{	base_in = T10P_MAX_AIS;			base_out = T10P_MAX_DOS + T10P_MAX_AOS;}
 	else if(Modbus.mini_type == PROJECT_FAN_MODULE)	{	base_in = 6;		base_out = 2;}
 	else if(Modbus.mini_type == PROJECT_AIRLAB)	{	base_in = 16;		base_out = 0;}
+	else if(Modbus.mini_type == PROJECT_NG2) {base_in = 16/*18*/;		base_out = 7;}
 	else /*if(Modbus.mini_type == MINI_NANO) */		{	base_in = 0;		base_out = 0;}
 	base_var = 0;
 
@@ -77,7 +81,7 @@ void Comm_Tstat_Initial_Data(void)
 
 
 
-#if  T3_MAP
+
 // only MAP T3
 void remap_table(U8_T index,U8_T type)
 {
@@ -381,206 +385,20 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 	U8_T index;
 	U8_T i,j;
 	U8_T temp_res_buf[50];
-	Test[17]++;	
+	Str_points_ptr ptr;
 	if(get_index_by_id(id,&index) == 1)
-	{Test[18]++;	
+	{
 		product = scan_db[index].product_model;
 		if((product == PM_T34AO) || (product == PM_T3IOA) || (product == PM_T38I13O) || (product == PM_T332AI)
 			|| (product == PM_T322AI) || (product == PM_T38AI8AO6DO) || (product == PM_T36CTA) || (product == PM_T3LC)
 		|| (product == PM_T3PT12))
-		{
-			
-		if(product == PM_T34AO)
-		{
-			if((reg >= T3_4AO_DO_REG_START) && (reg < T3_4AO_DO_REG_START + 8))
-			{ // DO
-				i = reg - T3_4AO_DO_REG_START;
-				if(sub_map[index].do_start + i > MAX_OUTS) return;
-				if(value == 1)
-				{								
-					outputs[sub_map[index].do_start + i].control = 1;
-				}
-				else
-					outputs[sub_map[index].do_start + i].control = 0;
-
-//  have to delete control, otherwise remote_io not work				
-				outputs[sub_map[index].do_start + i].switch_status = SW_AUTO;
-				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T34AO;
-				outputs[sub_map[index].do_start + i].sub_number = i;
-				
-				
-
-			}
-			if((reg >= T3_4AO_AO_REG_START) && (reg < T3_4AO_AO_REG_START + 4))
-			{ // AO
-				i = reg - T3_4AO_AO_REG_START;
-				if(sub_map[index].ao_start + i > MAX_OUTS) return;
-				output_raw[sub_map[index].ao_start + i] = value / 4;
-				outputs[sub_map[index].ao_start + i].value = (value / 4) * 10;
-//				outputs[sub_map[index].ao_start + i].read_remote = 1;
-				outputs[sub_map[index].ao_start + i].digital_analog = 1;
-				outputs[sub_map[index].ao_start + i].range = V0_10; 
-				outputs[sub_map[index].ao_start + i].switch_status = SW_AUTO;
-				
-				outputs[sub_map[index].ao_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].ao_start + i].sub_product = PM_T34AO;
-				outputs[sub_map[index].ao_start + i].sub_number = 0x80 + i;
-				
-			}
-			if((reg >= T3_4AO_AI_REG_START) && (reg < T3_4AO_AI_REG_START + 10))
-			{ // AI
-				i = reg - T3_4AO_AI_REG_START;
-				if(sub_map[index].ai_start + i > MAX_INS) return;
-				input_raw[sub_map[index].ai_start + i] = value / 4; 
-				inputs[sub_map[index].ai_start + i].value = (value / 4) * 1000;
-				if(value == 0)
-					inputs[sub_map[index].ai_start + i].control = 0;
-				else 
-					inputs[sub_map[index].ai_start + i].control = 1;
-//				inputs[sub_map[index].ai_start + i].digital_analog = 1; // analog
-				inputs[sub_map[index].ai_start + i].auto_manual = 0;
-				inputs[sub_map[index].ai_start + i].filter = 0;
-				inputs[sub_map[index].ai_start + i].calibration_sign = 0;
-				inputs[sub_map[index].ai_start + i].calibration_hi = 0;
-				inputs[sub_map[index].ai_start + i].calibration_lo = 0;				
-
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T34AO;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
-			}
-		}
-		else if(product == PM_T3IOA)
-		{
-			if((reg >= T3_8AO_AO_REG_START) && (reg < T3_8AO_AO_REG_START + 8))
-			{ // AO
-				i = reg - T3_8AO_AO_REG_START;
-				if(sub_map[index].ao_start + i > MAX_OUTS) return;
-				output_raw[sub_map[index].ao_start + i] = value;
-				
-				outputs[sub_map[index].ao_start + i].value = value * 10;
-				
-				outputs[sub_map[index].ao_start + i].digital_analog = 1;
-				outputs[sub_map[index].ao_start + i].range = V0_10; 
-				outputs[sub_map[index].ao_start + i].switch_status = SW_AUTO;
-				
-				outputs[sub_map[index].ao_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].ao_start + i].sub_product = PM_T3IOA;
-				outputs[sub_map[index].ao_start + i].sub_number = 0x80 + i;
-
-			}
-			if((reg >= T3_8AO_AI_REG_START) && (reg < T3_8AO_AI_REG_START + 8))
-			{ // AI
-				i = reg - T3_8AO_AI_REG_START;
-				if(sub_map[index].ai_start + i > MAX_INS) return;
-				input_raw[sub_map[index].ai_start + i] = value; 
-//				inputs[sub_map[index].ai_start + i].digital_analog = 1; // analog
-				
-				inputs[sub_map[index].ai_start + i].value = value * 1000;
-				if(value == 0)
-					inputs[sub_map[index].ai_start + i].control = 0;
-				else 
-					inputs[sub_map[index].ai_start + i].control = 1;
-				inputs[sub_map[index].ai_start + i].auto_manual = 0;
-				inputs[sub_map[index].ai_start + i].filter = 0;
-				inputs[sub_map[index].ai_start + i].calibration_sign = 0;
-				inputs[sub_map[index].ai_start + i].calibration_hi = 0;
-				inputs[sub_map[index].ai_start + i].calibration_lo = 0;
-				//sprintf(str,"id %d T3-8AO IN%d ",(U16_T)scan_db[index].id,(U16_T)i);	
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T3IOA;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
-				
-				
-			}
-		}
-		else 	if(product == PM_T38I13O)
-		{
-			if((reg >= T3_8A13O_DO_REG_START) && (reg < T3_8A13O_DO_REG_START + 13))
-			{ // 13 DO
-				i = reg - T3_8A13O_DO_REG_START;
-				if(sub_map[index].do_start + i > MAX_OUTS) return;
-				outputs[sub_map[index].do_start + i].digital_analog = 0;
-				outputs[sub_map[index].do_start + i].range = OFF_ON; 
-
-				if(value == 0)
-				{								
-					outputs[sub_map[index].do_start + i].control = 0;
-				}
-				else
-					outputs[sub_map[index].do_start + i].control = 1;		
-				
-//  have to delete control, otherwise remote_io not work
-//				output_raw[sub_map[index].do_start + i] = value;
- 
-				outputs[sub_map[index].do_start + i].value = value;
-				
-				outputs[sub_map[index].do_start + i].switch_status = SW_AUTO;
-				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T38I13O;
-				outputs[sub_map[index].do_start + i].sub_number = i;
-
-			}
-
-			if((reg >= T3_8A13O_AI_REG_START) && (reg < T3_8A13O_AI_REG_START + 16))
-			{ // 8 AI
-				
-				i = (reg - T3_8A13O_AI_REG_START) / 2;
-				if(sub_map[index].ai_start + i > MAX_AIS) return;
-				//input_raw[sub_map[index].ai_start + i] = value; 
-				inputs[sub_map[index].ai_start + i].value = value * 1000;
-				// assume current input is OFF/ON
-				if(value == 0)
-					inputs[sub_map[index].ai_start + i].control = 0;
-				else 
-					inputs[sub_map[index].ai_start + i].control = 1;
-//				inputs[sub_map[index].ai_start + i].digital_analog = 1; // analog
-				inputs[sub_map[index].ai_start + i].auto_manual = 0;
-				inputs[sub_map[index].ai_start + i].filter = 0;
-				inputs[sub_map[index].ai_start + i].calibration_sign = 0;
-				inputs[sub_map[index].ai_start + i].calibration_hi = 0;
-				inputs[sub_map[index].ai_start + i].calibration_lo = 0;
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T38I13O;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
-
-			}
-		}
-		else if(product == PM_T332AI)
-		{
-			if((reg >= T3_32I_AI_REG_START) && (reg < T3_32I_AI_REG_START + 32))
-			{ // 32 AI
-				i = reg - T3_32I_AI_REG_START;
-				if(sub_map[index].ai_start + i > MAX_AIS) return;
-				
-				input_raw[sub_map[index].ai_start + i] = value; 
-				
-				inputs[sub_map[index].ai_start + i].value = value;  
-				
-				if(value == 0)
-					inputs[sub_map[index].ai_start + i].control = 0;
-				else 
-					inputs[sub_map[index].ai_start + i].control = 1;
-				
-//				inputs[sub_map[index].ai_start + i].digital_analog = 1; // analog
-				inputs[sub_map[index].ai_start + i].auto_manual = 0;
-				inputs[sub_map[index].ai_start + i].filter = 0;
-				inputs[sub_map[index].ai_start + i].calibration_sign = 0;
-				inputs[sub_map[index].ai_start + i].calibration_hi = 0;
-				inputs[sub_map[index].ai_start + i].calibration_lo = 0;
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T332AI;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
-
-			}
-		}
-		else if(product == PM_T322AI)
+		{			
+		if(product == PM_T322AI)
 		{
 			if((reg >= T3_22I_AI_REG_START) && (reg < T3_22I_AI_REG_START + 22))
 			{ // AI
 				i = (reg - T3_22I_AI_REG_START);
+				
 				if(sub_map[index].ai_start + i > MAX_AIS) 
 					return;
 
@@ -589,10 +407,12 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 					temp_res_buf[j * 2] = buf[j * 2 + 4];
 					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
 				}
-				memcpy(&inputs[sub_map[index].ai_start + i],&temp_res_buf,sizeof(Str_in_point));		
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T322AI;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
+				j = sub_map[index].ai_start + i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,&temp_res_buf,sizeof(Str_in_point));		
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T322AI;
+				ptr.pin->sub_number = i;
 				input_raw[sub_map[index].ai_start + i] = value; 
 			}	
 			else if((reg >= MODBUS_INPUT_BLOCK_FIRST) && (reg < MODBUS_INPUT_BLOCK_LAST))
@@ -601,10 +421,11 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 				j = sub_map[index].ai_start + i;
 				if(j > MAX_AIS) 
 					return;
-				memcpy(&inputs[j],buf,sizeof(Str_in_point));	
-				inputs[j].sub_id = scan_db[index].id;
-				inputs[j].sub_product = PM_T322AI;
-				inputs[j].sub_number = i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,buf,sizeof(Str_in_point));	
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T322AI;
+				ptr.pin->sub_number = i;
 			}	
 		}
 		else if(product == PM_T3PT12)
@@ -620,10 +441,12 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 					temp_res_buf[j * 2] = buf[j * 2 + 4];
 					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
 				}
-				memcpy(&inputs[sub_map[index].ai_start + i],&temp_res_buf,sizeof(Str_in_point));		
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T3PT12;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
+				j = sub_map[index].ai_start + i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,&temp_res_buf,sizeof(Str_in_point));		
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T3PT12;
+				ptr.pin->sub_number = i;
 				input_raw[sub_map[index].ai_start + i] = value; 
 			}	
 			else if((reg >= MODBUS_INPUT_BLOCK_FIRST) && (reg < MODBUS_INPUT_BLOCK_LAST))
@@ -632,10 +455,11 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 				j = sub_map[index].ai_start + i;
 				if(j > MAX_AIS) 
 					return;
-				memcpy(&inputs[j],buf,sizeof(Str_in_point));	
-				inputs[j].sub_id = scan_db[index].id;
-				inputs[j].sub_product = PM_T3PT12;
-				inputs[j].sub_number = i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,buf,sizeof(Str_in_point));	
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T3PT12;
+				ptr.pin->sub_number = i;
 			}	
 		}
 		else if(product == PM_T38AI8AO6DO)
@@ -655,25 +479,24 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 					temp_res_buf[j * 2] = buf[j * 2 + 4];
 					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
 				}
-				memcpy(&outputs[sub_map[index].do_start + i],&temp_res_buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].do_start + i].read_remote = 1;				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T38AI8AO6DO;
-				//if(i < 8)
-					outputs[sub_map[index].do_start + i].sub_number = i;   // DO	
-//				else
-//					outputs[sub_map[index].ao_start + i].sub_number = 0x80 + i; // bit7 is 1, AO	
+				j = sub_map[index].do_start + i;
+				ptr = put_io_buf(OUT,j);
+				memcpy(ptr.pout,&temp_res_buf,sizeof(Str_out_point));			
+				ptr.pout->sub_id = scan_db[index].id;
+				ptr.pout->sub_product = PM_T38AI8AO6DO;
+				ptr.pout->sub_number = i;   
 			}
 			else if((reg >= MODBUS_OUTPUT_BLOCK_FIRST) && (reg < MODBUS_OUTPUT_BLOCK_FIRST + (sizeof(Str_out_point) + 1) / 2 * 6))
 			{ // 6 DO
 				i = (reg - MODBUS_OUTPUT_BLOCK_FIRST) / ((sizeof(Str_out_point) + 1) / 2);
 				if(sub_map[index].do_start + i > MAX_OUTS) 
 					return;
-				memcpy(&outputs[sub_map[index].do_start + i],buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].do_start + i].read_remote = 1;				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T38AI8AO6DO;
-				outputs[sub_map[index].do_start + i].sub_number = i;   // DO	
+				j = sub_map[index].do_start + i;
+				ptr = put_io_buf(OUT,j);
+				memcpy(ptr.pout,buf,sizeof(Str_out_point));	
+				ptr.pout->sub_id = scan_db[index].id;
+				ptr.pout->sub_product = PM_T38AI8AO6DO;
+				ptr.pout->sub_number = i;   // DO	
 			}
 			
 			if((reg >= T3_8AIAO6DO_AO_REG_START) && (reg < T3_8AIAO6DO_AO_REG_START + 8))
@@ -688,14 +511,12 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 					temp_res_buf[j * 2] = buf[j * 2 + 4];
 					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
 				}
-				memcpy(&outputs[sub_map[index].ao_start + i],&temp_res_buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].ao_start + i].read_remote = 1;				
-				outputs[sub_map[index].ao_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].ao_start + i].sub_product = PM_T38AI8AO6DO;
-//				if(i < 8)
-//					outputs[sub_map[index].ao_start + i].sub_number = i;   // DO	
-//				else
-					outputs[sub_map[index].ao_start + i].sub_number = 0x80 + i; // bit7 is 1, AO	
+				j = sub_map[index].ao_start + i;
+				ptr = put_io_buf(OUT,j);
+				memcpy(ptr.pout,&temp_res_buf,sizeof(Str_out_point));			
+				ptr.pout->sub_id = scan_db[index].id;
+				ptr.pout->sub_product = PM_T38AI8AO6DO;
+				ptr.pout->sub_number = 0x80 + i; // bit7 is 1, AO	
 			}
 			else if((reg >= MODBUS_OUTPUT_BLOCK_FIRST + (sizeof(Str_out_point) + 1) / 2 * 6) && (reg < MODBUS_OUTPUT_BLOCK_LAST))
 			{ // AO
@@ -703,11 +524,12 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 				if(sub_map[index].ao_start + i > MAX_OUTS) 
 					return;
 
-				memcpy(&outputs[sub_map[index].ao_start + i],buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].ao_start + i].read_remote = 1;				
-				outputs[sub_map[index].ao_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].ao_start + i].sub_product = PM_T38AI8AO6DO;
-				outputs[sub_map[index].ao_start + i].sub_number = i;   // DO	
+				j = sub_map[index].ao_start + i;
+				ptr = put_io_buf(OUT,j);
+				memcpy(ptr.pout,buf,sizeof(Str_out_point));
+				ptr.pout->sub_id = scan_db[index].id;
+				ptr.pout->sub_product = PM_T38AI8AO6DO;
+				ptr.pout->sub_number = i; // DO				
 			}
 			
 			if((reg >= T3_8AIAO6DO_AI_REG_START) && (reg < T3_8AIAO6DO_AI_REG_START + 8))
@@ -721,11 +543,12 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 					temp_res_buf[j * 2] = buf[j * 2 + 4];
 					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
 				}
-				
-				memcpy(&inputs[sub_map[index].ai_start + i],&temp_res_buf,sizeof(Str_in_point));	
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T38AI8AO6DO;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
+				j = sub_map[index].ai_start + i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,&temp_res_buf,sizeof(Str_in_point));	
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T38AI8AO6DO;
+				ptr.pin->sub_number = i;
 			}	
 			else if((reg >= MODBUS_INPUT_BLOCK_FIRST) && (reg < MODBUS_INPUT_BLOCK_LAST + (sizeof(Str_in_point) + 1) / 2 * 8))
 			{ // AI																	
@@ -733,75 +556,13 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 				j = sub_map[index].ai_start + i;
 				if(j > MAX_AIS) 
 					return;
-				
-				memcpy(&inputs[j],buf,sizeof(Str_in_point));	
-				inputs[j].sub_id = scan_db[index].id;
-				inputs[j].sub_product = PM_T38AI8AO6DO;
-				inputs[j].sub_number = i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,buf,sizeof(Str_in_point));	
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T38AI8AO6DO;
+				ptr.pin->sub_number = i;
 			}	
 
-		}
-		else if(product == PM_T3LC)
-		{
-
-		  if((reg >= T3_LC_DO_REG_START) && (reg < T3_LC_DO_REG_START + 7))
-			{ // DO
-				i = reg - T3_LC_DO_REG_START;
-				if(sub_map[index].do_start + i > MAX_OUTS) 
-					return;
-
-				for(j = 0;j < (sizeof(Str_out_point) + 1) / 2;j++)
-				{
-					temp_res_buf[j * 2] = buf[j * 2 + 4];
-					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
-				}
-				memcpy(&outputs[sub_map[index].do_start + i],&temp_res_buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].do_start + i].read_remote = 1;				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T3LC;
-				outputs[sub_map[index].do_start + i].sub_number = i;   // DO	
-			}
-			else if((reg >= MODBUS_OUTPUT_BLOCK_FIRST) && (reg < MODBUS_OUTPUT_BLOCK_FIRST + (sizeof(Str_out_point) + 1) / 2 * 7))
-			{ // DO
-				i = (reg - MODBUS_OUTPUT_BLOCK_FIRST) / ((sizeof(Str_out_point) + 1) / 2);
-				if(sub_map[index].do_start + i > MAX_OUTS) 
-					return;
-				memcpy(&outputs[sub_map[index].do_start + i],buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].do_start + i].read_remote = 1;				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T3LC;
-				outputs[sub_map[index].do_start + i].sub_number = i;   // DO	
-				
-			}			
-			if((reg >= T3_LC_AI_REG_START) && (reg < T3_LC_AI_REG_START + 7))
-			{ // AI
-				i = (reg - T3_LC_AI_REG_START);
-				if(sub_map[index].ai_start + i > MAX_AIS) 
-					return;
-				
-				for(j = 0;j < (sizeof(Str_in_point) + 1 ) / 2 ;j++)
-				{
-					temp_res_buf[j * 2] = buf[j * 2 + 4];
-					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
-				}
-				
-				memcpy(&inputs[sub_map[index].ai_start + i],&temp_res_buf,sizeof(Str_in_point));	
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T3LC;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
-			}	
-			else if((reg >= MODBUS_INPUT_BLOCK_FIRST) && (reg < MODBUS_INPUT_BLOCK_LAST + (sizeof(Str_in_point) + 1) / 2 * 7))
-			{ // AI																	
-				i = (reg - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);
-				j = sub_map[index].ai_start + i;
-				if(j > MAX_AIS) 
-					return;
-				
-				memcpy(&inputs[j],buf,sizeof(Str_in_point));	
-				inputs[j].sub_id = scan_db[index].id;
-				inputs[j].sub_product = PM_T3LC;
-				inputs[j].sub_number = i;
-			}	
 		}
 		else if(product == PM_T36CTA)
 		{
@@ -819,22 +580,24 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 					temp_res_buf[j * 2] = buf[j * 2 + 4];
 					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
 				}
-				memcpy(&outputs[sub_map[index].do_start + i],&temp_res_buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].do_start + i].read_remote = 1;				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T36CTA;
-				outputs[sub_map[index].do_start + i].sub_number = i;   // DO	
+				j = sub_map[index].do_start + i;
+				ptr = put_io_buf(OUT,j);
+				memcpy(ptr.pout,&temp_res_buf,sizeof(Str_out_point));			
+				ptr.pout->sub_id = scan_db[index].id;
+				ptr.pout->sub_product = PM_T36CTA;
+				ptr.pout->sub_number = i;   // DO	
 			}
 			else if((reg >= MODBUS_OUTPUT_BLOCK_FIRST) && (reg < MODBUS_OUTPUT_BLOCK_FIRST + (sizeof(Str_out_point) + 1) / 2 * 2))
 			{ // DO
 				i = (reg - MODBUS_OUTPUT_BLOCK_FIRST) / ((sizeof(Str_out_point) + 1) / 2);
 				if(sub_map[index].do_start + i > MAX_OUTS) 
 					return;
-				memcpy(&outputs[sub_map[index].do_start + i],buf,sizeof(Str_out_point));
-//				outputs[sub_map[index].do_start + i].read_remote = 1;				
-				outputs[sub_map[index].do_start + i].sub_id = scan_db[index].id;
-				outputs[sub_map[index].do_start + i].sub_product = PM_T36CTA;
-				outputs[sub_map[index].do_start + i].sub_number = i;   // DO	
+				j = sub_map[index].do_start + i;
+				ptr = put_io_buf(OUT,j);
+				memcpy(ptr.pout,buf,sizeof(Str_out_point));
+				ptr.pout->sub_id = scan_db[index].id;
+				ptr.pout->sub_product = PM_T36CTA;
+				ptr.pout->sub_number = i;   // DO	
 				
 			}			
 			if((reg >= T3_6CTA_AI_REG_START) && (reg < T3_6CTA_AI_REG_START + 20))
@@ -848,11 +611,12 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 					temp_res_buf[j * 2] = buf[j * 2 + 4];
 					temp_res_buf[j * 2 + 1] = buf[j * 2 + 3];
 				}
-				
-				memcpy(&inputs[sub_map[index].ai_start + i],&temp_res_buf,sizeof(Str_in_point));	
-				inputs[sub_map[index].ai_start + i].sub_id = scan_db[index].id;
-				inputs[sub_map[index].ai_start + i].sub_product = PM_T36CTA;
-				inputs[sub_map[index].ai_start + i].sub_number = i;
+				j = sub_map[index].ai_start + i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,&temp_res_buf,sizeof(Str_in_point));	
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T36CTA;
+				ptr.pin->sub_number = i;
 			}	
 			else if((reg >= MODBUS_INPUT_BLOCK_FIRST) && (reg < MODBUS_INPUT_BLOCK_LAST + (sizeof(Str_in_point) + 1) / 2 * 20))
 			{ // AI																	
@@ -861,22 +625,17 @@ void update_remote_map_table(U8_T id,U16_T reg,U16_T value,U8_T *buf)
 				if(j > MAX_AIS) 
 					return;
 				
-				memcpy(&inputs[j],buf,sizeof(Str_in_point));	
-				inputs[j].sub_id = scan_db[index].id;
-				inputs[j].sub_product = PM_T36CTA;
-				inputs[j].sub_number = i;
+				ptr = put_io_buf(IN,j);
+				memcpy(ptr.pin,buf,sizeof(Str_in_point));
+				ptr.pin->sub_id = scan_db[index].id;
+				ptr.pin->sub_product = PM_T36CTA;
+				ptr.pin->sub_number = i;
 			}	
 		}
 	
-//			Count_Object_Number(OBJECT_ANALOG_INPUT);
-//			Count_Object_Number(OBJECT_BINARY_INPUT);
-//			Count_Object_Number(OBJECT_ANALOG_OUTPUT);
-//			Count_Object_Number(OBJECT_BINARY_OUTPUT);
-//	Count_Object_Number(OBJECT_ANALOG_VALUE);
-//	Count_Object_Number(OBJECT_BINARY_VALUE);
-			Count_IN_Object_Number();
-			Count_OUT_Object_Number();
-			Count_VAR_Object_Number();
+		Count_IN_Object_Number();
+		Count_OUT_Object_Number();
+		Count_VAR_Object_Number(AVS);
 	}
 	
 
@@ -1026,22 +785,15 @@ void update_extio_to_database(void)
 			|| ptr->reg.product_id == PM_T3PT12)
 		{  // external io must be T3 module
 			// ��չ��IO�ֶ����ʱport��������˳���get_baut_by_port(0) uart2>uart0>uart1
-#if (ASIX_MINI || ASIX_CM5)
-			check_id_in_database(ptr->reg.modbus_id,ptr->reg.sn,ptr->reg.port,get_baut_by_port(0),ptr->reg.product_id);
-#else			
+
 			check_id_in_database(ptr->reg.modbus_id,my_honts_arm(ptr->reg.sn),ptr->reg.port,get_baut_by_port(0),ptr->reg.product_id);
-		
-#endif
 		
 		}
 		
 	}
 	
 	recount_sub_addr();
-	ChangeFlash = 1;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-	write_page_en[TSTAT] = 1;	
-#endif
+
 	Comm_Tstat_Initial_Data();
 	
 	for(i = 0;i < sub_no;i++)
@@ -1052,7 +804,7 @@ void update_extio_to_database(void)
 
 
 
-#endif
+
 
 
 #if 0// defined in bac_interface already
@@ -1223,8 +975,9 @@ void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start
 	else if(Modbus.mini_type == MINI_TINY_ARM)	{	ptr->reg.input_end = 8;		ptr->reg.output_end = 14;		}
 	else if(Modbus.mini_type == MINI_TINY_11I)	{	ptr->reg.input_end = 11;		ptr->reg.output_end = 11;		}
 	else if(Modbus.mini_type == MINI_NANO)	{	// no I/O
-		ptr->reg.input_start = 0;	
-	ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 0;		}
+		ptr->reg.input_start = 0;		ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 0;		}
+	else if(Modbus.mini_type == PROJECT_NG2) {ptr->reg.input_end = 18;		ptr->reg.output_end = 7;}
+
 
 	j = 0;
 	ptr = &extio_points[1];
@@ -1306,7 +1059,7 @@ void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start
 // type -> 1, multi-write
 void push_expansion_out_stack(Str_out_point* ptr,uint8 point,uint8_t type)
 {	
-#if T3_MAP
+#if 1//T3_MAP
 	// protect ptr->control
 		if(ptr->sub_product == PM_T38AI8AO6DO || ptr->sub_product == PM_T36CTA)
 		{
@@ -1395,7 +1148,7 @@ void push_expansion_out_stack(Str_out_point* ptr,uint8 point,uint8_t type)
 
 void push_expansion_in_stack(Str_in_point* ptr)
 {
-#if T3_MAP
+#if 1//T3_MAP
 	if(ptr->sub_product == PM_T38AI8AO6DO || ptr->sub_product == PM_T322AI || ptr->sub_product == PM_T36CTA || ptr->sub_product == PM_T3PT12)
 	{		
 		write_parameters_to_nodes(0x10,ptr->sub_id,MODBUS_INPUT_BLOCK_FIRST + (ptr->sub_number & 0x7f) * ((sizeof(Str_in_point) + 1) / 2),\

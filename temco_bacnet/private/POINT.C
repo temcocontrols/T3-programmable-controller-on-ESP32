@@ -949,7 +949,7 @@ S16_T get_point_value( Point *point, S32_T *val_ptr )
  * Note:  
  * ----------------------------------------------------------------------------
  */
-
+void Update_LCD_IconArray(void);
 S16_T put_point_value( Point *point, S32_T *val_ptr, S16_T aux, S16_T prog_op )
 {
  	Str_points_ptr sptr;
@@ -1150,11 +1150,12 @@ S16_T put_point_value( Point *point, S32_T *val_ptr, S16_T aux, S16_T prog_op )
 #endif
 				}
 				break;
-		 /*	case ARRAY:
+			case ARRAY:
 				sptr.pary = &arrays[point->number];
 				if( aux >= sptr.pary->length || aux < 0 )				aux = 0;		
 				arrays_address[point->number][aux] = *val_ptr;		
-				break;*/
+				Update_LCD_IconArray();
+				break;
 			  	
 			case AMON:
 				sptr.pmon = &monitors[point->number];

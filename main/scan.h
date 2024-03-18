@@ -51,7 +51,7 @@ typedef struct
 }STR_MAP_table;
 
 
-#define MAX_ID		5//255
+#define MAX_ID		50
 #define SUB_NO		MAX_ID - 1
 
 #define	NONE_ID						0

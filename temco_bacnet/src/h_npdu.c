@@ -77,9 +77,10 @@ void npdu_handler(
     BACNET_ADDRESS far dest = { 0 };
     BACNET_NPDU_DATA far npdu_data = { 0 };
     /* only handle the version that we know how to handle */
+
     if (pdu[0] == BACNET_PROTOCOL_VERSION) {
         apdu_offset = npdu_decode(&pdu[0], &dest, src, &npdu_data);
-        if (npdu_data.network_layer_message) {		
+        if (npdu_data.network_layer_message) {
   // packet is i am a network router
             /*FIXME: network layer message received!  Handle it! */
 		// added by chelsea, deal with network layer message
@@ -96,12 +97,12 @@ void npdu_handler(
                  * since only routers can handle it (even if for our DNET) */
             }					
 																 
-        } else if ((apdu_offset > 0) && (apdu_offset <= pdu_len)) {	
+        } else if ((apdu_offset > 0) && (apdu_offset <= pdu_len)) {
             if((dest.net == 0) || (dest.net == BACNET_BROADCAST_NETWORK)
 				|| ((dest.net == get_network_number()) && (dest.len == 6))) {
 			    /* only handle the version that we know how to handle */
                 /* and we are not a router, so ignore messages with
-                   routing information cause they are not for us */				
+                   routing information cause they are not for us */
 				apdu_handler(src, &pdu[apdu_offset],
                     (uint16_t) (pdu_len - apdu_offset), protocal);
 				

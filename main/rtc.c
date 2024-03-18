@@ -388,23 +388,28 @@ void update_timers( void )
 
 }
 
-U32_T get_current_time(void)
+U32_T get_current_time(void)  // orignal data
+{
+	return time_since_1970 + system_timer / 1000;
+}
+
+U32_T get_current_time_with_timezone(void)
 {
 	if(Daylight_Saving_Time)  // timezone : +8 ---> 800
 	{
 		if((rtc_date.day_of_year >= start_day) && (rtc_date.day_of_year <= end_day))
 		{
-			return time_since_1970 + system_timer / 1000;// - (S16_T)timezone * 36 - 3600;
+			return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36 - 3600;
 		}
 		else
-			return time_since_1970 + system_timer / 1000;// - (S16_T)timezone * 36;
+			return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36;
 
 	}
 	else
-		return time_since_1970 + system_timer / 1000;// - (S16_T)timezone * 36;
+		return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36;
 
 	return 0;
-	//return time_since_1970 + system_timer / 1000;//timezone ?????????????
+
 }
 
 U32_T RTC_GetCounter(void)

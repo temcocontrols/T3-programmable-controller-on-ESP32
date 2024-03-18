@@ -82,6 +82,13 @@
 #define TSTAT10_MAX_DIS 8
 #define TSTAT10_MAX_SCS 8
 
+#define NG2_MAX_AIS 16 + 6
+#define NG2_MAX_DOS 7
+#define NG2_MAX_AOS 0
+#define NG2_MAX_AVS 128
+#define NG2_MAX_DIS 0
+#define NG2_MAX_SCS 8
+
 #define MINI_CM5  0
 #define MINI_BIG	 1
 #define MINI_SMALL  2

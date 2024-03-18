@@ -56,7 +56,12 @@
 static uint8_t sht4x_cmd_measure = SHT4X_CMD_MEASURE_HPM;
 static uint16_t sht4x_cmd_measure_delay_us = SHT4X_MEASUREMENT_DURATION_USEC;
 
-extern void sensirion_sleep_usec(uint32_t useconds);
+int usleep(useconds_t us);
+void sensirion_sleep_usec(int32_t useconds)
+{
+	usleep(useconds);
+}
+
 extern esp_err_t sensirion_i2c_write(uint8_t address, const uint8_t *data,
                            uint16_t count);
 

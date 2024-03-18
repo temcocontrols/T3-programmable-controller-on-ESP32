@@ -29,7 +29,7 @@ U8_T force_scan;
 U16_T modbus_scan_count;
 extern U8_T count_reset_zigbee;
 extern U16_T last_reset_zigbee;
-extern xSemaphoreHandle sem_uart;
+extern uint8_t ChangeFlash;
 U8_T far scan_port;
 U8_T far scan_baut;
 
@@ -38,6 +38,8 @@ U32_T com_tx[3];
 U16_T collision[3];  // id collision
 U16_T packet_error[3];  // bautrate not match
 U16_T timeout[3];
+
+uint8_t flag_uart_reading[3];
 
 void Change_com_config(U8_T port);
 
@@ -114,7 +116,7 @@ U8_T tst_retry[MAX_ID];
 
 
 void read_name_of_tstat(U8_T index);
-void refresh_zone(void);
+
 
 void recount_sub_addr(void)
 {	
@@ -148,10 +150,7 @@ void recount_sub_addr(void)
 
 	sub_no = uart0_sub_no + uart1_sub_no + uart2_sub_no;
 	refresh_extio_by_database(0,0,0,0,0);
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-	refresh_zone();
-#endif
-	
+	ChangeFlash = 1;
 }
 
 
@@ -175,7 +174,7 @@ void Get_Tst_DB_From_Flash(void)
 				{
 				 	if(scan_db[i].id != scan_db[i-1].id )
 					{
-				
+
 						db_online[scan_db[i].id / 8] |= 1 << (scan_db[i].id % 8);
 						db_occupy[scan_db[i].id / 8] &= ~(1 << (scan_db[i].id % 8));
 					//	current_online[scan_db[i].id / 8] |= 1 << (scan_db[i].id % 8);
@@ -213,7 +212,7 @@ void Get_Tst_DB_From_Flash(void)
 
 	sub_no = uart0_sub_no + uart1_sub_no + uart2_sub_no;
 // add T3 MAP
-#if T3_MAP
+
 	// �������ݿ��е�����˳����expansion IO��λ��
 	for(i = 0;i < sub_no;i++)
 	{
@@ -221,14 +220,6 @@ void Get_Tst_DB_From_Flash(void)
 	}			
 		
 	refresh_extio_by_database(0,0,0,0,0);
-		
-#endif
-
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-		refresh_zone();
-#endif
-
-
 }
 
 
@@ -290,12 +281,11 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 	else
 		length = 0; // tbd:
 
-
 	if(length > 0)
 	{
-		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-		else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-		com_tx[port]++;
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+		com_rx[port] += length;
 		ret = receive_scan_reply(subnet_response_buf, length);
 	}
 	else // NONE_ID || MULTIPLE_ID
@@ -351,16 +341,17 @@ U8_T assignment_id_with_sn(U8_T old_id, U8_T new_id, U32_T current_sn,U8_T port)
 	uart_send_string(buf, 12,port);
 	subnet_rec_package_size = 12;
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-
+	flag_uart_reading[port] = 1;
 	if(port == 0 || port == 2)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
 	else
 		length = 0; // tbd:
+	flag_uart_reading[port] = 0;
 	if(length > 0)
 	{
-		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-		com_tx[port]++;
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+				else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+		com_tx[port] += length;
 		ret = receive_assign_id_reply(subnet_response_buf, 12);
 	}
 
@@ -777,7 +768,7 @@ void clear_scan_db(void)
 	modbus_scan_count = 0;
 	Comm_Tstat_Initial_Data();
 	init_scan_db();
-#if 1
+
 	for(i = 0;i < MAX_ID;i++)
 	{
 		flag_tstat_name[i] = 0;
@@ -785,14 +776,13 @@ void clear_scan_db(void)
 		memset(tstat_name[i],0,16);
 		
 	}
-#endif
+
 	// clear remote point list
 	number_of_remote_points_modbus = 0;
-	memset(remote_points_list_modbus,0,MAXREMOTEPOINTS * sizeof(REMOTE_POINTS));
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+	memset(remote_points_list,0,MAXREMOTEPOINTS * sizeof(REMOTE_POINTS));
 	number_of_remote_points_bacnet = 0;
-	memset(remote_points_list_bacnet,0,MAXREMOTEPOINTS * sizeof(REMOTE_POINTS));
-	refresh_zone();
+
+#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	clear_conflict_id();
 #endif
 //	start_data_save_timer();
@@ -830,9 +820,7 @@ void add_id_online(U8_T index)
 		
 	}
 	Check_On_Line();
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-	refresh_zone();
-#endif
+
 }
 
 //void remove_id_from_db(U8_T index)
@@ -1113,11 +1101,11 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 	else  // update remote point
 	{
 //		if(number_of_remote_points == 0) return;
-		buf[0] = remote_points_list_modbus[index].tb.RP_modbus.id;
-		buf[1] = remote_points_list_modbus[index].tb.RP_modbus.func & 0x7f;	
-		float_type = (remote_points_list_modbus[index].tb.RP_modbus.func & 0xff00) >> 8;
-		buf[2] = HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg);
-		buf[3] = LOW_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg); // start address
+		buf[0] = remote_points_list[index].tb.RP_modbus.id;
+		buf[1] = remote_points_list[index].tb.RP_modbus.func & 0x7f;
+		float_type = (remote_points_list[index].tb.RP_modbus.func & 0xff00) >> 8;
+		buf[2] = HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg);
+		buf[3] = LOW_BYTE(remote_points_list[index].tb.RP_modbus.reg); // start address
 		port = get_port_by_id(buf[0]);	
 		baut = get_baut_by_id(port,buf[0]);
 	}
@@ -1141,7 +1129,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 	else
 	{
 		U16_T newreg;
-		read_len = Check_Read_Len(remote_points_list_modbus[index].tb.RP_modbus.reg,Get_product_by_id(remote_points_list_modbus[index].tb.RP_modbus.id),&newreg);
+		read_len = Check_Read_Len(remote_points_list[index].tb.RP_modbus.reg,Get_product_by_id(remote_points_list[index].tb.RP_modbus.id),&newreg);
 		if(float_type > 0)
 		{
 			read_len = 0x80 + 2;  // reading float, two bytes
@@ -1174,19 +1162,19 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 		size0 = buf[5] * 2 + 5;		
 
 	subnet_rec_package_size = size0;
-
+	flag_uart_reading[port] = 1;
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 	if(port == 0 || port == 2)
-		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
+		length = uart_read_bytes(port, subnet_response_buf, 100, 100 / portTICK_RATE_MS);
 	else
 		length = 0; // tbd:
-
+	flag_uart_reading[port] = 0;
 	if(length > 0)	 
 	{
-		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
 
-		com_tx[port]++;
+		com_tx[port] += length;
 		crc_check = crc16(subnet_response_buf,length - 2);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[length - 2]) && (LOW_BYTE(crc_check) == subnet_response_buf[length - 1]))
 		{
@@ -1202,7 +1190,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 					{	
 						refresh_extio_by_database(0,0,0,0,1);  // refresh time of T3-expansion
 					}
-	#if  T3_MAP
+
 	//				if((index == 0) || (sub_map[index - 1].add_in_map == 1))
 					{		
 						U8_T i;
@@ -1227,7 +1215,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 						//add_id_online(index);
 						remap_table(index,scan_db[index].product_model);	
 					}
-	#endif		
+
 				}	
 			}
 			else
@@ -1244,39 +1232,39 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 				{
 					for(i = 0;i < buf[5];i++)
 					{
-						remote_points_list_modbus[index + i].decomisioned = 1;
-						remote_points_list_modbus[index + i].product = Get_product_by_id(remote_points_list_modbus[index].tb.RP_modbus.id);
-						if((remote_points_list_modbus[index].tb.RP_modbus.func & 0x7f) == READ_COIL || (remote_points_list_modbus[index].tb.RP_modbus.func & 0x7f) == READ_DIS_INPUT)
+						remote_points_list[index + i].decomisioned = 1;
+						remote_points_list[index + i].product = Get_product_by_id(remote_points_list[index].tb.RP_modbus.id);
+						if((remote_points_list[index].tb.RP_modbus.func & 0x7f) == READ_COIL || (remote_points_list[index].tb.RP_modbus.func & 0x7f) == READ_DIS_INPUT)
 						{  // modbud fuction 01 02
-							if(remote_points_list_modbus[index].tb.RP_modbus.reg > 255)
+							if(remote_points_list[index].tb.RP_modbus.reg > 255)
 							{
-								add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,
-								(remote_points_list_modbus[index].tb.RP_modbus.func & 0x1f) | (HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg) << 5),
-								HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg) >> 3,
-								LOW_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg),subnet_response_buf[3],
-								(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+								add_remote_point(remote_points_list[index].tb.RP_modbus.id,
+								(remote_points_list[index].tb.RP_modbus.func & 0x1f) | (HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) << 5),
+								HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) >> 3,
+								LOW_BYTE(remote_points_list[index].tb.RP_modbus.reg),subnet_response_buf[3],
+								(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 								float_type);
 							}
 							else
-								add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,remote_points_list_modbus[index].tb.RP_modbus.func & 0x1f,0,remote_points_list_modbus[index].tb.RP_modbus.reg,(U16_T)subnet_response_buf[3],\
-							(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+								add_remote_point(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.func & 0x1f,0,remote_points_list[index].tb.RP_modbus.reg,(U16_T)subnet_response_buf[3],\
+							(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 							float_type);
 						}
 						else // 03 04
 						{
-							if(remote_points_list_modbus[index].tb.RP_modbus.reg > 255)
+							if(remote_points_list[index].tb.RP_modbus.reg > 255)
 							{
-								add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,
-								(remote_points_list_modbus[index].tb.RP_modbus.func & 0x1f)| (HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg) << 5),
-								HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg) >> 3,
-								LOW_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg),subnet_response_buf[3] * 256 + subnet_response_buf[4],\
-								(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+								add_remote_point(remote_points_list[index].tb.RP_modbus.id,
+								(remote_points_list[index].tb.RP_modbus.func & 0x1f)| (HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) << 5),
+								HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) >> 3,
+								LOW_BYTE(remote_points_list[index].tb.RP_modbus.reg),subnet_response_buf[3] * 256 + subnet_response_buf[4],\
+								(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 								float_type);
 							}
 							else
 							{
-								add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,remote_points_list_modbus[index].tb.RP_modbus.func & 0x1f,0,remote_points_list_modbus[index].tb.RP_modbus.reg + i,(U16_T)subnet_response_buf[3 + i * 2] * 256 + subnet_response_buf[4 + i * 2],\
-							(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+								add_remote_point(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.func & 0x1f,0,remote_points_list[index].tb.RP_modbus.reg + i,(U16_T)subnet_response_buf[3 + i * 2] * 256 + subnet_response_buf[4 + i * 2],\
+							(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 								float_type);
 							}
 						}
@@ -1286,85 +1274,83 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 				{	// ������ֽ�			
 					for(i = 0;i < buf[5] / 2;i++)
 					{
-						if(Get_product_by_id(remote_points_list_modbus[index].tb.RP_modbus.id) == 203)  // only for PM test
-							add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,remote_points_list_modbus[index].tb.RP_modbus.func,
-						HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg) >> 3,
-						remote_points_list_modbus[index].tb.RP_modbus.reg,1000L * (256l * subnet_response_buf[3] + subnet_response_buf[4]) \
+						if(Get_product_by_id(remote_points_list[index].tb.RP_modbus.id) == 203)  // only for PM test
+							add_remote_point(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.func,
+						HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) >> 3,
+						remote_points_list[index].tb.RP_modbus.reg,1000L * (256l * subnet_response_buf[3] + subnet_response_buf[4]) \
 							+ 1000L * (256l * subnet_response_buf[5] + subnet_response_buf[6]) / 65536 ,\
-						(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+						(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 						float_type);
 						else  // T3 read 2 bytes
 						{
 							// if multi-read
-							U8_T product = Get_product_by_id(remote_points_list_modbus[index].tb.RP_modbus.id);
+							U8_T product = Get_product_by_id(remote_points_list[index].tb.RP_modbus.id);
 							if((product == PM_T38AI8AO6DO) || (product == PM_T322AI) || (product == PM_T36CTA) || (product == PM_T3PT12)
 							)
 							{
-								add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,remote_points_list_modbus[index].tb.RP_modbus.func,
-								0,remote_points_list_modbus[index].tb.RP_modbus.reg,(U32_T)(subnet_response_buf[35] << 24) + (U32_T)(subnet_response_buf[36] << 16) \
+								add_remote_point(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.func,
+								0,remote_points_list[index].tb.RP_modbus.reg,(U32_T)(subnet_response_buf[35] << 24) + (U32_T)(subnet_response_buf[36] << 16) \
 									+ (U16_T)(subnet_response_buf[33] << 8) + subnet_response_buf[34],\
-								(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+								(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 								float_type);
 
 							}
 							else	// old T3 module
 							{	
-							if(remote_points_list_modbus[index].tb.RP_modbus.reg > 255)
+							if(remote_points_list[index].tb.RP_modbus.reg > 255)
 							{
-								add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,
-								(remote_points_list_modbus[index].tb.RP_modbus.func & 0x1f)| (HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg) << 5),
-								HIGH_BYTE(remote_points_list_modbus[index].tb.RP_modbus.reg) >> 3,
-								remote_points_list_modbus[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24) + (U32_T)(subnet_response_buf[4 + i * 4] << 16) \
+								add_remote_point(remote_points_list[index].tb.RP_modbus.id,
+								(remote_points_list[index].tb.RP_modbus.func & 0x1f)| (HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) << 5),
+								HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) >> 3,
+								remote_points_list[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24) + (U32_T)(subnet_response_buf[4 + i * 4] << 16) \
 								+ (U16_T)(subnet_response_buf[5 + i * 4] << 8) + subnet_response_buf[6 + i * 4],
-								(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+								(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 								float_type);
 							}
 							else
 							{
-								add_remote_point(remote_points_list_modbus[index].tb.RP_modbus.id,
-								remote_points_list_modbus[index].tb.RP_modbus.func  & 0x1f,
+								add_remote_point(remote_points_list[index].tb.RP_modbus.id,
+								remote_points_list[index].tb.RP_modbus.func  & 0x1f,
 								0,
-								remote_points_list_modbus[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24) + (U32_T)(subnet_response_buf[4 + i * 4] << 16) \
+								remote_points_list[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24) + (U32_T)(subnet_response_buf[4 + i * 4] << 16) \
 								+ (U16_T)(subnet_response_buf[5 + i * 4] << 8) + subnet_response_buf[6 + i * 4],\
-							(remote_points_list_modbus[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
+							(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 								float_type);
 							}								
 							}
 						}
-						remote_points_list_modbus[index + i].decomisioned = 1;
+						remote_points_list[index + i].decomisioned = 1;
 					}
 				}											
 				
-#if  T3_MAP		
 
 					if(read_len == 0)
 					{ // read one byte
 						for(i = 0;i < buf[5];i++)
 						{
-							update_remote_map_table(remote_points_list_modbus[index].tb.RP_modbus.id,remote_points_list_modbus[index].tb.RP_modbus.reg + i,(U16_T)subnet_response_buf[3 + i * 2] * 256 + subnet_response_buf[4 + i * 2],subnet_response_buf);
+							update_remote_map_table(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.reg + i,(U16_T)subnet_response_buf[3 + i * 2] * 256 + subnet_response_buf[4 + i * 2],subnet_response_buf);
 						}
 						remote_modbus_index = remote_modbus_index + buf[5] - 1;
 					}
 					else
 					{	// multi-read	, only for new T3, work as external IO
-						U8_T product = Get_product_by_id(remote_points_list_modbus[index].tb.RP_modbus.id);
+						U8_T product = Get_product_by_id(remote_points_list[index].tb.RP_modbus.id);
 						if((product == PM_T38AI8AO6DO) || (product == PM_T322AI) || (product == PM_T36CTA) || (product == PM_T3PT12)) 
 						{	
-							update_remote_map_table(remote_points_list_modbus[index].tb.RP_modbus.id,remote_points_list_modbus[index].tb.RP_modbus.reg,0,subnet_response_buf);
+							update_remote_map_table(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.reg,0,subnet_response_buf);
 						}
 						else
 						{
 							for(i = 0;i < buf[5] / 2;i++)
 							{
-								update_remote_map_table(remote_points_list_modbus[index].tb.RP_modbus.id,remote_points_list_modbus[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24)  
+								update_remote_map_table(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24)  
 								+ (U32_T)(subnet_response_buf[4 + i * 4] << 16)	+ (U16_T)(subnet_response_buf[5 + i * 4] << 8) + subnet_response_buf[6 + i * 4],subnet_response_buf);						
 							}
 							remote_modbus_index = remote_modbus_index + buf[5] / 2 - 1;
 						}						
 					}
 
-								
-#endif	
+
 			}
 			tst_retry[buf[0]] = 0;
 			scan_db_time_to_live[buf[0]] = SCAN_DB_TIME_TO_LIVE;
@@ -1388,7 +1374,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 	{	
 		timeout[port]++;
 		tst_retry[buf[0]]++;
-#if  T3_MAP	 	
+
 	if(type == 1)  // read parameters
 	{
 			if(read_len == 0)
@@ -1397,7 +1383,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 			}
 			else
 			{	// multi-read	, only for new T3, work as external IO
-				U8_T product = Get_product_by_id(remote_points_list_modbus[index].tb.RP_modbus.id);
+				U8_T product = Get_product_by_id(remote_points_list[index].tb.RP_modbus.id);
 				if((product == PM_T38AI8AO6DO) || (product == PM_T322AI) || (product == PM_T36CTA) || (product == PM_T3PT12)) 
 				{
 					remote_modbus_index = remote_modbus_index + 22;
@@ -1410,7 +1396,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 			}
 		}
 								
-#endif	 
+
 	}
 
 	free(subnet_response_buf);
@@ -1455,7 +1441,7 @@ void write_parameters_to_nodes(uint8_t func,uint8 id, uint16 reg, uint16* value,
 		return;	
 	}
 	else
-	{		
+	{
 		if(len >= 50) return;
 		node_write[i].func = func;
 		node_write[i].id = id;
@@ -1490,7 +1476,6 @@ void check_write_to_nodes(U8_T port)
 	U16_T crc_check;
 	U8_T baut;
 	U8_T i,j;
-
 	for(i = 0;i < STACK_LEN;i++)
 	{
 		if(node_write[i].flag == WAIT_FOR_WRITE) //	get current index, 1 -- WAIT_FOR_WRITE, 0 -- WRITE_OK
@@ -1523,8 +1508,7 @@ void check_write_to_nodes(U8_T port)
 
 	buf[0] = node_write[i].id;
 
-	baut = get_baut_by_id(port,buf[0]);		
-	
+	baut = get_baut_by_id(port,buf[0]);
 	set_baut_by_port(port,baut);	
 	
 	//uart_init_send_com(port);
@@ -1602,17 +1586,18 @@ void check_write_to_nodes(U8_T port)
 		uart_send_string(buf, 8,port);	
 	}
 	subnet_rec_package_size = 8;
-
+	flag_uart_reading[port] = 1;
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 	if(port == 0 || port == 2)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
 	else
 		length = 0; // tbd:
+	flag_uart_reading[port] = 0;
 	if(length > 0)
 	{
-		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-		com_tx[port]++;
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+		com_tx[port] += length;
 		node_write[i].flag = WRITE_OK; // without doing checksum
 //		node_write[i].id = 0;
 //		node_write[i].reg = 0;
@@ -1755,6 +1740,7 @@ U8_T SendSchedualData(U8_T protocal);
 #endif
 uint8 flag_response_zigbee;
 void Get_ZIGBEE_ID(void);
+//xSemaphoreHandle xSem_comport;
 void ScanTask(void)
 {
 	U8_T far port = 0;
@@ -1772,146 +1758,136 @@ void ScanTask(void)
 	index_sub = 0;
 	flag_response_zigbee = 0;
 	type = 0;
-
 	while(1)	 
 	{	
+
 		if(flag_suspend_scan == 0)
 		{
-		// write schedule data
-#if (ARM_MINI || ARM_CM5 )
-		SendSchedualData(0);
-#if TIME_SYNC	
-		TimeSync_Tstat();
-		Schedule_Sync_Tstat();
-#endif
-#endif	
-		check_whether_force_scan();
-		if(tempcount >= 20000 / READ_POINT_TIMER)	 // 20s
-		{
-			if(subcom_num >= 1)
+			// write schedule data
+			check_whether_force_scan();
+			if(tempcount >= 20000 / READ_POINT_TIMER)	 // 20s
 			{
-				port = subcom_seq[comindex1];
-				if(comindex1 < subcom_num - 1)
+				if(subcom_num >= 1)
 				{
-					comindex1++;	
-				} 
-				else
-					comindex1 = 0;
-
-				scan_sub_nodes(port);		   // 19200
-
-
-			} 						
-			tempcount = 0;
-		}
-		else
-		{	
-
-			Check_scan_db_time_to_live();  
-			
-			vTaskDelay( READ_POINT_TIMER / portTICK_RATE_MS);
-			tempcount++;
-			
-			if(type < 50)
-			{
-				type++;
-			}
-			else
-			{
-				type = 0;	
-			}
-
-			
-			if(type == 0)  // hearbeat or program
-			{
-
-				Scan_Idle();
-			}
-			else
-			{// update remote point			
-				if(subcom_num > 0)
-				{
-					port = subcom_seq[comindex2];
-					
-					if(comindex2 < subcom_num - 1)
+					port = subcom_seq[comindex1];
+					if(comindex1 < subcom_num - 1)
 					{
-						comindex2++;	
-					} 
+						comindex1++;
+					}
 					else
-						comindex2 = 0;
+						comindex1 = 0;
 
-				
-				check_write_to_nodes(port);  // write have high priority
-					// no write cmd, then read
-					if(number_of_remote_points_modbus == 0) 
-					{  // no remote point, go to heartbeat 
+					scan_sub_nodes(port);		   // 19200
 
-						Scan_Idle();	
-						vTaskDelay( READ_POINT_TIMER * 50 / portTICK_RATE_MS);
-						tempcount = tempcount + 50;
-// only heartbeat frame, slow down
-					}								
-					else
-					{		
-						U8_T temp_index;
+				}
+				tempcount = 0;
+			}
+			else
+			{
 
-						if(remote_modbus_index < number_of_remote_points_modbus)
-						{						
-							remote_modbus_index++;	
+				Check_scan_db_time_to_live();
+
+				vTaskDelay( READ_POINT_TIMER / portTICK_RATE_MS);
+				tempcount++;
+
+				if(type < 50)
+				{
+					type++;
+				}
+				else
+				{
+					type = 0;
+				}
+
+
+				if(type == 0)  // hearbeat or program
+				{
+
+					Scan_Idle();
+				}
+				else
+				{// update remote point
+					if(subcom_num > 0)
+					{
+						port = subcom_seq[comindex2];
+						
+						if(comindex2 < subcom_num - 1)
+						{
+							comindex2++;
+						}
+						else
+							comindex2 = 0;
+
+
+					check_write_to_nodes(port);  // write have high priority
+						// no write cmd, then read
+						if(number_of_remote_points_modbus == 0)
+						{  // no remote point, go to heartbeat
+
+							Scan_Idle();
+							vTaskDelay( READ_POINT_TIMER * 50 / portTICK_RATE_MS);
+							tempcount = tempcount + 50;
+	// only heartbeat frame, slow down
 						}
 						else
 						{
-							remote_modbus_index = 0;								
-						}
-						get_index_by_id(remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id, &temp_index);
-						
-						// if current id is in DB, must check whether it is on line 
-						// if current id is not in DB, must implement it
-						if(((current_online[remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id / 8] & (1 << (remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id % 8))) || ((scan_db[temp_index].product_model >= CUSTOMER_PRODUCT)))
-							|| (!(db_online[remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id / 8] & (1 << (remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id % 8))))  // not in DB
-						)						
-						{
+							U8_T temp_index;
 
-							// current device is on line, read remote point one by one
-							if(remote_points_list_modbus[remote_modbus_index].tb.RP_modbus.id > 0)
+							if(remote_modbus_index < number_of_remote_points_modbus)
 							{
-								get_parameters_from_nodes(remote_modbus_index,type);	// remote modubs point
+								remote_modbus_index++;
 							}
 							else
 							{
-								Scan_Idle();
+								remote_modbus_index = 0;
 							}
+							get_index_by_id(remote_points_list[remote_modbus_index].tb.RP_modbus.id, &temp_index);
+
+							// if current id is in DB, must check whether it is on line
+							// if current id is not in DB, must implement it
+							if(((current_online[remote_points_list[remote_modbus_index].tb.RP_modbus.id / 8] & (1 << (remote_points_list[remote_modbus_index].tb.RP_modbus.id % 8))) || ((scan_db[temp_index].product_model >= CUSTOMER_PRODUCT)))
+								|| (!(db_online[remote_points_list[remote_modbus_index].tb.RP_modbus.id / 8] & (1 << (remote_points_list[remote_modbus_index].tb.RP_modbus.id % 8))))  // not in DB
+							)
+							{
+
+								// current device is on line, read remote point one by one
+								if(remote_points_list[remote_modbus_index].tb.RP_modbus.id > 0)
+								{
+									get_parameters_from_nodes(remote_modbus_index,type);	// remote modubs point
+								}
+								else
+								{
+									Scan_Idle();
+								}
+							}
+							else
+							{
+								// once find current device is off line
+								remote_points_list[remote_modbus_index].decomisioned = 0;
+							// heart beat
+								Scan_Idle();
+
+							}
+
 						}
-						else
-						{
-							// once find current device is off line
-							remote_points_list_modbus[remote_modbus_index].decomisioned = 0;
-						// heart beat
-							Scan_Idle();
-							
-						}	
 
 					}
+				}
 
-				}		
 			}
 
-		}
+			if(scan_db_changed == TRUE)
+			{
+				recount_sub_addr();
+	//  recount IN OUT VAR map table
 	
-		if(scan_db_changed == TRUE)
-		{ 	
-			recount_sub_addr();
-//  recount IN OUT VAR map table
-
-			//ChangeFlash = 1;
-			// tbd: save to flash
-			scan_db_changed = FALSE;			
-		}
+				scan_db_changed = FALSE;
+			}
 
 		}
 		else
 		{
-			if(suspend_scan_count++ > 10)
+			if(suspend_scan_count++ > 5)
 			{
 				flag_suspend_scan = 0;
 				suspend_scan_count = 0;
@@ -1998,7 +1974,6 @@ void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * 
 }
 
 
-void debug_info(char *string);
 void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 {
 	int length = 0;
@@ -2020,7 +1995,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		  size0 = buf[5] * 2 + 5;		
 		// change it bigger, tstat7 response too slow
 	}
-/*	else if(buf[1] == WRITE_VARIABLES || buf[1] == MULTIPLE_WRITE || buf[1] == WRITE_COIL || buf[1] == WRITE_MULTI_COIL)
+	else if(buf[1] == WRITE_VARIABLES || buf[1] == MULTIPLE_WRITE || buf[1] == WRITE_COIL || buf[1] == WRITE_MULTI_COIL)
 	{	
 		size0 = 8;
 
@@ -2071,7 +2046,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				set_baut_by_port(port,Modbus.baudrate[1]);
 			
 		}
-	}*/
+	}
 
 //	uint8_t *tmp_sendbuf = (uint8_t*)malloc(300);
 
@@ -2098,18 +2073,19 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(300);
 	
 	if(buf[1] == CHECKONLINE)  // scan command
-	{		
+	{
+		flag_uart_reading[port] = 1;
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 512, 200 / portTICK_RATE_MS);
+			length = uart_read_bytes(port, subnet_response_buf, 512, 20 / portTICK_RATE_MS);
 		else
 			length = 0; // tbd:
-
+		flag_uart_reading[port] = 0;
 
 		if(length > 0)
 		{
-			if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-					else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-			com_tx[port]++;
+			if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+					else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+			com_tx[port] += length;
 			memcpy(tmp_sendbuf,header,6);
 			memcpy(&tmp_sendbuf[6],subnet_response_buf,length);			
 
@@ -2148,16 +2124,19 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	}
 	else
 	{
+		flag_uart_reading[port] = 1;
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 250, 100 / portTICK_RATE_MS);
+			length = uart_read_bytes(port, subnet_response_buf, 250, 10 / portTICK_RATE_MS);
 		else
 			length = 0; // tbd:
+		flag_uart_reading[port] = 0;
+
 #if 1
 		if(length > 0)
 		{
-			if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-			else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-			com_tx[port]++;
+			if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+			else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+			com_tx[port] += length;
 			crc_check = crc16(subnet_response_buf, length - 2);		
 			if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])
 			{ //Test[43]++;
@@ -2173,19 +2152,11 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				}
 				else
 				{
-					//Test[44]++;
 					memcpy(&tmp_sendbuf[6],subnet_response_buf,length - 2);
-
-					//modbus_send_buf = &tmp_sendbuf;
-					//if(size0 < 45)
-					{
-						memcpy(&modbus_send_buf,&tmp_sendbuf,size0 + 4);
-						modbus_send_len = size0 + 4;
-					}
-
+					memcpy(&modbus_send_buf,&tmp_sendbuf,size0 + 4);
+					modbus_send_len = size0 + 4;
 				}
-#if 0
-				// tbd:
+
 				// if write name, copy name to tstat_name right now
 #if 1
 				if(buf[2] == 0x02 && buf[3] == 0xcb && buf[5] == 0x10)  // 715
@@ -2199,13 +2170,13 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				}
 #endif
 
-#if  T3_MAP					
+
 				if(flag_expansion == 1)
 				{  
 					// forword mult_write expansion io, refresh local status at once					
 					update_remote_map_table(buf[0],buf[2] * 256 + buf[3],0,&buf[7]);					
 				}
-#endif
+
 
 				ret = 1;
 			// add id to online
@@ -2235,7 +2206,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			timeout[port]++;
 			tst_retry[buf[0]]++;
 		}
-#endif
+
 		/*if(tst_retry[buf[0]] >= 10)
 		{  		
 			U8_T remove_i;
@@ -2257,86 +2228,6 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	return ;
 }
 
-#if 0
-void Response_MAIN_To_SUB(U8_T *buf, U16_T len,U8_T port)
-{
-	U16_T length;
-	U16_T crc_check;
-	U8_T size1;
-	U16_T delay_time;
-
-	if(port > 2) return;
-	
-	if(buf[1] == 0x03) // read
-	{		 
-		 size1 = buf[5] * 2 + 5;
-		 delay_time = size1 * 2;
-	}
-	else if(buf[1] == 0x06 || buf[1] == 0x10)
-	{	 
-		size1 = 8;
-		if(buf[1] == 0x06 && buf[5] == 0x3f)   // erase flash 
-			delay_time = 1000;
-		else
-			delay_time = 100;
-	}
-	else if(buf[1] == 0x19)
-	{  
-		size1 = 12;
-		delay_time = 50;
-	}
-	else 
-		return;
-
-	if(buf[0] != 255)
-	{
-		set_baut_by_port(port,get_baut_by_id(0,buf[0]));
-	}
-	else
-	{
-		if(port == 0)	
-			set_baut_by_port(port,Modbus.baudrate[0]);
-		else if(port == 1)	
-			set_baut_by_port(port,Modbus.baudrate[1]);
-	}
-
-	uint8_t *tmp_sendbuf = (uint8_t*)malloc(512);
-	//uart_init_send_com(port);
-	memcpy(tmp_sendbuf,buf,len);
-	crc_check = crc16(tmp_sendbuf, len);
-	tmp_sendbuf[len] = HIGH_BYTE(crc_check);
-	tmp_sendbuf[len + 1] = LOW_BYTE(crc_check);
-	uart_send_string(tmp_sendbuf, len + 2 ,port);
-	subnet_rec_package_size = size1;
-
-	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-
-	if(port == 0 || port == 2)
-		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
-	else
-		length = 0; // tbd:
-	if(length > 0)
-	{		
-		crc_check = crc16(subnet_response_buf, length - 2);
-		if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])
-		{
-			//uart_init_send_com(Modbus.main_port);
-			uart_send_string(subnet_response_buf, length,Modbus.main_port);
-		}	
-		else
-			packet_error[port]++;
-	}
-	else
-	{
-		timeout[port]++;
-//		tst_retry[buf[0]]++;
-	}
-
-	free(tmp_sendbuf);
-	free(subnet_response_buf);
-
-}
-#endif
 
 
 void vStartScanTask(unsigned char uxPriority)
@@ -2373,10 +2264,8 @@ void vStartScanTask(unsigned char uxPriority)
 		count_read_tstat_name[i] = READ_TSTAT_COUNT;
 		scan_db_time_to_live[i] = SCAN_DB_TIME_TO_LIVE;
 	}
-#if TEST
+#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	clear_conflict_id();
-	
-	memset(&T3000_Private,0,sizeof(STR_T3000));
 #endif
 	scan_port = 0xff;
     scan_baut = 0xff;
@@ -2428,16 +2317,17 @@ void read_name_of_tstat(U8_T index)
 //	set_subnet_parameters(RECEIVE, 23,port);
 	
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-
+	flag_uart_reading[port] = 1;
 	if(port == 0 || port == 2)
-		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
+		length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
 	else
 		length = 0; // tbd:
+	flag_uart_reading[port] = 0;
 	if(length > 0)
 	{
-		if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
-				else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-		com_tx[port]++;
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+				else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+		com_tx[port] += length;
 		crc_check = crc16(subnet_response_buf,21);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[21]) && (LOW_BYTE(crc_check) == subnet_response_buf[22]))
 		{

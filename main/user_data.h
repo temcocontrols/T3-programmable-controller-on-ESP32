@@ -6,7 +6,9 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
-#define NEW_IO 0//1
+#define NEW_IO  0//1
+
+Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
 #pragma pack(1)
 
@@ -448,8 +450,9 @@ extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
 extern EXT_RAM_ATTR U8_T    	    	 	 prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
-//extern Str_array_point 	     			 arrays[MAX_ARRAYS];
+extern Str_array_point 	     			 arrays[MAX_ARRAYS];
 extern S32_T  			    				*arrays_address[MAX_ARRAYS];
+extern long			    					arrays_data[MAX_ARRAYS_DATA];
 extern Str_table_point			 				 custom_tab[MAX_TBLS];
 extern U16_T                         PRG_crc;
 extern U8_T  *prog;
@@ -474,29 +477,17 @@ extern U32_T                       miliseclast;
 extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
-extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_bacnet[MAXNETWORKPOINTS];	 /* points wanted by others */
-extern Byte                  			 number_of_network_points_bacnet; 
+extern EXT_RAM_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern Byte              			  number_of_network_points_bacnet;
+extern Byte              			  number_of_network_points_modbus;
 
-extern EXT_RAM_ATTR NETWORK_POINTS          		 network_points_list_modbus[MAXNETWORKPOINTS];	 /* points wanted by others */
-extern Byte                  			 number_of_network_points_modbus;
-//extern U8_T  NT_bacnet_tb_func[MAXNETWORKPOINTS];
-//extern STR_BAC_TB  NT_bacnet_tb[MAXNETWORKPOINTS];
-
-extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_modbus[MAXREMOTEPOINTS];  /* points from other panels used localy */
-//extern STR_SCAN_TB  RP_modbus_tb[MAXREMOTEPOINTS]; 
-//extern U8_T  RP_modbus_tb_func[MAXREMOTEPOINTS];
-extern Byte                 			 number_of_remote_points_modbus;
-
-extern EXT_RAM_ATTR REMOTE_POINTS		    		 remote_points_list_bacnet[MAXREMOTEPOINTS];  /* points from other panels used localy */
-//extern U8_T  RP_bacnet_tb_func[MAXREMOTEPOINTS];
-//extern STR_BAC_TB  RP_bacnet_tb[MAXREMOTEPOINTS];
-extern Byte                 			 number_of_remote_points_bacnet;
+extern EXT_RAM_ATTR REMOTE_POINTS		   		  remote_points_list[MAXREMOTEPOINTS];
+extern Byte              			  number_of_remote_points_bacnet;
+extern Byte              			  number_of_remote_points_modbus;
 
 
-extern U16_T Last_Contact_Network_points_bacnet[MAXNETWORKPOINTS];
-extern U16_T Last_Contact_Network_points_modbus[MAXNETWORKPOINTS];
-extern U16_T Last_Contact_Remote_points_bacnet[MAXREMOTEPOINTS];
-extern U16_T Last_Contact_Remote_points_modbus[MAXREMOTEPOINTS];
+extern U16_T Last_Contact_Network_points[MAXNETWORKPOINTS];
+extern U16_T Last_Contact_Remote_points[MAXREMOTEPOINTS];
 
 
 extern U8_T remote_panel_num;
@@ -607,5 +598,11 @@ extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];
 extern u8 rec_mstp_index1; // response packets form   
 extern u8 send_mstp_index1;
 extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf1[10];
+
+uint8_t Get_panel_by_deviceid(uint16_t deviceid);
+U32_T Get_device_id_by_panel(uint8 panel,uint8 sub,uint8 protocal);
+U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
+U8_T Get_address_by_instacne(uint32_t instnace,U8_T *addr);
+
 #endif
 

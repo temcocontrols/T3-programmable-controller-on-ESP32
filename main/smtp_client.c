@@ -164,7 +164,6 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     while (len && (ret = mbedtls_ssl_write(ssl, buf, len)) <= 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
         	debug_info("mbedtls_ssl_write failed with error");
-            Test[11]++;
             goto exit;
         }
     }

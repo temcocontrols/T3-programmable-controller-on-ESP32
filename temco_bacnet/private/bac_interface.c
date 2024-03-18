@@ -212,8 +212,8 @@ void Set_TXEN(uint8_t dir)
 
 char* get_description(uint8_t type,uint8_t num)
 {
-	U8_T io_index;
-	
+	U8_T io_index;	
+	Str_points_ptr ptr;
 #if BAC_TRENDLOG
 	if(type == TRENDLOG)
 	{
@@ -235,40 +235,44 @@ char* get_description(uint8_t type,uint8_t num)
 	{	
 		Get_index_by_AVx(num,&io_index);
 		if(io_index >= MAX_AVS) return NULL;
-
-		return (char*)vars[io_index].label;
-
+		ptr = put_io_buf(VAR,io_index);
+		return (char*)ptr.pvar->label;
 	}
 	if(type == BV)	
 	{	
 		Get_index_by_BVx(num,&io_index);
 		if(io_index >= MAX_BVS) return NULL;
-
-		return (char*)vars[io_index].label;
+		ptr = put_io_buf(VAR,io_index);
+		return (char*)ptr.pvar->label;
 	}
 	if(type == AI)	
 	{		
 		Get_index_by_AIx(num,&io_index);
 		if(io_index >= MAX_AIS) return NULL;
-		return (char*)inputs[io_index].label;
+		ptr = put_io_buf(IN,io_index);
+		return (char*)ptr.pin->label;
+		
 	}
 	if(type == BI)	
 	{		
 		Get_index_by_BIx(num,&io_index);
 		if(io_index >= MAX_AIS) return NULL;
-		return (char*)inputs[io_index].label;
+		ptr = put_io_buf(IN,io_index);
+		return (char*)ptr.pin->label;
 	}
 	if(type == AO)
 	{		
 		Get_index_by_AOx(num,&io_index);
 		if(io_index >= MAX_AOS) return NULL;
-		return (char*)outputs[io_index].label;
+		ptr = put_io_buf(OUT,io_index);
+		return (char*)ptr.pout->label;
 	}
 	if(type == BO)
 	{
 		Get_index_by_BOx(num,&io_index);
 		if(io_index >= MAX_BOS) return NULL;
-		return (char*)outputs[io_index].label;
+		ptr = put_io_buf(OUT,io_index);
+		return (char*)ptr.pout->label;
 	}
 #if BAC_PROPRIETARY
 	if(type == TEMCOAV)
@@ -293,8 +297,8 @@ char* get_description(uint8_t type,uint8_t num)
 
 char* get_label(uint8_t type,uint8_t num)
 {
-	U8_T io_index;
-
+	U8_T io_index;	
+	Str_points_ptr ptr;
 	if(type == SCHEDULE)
 	{
 		if(num >= MAX_SCHEDULES) return NULL;
@@ -309,37 +313,43 @@ char* get_label(uint8_t type,uint8_t num)
 	{
 		Get_index_by_AVx(num,&io_index);		
 		if(io_index >= MAX_AVS) return NULL;
-		return (char*)vars[io_index].description;
+		ptr = put_io_buf(VAR,io_index);
+		return (char*)ptr.pvar->description;
 	}
 	if(type == BV)	
 	{
 		Get_index_by_BVx(num,&io_index);		
 		if(io_index >= MAX_BVS) return NULL;
-		return (char*)vars[io_index].description;
+		ptr = put_io_buf(VAR,io_index);
+		return (char*)ptr.pvar->description;
 	}
 	if(type == AI)
 	{	
 		Get_index_by_AIx(num,&io_index);		
 		if(io_index >= MAX_AIS) return NULL;
-		return (char*)inputs[io_index].description;
+		ptr = put_io_buf(IN,io_index);
+		return (char*)ptr.pin->description;
 	}
 	if(type == BI)
 	{		
 		Get_index_by_BIx(num,&io_index);
 		if(io_index >= MAX_AIS) return NULL;
-		return (char*)inputs[io_index].description;
+		ptr = put_io_buf(IN,io_index);
+		return (char*)ptr.pin->description;
 	}
 	if(type == AO)
 	{		
 		Get_index_by_AOx(num,&io_index);
 		if(io_index >= MAX_AOS) return NULL;
-		return (char*)outputs[io_index].description;
+		ptr = put_io_buf(OUT,io_index);
+		return (char*)ptr.pout->description;
 	}
 	if(type == BO)	
 	{
 		Get_index_by_BOx(num,&io_index);
 		if(io_index >= MAX_BOS) return NULL;
-		return (char*)outputs[io_index].description;
+		ptr = put_io_buf(OUT,io_index);
+		return (char*)ptr.pout->description;
 	}
 #if 1//ARM_TSTAT_WIFI
 	if(type == MSV)
@@ -366,69 +376,71 @@ char* get_label(uint8_t type,uint8_t num)
 // tbd: add more range
 char get_range(uint8_t type,uint8_t num)
 {
-	uint8_t io_index;
-	
+	uint8_t io_index;	
+	Str_points_ptr ptr;
 	if(type == AV)	
 	{
 		Get_index_by_AVx(num,&io_index);
+		ptr = put_io_buf(VAR,io_index);
+
 		if(io_index >= MAX_AVS) return 0;
 // add unit
-		if(vars[io_index].range == not_used_input)
+		if(ptr.pvar->range == not_used_input)
 			return UNITS_NO_UNITS;  
-		if(vars[io_index].digital_analog == 0)  // digital
+		if(ptr.pvar->digital_analog == 0)  // digital
 		{
 			return UNITS_NO_UNITS;	
 		}
 		else  // analog
 		{		
-			if(vars[io_index].range == degC)  				return UNITS_DEGREES_CELSIUS;
-			else if(vars[io_index].range == degF)  			return UNITS_DEGREES_FAHRENHEIT;
+			if(ptr.pvar->range == degC)  				return UNITS_DEGREES_CELSIUS;
+			else if(ptr.pvar->range == degF)  			return UNITS_DEGREES_FAHRENHEIT;
 			
-			else if(vars[io_index].range == Volts) 			return UNITS_VOLTS;
-			else if(vars[io_index].range == KV) 			return UNITS_KILOVOLTS;
+			else if(ptr.pvar->range == Volts) 			return UNITS_VOLTS;
+			else if(ptr.pvar->range == KV) 				return UNITS_KILOVOLTS;
 
-			else if(vars[io_index].range == Amps) 			return UNITS_MILLIAMPERES;
-			else if(vars[io_index].range == ma) 			return UNITS_AMPERES;
+			else if(ptr.pvar->range == Amps) 			return UNITS_MILLIAMPERES;
+			else if(ptr.pvar->range == ma) 				return UNITS_AMPERES;
 			
-			else if(vars[io_index].range == Sec) 			return UNITS_SECONDS;
-			else if(vars[io_index].range == Min) 			return UNITS_MINUTES;
-			else if(vars[io_index].range == Hours) 			return UNITS_HOURS;
-			else if(vars[io_index].range == Days) 			return UNITS_DAYS;
+			else if(ptr.pvar->range == Sec) 			return UNITS_SECONDS;
+			else if(ptr.pvar->range == Min) 			return UNITS_MINUTES;
+			else if(ptr.pvar->range == Hours) 			return UNITS_HOURS;
+			else if(ptr.pvar->range == Days) 			return UNITS_DAYS;
 			
-			else if(vars[io_index].range == Pa) 			return UNITS_PASCALS;
-			else if(vars[io_index].range == KPa) 			return UNITS_KILOPASCALS;
+			else if(ptr.pvar->range == Pa) 				return UNITS_PASCALS;
+			else if(ptr.pvar->range == KPa) 			return UNITS_KILOPASCALS;
 			
-			else if(vars[io_index].range == Watts) 			return UNITS_WATTS;
-			else if(vars[io_index].range == KW) 			return UNITS_KILOWATTS;
+			else if(ptr.pvar->range == Watts) 			return UNITS_WATTS;
+			else if(ptr.pvar->range == KW) 				return UNITS_KILOWATTS;
 			
-			else if(vars[io_index].range == in_w) 			return UNITS_LUMENS;
+			else if(ptr.pvar->range == in_w) 			return UNITS_LUMENS;
 			
-			else if(vars[io_index].range == RH) 			return UNITS_PERCENT_RELATIVE_HUMIDITY;
-			
-			else if(vars[io_index].range == ppm) 			return UNITS_PARTS_PER_MILLION;
-			else if(vars[io_index].range == procent) 			return UNITS_PERCENT;
+			else if(ptr.pvar->range == RH) 				return UNITS_PERCENT_RELATIVE_HUMIDITY;
+			else if(ptr.pvar->range == ppm) 			return UNITS_PARTS_PER_MILLION;
+			else if(ptr.pvar->range == procent) 		return UNITS_PERCENT;
 			else
 				return UNITS_NO_UNITS;	
 		}
 	}
 	if(type == AI)	
 	{
-		Get_index_by_AIx(num,&io_index);
+		Get_index_by_AIx(num,&io_index);		
+		ptr = put_io_buf(IN,io_index);
+
 		if(io_index >= MAX_AIS) return 0;
-		if(inputs[io_index].digital_analog == 0)  // digital
+		if(ptr.pin->digital_analog == 0)  // digital
 		{
 			return UNITS_NO_UNITS;	
 		}
 		else  // analog
-		{
-		
-			if((inputs[io_index].range == R10K_40_120DegC) || (inputs[io_index].range == KM10K_40_120DegC)) 
+		{		
+			if((ptr.pin->range == R10K_40_120DegC) || (ptr.pin->range == KM10K_40_120DegC)) 
 				return UNITS_DEGREES_CELSIUS;
-			else if((inputs[io_index].range == R10K_40_250DegF) || (inputs[io_index].range == KM10K_40_250DegF)) 
+			else if((ptr.pin->range == R10K_40_250DegF) || (ptr.pin->range == KM10K_40_250DegF)) 
 				return UNITS_DEGREES_FAHRENHEIT;
-			else if(inputs[io_index].range == I0_20ma) 
+			else if(ptr.pin->range == I0_20ma) 
 				return UNITS_MILLIAMPERES;
-			else if((inputs[io_index].range == V0_10_IN) || (inputs[io_index].range == V0_5)) 
+			else if((ptr.pin->range == V0_10_IN) || (ptr.pin->range == V0_5)) 
 				return UNITS_VOLTS;
 			else
 				return UNITS_NO_UNITS;	
@@ -437,18 +449,18 @@ char get_range(uint8_t type,uint8_t num)
 	if(type == AO)
 	{	
 		Get_index_by_AOx(num,&io_index);
-		
-		if(outputs[io_index].range == 0)
+		ptr = put_io_buf(OUT,io_index);
+		if(ptr.pout->range == 0)
 			return UNITS_NO_UNITS;	
 		else	
 		{		
-			if(outputs[io_index].range == V0_10)			
+			if(ptr.pout->range == V0_10)			
 				return UNITS_VOLTS;
-			else if((outputs[io_index].range == P0_100_Open) || 
-				(outputs[io_index].range == P0_100_Close) ||
-				(outputs[io_index].range == P0_100))			
+			else if((ptr.pout->range == P0_100_Open) || 
+				(ptr.pout->range == P0_100_Close) ||
+				(ptr.pout->range == P0_100))			
 				return UNITS_PERCENT;
-			else if(outputs[io_index].range == I_0_20ma)			
+			else if(ptr.pout->range == I_0_20ma)			
 				return UNITS_MILLIAMPERES;
 			else
 				return UNITS_NO_UNITS;	
@@ -472,16 +484,18 @@ char Get_Out_Of_Service(uint8_t type,uint8_t num)
 {	
 	
 	uint8_t io_index;
-	
+	Str_points_ptr ptr;
 	if(type == AO)
 	{
 		Get_index_by_AOx(num,&io_index);
-		return outputs[io_index].out_of_service;
+		ptr = put_io_buf(OUT,io_index);
+		return ptr.pout->out_of_service;
 	}
 	else if(type == BO)	
 	{
 		Get_index_by_BOx(num,&io_index);
-		return outputs[io_index].out_of_service;
+		ptr = put_io_buf(OUT,io_index);
+		return ptr.pout->out_of_service;
 	}		
 	else if(type == SCHEDULE)	
 	{
@@ -496,14 +510,16 @@ char Get_Out_Of_Service(uint8_t type,uint8_t num)
 	else if(type == AV)	
 	{
 		Get_index_by_AVx(num,&io_index);
+		ptr = put_io_buf(VAR,io_index);
 		if(io_index >= MAX_AVS) return 0;
-		return vars[io_index].auto_manual;
+		return ptr.pvar->auto_manual;
 	}
 	else if(type == BV)	
 	{
 		Get_index_by_BVx(num,&io_index);
+		ptr = put_io_buf(VAR,io_index);
 		if(io_index >= MAX_BVS) return 0;
-		return vars[io_index].auto_manual;
+		return ptr.pvar->auto_manual;
 	}
 	else
 		return 0;
@@ -514,42 +530,40 @@ char Get_Out_Of_Service(uint8_t type,uint8_t num)
 float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 {	
 	uint8_t io_index;
+	Str_points_ptr ptr;
 	switch(type)
 	{
-		case AV:Test[10]++;
-//#if ARM_TSTAT_WIFI
-//		return (float)(vars[io_index].value) / 1000;
-//#endif
+		case AV:
+			Get_index_by_AVx(i,&io_index);
+			ptr = put_io_buf(VAR,io_index);
 			if(Get_Mini_Type() == 15/*PROJECT_AIRLAB*/)
 			{Test[11]++;
 				Get_AVS();
-				return vars[i].value;
+				return ptr.pvar->value;
 			}
-
-			Get_index_by_AVx(i,&io_index);
-			if(vars[io_index].range > 0)
+			
+			if(ptr.pvar->range > 0)
 			{
-				if(vars[io_index].digital_analog == 1)  // av
+				if(ptr.pvar->digital_analog == 1)  // av
 				{
-					return (float)(vars[io_index].value) / 1000;
+					return (float)(ptr.pvar->value) / 1000;
 				}
 			}
-
-
 			return 0;
 			
 		case BV:
 			Get_index_by_BVx(i,&io_index);
-			if(vars[io_index].range > 0)
+			ptr = put_io_buf(VAR,io_index);
+			if(ptr.pvar->range > 0)
 			{
-				if(vars[io_index].digital_analog == 0)  // bv
+				if(ptr.pvar->digital_analog == 0)  // bv
 				{
-					if((vars[io_index].range >= ON_OFF  && vars[io_index].range <= HIGH_LOW)
-					||(vars[io_index].range >= custom_digital1 // customer digital unit
-					&& vars[io_index].range <= custom_digital8
-					&& digi_units[vars[io_index].range - custom_digital1].direct == 1))
+					if((ptr.pvar->range >= ON_OFF  && ptr.pvar->range <= HIGH_LOW)
+					||(ptr.pvar->range >= custom_digital1 // customer digital unit
+					&& ptr.pvar->range <= custom_digital8
+					&& digi_units[ptr.pvar->range - custom_digital1].direct == 1))
 					{  // inverse logic
-						if(vars[io_index].control == 1)
+						if(ptr.pvar->control == 1)
 						{
 							return 0;
 						}
@@ -560,7 +574,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 					}	
 					else
 					{
-						if(vars[io_index].control == 1)
+						if(ptr.pvar->control == 1)
 						{
 							return 1;
 						}
@@ -574,16 +588,17 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 			return 0;
 		case BI:
 			Get_index_by_BIx(i,&io_index);
-			if(inputs[io_index].range > 0)
+			ptr = put_io_buf(IN,io_index);
+			if(ptr.pin->range > 0)
 			{
-				if(inputs[io_index].digital_analog == 0)  // digital
+				if(ptr.pin->digital_analog == 0)  // digital
 				{
-					if((inputs[io_index].range >= ON_OFF  && inputs[io_index].range <= HIGH_LOW)
-					||(inputs[io_index].range >= custom_digital1 // customer digital unit
-					&& inputs[io_index].range <= custom_digital8
-					&& digi_units[inputs[io_index].range - custom_digital1].direct == 1))
+					if((ptr.pin->range >= ON_OFF  && ptr.pin->range <= HIGH_LOW)
+					||(ptr.pin->range >= custom_digital1 // customer digital unit
+					&& ptr.pin->range <= custom_digital8
+					&& digi_units[ptr.pin->range - custom_digital1].direct == 1))
 					{  // inverse logic
-						if(inputs[io_index].control == 1)
+						if(ptr.pin->control == 1)
 						{
 							return 0;
 						}
@@ -594,7 +609,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 					}	
 					else
 					{
-						if(inputs[io_index].control == 1)
+						if(ptr.pin->control == 1)
 						{
 							return 1;
 						}
@@ -610,10 +625,11 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		//break;
 		case AI:
 			Get_index_by_AIx(i,&io_index);
-			if(inputs[io_index].range > 0)
+			ptr = put_io_buf(IN,io_index);
+			if(ptr.pin->range > 0)
 			{
-				if(inputs[io_index].digital_analog == 1)  // analog
-					return (float) (inputs[io_index].value) / 1000;
+				if(ptr.pin->digital_analog == 1)  // analog
+					return (float) (ptr.pin->value) / 1000;
 			}
 			else
 				return input_raw[io_index];
@@ -623,25 +639,25 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		{
 				uint8 temp; 
 				Get_index_by_AOx(i,&io_index);
-#if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
+				ptr = put_io_buf(OUT,io_index);
 				if(io_index >= max_dos + max_aos)
 				{
 					if(priority == 15)
-						return (float) (outputs[io_index].value) / 1000;
+						return (float) (ptr.pout->value) / 1000;
 					else
 						return 0xff;
 				}
-#endif				
+			
 				if(output_priority[io_index][priority] == 0xff)
 					return 0xff;
 				
-				if(outputs[io_index].digital_analog == 0)
+				if(ptr.pout->digital_analog == 0)
 				{					
 					temp = output_priority[io_index][priority] ? 1 : 0;
-					if((outputs[io_index].range >= ON_OFF && outputs[io_index].range <= HIGH_LOW)
-					||(outputs[io_index].range >= custom_digital1 // customer digital unit
-					&& outputs[io_index].range <= custom_digital8
-					&& digi_units[outputs[io_index].range - custom_digital1].direct == 1))
+					if((ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW)
+					||(ptr.pout->range >= custom_digital1 // customer digital unit
+					&& ptr.pout->range <= custom_digital8
+					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 					{  // inverse logic
 						
 						if(temp == 1)
@@ -668,10 +684,8 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 				}
 				else	
 				{		
-#if 1//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)  // IF ASIX, dead ????????????????				
 					if(io_index >= get_max_internal_output())
-							output_raw[io_index] = output_priority[io_index][priority] * 1000;
-#endif
+
 					return output_priority[io_index][priority];
 				}
 
@@ -682,24 +696,24 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 			uint8 temp; 
 			// priority			
 			Get_index_by_BOx(i,&io_index);
-
+			ptr = put_io_buf(IN,io_index);
 			if(io_index >= max_dos + max_aos)
 			{
 				if(priority == 15)
-					return outputs[io_index].value ? 1 : 0;
+					return ptr.pout->value ? 1 : 0;
 				else
 					return 0xff;
 			}
 			if(output_priority[io_index][priority] == 0xff)
 				return 0xff;	
 
-			if(outputs[io_index].digital_analog == 0)
+			if(ptr.pout->digital_analog == 0)
 			{  // digital
 				temp = output_priority[io_index][priority] ? 1 : 0;
-				if((outputs[io_index].range >= ON_OFF  && outputs[io_index].range <= HIGH_LOW)
-				||(outputs[io_index].range >= custom_digital1 // customer digital unit
-					&& outputs[io_index].range <= custom_digital8
-					&& digi_units[outputs[io_index].range - custom_digital1].direct == 1))
+				if((ptr.pout->range >= ON_OFF  && ptr.pout->range <= HIGH_LOW)
+				||(ptr.pout->range >= custom_digital1 // customer digital unit
+					&& ptr.pout->range <= custom_digital8
+					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 				{  // inverse logic
 					if(temp == 1)
 					{
@@ -1056,93 +1070,83 @@ void write_bacnet_unit_to_buf(uint8_t type,uint8_t priority,uint8_t i,uint8_t un
 {
 	U8_T temp;
 	uint8_t io_index;
-
-	//ChangeFlash = 1;
+	Str_points_ptr ptr;
 
 		switch(type)
 		{
 			case AI:
 				Get_index_by_AIx(i,&io_index);
 				if(io_index >=  MAX_AIS) break;
-
+				ptr = put_io_buf(IN,io_index);
 				if(unit == UNITS_NO_UNITS)
 				{
-					inputs[io_index].range = not_used_input;			
+					ptr.pin->range = not_used_input;			
 				}
 				if(unit == UNITS_DEGREES_CELSIUS)
 				{
-					inputs[io_index].range = R10K_40_120DegC;
+					ptr.pin->range = R10K_40_120DegC;
 				}
 				if(unit == UNITS_DEGREES_FAHRENHEIT)
 				{
-					inputs[io_index].range = R10K_40_250DegF;	
+					ptr.pin->range = R10K_40_250DegF;	
 				}				
 				if(unit == UNITS_AMPERES)
 				{
-						inputs[io_index].range = I0_20ma;
+						ptr.pin->range = I0_20ma;
 					// software jumper 
-					temp = inputs[io_index].decom;
+					temp = ptr.pin->decom;
 					temp &= 0x0f;
 					temp |= (INPUT_I0_20ma << 4);
-					inputs[io_index].decom = temp;
+					ptr.pin->decom = temp;
 				}
 				if(unit == UNITS_VOLTS)
 				{
-						inputs[io_index].range = V0_10_IN;
+						ptr.pin->range = V0_10_IN;
 					// software jumper 
-					temp = inputs[io_index].decom;
+					temp = ptr.pin->decom;
 					temp &= 0x0f;
 					temp |= (INPUT_0_10V << 4);
-					inputs[io_index].decom = temp;
+					ptr.pin->decom = temp;
 				}
 				
 				if( (unit != UNITS_VOLTS) && (unit != UNITS_AMPERES) )
 				{
 						// software jumper 
-					temp = inputs[io_index].decom;
+					temp = ptr.pin->decom;
 					temp &= 0x0f;
 					temp |= (INPUT_THERM << 4);
-					inputs[io_index].decom = temp;
+					ptr.pin->decom = temp;
 				}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				//write_page_en[IN] = 1;
-#endif
-#if  T3_MAP
-				push_expansion_in_stack(&inputs[io_index]);
-#endif
+
+				push_expansion_in_stack(ptr.pin);
 				break;
 			case BO:
 				Get_index_by_BOx(i,&io_index);
-
 				if(io_index >= MAX_BOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				//write_page_en[OUT] = 1;
-#endif
-				outputs[io_index].digital_analog = 0;
+				ptr = put_io_buf(OUT,io_index);
+				ptr.pout->digital_analog = 0;
 				if(unit == UNITS_NO_UNITS)
-					outputs[io_index].range = 0;
+					ptr.pout->range = 0;
 				else
-					outputs[io_index].range = OFF_ON;
-#if  T3_MAP
-				push_expansion_out_stack(&outputs[io_index],io_index,1);
-#endif
+					ptr.pout->range = OFF_ON;
+
+				push_expansion_out_stack(ptr.pout,io_index,1);
+
 				break;
 			case AO:
 				Get_index_by_AOx(i,&io_index);
 
 				if(io_index >= MAX_AOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				//write_page_en[OUT] = 1;
-#endif
+				ptr = put_io_buf(OUT,io_index);
 			
-				outputs[io_index].digital_analog = 1;
+				ptr.pout->digital_analog = 1;
 				if(unit == UNITS_NO_UNITS)
-					outputs[io_index].range = 0;
+					ptr.pout->range = 0;
 				else
-					outputs[io_index].range = V0_10;
-#if  T3_MAP				
-				push_expansion_out_stack(&outputs[io_index],io_index,1);	
-#endif				
+					ptr.pout->range = V0_10;
+		
+				push_expansion_out_stack(ptr.pout,io_index,1);	
+			
 				break;
 	
 			default:
@@ -1153,92 +1157,69 @@ void write_bacnet_unit_to_buf(uint8_t type,uint8_t priority,uint8_t i,uint8_t un
 void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,char* str)
 {
 	uint8_t io_index;
-
-	//if((AV_Present_Value[0] == Modbus.address) ||(AV_Present_Value[0] == 0) ) // internal AV, DI ,AV ...
-
-	//ChangeFlash = 1;
+	Str_points_ptr ptr;
 
 		switch(type)
 		{
 			case AI:
 				Get_index_by_AIx(i,&io_index);
 				if(io_index >= MAX_AIS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				//write_page_en[IN] = 1;
-#endif
-				memcpy(inputs[io_index].label,str,8);
-#if  T3_MAP
-				push_expansion_in_stack(&inputs[io_index]);
-#endif
+				ptr = put_io_buf(IN,io_index);
+				memcpy(ptr.pin->label,str,8);
+
+				push_expansion_in_stack(ptr.pin);
+
 				break;
 			case BI:
 				Get_index_by_BIx(i,&io_index);
 				if(io_index >= MAX_AIS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				//write_page_en[IN] = 1;
-#endif
-				memcpy(inputs[io_index].label,str,8);
-#if  T3_MAP
-				push_expansion_in_stack(&inputs[io_index]);
-#endif
+				ptr = put_io_buf(IN,io_index);
+				memcpy(ptr.pin->label,str,8);
+
+				push_expansion_in_stack(ptr.pin);
+
 				break;
 			case BO:
 				Get_index_by_BOx(i,&io_index);
 				if(io_index >= MAX_BOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				//write_page_en[OUT] = 1;
-#endif
-				memcpy(outputs[io_index].label,str,8);
-#if  T3_MAP
-				push_expansion_out_stack(&outputs[io_index],io_index,1);
-#endif
+				ptr = put_io_buf(OUT,io_index);
+				memcpy(ptr.pout->label,str,8);
+
+				push_expansion_out_stack(ptr.pout,io_index,1);
+
 				break;
 			case AO:
 				Get_index_by_AOx(i,&io_index);
 				if(io_index >= MAX_AOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-			//write_page_en[OUT] = 1;
-#endif
-				memcpy(outputs[io_index].label,str,8);
-#if  T3_MAP
-				push_expansion_out_stack(&outputs[io_index],io_index,1);
-#endif
+				ptr = put_io_buf(OUT,io_index);
+				memcpy(ptr.pout->label,str,8);
+
+				push_expansion_out_stack(ptr.pout,io_index,1);
+
 				break;
 			case AV:
 				Get_index_by_AVx(i,&io_index);
 				if(io_index >= MAX_AVS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-			//write_page_en[VAR] = 1;
-#endif
-				memcpy(vars[io_index].label,str,8);
+				ptr = put_io_buf(VAR,io_index);
+				memcpy(ptr.pvar->label,str,8);
 				break;
 			case BV:
 				Get_index_by_BVx(i,&io_index);
 				if(io_index >= MAX_BVS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-			//write_page_en[VAR] = 1;
-#endif
-				memcpy(vars[io_index].label,str,8);
+				ptr = put_io_buf(VAR,io_index);
+				memcpy(ptr.pvar->label,str,8);
 				break;
 			case SCHEDULE:
 				if(i >= MAX_SCHEDULES) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-			//write_page_en[WRT] = 1;
-#endif
+
 				memcpy(weekly_routines[i].label,str,8);
 				break;
 			case CALENDAR:
 				if(i >= MAX_CALENDARS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-			//write_page_en[AR] = 1;
-#endif
+
 				memcpy(annual_routines[i].label,str,8);
 				break;
-//#if ARM_TSTAT_WIFI
-//			case MSV:
-//				memcpy(annual_routines[i].label,str,8);
-//				break;
-//#endif
+
 			default:
 			break;
 		}
@@ -1249,141 +1230,115 @@ void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,cha
 void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float value)
 {
 	uint8_t io_index;
-
-	//ChangeFlash = 1;
+	Str_points_ptr ptr;
 
 		switch(type)
 		{
 			case AV:
-
 			Get_index_by_AVx(i,&io_index);
+			ptr = put_io_buf(VAR,io_index);
 			if(io_index >= MAX_AVS) break;
-#if ARM_TSTAT_WIFI
-			vars[io_index].value =  (value * 1000); 
-			switch(io_index)
-			{
-				case 0:	uart0_baudrate = value; break;
-				case 1: Station_NUM = value;break;
-				case 2: //Modbus.com_config[0] = value;break;
-				case 3:	Instance  = value;break;
-				default:
-					break;
-			}
-			break;
-#endif			
-			if(vars[io_index].digital_analog == 1)  // analog
+			if(ptr.pvar->digital_analog == 1)  // analog
 			{	
-				if(vars[io_index].range == 0)
-					vars[io_index].range = R10K_40_120DegC;
-				vars[io_index].value =  (value * 1000) ;
+				if(ptr.pvar->range == 0)
+					ptr.pvar->range = R10K_40_120DegC;
+				ptr.pvar->value =  (value * 1000) ;
 			}
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[VAR] = 1;
-#endif
-			vars[io_index].value =  (value * 1000);
+			ptr.pvar->value =  (value * 1000);
 				break;
 			case BV:
 			Get_index_by_BVx(i,&io_index);			
 			if(io_index >= MAX_BVS) break;
-			
-			if(vars[io_index].digital_analog == 0)  // digital
+			ptr = put_io_buf(VAR,io_index);
+			if(ptr.pvar->digital_analog == 0)  // digital
 			{
-				if(vars[io_index].range == 0)
-					vars[io_index].range = OFF_ON;
-				vars[io_index].value =  (value * 1000);	
+				if(ptr.pvar->range == 0)
+					ptr.pvar->range = OFF_ON;
+				ptr.pvar->value =  (value * 1000);	
 
-				if(( vars[io_index].range >= ON_OFF && vars[io_index].range <= HIGH_LOW )
-				||(vars[io_index].range >= custom_digital1 // customer digital unit
-					&& vars[io_index].range <= custom_digital8
-					&& digi_units[vars[io_index].range - custom_digital1].direct == 1))
+				if(( ptr.pvar->range >= ON_OFF && ptr.pvar->range <= HIGH_LOW )
+				||(ptr.pvar->range >= custom_digital1 // customer digital unit
+					&& ptr.pvar->range <= custom_digital8
+					&& digi_units[ptr.pvar->range - custom_digital1].direct == 1))
 				{ // inverse
-					vars[io_index].control = value ? 0 : 1;		
+					ptr.pvar->control = value ? 0 : 1;		
 				}
 				else
 				{
-					vars[io_index].control = value ? 1 : 0;	
+					ptr.pvar->control = value ? 1 : 0;	
 				}
 			}
-			
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[VAR] = 1;
-#endif
+
 				break;
 			case AI:
 				Get_index_by_AIx(i,&io_index);
 				if(io_index >= MAX_AIS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)			
-				//write_page_en[IN] = 1;
-#endif
-				if(inputs[io_index].digital_analog == 1)  // digital
+				ptr = put_io_buf(IN,io_index);
+				if(ptr.pin->digital_analog == 1)  // digital
 				{	
-					if(inputs[io_index].range == 0)
-						inputs[io_index].range = R10K_40_120DegC;
-					inputs[io_index].value =  (value * 1000) ;
+					if(ptr.pin->range == 0)
+						ptr.pin->range = R10K_40_120DegC;
+					ptr.pin->value =  (value * 1000) ;
 				}
-#if  T3_MAP
-				push_expansion_in_stack(&inputs[io_index]);
-#endif
+
+				push_expansion_in_stack(ptr.pin);
+
 				break;
 				
 			case BI:
 				Get_index_by_BIx(i,&io_index);
 				if(io_index >= MAX_AIS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)			
-				//write_page_en[IN] = 1;
-#endif
-				if(inputs[io_index].digital_analog == 0)  // digital
+				ptr = put_io_buf(IN,io_index);
+				if(ptr.pin->digital_analog == 0)  // digital
 				{
-					if(inputs[io_index].range == 0)
-						inputs[io_index].range = OFF_ON;
-					inputs[io_index].value =  (value * 1000);	
+					if(ptr.pin->range == 0)
+						ptr.pin->range = OFF_ON;
+					ptr.pin->value =  (value * 1000);	
 //					inputs[i].control = value ? 1 : 0;	
 
-					if(( inputs[io_index].range >= ON_OFF && inputs[io_index].range <= HIGH_LOW )
-					||(inputs[io_index].range >= custom_digital1 // customer digital unit
-					&& inputs[io_index].range <= custom_digital8
-					&& digi_units[inputs[io_index].range - custom_digital1].direct == 1))
+					if(( ptr.pin->range >= ON_OFF && ptr.pin->range <= HIGH_LOW )
+					||(ptr.pin->range >= custom_digital1 // customer digital unit
+					&& ptr.pin->range <= custom_digital8
+					&& digi_units[ptr.pin->range - custom_digital1].direct == 1))
 					{
-						inputs[io_index].control = value ? 0 : 1;		
+						ptr.pin->control = value ? 0 : 1;		
 					}	
 					else
 					{
-						inputs[io_index].control = value ? 1 : 0;							
+						ptr.pin->control = value ? 1 : 0;							
 					}	
 				}
 				else
 				{	
-					if(inputs[io_index].range == 0)
-						inputs[io_index].range = R10K_40_120DegC;
-					inputs[io_index].value =  (value * 1000) ;
+					if(ptr.pin->range == 0)
+						ptr.pin->range = R10K_40_120DegC;
+					ptr.pin->value =  (value * 1000) ;
 				}
-#if  T3_MAP
-				push_expansion_in_stack(&inputs[io_index]);
-#endif
+
+				push_expansion_in_stack(ptr.pin);
+
 				break;
 			case BO:
 				Get_index_by_BOx(i,&io_index);
 				if(io_index >= MAX_BOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				//write_page_en[OUT] = 1;
-#endif
+				ptr = put_io_buf(OUT,io_index);
 				if(value == 0xff)	
 					output_priority[io_index][priority] = 0xff;	
 				else
 				{
-					if(( outputs[io_index].range >= ON_OFF && outputs[io_index].range <= HIGH_LOW )
-					||(outputs[io_index].range >= custom_digital1 // customer digital unit
-					&& outputs[io_index].range <= custom_digital8
-					&& digi_units[outputs[io_index].range - custom_digital1].direct == 1))
+					if(( ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW )
+					||(ptr.pout->range >= custom_digital1 // customer digital unit
+					&& ptr.pout->range <= custom_digital8
+					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 					{ // inverse
 						if(io_index < max_dos + max_aos)
 						{
 							output_priority[io_index][priority] = value ? 0 : 1;
-							outputs[io_index].control = Binary_Output_Present_Value(io_index)/*value*/ ? 0 : 1;		
+							ptr.pout->control = Binary_Output_Present_Value(io_index)/*value*/ ? 0 : 1;		
 						}
 						else
 						{
-							outputs[io_index].control = value ? 0 : 1;
+							ptr.pout->control = value ? 0 : 1;
 							output_priority[io_index][15] = value ? 0 : 1;
 							if(priority != 15)
 								output_priority[io_index][priority] = 0xff;							
@@ -1394,11 +1349,11 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 						if(io_index < max_dos + max_aos)
 						{
 							output_priority[io_index][priority] = value ? 1 : 0;						
-							outputs[io_index].control = Binary_Output_Present_Value(io_index)/*value*/ ? 1 : 0;	
+							ptr.pout->control = Binary_Output_Present_Value(io_index)/*value*/ ? 1 : 0;	
 						}
 						else
 						{
-							outputs[io_index].control = value ? 1 : 0;	
+							ptr.pout->control = value ? 1 : 0;	
 							if(priority != 15)
 								output_priority[io_index][priority] = 0xff;
 							output_priority[io_index][15] = value ? 1 : 0;
@@ -1407,49 +1362,44 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 			
 				}
 				
-				outputs[io_index].digital_analog = 0;
+				ptr.pout->digital_analog = 0;
 				check_output_priority_array_without_AM(io_index);
 #if OUTPUT_DEATMASTER
 			clear_dead_master();
 #endif				
 				if(io_index >= max_dos + max_aos)
 				{
-					outputs[io_index].auto_manual = 1;
+					ptr.pout->auto_manual = 1;
 				}
 
-				if(outputs[io_index].range == 0)
-					outputs[io_index].range = OFF_ON;			
+				if( ptr.pout->range == 0)
+					ptr.pout->range = OFF_ON;			
 					
+				push_expansion_out_stack(ptr.pout,io_index,0);
 
-#if  T3_MAP
-
-					push_expansion_out_stack(&outputs[io_index],io_index,0);
-#endif
 				break;
 			case AO:	
 				Get_index_by_AOx(i,&io_index);
-					if(io_index >= MAX_AOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-			//write_page_en[OUT] = 1;
-#endif				
+				if(io_index >= MAX_AOS) break;
+				ptr = put_io_buf(OUT,io_index);
 				
-				if(outputs[io_index].range == 0)
-					outputs[io_index].range = V0_10;
-				outputs[io_index].digital_analog = 1;
+				if(ptr.pout->range == 0)
+					ptr.pout->range = V0_10;
+				ptr.pout->digital_analog = 1;
 
 				if(io_index < max_aos + max_dos)
 				{
 					output_priority[io_index][priority] = value;	
-					outputs[io_index].value =  (Analog_Output_Present_Value(io_index) * 1000);// (value * 1000);
+					ptr.pout->value =  (Analog_Output_Present_Value(io_index) * 1000);// (value * 1000);
 				}
 
 				if(io_index >= max_dos + max_aos)
 				{
-					outputs[io_index].auto_manual = 1;
+					ptr.pout->auto_manual = 1;
 					output_priority[io_index][15] = value;
 					if(priority != 15)
 						output_priority[io_index][priority] = 0xff;
-					outputs[io_index].value =  (value * 1000);
+					ptr.pout->value =  (value * 1000);
 					//outputs[out_index].value =  (Analog_Output_Present_Value(out_index) * 1000);// (value * 1000);
 					output_raw[io_index] =  (value * 1000);
 				}
@@ -1460,54 +1410,24 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 			clear_dead_master();
 #endif
 				
-#if  T3_MAP
-				push_expansion_out_stack(&outputs[io_index],io_index,0);
-#endif
+
+				push_expansion_out_stack(ptr.pout,io_index,0);
+
 				break;
 		 case SCHEDULE:
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-			 //write_page_en[WRT] = 1;
-#endif
 				//if(weekly_routines[i].auto_manual == 1)
 				{
 					weekly_routines[i].value = (value * 1000);
 				}
 				break;
 			case CALENDAR:
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-				write_page_en[AR] = 1;
-#endif
+
 				//if(annual_routines[i].auto_manual == 1)
 				{
 					annual_routines[i].value = (value * 1000);
 				}
 				break;
-#if BAC_PROPRIETARY
-			case TEMCOAV:
-			/*if(i == 1)
-			{
-				Modbus.dead_master = value;				
-				//E2prom_Write_Byte(EEP_DEAD_MASTER,Modbus.dead_master);
-				clear_dead_master();
-			}
-			else if(i == 2)
-			{
-				Modbus.LCD_time_off_delay = value;				
-				//E2prom_Write_Byte(EEP_LCD_TIME_OFF_DELAY,value);
-				count_lcd_time_off_delay = 0;
-			}
-			else if(i == 3)
-			{
-				Modbus.disable_tstat10_display = value;
-				//E2prom_Write_Byte(EEP_DISABLE_T10_DIS,value);
-			}*/
-			break;
-#endif
-			
-#if ARM_TSTAT_WIFI
-			vars[7].value = value * 1000;
-			
-#endif
+
 			default:
 			break;
 		}			
@@ -1517,129 +1437,96 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 void write_Out_Of_Service(uint8_t type,uint8_t i,uint8_t am)
 {
 	uint8_t io_index;
-
-	//ChangeFlash = 1;
+	Str_points_ptr ptr;
 
 	if(type == BO)
-	{	
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[OUT] = 1;
-#endif
+	{
 		Get_index_by_BOx(i,&io_index);
-		outputs[io_index].auto_manual = am;
-#if  T3_MAP		
-		push_expansion_out_stack(&outputs[io_index],io_index,1);
-#endif
+		ptr = put_io_buf(OUT,io_index);
+		ptr.pout->auto_manual = am;
+
+		push_expansion_out_stack(ptr.pout,io_index,1);
+
 	}
 	if(type == AO)
 	{
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		write_page_en[OUT] = 1;
-#endif
 		Get_index_by_AOx(i,&io_index);
-		outputs[io_index].auto_manual = am;
-#if  T3_MAP
-		push_expansion_out_stack(&outputs[io_index],io_index,1);
-#endif 
+		ptr = put_io_buf(OUT,io_index);
+		ptr.pout->auto_manual = am;
+
+		push_expansion_out_stack(ptr.pout,io_index,1);
+
 	}
 	if(type == BV)
-	{	
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[VAR] = 1;
-#endif
+	{
 		Get_index_by_BVx(i,&io_index);
-		vars[io_index].auto_manual = am;
+		ptr = put_io_buf(VAR,io_index);
+		ptr.pvar->auto_manual = am;
 	}
 	if(type == AV)
 	{
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[VAR] = 1;
-#endif
 		Get_index_by_AVx(i,&io_index);
-		vars[io_index].auto_manual = am;
+		ptr = put_io_buf(VAR,io_index);
+		ptr.pvar->auto_manual = am;
 	}
 }
 
 void write_bacnet_name_to_buf(uint8_t type,uint8_t priority,uint8_t i,char* str)
 {
 	uint8_t io_index;
-
-	//ChangeFlash = 1;
+	Str_points_ptr ptr;
 
 	switch(type)
 	{
 		case AI:
 			Get_index_by_AIx(i,&io_index);
 			if(io_index >= MAX_AVS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[IN] = 1;
-#endif
-			memcpy(inputs[io_index].description,str,21);
-#if  T3_MAP
-			push_expansion_in_stack(&inputs[io_index]);
-#endif
+			ptr = put_io_buf(IN,io_index);
+			memcpy(ptr.pin->description,str,21);
+			push_expansion_in_stack(ptr.pin);
 			break;
 		case BI:
 			Get_index_by_BIx(i,&io_index);
 			if(io_index >= MAX_AVS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[IN] = 1;
-#endif
-			memcpy(inputs[io_index].description,str,21);
-#if  T3_MAP
-			push_expansion_in_stack(&inputs[io_index]);
-#endif
+			ptr = put_io_buf(IN,io_index);
+			memcpy(ptr.pin->description,str,21);
+			push_expansion_in_stack(ptr.pin);
 			break;
 		case BO:
 			Get_index_by_BOx(i,&io_index);
 			if(io_index >= MAX_BOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[OUT] = 1;
-#endif
-			memcpy(outputs[io_index].description,str,19);
-#if  T3_MAP
-			push_expansion_out_stack(&outputs[io_index],io_index,1);
-#endif
+			ptr = put_io_buf(OUT,io_index);
+			memcpy(ptr.pout->description,str,19);
+			push_expansion_out_stack(ptr.pout,io_index,1);
 			break;
 		case AO:
 			Get_index_by_AOx(i,&io_index);
 			if(io_index >= MAX_AOS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[OUT] = 1;
-#endif
-			memcpy(outputs[io_index].description,str,19);
-#if  T3_MAP
-			push_expansion_out_stack(&outputs[io_index],io_index,1);
-#endif 
+			ptr = put_io_buf(OUT,io_index);
+			memcpy(ptr.pout->description,str,19);
+			push_expansion_out_stack(ptr.pout,io_index,1);
+
 			break;
 		case AV:
 			Get_index_by_AVx(i,&io_index);
 			if(io_index >= MAX_AVS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[VAR] = 1;
-#endif
-			memcpy(vars[io_index].description,str,21);
+			ptr = put_io_buf(VAR,io_index);
+			memcpy(ptr.pvar->description,str,21);
 			break;
 		case BV:
 			Get_index_by_BVx(i,&io_index);
 			if(io_index >= MAX_AVS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[VAR] = 1;
-#endif
-			memcpy(vars[io_index].description,str,21);
+			ptr = put_io_buf(VAR,io_index);
+			memcpy(ptr.pvar->description,str,21);
 			break;
 		case SCHEDULE:
 			if(i >= MAX_SCHEDULES) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[WRT] = 1;
-#endif
+
 			memcpy(weekly_routines[i].description,str,21);
 			break;
 		case CALENDAR:
 			if(i >= MAX_CALENDARS) break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-		//write_page_en[AR] = 1;
-#endif
+
 			memcpy(annual_routines[i].description,str,21);
 			break;
 		default:
@@ -1901,32 +1788,30 @@ void Send_TimeSync_Broadcast(uint8_t protocal)
 
 void write_Output_Relinguish(uint8_t type,uint8_t i,float value)
 {
-	/*ChangeFlash = 1;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-  write_page_en[25] = 1;
-#endif*/
+	Str_points_ptr ptr;
+	ptr = put_io_buf(OUT,i);
 	if(type == BO)
 	{
 		if(i < max_dos)
 		{			
 			output_relinquish[i] = value;	
-			if(outputs[i].digital_analog == 0)
+			if(ptr.pout->digital_analog == 0)
 			{				
-				if(( outputs[i].range >= ON_OFF && outputs[i].range <= HIGH_LOW )
-					||(outputs[i].range >= custom_digital1 // customer digital unit
-					&& outputs[i].range <= custom_digital8
-					&& digi_units[outputs[i].range - custom_digital1].direct == 1))
+				if(( ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW )
+					||(ptr.pout->range >= custom_digital1 // customer digital unit
+					&& ptr.pout->range <= custom_digital8
+					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 				{// inverse
 					output_relinquish[i] = value ? 0 : 1;			
-					outputs[i].control = Binary_Output_Present_Value(i) ? 0 : 1;	
+					ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;	
 				}		
 				else
 				{
 					output_relinquish[i] = value ? 1 : 0;	
-					outputs[i].control = Binary_Output_Present_Value(i) ? 1 : 0;	
+					ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;	
 				}
 				
-				if(outputs[i].control) 
+				if(ptr.pout->control) 
 					set_output_raw(i,1000);
 				else 
 					set_output_raw(i,0);
@@ -1962,11 +1847,13 @@ float Get_Output_Relinguish(uint8_t type,uint8_t i)
 void adjust_trend_log(void)
 {
 	int i;
+	Str_points_ptr ptr;
 	TRENDLOGS = 0;
 
 	for(i = 0;i < base_in;i++)
 	{
-		if(inputs[i].digital_analog == 1)
+		ptr = put_io_buf(IN,i);
+		if(ptr.pin->digital_analog == 1)
 		{			
 			add_Trend_Log(OBJECT_ANALOG_INPUT,i + 1);
 		}
@@ -1978,7 +1865,8 @@ void adjust_trend_log(void)
 	
 	for(i = 0;i < base_out;i++)
 	{
-		if(outputs[i].digital_analog == 1)
+		ptr = put_io_buf(OUT,i);
+		if(ptr.pout->digital_analog == 1)
 		{			
 			add_Trend_Log(OBJECT_ANALOG_OUTPUT,i + 1);
 		}
@@ -1990,11 +1878,12 @@ void adjust_trend_log(void)
 	
 	for(i = 0;i < MAX_VARS;i++)
 	{
-		if((vars[i].range != 0) &&(vars[i].digital_analog == 1))
+		ptr = put_io_buf(VAR,i);
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 		{
 			add_Trend_Log(OBJECT_ANALOG_VALUE,i + 1);
 		}
-		if((vars[i].range != 0) &&(vars[i].digital_analog == 0))
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
 		{			
 			add_Trend_Log(OBJECT_BINARY_VALUE,i + 1);
 		}
@@ -2019,11 +1908,13 @@ uint8_t BV_Instance_To_Index[MAX_AVS];
 void Count_IN_Object_Number(void)
 {
 	U8_T count1,count2,i;
+	Str_points_ptr ptr;
 	count1 = 0;
 	count2 = 0;
 	for(i = 0;i < base_in;i++)
 	{
-		if(inputs[i].digital_analog == 1)
+		ptr = put_io_buf(IN,i);
+		if(ptr.pin->digital_analog == 1)
 		{
 			AI_Index_To_Instance[count1] = i;
 			AI_Instance_To_Index[i] = count1;
@@ -2049,12 +1940,14 @@ void Count_IN_Object_Number(void)
 void Count_OUT_Object_Number(void)
 {
 	U8_T count1,count2,i;
+	Str_points_ptr ptr;
 	count1 = 0;
 	count2 = 0;
 	
 	for(i = 0;i < base_out;i++)
 	{
-		if(outputs[i].digital_analog == 1)
+		ptr = put_io_buf(OUT,i);
+		if(ptr.pout->digital_analog == 1)
 		{
 			AO_Index_To_Instance[count1] = i;
 			AO_Instance_To_Index[i] = count1;
@@ -2081,19 +1974,20 @@ void Count_OUT_Object_Number(void)
 void Count_VAR_Object_Number(uint8_t base_var)
 {
 	U8_T count1,count2,i;
-
+	Str_points_ptr ptr;
 	count1 = 0;
 	count2 = 0;
 
-	for(i = 0;i < base_var;i++)
+	for(i = 0;i < max_vars;i++)
 	{
-		if((vars[i].range != 0) &&(vars[i].digital_analog == 1))
+		ptr = put_io_buf(VAR,i);
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 		{
 			AV_Index_To_Instance[count1] = i;
 			AV_Instance_To_Index[i] = count1;
 			count1++;			
 		}
-		if((vars[i].range != 0) &&(vars[i].digital_analog == 0))
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
 		{
 			BV_Index_To_Instance[count2] = i;
 			BV_Instance_To_Index[i] = count2;
@@ -2121,13 +2015,15 @@ void Count_VAR_Object_Number(uint8_t base_var)
 int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 {
 	int count,i;
+	Str_points_ptr ptr;
 	count = 0;
 	switch(type)
 	{
 		case OBJECT_ANALOG_INPUT:
 			for(i = 0;i < base_in;i++)
 			{
-				if(inputs[i].digital_analog == 1)
+				ptr = put_io_buf(IN,i);
+				if(ptr.pin->digital_analog == 1)
 				{					
 					if(i == number)
 						return count;
@@ -2138,7 +2034,8 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 		case OBJECT_BINARY_INPUT:
 			for(i = 0;i < base_in;i++)
 			{
-				if(inputs[i].digital_analog == 0)
+				ptr = put_io_buf(IN,i);
+				if(ptr.pin->digital_analog == 0)
 				{
 					if(i == number)
 						return count;
@@ -2149,7 +2046,8 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 		case OBJECT_BINARY_OUTPUT:
 			for(i = 0;i < base_out;i++)
 			{
-				if(outputs[i].digital_analog == 0)
+				ptr = put_io_buf(OUT,i);
+				if(ptr.pout->digital_analog == 0)
 				{
 					if(i == number)
 						return count;
@@ -2160,7 +2058,8 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 		case OBJECT_ANALOG_OUTPUT:
 			for(i = 0;i < base_out;i++)
 			{
-				if(outputs[i].digital_analog == 1)
+				ptr = put_io_buf(OUT,i);
+				if(ptr.pout->digital_analog == 1)
 				{
 					if(i == number)
 						return count;
@@ -2171,7 +2070,8 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 		case OBJECT_ANALOG_VALUE:
 			for(i = 0;i < MAX_VARS;i++)
 			{
-				if((vars[i].range != 0) &&(vars[i].digital_analog == 1))
+				ptr = put_io_buf(VAR,i);
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 				{					
 					if(i == number)
 						return count;
@@ -2182,7 +2082,8 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 		case OBJECT_BINARY_VALUE:
 			for(i = 0;i < MAX_INS;i++)
 			{
-				if((vars[i].range != 0) &&(vars[i].digital_analog == 0))
+				ptr = put_io_buf(VAR,i);
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
 				{
 					if(i == number)
 						return count;
@@ -2200,13 +2101,15 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 {
 	int count,i;
+	Str_points_ptr ptr;
 	count = 0;
 	switch(type)
 	{
 		case OBJECT_ANALOG_INPUT:
 			for(i = 0;i < base_in;i++)
 			{
-				if(inputs[i].digital_analog == 1)
+				ptr = put_io_buf(IN,i);
+				if(ptr.pin->digital_analog == 1)
 				{
 					if(count == index)
 						return i;
@@ -2217,7 +2120,8 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 		case OBJECT_BINARY_INPUT:
 			for(i = 0;i < base_in;i++)
 			{
-				if(inputs[i].digital_analog == 0)
+				ptr = put_io_buf(IN,i);
+				if(ptr.pin->digital_analog == 0)
 				{					
 					if(count == index)
 						return i;
@@ -2228,7 +2132,8 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 		case OBJECT_BINARY_OUTPUT:
 			for(i = 0;i < base_out;i++)
 			{
-				if(outputs[i].digital_analog == 0)
+				ptr = put_io_buf(OUT,i);
+				if(ptr.pout->digital_analog == 0)
 				{					
 					if(count == index)
 						return i;
@@ -2239,7 +2144,8 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 		case OBJECT_ANALOG_OUTPUT:
 			for(i = 0;i < base_out;i++)
 			{
-				if(outputs[i].digital_analog == 1)
+				ptr = put_io_buf(OUT,i);
+				if(ptr.pout->digital_analog == 1)
 				{					
 					if(count == index)
 						return i;
@@ -2250,7 +2156,8 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 		case OBJECT_ANALOG_VALUE:
 			for(i = 0;i < MAX_VARS;i++)
 			{
-				if((vars[i].range != 0) &&(vars[i].digital_analog == 1))
+				ptr = put_io_buf(VAR,i);
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 				{
 					if(count == index)
 						return i;
@@ -2261,8 +2168,8 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 		case OBJECT_BINARY_VALUE:
 			for(i = 0;i < MAX_VARS;i++)
 			{
-
-				if((vars[i].range != 0) &&(vars[i].digital_analog == 0))
+				ptr = put_io_buf(VAR,i);
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
 				{					
 					if(count == index)
 						return i;
@@ -2282,12 +2189,12 @@ BACNET_POLARITY Binary_Input_Polarity(
     uint32_t object_instance)
 {
 	uint8_t index;
-	
+	Str_points_ptr ptr;
 	index = BI_Index_To_Instance[object_instance];
-	
+	ptr = put_io_buf(IN,index);
 	if (index < MAX_BIS) {
 			
-		if(inputs[index].range >= OFF_ON && inputs[index].range <= LOW_HIGH)
+		if(ptr.pin->range >= OFF_ON && ptr.pin->range <= LOW_HIGH)
 			return POLARITY_NORMAL;
 		else
 			return POLARITY_REVERSE;	
@@ -2302,25 +2209,26 @@ bool Binary_Input_Polarity_Set(
     BACNET_POLARITY polarity)
 {
 		bool status = false;
-		uint8_t index;
-	
-		index = BI_Instance_To_Index[object_instance];
-	
+		//uint8_t index;
+		Str_points_ptr ptr;
+		//index = BI_Instance_To_Index[object_instance];
+
+		ptr = put_io_buf(IN,object_instance - OBJECT_BASE);
 		if(object_instance < MAX_BIS) 
 		{
 			if(polarity == POLARITY_NORMAL)
 			{
-				if(inputs[object_instance - OBJECT_BASE].range >= ON_OFF && inputs[object_instance - OBJECT_BASE].range <= HIGH_LOW)
+				if(ptr.pin->range >= ON_OFF && ptr.pin->range <= HIGH_LOW)
 				{ 
-					inputs[object_instance - OBJECT_BASE].range = inputs[object_instance - OBJECT_BASE].range - 11;
+					ptr.pin->range = ptr.pin->range - 11;
 					return true;
 				}
 			}
 			else 
 			{	
-				if(inputs[object_instance - OBJECT_BASE].range >= OFF_ON && inputs[object_instance - OBJECT_BASE].range <= LOW_HIGH)
+				if(ptr.pin->range >= OFF_ON && ptr.pin->range <= LOW_HIGH)
 				{
-					inputs[object_instance - OBJECT_BASE].range = inputs[object_instance - OBJECT_BASE].range + 11;
+					ptr.pin->range = ptr.pin->range + 11;
 					return true;
 				}
 			}
@@ -2335,12 +2243,12 @@ BACNET_POLARITY Binary_Output_Polarity(
     uint32_t object_instance)
 {
 	uint8_t index;
-	
+	Str_points_ptr ptr;
 	index = BO_Index_To_Instance[object_instance];
-	
+	ptr = put_io_buf(OUT,index);
 	if (index < MAX_BOS) {
 			
-		if(outputs[index].range >= OFF_ON && outputs[index].range <= LOW_HIGH)
+		if(ptr.pout->range >= OFF_ON && ptr.pout->range <= LOW_HIGH)
 			return POLARITY_NORMAL;
 		else
 			return POLARITY_REVERSE;	
@@ -2354,25 +2262,26 @@ bool Binary_Output_Polarity_Set(
     BACNET_POLARITY polarity)
 {
 		bool status = false;
-		uint8_t index;
-	
-		index = BO_Instance_To_Index[object_instance];
-	
+		//uint8_t index;
+		Str_points_ptr ptr;
+		//index = BO_Instance_To_Index[object_instance];
+
+		ptr = put_io_buf(OUT,object_instance - OBJECT_BASE);
 		if(object_instance < MAX_BOS) 
 		{
 			if(polarity == POLARITY_NORMAL)
 			{
-				if(outputs[object_instance - OBJECT_BASE].range >= ON_OFF && outputs[object_instance - OBJECT_BASE].range <= HIGH_LOW)
+				if(ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW)
 				{ 
-					outputs[object_instance - OBJECT_BASE].range = outputs[object_instance - OBJECT_BASE].range - 11;
+					ptr.pout->range = ptr.pout->range - 11;
 					return true;
 				}
 			}
 			else 
 			{	
-				if(outputs[object_instance - OBJECT_BASE].range >= OFF_ON && outputs[object_instance - OBJECT_BASE].range <= LOW_HIGH)
+				if(ptr.pout->range >= OFF_ON && ptr.pout->range <= LOW_HIGH)
 				{
-					outputs[object_instance - OBJECT_BASE].range = outputs[object_instance - OBJECT_BASE].range + 11;
+					ptr.pout->range = ptr.pout->range + 11;
 					return true;
 				}
 			}
@@ -2386,12 +2295,12 @@ BACNET_POLARITY Binary_Value_Polarity(
     uint32_t object_instance)
 {
 	uint8_t index;
-	
+	Str_points_ptr ptr;
 	index = BV_Index_To_Instance[object_instance];
-	
+	ptr = put_io_buf(VAR,index);
 	if (index < MAX_BVS) {
 			
-		if(vars[index].range >= OFF_ON && vars[index].range <= LOW_HIGH)
+		if(ptr.pvar->range >= OFF_ON && ptr.pvar->range <= LOW_HIGH)
 			return POLARITY_NORMAL;
 		else
 			return POLARITY_REVERSE;	
@@ -2405,25 +2314,26 @@ bool Binary_Value_Polarity_Set(
     BACNET_POLARITY polarity)
 {
 		bool status = false;
-		uint8_t index;
-	
-		index = BV_Instance_To_Index[object_instance];
-	
+		//uint8_t index;
+		Str_points_ptr ptr;
+		//index = BV_Instance_To_Index[object_instance];
+
+		ptr = put_io_buf(VAR,object_instance - OBJECT_BASE);
 		if(object_instance < MAX_BVS) 
 		{
 			if(polarity == POLARITY_NORMAL)
 			{
-				if(vars[object_instance - OBJECT_BASE].range >= ON_OFF && vars[object_instance - OBJECT_BASE].range <= HIGH_LOW)
+				if(ptr.pvar->range >= ON_OFF && ptr.pvar->range <= HIGH_LOW)
 				{ 
-					vars[object_instance - OBJECT_BASE].range = vars[object_instance - OBJECT_BASE].range - 11;
+					ptr.pvar->range = ptr.pvar->range - 11;
 					return true;
 				}
 			}
 			else 
 			{	
-				if(vars[object_instance - OBJECT_BASE].range >= OFF_ON && vars[object_instance - OBJECT_BASE].range <= LOW_HIGH)
+				if(ptr.pvar->range >= OFF_ON && ptr.pvar->range <= LOW_HIGH)
 				{
-					vars[object_instance - OBJECT_BASE].range = vars[object_instance - OBJECT_BASE].range + 11;
+					ptr.pvar->range = ptr.pvar->range + 11;
 					return true;
 				}
 			}
@@ -2434,49 +2344,17 @@ bool Binary_Value_Polarity_Set(
 
 
 
-
-extern uint8 FAN_MODE[8][9];
-uint8 Get_State_Text_Len(uint8_t i)
-{
-#if 1//ARM_TSTAT_WIFI	
-	
-	uint8_t j;
-	uint8_t text_len = 0;
-	for(j = 0;j < STR_MSV_MULTIPLE_COUNT;j++)
-	{
-		if(strlen(msv_data[i][j].msv_name) > 0 && strlen(msv_data[i][j].msv_name) <= STR_MSV_NAME_LENGTH)
-			text_len++;
-		else
-			j = STR_MSV_MULTIPLE_COUNT;
-	}
-	vars[20].value = text_len;
-	return text_len;
-	
-#endif	
-}
-
-char * Get_State_Text(uint8_t i,uint8_t j)
-{
-
-
-		if(strlen(msv_data[i][j].msv_name) > 0 && strlen(msv_data[i][j].msv_name) <= STR_MSV_NAME_LENGTH)		
-			return (char *)msv_data[i][j].msv_name;
-		else 
-			return NULL;
-
-}
-
-
-
 int32_t backup_AI_value[MAX_INS];
 bool Analog_Input_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
+	Str_points_ptr ptr;
 	object_index = AI_Instance_To_Index[object_instance];
-			
-	if(inputs[object_index].value != backup_AI_value[object_index])
+
+	ptr = put_io_buf(IN,object_index);
+	if(ptr.pin->value != backup_AI_value[object_index])
 	{
-		backup_AI_value[object_index] = inputs[object_index].value;
+		backup_AI_value[object_index] = ptr.pin->value;
 		return true;
 	}
 	else
@@ -2489,12 +2367,14 @@ int32_t backup_AV_value[MAX_INS];
 bool Analog_Value_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
+	Str_points_ptr ptr;
 	bool status = false;
 	object_index = AV_Instance_To_Index[object_instance];
 
-	if(vars[object_index].value != backup_AV_value[object_index])
+	ptr = put_io_buf(VAR,object_index);
+	if(ptr.pvar->value != backup_AV_value[object_index])
 	{	
-		backup_AV_value[object_index] = vars[object_index].value;
+		backup_AV_value[object_index] = ptr.pvar->value;
 		status = true;
 	}
 	else
@@ -2717,11 +2597,6 @@ int Send_private_scan(U8_T index)
 	return invokeid_mstp;
 }
 
-void bip_set_broadcast_addr(
-    uint32_t net_address)
-{       /* in network byte order */
-   // BIP_Broadcast_Address.s_addr = net_address;
-}
 
 
 

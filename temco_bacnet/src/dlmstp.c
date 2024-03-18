@@ -243,7 +243,7 @@ uint16_t dlmstp_encode_unconfirmed_frame(
     BACNET_NPDU_DATA npdu_data;
     uint16_t len = 0;
 //		static uint8_t protocal;
-	
+	Test[10]++;
 	if((Send_Private_Flag == 2) || (Send_Private_Flag == 1)  || (Send_Private_Flag == 3) || (Send_Private_Flag == 4))
 	{
 		return Send_Mstp(Send_Private_Flag,type);
@@ -266,7 +266,7 @@ uint16_t dlmstp_encode_unconfirmed_frame(
 			return len;
     }
  	
-		if (Send_Whois_Flag) {
+		if (Send_Whois_Flag) {Test[11]++;
         Send_Whois_Flag = false;	
 				Send_WhoIs(-1,-1,BAC_MSTP);
         len = 8;//iam_encode_pdu(&TransmitPacket[0], &dest, &npdu_data);

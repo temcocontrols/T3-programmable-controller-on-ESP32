@@ -61,4 +61,11 @@ extern uint32 TANGLE_COLOR;
 #define TANGLE_COLOR        0xbe9c
 #endif
 
+
+void disp_ch(uint8_t form, uint16_t x, uint16_t y,uint8_t value,uint16_t dcolor,uint16_t bgcolor);
+
+void disp_icon(uint16_t cp, uint16_t pp, uint16_t const *icon_name, uint16_t x,uint16_t y,uint16_t dcolor, uint16_t bgcolor);
+
+void disp_str(uint8_t form, uint16_t x,uint16_t y,char *str,uint16_t dcolor,uint16_t bgcolor);
+
 #endif /* MAIN_LCD_H_ */

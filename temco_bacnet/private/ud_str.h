@@ -28,7 +28,7 @@
 
 #define MAX_INS     		64
 #define MAX_OUTS        	64
-#define MAX_CONS       	 16
+#define MAX_CONS       	 	16
 #define MAX_VARS			128
 
 #define MAX_EXTIO       12
@@ -106,7 +106,7 @@ typedef enum
 		OUT=0, IN, VAR, CON, WRT, AR, PRG,/* TBL,*/  TZ = 8,
 		AMON = 9, GRP, ARRAY, ALARMM = 12,
 		UNIT, USER_NAME, ALARM_SET = 15, WR_TIME, AR_DATA, 
-		PRG_CODE, GRP_POINT = 19,/*20???*/
+		PRG_CODE, GRP_POINT = 19,SUB_DB = 20,
 		TBL = 22,ID_ROUTION,
 		MAX_POINT_TYPE
 	}	Point_type_equate;
@@ -1110,6 +1110,13 @@ typedef union
  }reg;
 } Str_grp_element;//Str_label_point;
 
+typedef struct
+{
+	char label[9];		     /* (9 bytes; string)	*/
+	uint16_t  length;  	       /* (1 byte ; 0-255)	*/
+
+}Str_array_point;		/* (size = 10 bytes)	*/
+
 typedef union {
 		Str_out_point             *pout;
 		Str_in_point 			  *pin;
@@ -1119,7 +1126,7 @@ typedef union {
 		Str_weekly_routine_point  *pwr;
 		Str_annual_routine_point  *panr;
 		Str_program_point 		  *pprg;
-//		Str_array_point 		  *pary;
+		Str_array_point 		  *pary;
 		Str_monitor_point		  *pmon;
 	    Str_totalizer_point       *ptot;
 	    Monitor_Block             *pmb;

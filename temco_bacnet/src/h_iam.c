@@ -58,7 +58,7 @@ void handler_i_am_add(
 	
 		uint8_t panel;
 //    (void) service_len;
-	
+
     len =
         iam_decode_service_request(service_request, &device_id, &max_apdu,
         &segmentation, &vendor_id);
@@ -85,7 +85,7 @@ void handler_i_am_add(
             (unsigned long) device_id, src->mac[0], src->mac[1], src->mac[2],
             src->mac[3], src->mac[4], src->mac[5]);
 #endif
-	
+
         address_add(device_id, max_apdu, src);			
 				//add_remote_panel_db(device_id,src,src->mac[0],protocal);
 				if(src->mac_len == 1)  // mstp

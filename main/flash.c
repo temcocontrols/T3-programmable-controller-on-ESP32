@@ -18,15 +18,19 @@
 #include "ud_str.h"
 #include "user_data.h"
 #include "driver/uart.h"
+#include "scan.h"
 
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
 uint8_t count_reboot = 0;
 extern S16_T timezone;
+extern U8_T lcddisplay[7];
 void Get_AVS(void);
 
 const uint8 Var_Description[12][21];
 const uint8 Var_label[12][9];
+
+extern uint16_t input_cal[16];
 
 
 #define POINT_INFO_ADDR	0
@@ -137,19 +141,6 @@ esp_err_t read_default_from_flash(void)
 	if (err != ESP_OK) return err;
 	debug_info("read_default_from_flash nvs_open\n");
 
-	/*uint32_t len = sizeof(STR_SSID);
-	err = nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
-
-	if(err == ESP_ERR_NVS_NOT_FOUND)
-	{
-		//init_ssid_info();
-		debug_info("The value is not initialized yet!\n");
-	}
-
-	len = 12;
-	err = nvs_get_blob(my_handle, FLASH_NET_INFO, &Modbus.ip_addr[0], &len);*/
-	//if (err != ESP_OK) return err;
-
 	err = nvs_get_u8(my_handle,FLASH_MODBUS_ID, &Modbus.address);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -224,7 +215,14 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_INSTANCE4, temp[3]);
 	}
 	Instance = ((uint32)temp[3]<<24)+((uint32)temp[2]<<16)+((uint16)temp[1]<<8) + temp[0];
-
+	if(Instance >= 0x3fffff)
+	{
+		Instance =  Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8) + ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24);
+		nvs_set_u8(my_handle, FLASH_INSTANCE1, temp[0]);
+		nvs_set_u8(my_handle, FLASH_INSTANCE2, temp[1]);
+		nvs_set_u8(my_handle, FLASH_INSTANCE3, temp[2]);
+		nvs_set_u8(my_handle, FLASH_INSTANCE4, temp[3]);
+	}
 
 	err = nvs_get_u8(my_handle, FLASH_UART_CONFIG, &Modbus.com_config[0]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
@@ -278,19 +276,19 @@ esp_err_t read_default_from_flash(void)
 	nvs_get_u16(my_handle, FLASH_DSL, &Daylight_Saving_Time);
 
 	err = nvs_get_u8(my_handle, FLASH_MAX_VARS, &max_vars);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
+	if(err == ESP_ERR_NVS_NOT_FOUND || max_vars == 0)
 	{
 		max_vars = 128;
 		nvs_set_u8(my_handle, FLASH_MAX_VARS, max_vars);
 	}
 	err = nvs_get_u8(my_handle, FLASH_MAX_OUTS, &max_outputs);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
+	if(err == ESP_ERR_NVS_NOT_FOUND || max_outputs == 0)
 	{
 		max_outputs = 64;
 		nvs_set_u8(my_handle, FLASH_MAX_OUTS, max_outputs);
 	}
 	err = nvs_get_u8(my_handle, FLASH_MAX_INS, &max_inputs);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
+	if(err == ESP_ERR_NVS_NOT_FOUND || max_inputs == 0)
 	{
 		max_inputs = 64;
 		nvs_set_u8(my_handle, FLASH_MAX_INS, max_inputs);
@@ -328,8 +326,125 @@ esp_err_t read_default_from_flash(void)
 	nvs_get_blob(my_handle, FLASH_NET_INFO, &Modbus.ip_addr[0], &len);
 
 	// panel name
+	len = 20;
 	err = nvs_get_blob(my_handle, FLASH_PANEL_NAME, &panelname, &len);
 
+	len = 7;
+	err = nvs_get_blob(my_handle, FLASH_LCD_CONFIG, &lcddisplay, &len);
+	if(lcddisplay[0] == 0xff || lcddisplay[0] == 0)
+	{
+		memset(lcddisplay,0,sizeof(lcdconfig));
+		lcddisplay[0] = 1;
+		lcddisplay[5] = IN;
+		lcddisplay[6] = 9;  // IN9 is internal termperature
+	}
+	// read input calibrate
+	err = nvs_get_u16(my_handle, FLASH_IN1_CAL, &input_cal[0]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[0] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN1_CAL, input_cal[0]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN2_CAL, &input_cal[1]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[1] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN2_CAL, input_cal[1]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN3_CAL, &input_cal[2]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[2] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN3_CAL, input_cal[2]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN4_CAL, &input_cal[3]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[3] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN4_CAL, input_cal[3]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN5_CAL, &input_cal[4]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[4] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN5_CAL, input_cal[4]);
+	}
+
+	err = nvs_get_u16(my_handle, FLASH_IN6_CAL, &input_cal[5]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[5] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN6_CAL, input_cal[5]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN7_CAL, &input_cal[6]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[6] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN7_CAL, input_cal[6]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN8_CAL, &input_cal[7]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[7] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN8_CAL, input_cal[7]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN9_CAL, &input_cal[8]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[8] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN9_CAL, input_cal[8]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN10_CAL, &input_cal[9]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[9] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN10_CAL, input_cal[9]);
+	}
+
+	err = nvs_get_u16(my_handle, FLASH_IN11_CAL, &input_cal[10]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[10] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN11_CAL, input_cal[10]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN12_CAL, &input_cal[11]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[11] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN12_CAL, input_cal[11]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN13_CAL, &input_cal[12]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[12] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN13_CAL, input_cal[12]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN14_CAL, &input_cal[13]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[13] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN14_CAL, input_cal[13]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN15_CAL, &input_cal[14]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[14] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN15_CAL, input_cal[14]);
+	}
+	err = nvs_get_u16(my_handle, FLASH_IN16_CAL, &input_cal[15]);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		input_cal[15] = 4095;
+		nvs_set_u16(my_handle, FLASH_IN16_CAL, input_cal[15]);
+	}
+
+
+	err = nvs_get_u8(my_handle, FLASH_ICON_CONFIG, &Modbus.icon_config);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.icon_config = 0;
+		nvs_set_u8(my_handle, FLASH_ICON_CONFIG, Modbus.icon_config);
+	}
 	// Close
 	nvs_close(my_handle);
 
@@ -338,6 +453,7 @@ esp_err_t read_default_from_flash(void)
 
 	return ESP_OK;
 }
+
 
 void clear_count_reboot(void)
 {
@@ -470,6 +586,10 @@ void Flash_Inital(void)
 			baseAddr += len;
 			len = sizeof(Str_table_point) * MAX_TBLS ;
 			break;
+		case SUB_DB:
+			baseAddr += len;
+			len = sizeof(SCAN_DB) * SUB_NO;
+			break;
 		/*case ID_ROUTION:
 			baseAddr += len;
 			len = STORE_ID_LEN * 254;
@@ -532,6 +652,13 @@ esp_err_t Save_Ethernet_Info(void)
 	return err;
 }
 
+esp_err_t Save_Lcd_config(void)
+{
+	esp_err_t err = 0;
+	err = save_block(FLASH_BLOCK_LCD_CONFIG);
+	return err;
+}
+
 void Store_Instance_To_Eeprom(uint32_t Instance)
 {
 	save_uint8_to_flash(FLASH_INSTANCE1,Instance);
@@ -558,8 +685,13 @@ esp_err_t save_block(uint8_t key)
 	case FLASH_BLOCK2_PN:
 		err = nvs_set_blob(my_handle, FLASH_PANEL_NAME, (const void*)(&panelname[0]), 20);
 		if (err != ESP_OK) return err;
+		break;
 	case FLASH_BLOCK3_NET:
 		err = nvs_set_blob(my_handle, FLASH_NET_INFO, (const void*)(&Modbus.ip_addr[0]), 12);
+		if (err != ESP_OK) return err;
+		break;
+	case FLASH_BLOCK_LCD_CONFIG:
+		err = nvs_set_blob(my_handle, FLASH_LCD_CONFIG, (const void*)(&lcddisplay[0]), 7);
 		if (err != ESP_OK) return err;
 		break;
 	default:
@@ -574,6 +706,7 @@ esp_err_t save_block(uint8_t key)
 	nvs_close(my_handle);
 	return ESP_OK;
 }
+
 typedef struct
 {
 	U8_T table;
@@ -712,6 +845,9 @@ esp_err_t save_point_info(uint8_t point_type)
 				for(i = 0;i < 254;i++)
 				memcpy(&tempbuf[i * STORE_ID_LEN],&ID_Config[i], STORE_ID_LEN);		// store 15 bytes
 				break;*/
+			case SUB_DB:
+				memcpy(tempbuf,&scan_db,sizeof(SCAN_DB) * SUB_NO);
+				break;
 	#endif
 			default:
 				break;
@@ -751,8 +887,6 @@ void read_point_info(void)
 	uint8_t  err = 0xff;
 	uint8_t *tempbuf = NULL;
 
-
-	Test[31]++;
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
 
@@ -1084,7 +1218,9 @@ void read_point_info(void)
 			case AR_DATA:
 				memcpy(&ar_dates,tempbuf,46 * sizeof(S8_T) * MAX_AR);
 				break;
-
+			case SUB_DB:
+				memcpy(&scan_db,tempbuf,sizeof(SCAN_DB) * SUB_NO);
+				break;
 		/*	case GRP_POINT:
 				memcpy(&group_data,&tempbuf,sizeof(Str_grp_element) * 240);
 				break;
@@ -1133,21 +1269,26 @@ esp_err_t save_trendlog(void)
 
 	assert(partition != NULL);
 
+//	sprintf(debug_array,"save_trendlog current_page = %d \r",current_page);
+//	debug_info(debug_array);
 	err = esp_partition_erase_range(partition, TRENDLOG_ADDR + current_page * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);
 	if(err != 0)
-	{
+	{//debug_info("erase error");
 	 return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
 	}
+	//else
+		//debug_info("erase ok");
 
-	memcpy(&Test[10],write_mon_point_buf_to_flash,sizeof(Str_mon_element));
 	err = esp_partition_write(partition, TRENDLOG_ADDR + current_page * SPI_FLASH_SEC_SIZE,write_mon_point_buf_to_flash,SPI_FLASH_SEC_SIZE);
 
    if(err != 0)
-   {//debug_info("user  flash write error");
+   {//debug_info("flash write error");
 	   return err ;
    }
+   //else
+	  // debug_info("flash write ok");
    current_page++;
-   if(current_page > MAX_TREND_PAGE)
+   if(current_page >= MAX_TREND_PAGE)
 	   current_page = 0;
 
 	return ESP_OK;
@@ -1158,7 +1299,8 @@ esp_err_t read_trendlog(uint8_t page,uint8_t seg)
 {
 	// Find the partition map in the partition table
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
-	debug_info(" read 1");
+//	sprintf(debug_array,"read_trendlog page = %d, seg = %d\r",page,seg);
+//	debug_info(debug_array);
 	assert(partition != NULL);
 	//STR_flag_flash ptr_flash;
 	//U16_T base_addr;
@@ -1175,13 +1317,7 @@ esp_err_t read_trendlog(uint8_t page,uint8_t seg)
 	else
 		err = 1;
 
-	if(err == 0)
-		debug_info("read ok");
-	else
-		debug_info("read fail");
-	//free(tempbuf);
-
-	memcpy(&Test[0],&read_mon_point_buf_from_flash[0],sizeof(Str_mon_element));
+	//memcpy(&Test[0],&read_mon_point_buf_from_flash[0],sizeof(Str_mon_element));
 	return err;
 
 }

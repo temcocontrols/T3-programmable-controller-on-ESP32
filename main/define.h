@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6402
+#define SOFTREV     6405
 
 
 #define		SW_OFF 	 0
@@ -18,9 +18,10 @@ typedef	struct
 	u16 count[20];
 	u16 old_count[20];
 	u8  enable[20];
-	u16  inactive_count[20];
+	u16 inactive_count[20];
 }STR_Task_Test;
 extern STR_Task_Test task_test;
+
 
 
 #define UIP_HEAD 6
@@ -45,7 +46,7 @@ typedef struct
 	U8_T  getway[4];
 	U8_T  mac_addr[6];
 	U8_T  ethernet_status;
-	U16_T 	tcp_port;
+	U16_T tcp_port;
 	U8_T  mini_type;
 	U8_T  sub_port;
 //	U8_T zigbee_or_gsm;
@@ -60,7 +61,7 @@ typedef struct
 	U8_T  en_username;
 	U8_T  cus_unit;
 
-	U8_T  usb_mode;
+	U8_T usb_mode;
 	U8_T en_dyndns;
 	U8_T en_sntp;	
 	
@@ -79,7 +80,7 @@ typedef struct
 	U16_T zigbee_module_id;
 	U8_T dead_master;
 	U8_T disable_tstat10_display;  // display icons and scrolling string
-//	lcdconfig display_lcd;
+	//lcdconfig display_lcd;
 	U8_T start_month;
 	U8_T start_day;
 	U8_T end_month;
@@ -90,6 +91,8 @@ typedef struct
 
 	U8_T enable_debug;
 	U16_T mstp_network;
+
+	U8_T icon_config;
 
 }STR_MODBUS;
 
@@ -146,7 +149,7 @@ typedef	enum
 #define USB		2
 #define GSM		3
 #define BAC_TO_MODBUS 4
-#define WIFI  5
+#define WIFI  	5
 
 /*#define MINI_CM5  0
 #define MINI_BIG	 1
@@ -167,8 +170,9 @@ typedef	enum
 #define PROJECT_TRANSDUCER 	16
 #define PROJECT_TSTAT9		17
 #define PROJECT_SAUTER		18
+#define PROJECT_NG2			19
 
-#define MAX_MINI_TYPE 		18
+#define MAX_MINI_TYPE 		19
 
 
 
@@ -176,7 +180,7 @@ extern STR_MODBUS Modbus;
 extern U16_T Test[50];
 //extern uint8_t modbus_wifi_buf[500];
 //extern uint16_t modbus_wifi_len;
-extern uint8_t reg_num;
+extern uint8 reg_num;
 
 extern uint8 led_sub_tx;
 extern uint8 led_sub_rx;
@@ -194,16 +198,17 @@ extern uint8 flagLED_main_tx;
 void modbus_task0(void *arg);
 void modbus_task2(void *arg);
 void start_fw_update(void);
-void internalDeal(uint8_t  *bufadd,uint8_t type);
+void internalDeal(uint8  *bufadd,uint8 type);
 
 
 #if 1// for UDP DEBUG
 extern char udp_debug_str[100];
 #define DEBUG_PORT 33333
-extern uint8_t flag_debug_rx;
-extern uint16_t debug_rx_len;
+extern uint8 flag_debug_rx;
+extern uint16 debug_rx_len;
 #endif
 
 
+void delay_ms(unsigned int t);
 
 #endif

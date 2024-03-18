@@ -25,7 +25,6 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
 
     /* we can get the ethernet driver handle from event data */
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
-
     switch (event_id) {
     case ETHERNET_EVENT_CONNECTED:
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr);
@@ -87,7 +86,6 @@ void ethernet_init(void)
 	esp_err_t ret;
 	tcpip_adapter_init(); // Commented by Evan: it is recommanded to be replaced by esp_netif_init();
 	ret = esp_event_loop_create_default();
-
 	if(ret == ESP_OK)
 		debug_info("esp_event_loop_create_default() finished^^^^^^^^");
 	ret = tcpip_adapter_set_default_eth_handlers();
@@ -108,6 +106,7 @@ void ethernet_init(void)
 	ret = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);
 	if(ret == ESP_OK)
 		debug_info("esp_event_handler_register(ESP_EVENT_ANY_ID) finished^^^^^^^^");
+
 	ret = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL);
 	if(ret == ESP_OK)
 		debug_info("esp_event_handler_register(IP_EVENT_ETH_GOT_IP) finished^^^^^^^^");

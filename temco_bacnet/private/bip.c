@@ -81,6 +81,7 @@ static struct in_addr BIP_Broadcast_Address;
  * @param sock_fd [in] Handle for the BACnet/IP socket.
  */
 extern uint8_t * bip_Data;
+extern U8_T Send_bip_address[6];
 //extern uint16_t  bip_len;
 uint16_t Get_bip_len(void);
 void bip_set_socket(
@@ -89,6 +90,28 @@ void bip_set_socket(
     BIP_Socket = sock_fd;
 }
 
+void bip_set_port( uint16_t port)
+{
+	BIP_Port = port;
+}
+
+void bip_set_broadcast_addr(
+    uint32_t net_address)
+{       /* in network byte order */
+    BIP_Broadcast_Address.s_addr = net_address;
+}
+
+void Set_broadcast_bip_address(uint32_t net_address)
+{
+	BIP_Port = 47808;
+	Send_bip_address[0] = net_address/*BIP_Broadcast_Address.s_addr*/ >> 24;
+	Send_bip_address[1] = net_address/*BIP_Broadcast_Address.s_addr*/ >> 16;
+	Send_bip_address[2] = net_address/*BIP_Broadcast_Address.s_addr*/ >> 8;
+	Send_bip_address[3] = net_address/*BIP_Broadcast_Address.s_addr*/;
+	Send_bip_address[4] = BIP_Port >> 8;
+	Send_bip_address[5] = BIP_Port;
+
+}
 
 uint8_t bip_send_buf[MAX_MPDU_IP] = { 0 };
 int bip_send_len = 0;
@@ -125,10 +148,10 @@ int bip_send_pdu(
  //   (void) npdu_data;
     /* assumes that the driver has already been initialized */
 
-	if (BIP_Socket < 0) 
+	/*if (BIP_Socket < 0)
 	{
 		return 0;//BIP_Socket;
-	} 
+	} */
 
     bip_send_buf[0] = BVLL_TYPE_BACNET_IP;
     bip_dest.sin_family = AF_INET;
@@ -169,9 +192,11 @@ int bip_send_pdu(
 	return bytes_sent;	 
 }
 
-#if 0
+
 
 struct uip_udp_conn * bip_send_client_conn;
+uint8_t bip_client_send_buf[MAX_MPDU_IP] = { 0 };
+int bip_client_send_len = 0;
 // for network points
 int bip_send_pdu_client(
     BACNET_ADDRESS * dest,      /* destination address */
@@ -217,34 +242,16 @@ int bip_send_pdu_client(
         (uint16_t) (pdu_len + 4 /*inclusive */ ));
     memcpy(&mtu1[mtu_len], pdu, pdu_len);
     mtu_len += pdu_len;
-		if(Send_bip_Flag)
-		{
-			uip_ipaddr_t addr;
-			if(bip_send_client_conn != NULL) 
-			{	
-				uip_udp_remove(bip_send_client_conn);
-			}
-			Send_bip_count = MAX_RETRY_SEND_BIP;
-			uip_ipaddr(addr,Send_bip_address[0],Send_bip_address[1],Send_bip_address[2],Send_bip_address[3]);	
-			bip_send_client_conn = uip_udp_new(&addr, HTONS(Send_bip_address[4] * 256 + Send_bip_address[5])); // des port
-			if(bip_send_client_conn != NULL) 
-			{
-				// network points
-					uip_udp_bind(bip_send_client_conn,HTONS(UDP_BIP_SEND_LPORT));  // src port
-			}
-			memcpy(bip_bac_buf.buf,&mtu1, mtu_len);			
-			bip_bac_buf.len = mtu_len;
-		}
-		else
-			uip_send((char *)mtu, mtu_len);
-		
+
+    memcpy(bip_client_send_buf, mtu1, mtu_len);
+    bip_client_send_len = mtu_len;
 	bytes_sent = mtu_len;
 	memset(mtu1,0,MAX_MPDU_IP);
 	mtu_len = 0;
-  return bytes_sent;	
+	return bytes_sent;
 
 }
-
+#if 0
 // for COV
 struct uip_udp_conn * bip_send_client_conn2;
 int bip_send_pdu_client2(
@@ -316,7 +323,7 @@ int bip_send_pdu_client2(
 	bytes_sent = mtu_len;
 	memset(mtu1,0,MAX_MPDU_IP);
 	mtu_len = 0;
-  return bytes_sent;	
+	return bytes_sent;
 
 }
 #endif 
@@ -334,6 +341,7 @@ int bip_send_pdu_client2(
  * @return The number of octets (remaining) in the PDU, or zero on failure.
  */
 
+extern U8_T BIP_src_addr[6];
 
 uint16_t bip_receive(
     BACNET_ADDRESS * src,       /* source address */
@@ -357,13 +365,14 @@ uint16_t bip_receive(
 	uint16_t result_code = 0;
 	bool status = false;
     /* Make sure the socket is open */
-	if (BIP_Socket < 0)
+
+	/*if (BIP_Socket < 0)
 	{		
      return 0;
-	}
+	}*/
+
 	received_bytes = Get_bip_len();
 	bip_Data = pdu;
-	
 	
     /* See if there is a problem */
 	if((protocal == BAC_IP) )
@@ -394,20 +403,12 @@ uint16_t bip_receive(
 		
 		// changed by chelsea
 		// pdu[0]. ... 81 0b 00 18 01 20 ff ff ff 00 10 00, cant get sin.sin_addr
-		if(function == BVLC_REGISTER_FOREIGN_DEVICE)
+
+		if(protocal == BAC_IP_CLIENT)
 		{
-		decode_unsigned32(&pdu[6], (uint32_t *)&sin.sin_addr);
-		decode_unsigned16(&pdu[6 + 4], &sin.sin_port);	
+			memcpy(&sin.sin_addr.s_addr,BIP_src_addr,4);
+			memcpy(&sin.sin_port,&BIP_src_addr[4],2);
 		}
-		else
-		{
-		decode_unsigned32(&pdu[pdu_len],(uint32_t *)&sin.sin_addr);
-		decode_unsigned16(&pdu[pdu_len + 4], &sin.sin_port);
-		}	
-
-
-//		sin.sin_port = uip_udp_conn->rport;
-//		memcpy(&sin.sin_addr.s_addr,uip_udp_conn->ripaddr,4);
 
 
     /* subtract off the BVLC header */
@@ -652,12 +653,12 @@ uint16_t bip_receive(
         case BVLC_ORIGINAL_UNICAST_NPDU:
 //            debug_printf("BVLC: Received Original-Unicast-NPDU.\n");
             /* ignore messages from me */
-#if (ARM_MINI || ARM_CM5)
+/*
             if ((sin.sin_addr.s_addr == bip_get_addr()) &&
                 (sin.sin_port == bip_get_port())) {
                 pdu_len = 0;
             } else
-#endif								
+*/
 				{	
                 bvlc_internet_to_bacnet_address(src, &sin);
                 if (pdu_len < max_pdu) { 

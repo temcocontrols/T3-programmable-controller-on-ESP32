@@ -110,7 +110,7 @@ typedef enum
 		OUT=0, IN, VAR, CON, WRT, AR, PRG,/* TBL,*/  TZ = 8,
 		AMON = 9, GRP, ARRAY, ALARMM = 12,
 		UNIT, USER_NAME, ALARM_SET = 15, WR_TIME, AR_DATA, 
-		PRG_CODE, GRP_POINT = 19,/*20???*/
+		PRG_CODE, GRP_POINT = 19,SUB_DB = 20,/*20???*/
 		TBL = 22,ID_ROUTION,
 		MAX_POINT_TYPE
 	}	Point_type_equate;
@@ -1113,6 +1113,13 @@ typedef union
   S8_T icon_name_2[STR_ICON_2_NAME_LENGTH];
  }reg;
 } Str_grp_element;//Str_label_point;
+
+typedef struct
+{
+	char label[9];		     /* (9 bytes; string)	*/
+	uint16_t  length;  	       /* (1 byte ; 0-255)	*/
+
+}Str_array_point;		/* (size = 10 bytes)	*/
 
 typedef union {
 		Str_out_point             *pout;
