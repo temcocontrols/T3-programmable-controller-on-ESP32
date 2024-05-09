@@ -75,7 +75,7 @@
 #define CM5_MAX_SCS 8
 
 
-#define TSTAT10_MAX_AIS 9
+#define TSTAT10_MAX_AIS 13
 #define TSTAT10_MAX_DOS 5
 #define TSTAT10_MAX_AOS 2
 #define TSTAT10_MAX_AVS 128

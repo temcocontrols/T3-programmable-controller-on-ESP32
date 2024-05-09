@@ -84,6 +84,12 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 #define TOP_AREA_DISP_UNIT_F					 	 	1
 #define TOP_AREA_DISP_UNIT_PPM				   	2
 #define TOP_AREA_DISP_UNIT_PERCENT			 	3
+#define TOP_AREA_DISP_UNIT_Pa			 				4
+#define TOP_AREA_DISP_UNIT_kPa						5
+#define TOP_AREA_DISP_UNIT_RH							6
+
+#define TOP_AREA_DISP_UNIT_NONE			 			100
+
 
 #define TSTAT8_CH_COLOR   	0xffff //0xd6e0
 #define TSTAT8_MENU_COLOR   0x7e17//0x3bef//0x43f2//0x14a9

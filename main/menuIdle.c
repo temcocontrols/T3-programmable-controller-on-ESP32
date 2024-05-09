@@ -1038,7 +1038,16 @@ void display_screen_value(uint8 type)
 				else if(vars[type - 1].value / 1000 >= 10)
 					sprintf((char *)spbuf, "%.1f", show_value);
 				else
-					sprintf((char *)spbuf, "%.2f", show_value);
+				{
+					if(vars[type - 1].value > 0)
+					{
+						sprintf((char *)spbuf, "%.2f", show_value);
+					}
+					else
+					{  // '-' occupies the first position
+						sprintf((char *)spbuf, "%.1f", show_value);
+					}
+				}
 			}
 		}
     }

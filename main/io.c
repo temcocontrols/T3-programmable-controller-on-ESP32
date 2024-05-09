@@ -40,7 +40,64 @@ U16_T far Test[50];
 extern uint8_t InputLed[32];
 U8_T change_value_by_range(U8_T channel)
 {
-	return 1;
+	/*if(Modbus.mini_type == MINI_T10P)
+	{
+		// if no internal temperature sensor, use temperature of humidity
+		if(input_raw[HI_COMMON_CHANNEL] > 1000)
+		{
+			if(channel < HI_COMMON_CHANNEL)  // 12
+				return 1;
+			else
+				return 0;
+		}
+		else
+		{
+			if(channel <= HI_COMMON_CHANNEL)  // 12
+				return 1;
+			else
+				return 0;
+		}
+	}
+	else if(Modbus.mini_type == MINI_T3OEM_12I)
+	{
+		// if no internal temperature sensor, use temperature of humidity
+		if(input_raw[HI_COMMON_CHANNEL2] > 1000)
+		{
+			if(channel < HI_COMMON_CHANNEL2)  // 16
+				return 1;
+			else
+				return 0;
+		}
+		else
+		{
+			if(channel <= HI_COMMON_CHANNEL2)  // 16
+				return 1;
+			else
+				return 0;
+		}
+	}
+	else */if(Modbus.mini_type == MINI_TSTAT10)
+	{
+
+		// if no internal temperature sensor, use temperature of humidity
+		if(input_raw[8/*COMMON_CHANNEL*/] == 0)
+		{
+			if(channel < 8/*COMMON_CHANNEL*/)  // 8
+				return 1;
+			else
+				return 0;
+		}
+		else
+		{
+			if(channel <= 8/*COMMON_CHANNEL*/)  // 8
+				return 1;
+			else
+				return 0;
+		}
+	}
+	else
+
+			return 1;
 }
 
 U32_T get_rpm(U8_T point)

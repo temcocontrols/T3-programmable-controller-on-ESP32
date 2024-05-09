@@ -4241,13 +4241,183 @@ void display_dec(uint8 blink)
 {
 	if(blink)//show dec
 		disp_null_icon(8, 8,0, SECOND_CH_POS + 48 + 4,85,TSTAT8_CH_COLOR, TSTAT8_CH_COLOR);
-
 	else//hide dec
 		disp_null_icon(8, 8,0, SECOND_CH_POS + 48 + 4,85,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 }
 
 void Top_area_display(uint8 item, S16_T value, uint8 unit)
 {
+	int16 value_buf;
+		switch(item)
+		{
+		case TOP_AREA_DISP_ITEM_TEMPERATURE:
+			if(unit == TOP_AREA_DISP_UNIT_C || unit == TOP_AREA_DISP_UNIT_F || unit == TOP_AREA_DISP_UNIT_RH)
+			{
+				if(value >=0)
+				{
+					value_buf = value;
+					disp_str(FORM15X30, 6,  32,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
+					if(value >= 1000)
+					{
+						value_buf /= 10;
+						if((value_buf >= 100))
+							disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						else
+							disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					}
+					if(value<1000 )
+					{
+		//				disp_null_icon(30, 96, 0, THERM_METER_XPOS,THERM_METER_POS,TSTAT8_MENU_COLOR, TSTAT8_MENU_COLOR);
+						//disp_ch(0,0,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						if((value >= 100))
+							disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						else
+							disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					}
+					else if(value <100)
+					{
+						disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/1000,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%1000)/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+
+
+					}
+				}
+				else//nagtive value
+				{
+					value_buf = -value;
+					disp_str(FORM15X30, 6,  32,  "-",SCH_COLOR,TSTAT8_BACK_COLOR);
+					//disp_null_icon(0, 8, 0, THERM_METER_XPOS+2,53,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+					if(value_buf >= 100)
+					{
+					//disp_ch(0,0,THERM_METER_POS,'-',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+
+					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					}
+					else if(value_buf < 100)
+					{
+					//disp_ch(0,0,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					//disp_str(FORM15X30, FIRST_CH_POS,  25,  ' ',SCH_COLOR,TSTAT8_BACK_COLOR);
+					//disp_str(FORM15X30,FIRST_CH_POS,THERM_METER_POS,'-',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					}
+				}
+			}
+			else
+			{
+				if(value > 999) value = 999;
+				disp_str(FORM15X30, 6,  32," ",SCH_COLOR,TSTAT8_BACK_COLOR);
+				if(value >= 100)
+				{
+					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,THIRD_CH_POS-16,THERM_METER_POS,0x30+value%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+				}
+				else if(value >= 10)
+				{
+					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,THIRD_CH_POS-16,THERM_METER_POS,0x30+value%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+				}
+				else if(value >= 0)
+				{
+					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,SECOND_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,THIRD_CH_POS-16,THERM_METER_POS,0x30+value%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+				}
+				else
+				{
+					value_buf = -value;
+					disp_str(FORM15X30, 6,  32,  "-",SCH_COLOR,TSTAT8_BACK_COLOR);
+					if(value_buf >= 100)
+					{
+					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,THIRD_CH_POS-16,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					}
+					else if(value_buf >= 10)
+					{
+					//disp_ch(0,0,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					//disp_str(FORM15X30, FIRST_CH_POS,  25,  ' ',SCH_COLOR,TSTAT8_BACK_COLOR);
+					//disp_str(FORM15X30,FIRST_CH_POS,THERM_METER_POS,'-',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					disp_ch(0,THIRD_CH_POS-16,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					}
+					else
+					{
+						disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,SECOND_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+						disp_ch(0,THIRD_CH_POS-16,THERM_METER_POS,0x30 + value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+					}
+				}
+			}
+			break;
+		default:
+		break;
+
+		}
+
+	    if(unit == TOP_AREA_DISP_UNIT_C)
+		{
+			//disp_null_icon(240, 36, 0, 0,TIME_POS,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR2);
+			disp_icon(14, 14, degree_o, UNIT_POS - 14,56 ,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+
+			if(value > 1000)
+				display_dec(0);
+			else
+				display_dec(1);
+
+			disp_str(FORM15X30, UNIT_POS,56,"C",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+		}
+	    else if(unit == TOP_AREA_DISP_UNIT_F)
+			{
+				//disp_null_icon(240, 36, 0, 0,TIME_POS,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR2);
+				disp_icon(14, 14, degree_o, UNIT_POS - 14,56 ,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+				if(value>1000)
+					display_dec(0);
+				else
+					display_dec(1);
+	        disp_str(FORM15X30, UNIT_POS, 56, "F", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+			else if(unit == TOP_AREA_DISP_UNIT_RH)
+			{
+				display_dec(1);
+	      disp_str(FORM15X30, UNIT_POS - 23, 56, "%R", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+			else if(unit == TOP_AREA_DISP_UNIT_PPM)
+			{display_dec(0);
+	        disp_str(FORM15X30, UNIT_POS - 23, 56, "pM", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+			else if(unit == TOP_AREA_DISP_UNIT_PERCENT)
+			{display_dec(0);
+	        disp_str(FORM15X30, UNIT_POS, 56, "%", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+			else if(unit == TOP_AREA_DISP_UNIT_kPa)
+			{display_dec(0);
+	        disp_str(FORM15X30, UNIT_POS - 23, 56, "kP", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+			else if(unit == TOP_AREA_DISP_UNIT_Pa)
+			{display_dec(0);
+	        disp_str(FORM15X30, UNIT_POS - 23, 56, "Pa", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+			else //if(unit == TOP_AREA_DISP_UNIT_NONE)
+			{display_dec(0);
+	        disp_str(FORM15X30, UNIT_POS - 16, 56, "  ", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+	//		else
+	//			disp_str(FORM15X30, UNIT_POS,56,"F",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+	//		icon.unit = 0;
+	//	}
+#if 0
 	S16_T value_buf;
 
 	if(item == TOP_AREA_DISP_ITEM_NONE)
@@ -4311,7 +4481,7 @@ void Top_area_display(uint8 item, S16_T value, uint8 unit)
 				disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 				disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 				disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_str(FORM15X30, 6,  32,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
+				//disp_str(FORM15X30, 6,  32,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
 				disp_str(FORM15X30, 40,  32,  "-",SCH_COLOR,TSTAT8_BACK_COLOR);
 			}
 		}
@@ -4341,6 +4511,7 @@ void Top_area_display(uint8 item, S16_T value, uint8 unit)
 			disp_str(FORM15X30, UNIT_POS,56,"%",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 		}
 	}
+#endif
 }
 
 

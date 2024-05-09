@@ -83,6 +83,8 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
         debug_info("event_handler_2 esp_wifi_connect()");
         esp_wifi_connect();
         SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
+        if(SSID_Info.IP_Auto_Manual == 1)
+        	SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
         break;
 
     case SYSTEM_EVENT_STA_GOT_IP:
@@ -266,8 +268,8 @@ void wifi_init_sta()
 	esp_netif_dhcpc_stop(netif);
 	esp_netif_ip_info_t info_t = {0};
 	info_t.ip.addr = ESP_IP4TOADDR(SSID_Info.ip_addr[0],SSID_Info.ip_addr[1],SSID_Info.ip_addr[2],SSID_Info.ip_addr[3]);
-	info_t.gw.addr = ESP_IP4TOADDR(SSID_Info.net_mask[0], SSID_Info.net_mask[2], SSID_Info.net_mask[2], SSID_Info.net_mask[3]);
-	info_t.gw.addr = ESP_IP4TOADDR(SSID_Info.getway[0],SSID_Info.getway[1],SSID_Info.getway[2],SSID_Info.getway[3]);
+	info_t.netmask.addr = ESP_IP4TOADDR(SSID_Info.net_mask[0],SSID_Info.net_mask[1],SSID_Info.net_mask[2],SSID_Info.net_mask[3]);
+	info_t.gw.addr = ESP_IP4TOADDR(SSID_Info.getway[0], SSID_Info.getway[1], SSID_Info.getway[2], SSID_Info.getway[3]);
 	esp_netif_set_ip_info(netif,&info_t);
 
     }

@@ -106,7 +106,7 @@ extern int bip_client_send_len;
 extern U8_T Send_bip_address[6];
 void Test_Array(void);
 
-
+uint8_t uart0_config;  // no used
 //void modbus0_task(void *arg);
 //void modbus2_task(void *arg);
 uint16_t input_cal[16];
@@ -2751,6 +2751,39 @@ void i2c_master_task(void)
 		usleep(100000); // 500ms
 		gpio_set_level(GPIO_NUM_32, 1);
 	}
+	if(Modbus.mini_type == MINI_TSTAT10)
+	{
+		ptr = put_io_buf(IN,8);  // temperature
+		if(ptr.pin->range == 0)
+			ptr.pin->range = R10K_40_120DegC;
+		memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
+
+		ptr = put_io_buf(IN,9);  // VOC
+		//if(ptr.pin->range == 0)
+		//	ptr.pin->range = R10K_40_120DegC;
+		memcpy(ptr.pin->label,"VOC",strlen("VOC"));
+
+		ptr = put_io_buf(IN,10);
+		if(ptr.pin->range == 0)
+			ptr.pin->range = Humidty;
+		memcpy(ptr.pin->label,"HUM",strlen("HUM"));
+
+		ptr = put_io_buf(IN,11);
+		ptr.pin->digital_analog = 0;
+		if(ptr.pin->range == 0)
+			ptr.pin->range = UNOCCUPIED_OCCUPIED;
+		memcpy(ptr.pin->label,"OCC_UOCC",strlen("OCC_UOCC"));
+
+		ptr = put_io_buf(IN,12);
+		//if(ptr.pin->range == 0)
+		//	ptr.pin->range = R10K_40_120DegC;
+		memcpy(ptr.pin->label,"CO2",strlen("CO2"));
+
+		ptr = put_io_buf(IN,13);
+		if(ptr.pin->range == 0)
+			ptr.pin->range = LUX;
+		memcpy(ptr.pin->label,"LUX",strlen("LUX"));
+	}
 	if(Modbus.mini_type == PROJECT_NG2)
 	{
 		ptr = put_io_buf(IN,16);
@@ -2907,7 +2940,7 @@ void i2c_master_task(void)
 							}
 							for(i = 0;i < 32 / 2;i++)	  // 88 == 24+64
 							{
-								temp = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
+								temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
 
 								{// rev42 of top is 12U8_T, older rev is 10U8_T
 
@@ -2959,16 +2992,20 @@ void i2c_master_task(void)
 									ptr = put_io_buf(IN,17);
 									ptr.pin->value = (i2c_rcv_buf[2] * 256 + i2c_rcv_buf[3]) * 100;
 								}
+
+
 								//if(read_err == 0)
 								{
 									for(i = 0;i < 32 / 2;i++)	  // 88 == 24+64
 									{
 										//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
-										temp = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
-										if((temp > 0) && (temp < 4095))
+										//uint16 temp1 = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
+										temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+										if((temp > 0) && (temp < 4200))
 										//if(temp != 0xffff)
 										{// rev42 of top is 12U8_T, older rev is 10U8_T
-											input_raw[i] = temp;// * input_cal[i] / 4095;
+											//temp = Filter(i,temp);
+											input_raw[i] = temp;//* input_cal[i] / 4095;
 											Test[10 + i] = input_raw[i];
 										}
 										else
@@ -3035,7 +3072,20 @@ void i2c_master_task(void)
 						{
 							u16 crc_check;
 							u16 temp_key;
-							stm_i2c_read(G_ALL_NEW,&i2c_rcv_buf,114);
+							int ret;
+
+							ptr = put_io_buf(VAR,0);
+							Test[30] = ptr.pvar->value / 100;
+							ptr = put_io_buf(VAR,1);
+							Test[31] = ptr.pvar->value / 100;
+							ptr = put_io_buf(VAR,2);
+							Test[32] = ptr.pvar->value / 100;
+							ret = stm_i2c_read(G_ALL_NEW,&i2c_rcv_buf,114);
+							if(ret != 0)
+							{// read error
+
+								Test[9]++;
+							}
 							crc_check = crc16(i2c_rcv_buf, 114 - 2);
 
 							if((HIGH_BYTE(crc_check) == i2c_rcv_buf[112]) && (LOW_BYTE(crc_check) == i2c_rcv_buf[113]))
@@ -3054,23 +3104,52 @@ void i2c_master_task(void)
 										Test[11] = temp_key;
 										qKey = temp_key;
 									}
-									for(i = 0;i < 18 / 2;i++)	  // 88 == 24+64
+									for(i = 0;i < 8;i++)	  // 88 == 24+64
 									{
 										//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
-										temp = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
-										if((temp > 0) && (temp < 4095))
+										temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+										if(Test[48] == 0)	Test[48] = 4095;
+										temp = temp * 4095 / Test[48];
+										if((temp > 0) && (temp < 4200))
 										{// rev42 of top is 12U8_T, older rev is 10U8_T
 											Test[20 + i] = temp;
 											input_raw[i] = temp * input_cal[i] / 4095;
 										}
 										else
 											Test[29]++;
+
 									}
+									Test[10]++;
 									// in1-in8 common UI
+									// input
+									ptr = put_io_buf(IN,9); // voc
+									ptr.pin->value = (i2c_rcv_buf[42] * 256 + i2c_rcv_buf[43]);
+									ptr = put_io_buf(IN,10);// humidity
+									ptr.pin->value = (i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]);
+									Test[14] = ptr.pin->value / 100;
+									if((i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]) != 0)
+									{Test[11]++;
+										ptr = put_io_buf(IN,8);
+										ptr.pin->value = (i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]);
+										Test[13] = ptr.pin->value / 100;
+										input_raw[8] = 0;
+									}
+									else
+									{Test[12]++;
+										temp = i2c_rcv_buf[40] + (U16_T)i2c_rcv_buf[41] * 256;
+										input_raw[8] = temp * input_cal[i] / 4095;
+									}
 
-									//
-
+									ptr = put_io_buf(IN,11); // occ
+									ptr.pin->value = (i2c_rcv_buf[46] * 256 + i2c_rcv_buf[47]);
+									ptr = put_io_buf(IN,12); // co2
+									ptr.pin->value = (i2c_rcv_buf[48] * 256 + i2c_rcv_buf[49]);
+									ptr = put_io_buf(IN,13); // light
+									ptr.pin->value = (i2c_rcv_buf[50] * 256 + i2c_rcv_buf[51]);
+									ptr = put_io_buf(IN,14); // voice
+									ptr.pin->value = (i2c_rcv_buf[52] * 256 + i2c_rcv_buf[53]);
 								}
+
 							}
 
 						}
@@ -3088,7 +3167,7 @@ void i2c_master_task(void)
 							for(i = 0;i < 32;i++)	  // 88 == 24+64
 							{
 								//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
-								temp = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
+								temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
 								//if(temp != 0xffff)
 								{// rev42 of top is 12U8_T, older rev is 10U8_T
 
