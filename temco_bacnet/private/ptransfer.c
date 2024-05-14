@@ -914,7 +914,7 @@ int WriteRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,
 	type -> ANALOG_VALUE_OBJECT, ANALOG_INPUT,OBJECT ...
 	
 	protoal -> 1. mstp  (	remote device is mstp device)	
-					-> 2. bip (	network decive is bacnet device)
+			-> 2. bip 	(	network decive is bacnet device)
 
 */
 int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub_id,uint8_t protocal)

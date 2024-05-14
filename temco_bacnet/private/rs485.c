@@ -220,7 +220,7 @@ void RS485_Turnaround_Delay(
 }
 
 
-
+extern uint8_t uart0_config;
 
 /****************************************************************************
 * DESCRIPTION: Send some data and wait until it is sent
@@ -257,7 +257,10 @@ void RS485_Send_Data(
 //	        nbytes--;
 //	    }
 //	}
-	
+	if(uart0_config == 1 || uart0_config == 9)  // for bootloader
+	{
+		uart_send_string(buffer,nbytes,0);
+	}
 	if(Modbus.com_config[2] == 9 || Modbus.com_config[2] == 1)
 	{		
 		uart_send_string(buffer,nbytes,2);
