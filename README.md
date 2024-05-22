@@ -6,6 +6,7 @@ This application establishes a TCP connection between Ethernet and WIFI, and an 
 
 ## Compiling
 
+### ESP32 code
 Please download ESP idf integrated development environment of Espressif Company to compile the code, the version is **4.4.4**.
 > #### 1.	Install the ESP-IDF tool installer
 > Enter the 
@@ -19,6 +20,11 @@ Please download ESP idf integrated development environment of Espressif Company 
 > #### 6.	You can get more help from 
 > <https://esp32.com/index.php><br>
 > <https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.html>
+
+### T3-NANO's STM32 code
+> Typically, Keil V5 ARM is used to compile and generate firmware.
+> The project file is located at \T3-nano-stm\MDK-ARM
+> Much of the code is generated using the STM32CubeMX software.
 
 
 ## Load the firmware to T3-nano
