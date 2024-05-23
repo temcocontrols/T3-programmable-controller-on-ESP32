@@ -9,15 +9,15 @@ This application establishes a TCP connection between Ethernet and WIFI, and an 
 ### ESP32 code
 Please download ESP idf integrated development environment of Espressif Company to compile the code, the version is **4.4.4**.
 > #### 1.	Install the ESP-IDF tool installer
-> Enter the 
-> <https://dl.espressif.com/dl/esp-idf/?idf=4.4>
-> page, you can download the online version of the esp - idf - tools - setup, also can download the > offline version of the esp - idf - tools - setup, the online version of the relatively small, But > the component will be downloaded during installation.
-> #### 2.  Run esp-idf-tools-setup-offline-x.x.exe
+> Go to the 
+> <https://dl.espressif.cn/dl/idf-installer/espressif-ide-setup-2.8.1-with-esp-idf-4.4.4.exe>
+> page where you can download the esp - idf - tools - setup.  The IDE should be installed in a path that does not contain spaces in the name.
+> #### 2.  Run espressif-ide-setup-2.8.1-with-esp-idf-4.4.4.exe
 > You can change the default ESP IDF installation path, which will be used later.
 > #### 3.  Once installed, you should get an ESP-IDF Eclipse, which is the compiler we used to compile ESP32 code.
-> #### 4.	Copy the three folders, driver. temco_bacnet and temco_IO_control, from the code download on Github to the components directory in esp-idf and replace the original three folders. This is the change we made to the IDF.
-> #### 5.	Open the ESP-IDF Eclipse program, File ->Import, Espressif ->Existing IDF Project, select the project directory downloaded from github, and click Finish to load the project into the compiler. Right click the project name and select Build Project to compile.
-> #### 6.	You can get more help from 
+> #### 4.  Move the three folders, driver, temco_bacnet and temco_IO_control, from the code download on Github to the components directory in esp-idf, replacing the original driver folder. This is the change we made to the IDF.
+> #### 5.  Open the ESP-IDF Eclipse program, File ->Import, Espressif ->Existing IDF Project, select the project directory downloaded from github, and click Finish to load the project into the compiler. Right click the project name and select Build Project to compile.
+> #### 6.  You can get more help from 
 > <https://esp32.com/index.php><br>
 > <https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.html>
 
@@ -28,7 +28,7 @@ Please download ESP idf integrated development environment of Espressif Company 
 
 
 ## Load the firmware to T3-nano
-> #### 1.	Software tools and firmware
+> #### 1.   Software tools and firmware
 > -	ESP32 download firmware tool and ESP32 firmware 
 > <https://temcocontrols.com/ftp/file/flash_download_tool_v3.8.5.zip>
 > <https://temcocontrols.com/ftp/file/BootloaderT3NanoRev27.zip>
