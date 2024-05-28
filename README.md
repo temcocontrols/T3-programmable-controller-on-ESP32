@@ -28,7 +28,17 @@ Please download the ESP idf integrated development environment from Espressif to
 > The project file is located at \T3-nano-stm\MDK-ARM
 > Much of the code is generated using the STM32CubeMX software.
 
-## Load the firmware to T3-nano
+
+# Load the firmware to TEMCO product
+***In general, there is no need to personally load the Bootloader firmware to the product, it is already done before the factory.***
+***In special cases, follow the steps below to reload the Bootloader firmware.***
+
+## Update the main firmware
+Download T3000 software,<https://assets.temcocontrols.com/products/t3_series_programmable_bacnet__amp_modbus_controller/software_file/09T3000Software-4.zip>.
+Connect the device to PC with RS485, open T3000, click the icon to search for the device, if the connection is normal, the device will appear in the list.
+Select the device you want to update and click *Tools->Load firmware for a single* device to start the update.
+
+## Load the bootloader firmware to T3-nano
 > #### 1.   Software tools and firmware
 > -	ESP32 download firmware tool and ESP32 firmware 
 > <https://temcocontrols.com/ftp/file/flash_download_tool_v3.8.5.zip>
