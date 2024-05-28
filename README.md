@@ -7,7 +7,7 @@ This application establishes a TCP connection between Ethernet and WIFI, and an 
 ## Compiling
 
 ### ESP32 code
-Please download ESP idf integrated development environment of Espressif Company to compile the code, the version is **4.4.4**.
+Please download the ESP idf integrated development environment from Espressif to compile the code, the version is **4.4.4**.
 > #### 1.	Install the ESP-IDF tool installer
 > Go to the 
 > <https://dl.espressif.cn/dl/idf-installer/espressif-ide-setup-2.8.1-with-esp-idf-4.4.4.exe>
@@ -16,7 +16,9 @@ Please download ESP idf integrated development environment of Espressif Company 
 > You can change the default ESP IDF installation path, which will be used later.
 > #### 3.  Once installed, you should get an ESP-IDF Eclipse, which is the compiler we used to compile ESP32 code.
 > #### 4.  Move the three folders, driver, temco_bacnet and temco_IO_control, from the code download on Github to the components directory in esp-idf, replacing the original driver folder. This is the change we made to the IDF.
-> #### 5.  Open the ESP-IDF Eclipse program, File ->Import, Espressif ->Existing IDF Project, select the project directory downloaded from github, and click Finish to load the project into the compiler. Right click the project name and select Build Project to compile.
+> #### 5.  Open the ESP-IDF Eclipse program, File ->Import, Espressif ->Existing IDF Project, select the project directory downloaded from github, and click Finish to load the project into the compiler.
+> #### 6.  Right click the project name and select Build Project to compile. This will take a while the first time.
+> #### 7.  Once the compile is complete, you will see the 'temco_app.bin' file in the 'build' directory within your imported project.
 > #### 6.  You can get more help from 
 > <https://esp32.com/index.php><br>
 > <https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.html>
@@ -25,7 +27,6 @@ Please download ESP idf integrated development environment of Espressif Company 
 > Typically, Keil V5 ARM is used to compile and generate firmware.
 > The project file is located at \T3-nano-stm\MDK-ARM
 > Much of the code is generated using the STM32CubeMX software.
-
 
 ## Load the firmware to T3-nano
 > #### 1.   Software tools and firmware
@@ -48,7 +49,7 @@ Please download ESP idf integrated development environment of Espressif Company 
 > USB-to-TTL connect to J3 , Short J5 and J6 by a jumper until the end of the download firmware ,  turn on 24V power .
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/a60356b1-6843-4d7d-aa69-0e7f4aacd3a7)
 > - Set ESP32 firmware download tool configurations.
-> Run flash_download_tool_3.8.5.exe ,  Developer Mode ->ESP32 Download Tool  ,
+> Run flash_download_tool_3.8.5.exe , Tools -> Developer Mode -> ESP32 Download Tool,
 Set some options as shown .  
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/2aa8f1dc-f473-4498-927c-82357f223b45)<br>
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/70dfe252-9187-4045-881f-ad3d6964674e)<br>
@@ -61,13 +62,18 @@ When it show Finish , please remove jumper on J5 & J6 and power on again,
 If UartAssist.exe is running  , you can see debugging messages .
 
 
-## Load the firmware to TSTAT10
+## Load the bootloader firmware to TSTAT10
 > #### 1.	Connect TSTAT10 J3 to USB with a USB to TTL debug board
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/744a23a8-de2a-4e09-bdf4-6485398a0600)<br>
 > Jumper J1, so that after restarting, it will enter flash download mode, momentarily jumper J2, and TSTAT10 will restart and prepare to download the bootloader.
 > USB to TTL dongle has a 3.3V power supply, and if power supply is insufficient, you can connect 24V power to the TSTAT10.
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/44669f4a-0bf3-4905-bd3a-ad740fa5ec61)
 > #### 2. The steps to use the ESP32 flash downloader software are the same as the T3-nano.
-
-
+> #### 3. Keep in mind that the ESP32 flash downloader tool is only used to install the bootloaders and partition information.
+> #### 4. On a TSTAT10 with its RS485 port, a USB to RS485 adapter can be used by the flash download tool embedded within the T3000 software
+> Power the TSTat10 with 24V AC or DC
+> Connect the USB to RS485 adapter to your computer and the jack on the TSTAT10.
+> Launch the T3000 software and select Tools -> Load firmware to a single device
+> Then select the com port of your adapter, the baud rate as 115200 and the temco_app.bin file from your build path
+> Press the flash button and the device will be programmed with your binary before rebooting to launch
 
