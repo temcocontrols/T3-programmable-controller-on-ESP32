@@ -67,6 +67,7 @@ extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];*/
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
 U32_T 	flash_trendlog_num[MAX_MONITORS * 2];
 extern uint16_t flash_trendlog_seg;
+extern uint16_t current_page;
 extern U8_T Send_bip_address[6];
 U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
 /** @file ptransfer.c  Encode/Decode Private Transfer data */
@@ -1523,6 +1524,7 @@ void handler_private_transfer(
 #else
 								flash_trendlog_num[i] = 0;
 								flash_trendlog_seg = 0;
+								current_page = 0;
 #endif
 								if(i % 2 == 0)
 								{// analog data

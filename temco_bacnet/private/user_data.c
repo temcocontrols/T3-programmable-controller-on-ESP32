@@ -20,10 +20,10 @@ extern char debug_array[100];
 void debug_info(char *string);
 #define STORE_TO_SD 0
 
-#define DEBUG_TRENDLOG 0//1
+#define DEBUG_TRENDLOG 0
 
 extern uint16_t current_page;
-uint32_t 	flash_trendlog_num[MAX_MONITORS * 2];
+uint16_t 	flash_trendlog_num[MAX_MONITORS * 2];
 
 uint32 get_current_time(void);
 
@@ -400,7 +400,7 @@ void init_panel(void)
 /*	Point *pt1 = NULL;
 	S32_T value = 0;
 	get_point_value1(pt1,&value);*/
-Test[0] = 100;
+
 	just_load = 1;
 	miliseclast_cur = 0;
 	miliseclast = 0;
@@ -831,7 +831,7 @@ void Sync_Panel_Info(void)
 	Setting_Info.reg.en_dyndns = Modbus.en_dyndns;
 
 	Setting_Info.reg.pro_info.firmware_rev = chip_info[1]; // firmware
-	Setting_Info.reg.pro_info.hardware_rev = chip_info[2];  // hardware
+	Setting_Info.reg.pro_info.hardware_rev = chip_info[2]; // hardware
 	if(chip_info[1] >= 42 && chip_info[2] == 1)
 		Setting_Info.reg.specila_flag |= 0x01;
 	else
@@ -3268,17 +3268,17 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 	time += 60 * mon_ptr->minute_interval_time;
 	time += mon_ptr->second_interval_time;
 	mon_ptr->next_sample_time += time;
-
+	Test[23] = time;
 	if((get_current_time() < 1514736000) || (get_current_time() > 1893427200))
 	{
 		return;
 	}
-
+	Test[34]++;
 	for(j = 0; j < mon_block[i * 2].no_points;j++)
 	{
 		ptr.pnet = mon_block[i * 2].inputs + j;
 		if( flash_trendlog_seg == 0 )
-		{
+		{Test[24]++;
 			mon_block[i * 2].start_time = get_current_time();
 #if DEBUG_TRENDLOG
     sprintf(debug_array,"start montior time %ld, \r\n",get_current_time());
@@ -3318,10 +3318,11 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 						+ ((uint32_t)temp[1] << 16) + ((uint32_t)temp[0] << 24);
 
 			flash_trendlog_seg++;
+			Test[35]++;
 		}
 	}
-
-	if(flash_trendlog_seg +  mon_block[i * 2].no_points >= MAX_MON_POINT_FLASH)
+	
+	if(flash_trendlog_seg +  mon_block[i * 2].no_points >= MAX_MON_POINT_FLASH/*256*/)
 	{
 		// current buffer is full, save data to SD card.
 		// clear no used point
@@ -3329,13 +3330,14 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		{
 			memset(&write_mon_point_buf_to_flash[k],0,sizeof(Str_mon_element));
 		}
+		
 		if(save_trendlog() == ESP_OK)
 		{
 			flash_trendlog_num[i * 2]++;
 		}	
 		flash_trendlog_seg = 0;
 #if DEBUG_TRENDLOG
-    sprintf(debug_array,"new block %ld, \r\n",flash_trendlog_num[i * 2]);
+    sprintf(debug_array,"new block %u, \r\n",flash_trendlog_num[i * 2]);
     uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
 #endif
 		init_new_analog_block( i, mon_ptr);
@@ -3443,7 +3445,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf_to_flash[flash_trendlog_seg].point.sub_id = ptr.pnet->sub_id;
 								write_mon_point_buf_to_flash[flash_trendlog_seg].point.network_number = ptr.pnet->network_number;
 								write_mon_point_buf_to_flash[flash_trendlog_seg].value = 0;//get_input_sample( ptr.pnet->number );
-								flash_trendlog_seg++;Test[23]++;
+								flash_trendlog_seg++;
 							}
 							else
 							{
@@ -3469,7 +3471,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									write_mon_point_buf_to_flash[flash_trendlog_seg].value = 0x01000000;
 									write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
-									flash_trendlog_seg++;Test[24]++;
+									flash_trendlog_seg++;
 								}
 
 							}
@@ -3498,7 +3500,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf_to_flash[flash_trendlog_seg].value = 0x01000000;
 								write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
-								flash_trendlog_seg++;Test[25]++;
+								flash_trendlog_seg++;
 							}
 							else
 							{
@@ -3527,10 +3529,9 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									+ ((U16_T)temp[2] << 8) + temp[3];
 									write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
-									flash_trendlog_seg++;Test[26]++;
+									flash_trendlog_seg++;
 								}
 							}
-							//Test[26]++;
 
 						}
 					}
@@ -3541,8 +3542,6 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 
   }
 
-	Test[27] = flash_trendlog_seg;
-	Test[28] = mon_block[1].no_points;
 	// exceed 1 min, if packet is not full
 	if( (flash_trendlog_seg + mon_block[i * 2 + 1].no_points >= MAX_MON_POINT_FLASH) /*|| \
 			( (count_write_sd >= 300) && (last_digital_index[i] != mon_block[i * 2 + 1].index))*/ )
@@ -3552,7 +3551,6 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 		{
 			memset(&write_mon_point_buf_to_flash[k],0,sizeof(Str_mon_element));
 		}
-		Test[29]++;
 		//if(Write_SD(HIGH_BYTE(SD_block_num[i * 2 + 1]) + ((SD_block_num[i * 2 + 1] >> 24) << 16),i,0,(uint32_t)LOW_BYTE(SD_block_num[i * 2 + 1]) * MAX_MON_POINT * sizeof(Str_mon_element))==1)
 		if(save_trendlog() == ESP_OK)
 		{
@@ -3581,14 +3579,14 @@ void sample_points( void  )
 	for( i = 0; i < MAX_MONITORS; i++, mon_ptr++)
 	{
 		if((mon_ptr->status > 0) /*&& (max_monitor_time[i] > 0)*/)
-		{
+		{Test[31]++;
 			//if(count_max_time[i] > 0)
 			{
 				//count_max_time[i]--;
 				if( mon_ptr->an_inputs > 0)
-				{
+				{Test[32]++;
 					if( mon_ptr->next_sample_time <= get_current_time() )
-					{
+					{Test[33]++;
 						sample_analog_points(i, mon_ptr);
 					}
 				}
@@ -3623,14 +3621,24 @@ void sample_points( void  )
 
 #define MAX_TREND_PAGE 16
 #define MAX_TREND_SEG 11
+uint8_t flag_flash_covered;
 
 U8_T ReadMonitor( Mon_Data *PTRtable)
 {
+	
 	if(PTRtable->seg_index == 0 && PTRtable->total_seg == 0)
 	{
-		//PTRtable->total_seg = current_page * MAX_TREND_SEG + flash_trendlog_seg / MAX_MON_POINT_READ;
-		PTRtable->total_seg = 176;
-		PTRtable->seg_index = 1;
+		//if(flag_flash_covered == 0)
+		{
+			PTRtable->total_seg = current_page * MAX_TREND_SEG + flash_trendlog_seg / MAX_MON_POINT_READ;
+		}
+		/*else
+		{		
+			PTRtable->total_seg = 176;
+			PTRtable->seg_index = 1;
+			flag_flash_covered = 0;
+		}*/
+		
 #if DEBUG_TRENDLOG
 	sprintf(debug_array," total_seg = %lu",PTRtable->total_seg);
 	uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
@@ -3639,8 +3647,8 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 	else if(PTRtable->seg_index > 0)
 	{
 		uint16_t temp_seg = 0;
-
-		if((PTRtable->seg_index - 1) == current_page * MAX_TREND_SEG + 1)
+		
+		if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG + 1)
 		{// read last packet, not store into flash
 			PTRtable->special = 1;
 			temp_seg = (PTRtable->seg_index - 1 - current_page * MAX_TREND_SEG);
@@ -3656,7 +3664,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 		}
 		else
 		{
-			PTRtable->special = 1;
+			PTRtable->special = 0;
 			if(read_trendlog((PTRtable->seg_index - 1) / MAX_TREND_SEG, (PTRtable->seg_index - 1) % MAX_TREND_SEG) == 0) // no error
 			{
 #if DEBUG_TRENDLOG

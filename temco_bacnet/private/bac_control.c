@@ -611,8 +611,10 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 			{
 				if(i < get_max_internal_output())
 				{
+
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 					// set output_raw
+
 					Set_AO_raw(i,(ptr.pout->value));
 				}
 				else
@@ -652,7 +654,6 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 				{
 					ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;
 				}
-				Test[18]++;
 				
 				if(ptr.pout->control) 
 					set_output_raw(i,1000);
@@ -669,17 +670,18 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 //					set_output_raw(i,Binary_Output_Present_Value(i) * 1000);
 //				}
 //				else
-				{Test[15]++;
+				{
 					if(HOA == 0)
 						output_priority[i][7] = (float)(ptr.pout->value) / 1000;
+
 					if(i < get_max_internal_output())
-					{	Test[16]++;
+					{
 						ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 						// set output_raw
 						Set_AO_raw(i,(ptr.pout->value));
 					}
 					else
-					{	Test[17]++;
+					{
 						output_raw[i] = (ptr.pout->value);
 					}
 				}					

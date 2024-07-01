@@ -36,6 +36,7 @@ U8_T Get_index_by_BOx(uint8_t do_index,uint8_t *out_index);*/
 //extern BACNET_TIME Local_Time;
 extern uint8_t count_lcd_time_off_delay;
 extern uint8_t count_hold_on_bip_to_mstp;
+extern uint32_t net_health[4];
 
 char get_current_mstp_port(void)
 {
@@ -58,7 +59,7 @@ extern S16_T timezone;
 //extern U16_T input_raw[64];
 //extern U16_T output_raw[64];
 //extern S8_T panelname[20];
-U16_T Test[50]; 
+//U16_T Test[50];
 #if 1//BAC_COMMON 
 
 char bacnet_vendor_name[20] = BACNET_VENDOR_TEMCO;
@@ -278,10 +279,14 @@ char* get_description(uint8_t type,uint8_t num)
 	if(type == TEMCOAV)
 	{
 		if(num == 0) return "panel number";
-		else if(num == 1) return "dead master";
+/*		else if(num == 1) return "dead master";
 		else if(num == 2) return "lcd time off delay";
 		else if(num == 3) return "disable icon";
-		else if(num == 4) return "lcd display configure";
+		else if(num == 4) return "lcd display configure";*/
+		else if(num == 6) return "rx of main rs485";
+		else if(num == 7) return "rx of sub rs485";
+		else if(num == 8) return "rx of ethernet";
+		else if(num == 9) return "rx of wifi";
 		else return "reserved";
 	}
 #endif
@@ -363,10 +368,14 @@ char* get_label(uint8_t type,uint8_t num)
 	if(type == TEMCOAV)
 	{
 		if(num == 0) return "panel number";
-		else if(num == 1) return "dead master";
+		/*else if(num == 1) return "dead master";
 		else if(num == 2) return "lcd time off delay";
 		else if(num == 3) return "disable icon";
-		else if(num == 4) return "lcd display configure";
+		else if(num == 4) return "lcd display configure";*/
+		else if(num == 6) return "rx of main rs485";
+		else if(num == 7) return "rx of sub rs485";
+		else if(num == 8) return "rx of ethernet";
+		else if(num == 9) return "rx of wifi";
 		else return "reserved";
 	}
 #endif
@@ -537,7 +546,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 			Get_index_by_AVx(i,&io_index);
 			ptr = put_io_buf(VAR,io_index);
 			if(Get_Mini_Type() == 15/*PROJECT_AIRLAB*/)
-			{Test[11]++;
+			{
 				Get_AVS();
 				return ptr.pvar->value;
 			}
@@ -683,9 +692,9 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 					}
 				}
 				else	
-				{		
+				{
 					if(io_index >= get_max_internal_output())
-
+						output_raw[io_index] = output_priority[io_index][priority] * 1000;
 					return output_priority[io_index][priority];
 				}
 
@@ -753,8 +762,16 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 			uint32 value = 0;
 			switch(i)
 			{
-				case 0: value = panel_number; 				
-				break;
+				case 0: value = panel_number; 	
+				case 6: value = net_health[0]; 	// main rs485
+					break;
+				case 7: value = net_health[1];	// sub rs485
+					break;
+				case 8: value = net_health[2];	// network 
+					break;
+				case 9: value = net_health[3];	// wifi
+					break;
+				
 				/*case 1: 
 					if(Modbus.dead_master & 0x80)  // bit7 is tha flag whether enable deadmaster
 						value = Modbus.dead_master & 0x7f;

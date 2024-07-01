@@ -19,33 +19,35 @@ trigger_t co2_trigger;
 trigger_t occ_trigger;*/
 
 //Str_Setting_Info    Setting_Info;
-
+signed int  old_reading[32];
 uint16_t Filter(uint8_t channel,uint16_t input)
 {
 	// -------------FILTERING------------------
-//	int16 xdata siDelta;
+	int16  siDelta;
 	int32_t siResult = 0;
 	uint8_t I;
-  int32_t siTemp;
+	signed int  siTemp;
+	signed long  slTemp;
 	I = channel;
-	siTemp = input;
-  /*if(I == 10)
-	{
-	if(power_up_timer < 5)
-    	old_temperature = siTemp;
-	siResult = (old_temperature * EEP_Filter + siTemp) / (EEP_Filter + 1);
-	old_temperature = siResult;
+  	siTemp = input;
 
-	}
-	else*/
-	{
-			//siResult = (pre_mul_analog_input[I] * inputs[I].filter + siTemp) *10 / (inputs[I].filter + 1);
-			if(siResult%10 >= 5)
-				siResult += 10;
-			pre_mul_analog_input[I] = siResult/10;// + InputFilter(I);
-			siResult /= 10;
-	}
-	return siResult;
+  	siDelta = siTemp - (signed int)old_reading[I] ;    //compare new reading and old reading
+
+  	// If the difference in new reading and old reading is greater than 5 degrees, implement rough filtering.
+  	if (( siDelta >= 100 ) || ( siDelta <= -100 ) ) // deg f
+  	{
+  		old_reading[I] = old_reading[I] + (siDelta >> 1);
+  	}
+  	// Otherwise, implement fine filtering.
+  	else
+  	{
+  		slTemp = (signed long)inputs[I].filter * old_reading[I];
+  		slTemp += (signed long)siTemp;
+  		old_reading[I] = (signed int)(slTemp/(inputs[I].filter +1));
+  	}
+
+  	siResult = old_reading[I];
+  	return siResult;
 
 }
 

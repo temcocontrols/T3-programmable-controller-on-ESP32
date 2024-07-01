@@ -409,12 +409,12 @@ void control_input(void)
 	if(chip_info[1] >= 42)
 		shift = 4;
 	else
- 
 		shift = 1;
 	
 	while( point < MAX_INS )
 	{	
 		ptr = put_io_buf(IN,point);
+
 		if(change_value_by_range(point))
 		{
 		if(point < get_max_input())

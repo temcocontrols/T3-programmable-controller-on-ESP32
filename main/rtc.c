@@ -225,6 +225,14 @@ int PCF_GetDateTime(PCF_DateTime *dateTime) {
 		return 1;
 	}
 
+	Rtc.Clk.hour = dateTime->hour;
+	Rtc.Clk.min = dateTime->minute;
+	Rtc.Clk.sec = dateTime->second;
+	Rtc.Clk.day = dateTime->day;
+	Rtc.Clk.week = dateTime->weekday;
+	Rtc.Clk.mon = dateTime->month;
+	Rtc.Clk.year = dateTime->year;
+
 	return 0;
 }
 PCF_DateTime rtc_date = {0};
@@ -670,7 +678,7 @@ void Calculate_DSL_Time(void)
 	}
 	start_day += Modbus.start_day;
 	end_day += Modbus.end_day;
-	if(Is_Leap_Year(Rtc.Clk.year + 2000))
+	if(Is_Leap_Year(rtc_date.year + 2000))
 	{
 		start_day++;
 		end_day++;
@@ -683,14 +691,24 @@ void Calculate_DSL_Time(void)
 void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS)
 {
 	U32_T current;
+	UN_Time rtc;
 
 	current = get_current_time();
 	current += (newTZ - oldTZ) * 36;
-	if((Rtc.Clk.day_of_year >= start_day) && (Rtc.Clk.day_of_year <= end_day))
+	if((rtc_date.day_of_year >= start_day) && (rtc_date.day_of_year <= end_day))
 		current += (newDLS - oldDLS) * 3600;
-	Get_RTC_by_timestamp(current,&Rtc,1);
+	rtc.Clk.year = rtc_date.year;
+	rtc.Clk.mon = rtc_date.month;
+	rtc.Clk.day = rtc_date.day;
+	rtc.Clk.hour = rtc_date.hour;
+	rtc.Clk.min = rtc_date.minute;
+	rtc.Clk.sec = rtc_date.second;
+	rtc.Clk.day_of_year = rtc_date.day_of_year;
 
-	Rtc_Set(Rtc.Clk.year,Rtc.Clk.mon,Rtc.Clk.day,Rtc.Clk.hour,Rtc.Clk.min,Rtc.Clk.sec,0);
+
+	Get_RTC_by_timestamp(current,&rtc,1);
+
+	Rtc_Set(rtc_date.year,rtc_date.month,rtc_date.day,rtc_date.hour,rtc_date.minute,rtc_date.second,0);
 
 }
 

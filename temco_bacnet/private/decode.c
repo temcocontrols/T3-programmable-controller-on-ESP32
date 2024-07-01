@@ -29,6 +29,8 @@ extern uint8_t flag_start_scan_network;
 extern uint8_t start_scan_network_count;
 extern uint16_t scan_network_bacnet_count;
 #endif
+extern uint32_t net_health[4];
+extern uint16_t current_page; 
 
 S16_T exec_program(S16_T current_prg, U8_T *prog_code);
 
@@ -1217,6 +1219,15 @@ S32_T veval_exp(U8_T *local)
 				}				
 				push(value / m);	
 				break;
+	case PVAR:
+				op1 = pop() / 1000;
+				if(op1 < 4)
+				{
+					push(net_health[op1] * 1000);
+				}
+				else
+					push(0);
+				break;
 #if (ARM_MINI || ASIX_MINI)
 		case COM1:	 			
 				m = *prog++;
@@ -1401,11 +1412,11 @@ S32_T veval_exp(U8_T *local)
 				push(value);
             	break;
 		case DOY:
-				value = (Rtc.Clk.day_of_year) * 1000L;
+				value = (Test[24] * 1000);//Rtc.Clk.day_of_year) * 1000L;
 				push(value);
             	break;
 		case MOY:
-				value = (Rtc.Clk.mon)*1000L;
+				value = (Test[25] * 1000);//(Rtc.Clk.mon)*1000L;
 				push(value);
             	break;
 /*
@@ -1444,7 +1455,7 @@ S32_T veval_exp(U8_T *local)
 		case FEB:		 push(2000);					 break;
 		case MAR:		 push(3000);					 break;
 		case APR:		 push(4000);					 break;
-		case MAYM:	 push(5000);					 break;
+		case MAYM:	 	 push(5000);					 break;
 		case JUN:		 push(6000);					 break;
 		case JUL:		 push(7000);					 break;
 		case AUG:		 push(8000);					 break;

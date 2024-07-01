@@ -5,6 +5,7 @@
 #include "bacnet.h"
 #include "user_data.h"
 #include <string.h>
+#include "rtc.h"
 
 #define	NODES_POLL_PERIOD	30
 
@@ -1170,23 +1171,23 @@ void Refresh_scroll(void)
 			j = 0;
 			scroll_ram[0][j++] = '2';
 			scroll_ram[0][j++] = '0';
-			scroll_ram[0][j++] =  Rtc.Clk.year / 10 + '0';
-			scroll_ram[0][j++] =  Rtc.Clk.year % 10 + '0';
+			scroll_ram[0][j++] =  (rtc_date.year - 2000) / 10 + '0';
+			scroll_ram[0][j++] =  (rtc_date.year - 2000) % 10 + '0';
 			scroll_ram[0][j++] = '-';
-			scroll_ram[0][j++] =  Rtc.Clk.mon / 10 + '0';
-			scroll_ram[0][j++] =  Rtc.Clk.mon % 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.month / 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.month % 10 + '0';
 			scroll_ram[0][j++] = '-';
-			scroll_ram[0][j++] =  Rtc.Clk.day / 10 + '0';
-			scroll_ram[0][j++] =  Rtc.Clk.day % 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.day / 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.day % 10 + '0';
 			scroll_ram[0][j++] = ' ';
-			scroll_ram[0][j++] =  Rtc.Clk.hour / 10 + '0';
-			scroll_ram[0][j++] =  Rtc.Clk.hour % 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.hour / 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.hour % 10 + '0';
 			scroll_ram[0][j++] = ':';
-			scroll_ram[0][j++] =  Rtc.Clk.min / 10 + '0';
-			scroll_ram[0][j++] =  Rtc.Clk.min % 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.minute / 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.minute % 10 + '0';
 			scroll_ram[0][j++] = ':';
-			scroll_ram[0][j++] =  Rtc.Clk.sec / 10 + '0';
-			scroll_ram[0][j++] =  Rtc.Clk.sec % 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.second / 10 + '0';
+			scroll_ram[0][j++] =  rtc_date.second % 10 + '0';
 			scroll_ram[0][j++] = ' ';
 		}
 		else if(SSID_Info.IP_Wifi_Status == 2)
@@ -1198,15 +1199,15 @@ void Refresh_scroll(void)
 		}
 		else if(SSID_Info.IP_Wifi_Status == 3)
 		{
-			memcpy(&scroll_ram[0][0],"wifi connected ",MAX_SCOROLL);
+			memcpy(&scroll_ram[0][0],"wifi connected     ",MAX_SCOROLL);
 		}
 		else if(SSID_Info.IP_Wifi_Status == 4)
 		{
-			memcpy(&scroll_ram[0][0],"wifi disconnct ",MAX_SCOROLL);
+			memcpy(&scroll_ram[0][0],"wifi disconnct     ",MAX_SCOROLL);
 		}
 		else if(SSID_Info.IP_Wifi_Status == 5)
 		{
-			memcpy(&scroll_ram[0][0],"wifi configure ",MAX_SCOROLL);
+			memcpy(&scroll_ram[0][0],"wifi configure     ",MAX_SCOROLL);
 		}
 	}
 

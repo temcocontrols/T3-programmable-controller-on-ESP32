@@ -124,12 +124,15 @@ void ethernet_init(void)
 	esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
 	esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
 
+	//esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
 
 //	esp_eth_handle_t eth_handle = NULL;
 	if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK){
 		debug_info("esp_eth_driver_install finished^^^^^^^^");}
 	if(esp_eth_start(eth_handle)){
 		debug_info("esp_eth_start finished^^^^^^^^");}
+
+
 }
 
 void eth_start(void)

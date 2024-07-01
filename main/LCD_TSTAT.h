@@ -199,7 +199,7 @@ void vStartMenuTask(unsigned char uxPriority);
 
 
 
-#define MAX_SCOROLL 16
+#define MAX_SCOROLL 20
 
 extern uint8 *scroll;
 extern uint8 scroll_ram[5][MAX_SCOROLL];

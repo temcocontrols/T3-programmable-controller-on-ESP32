@@ -466,7 +466,7 @@ void uart0_rx_task(void)
 
 				if(len > 0)
 				{led_sub_rx++;
-					com_rx[0]++;
+					com_rx[0] += len;
 					flagLED_sub_rx = 1; flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 
 					if(checkdata(uart_rsv,len))
@@ -499,7 +499,7 @@ void uart0_rx_task(void)
 					if(len > 0)
 					{
 						led_sub_rx++;
-						com_rx[0]++;
+						com_rx[0] += len;
 						flagLED_sub_rx = 1; flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 						Timer_Silence_Reset();
 
@@ -517,7 +517,7 @@ void uart0_rx_task(void)
 					if(len>0)
 					{
 						led_sub_rx++;
-						com_rx[0]++;
+						com_rx[0] += len;
 						flagLED_sub_rx = 1;	flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 						if(checkdata(uart_rsv,len))
 						{
@@ -552,7 +552,7 @@ void uart2_rx_task(void)
 			if(len>0)
 			{
 				led_main_rx++;
-				com_rx[2]++;
+				com_rx[2] += len;
 				flagLED_main_rx = 1;
 
 				if(checkdata(uart_rsv,len))
@@ -583,7 +583,7 @@ void uart2_rx_task(void)
 				if(len > 0)
 				{
 					led_main_rx++;
-					com_rx[2]++;
+					com_rx[2] += len;
 					flagLED_main_rx = 1;
 					Timer_Silence_Reset();
 				}
@@ -600,7 +600,7 @@ void uart2_rx_task(void)
 				if(len>0)
 				{
 					led_main_rx++;
-					com_rx[2]++;
+					com_rx[2] += len;
 					flagLED_main_rx = 1;
 					if(checkdata(uart_rsv,len))
 					{
@@ -898,6 +898,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		{
 			temp1 = 0;
 			temp2 = Modbus.tcp_type;
+		}
+		else if(address == MODBUS_DEAD_MASTER_FOR_PLC)
+		{
+			temp1 = 0;
+			temp2 = Modbus.dead_master_for_PLC;
 		}
          else if((address >= MAC_ADDR_1) && (address <= MAC_ADDR_6))
          {
@@ -3036,7 +3041,7 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 			else
 			{
 				// set output_raw
-					//Set_AO_raw(i,(float)ptr.pout->value);  tbd:
+				//????????
 			}
 		}
 		ChangeFlash = 1;

@@ -31,7 +31,10 @@ const uint8 Var_Description[12][21];
 const uint8 Var_label[12][9];
 
 extern uint16_t input_cal[16];
+extern uint8_t lcd_time_over_en;
+extern uint8_t lcd_time_over;
 
+extern uint16_t current_page;
 
 #define POINT_INFO_ADDR	0
 #define POINT_INFO_LEN 	0x10000
@@ -303,9 +306,10 @@ esp_err_t read_default_from_flash(void)
 
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
-	if(count_reboot >= 2)
+	if(count_reboot >= 3)
 	{ // reboot
-		//start_fw_update();
+		nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
+		start_fw_update();
 	}
 	else
 	{
@@ -321,6 +325,7 @@ esp_err_t read_default_from_flash(void)
 
 	len = sizeof(STR_SSID);
 	nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
+	SSID_Info.IP_Wifi_Status = 0;
 
 	len = 12;
 	nvs_get_blob(my_handle, FLASH_NET_INFO, &Modbus.ip_addr[0], &len);
@@ -342,99 +347,147 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN1_CAL, &input_cal[0]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[0] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[0] = 3680;
+		else
+			input_cal[0] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN1_CAL, input_cal[0]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN2_CAL, &input_cal[1]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[1] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[2] = 3680;
+		else
+			input_cal[1] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN2_CAL, input_cal[1]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN3_CAL, &input_cal[2]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[2] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[2] = 3680;
+		else
+			input_cal[2] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN3_CAL, input_cal[2]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN4_CAL, &input_cal[3]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[3] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[3] = 3680;
+		else
+			input_cal[3] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN4_CAL, input_cal[3]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN5_CAL, &input_cal[4]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[4] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[4] = 3680;
+		else
+			input_cal[4] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN5_CAL, input_cal[4]);
 	}
 
 	err = nvs_get_u16(my_handle, FLASH_IN6_CAL, &input_cal[5]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[5] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[5] = 3680;
+		else
+			input_cal[5] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN6_CAL, input_cal[5]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN7_CAL, &input_cal[6]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[6] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[6] = 3680;
+		else
+			input_cal[6] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN7_CAL, input_cal[6]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN8_CAL, &input_cal[7]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[7] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[7] = 3680;
+		else
+			input_cal[7] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN8_CAL, input_cal[7]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN9_CAL, &input_cal[8]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[8] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[8] = 3680;
+		else
+			input_cal[8] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN9_CAL, input_cal[8]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN10_CAL, &input_cal[9]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[9] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[9] = 3680;
+		else
+			input_cal[9] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN10_CAL, input_cal[9]);
 	}
 
 	err = nvs_get_u16(my_handle, FLASH_IN11_CAL, &input_cal[10]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[10] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[10] = 3680;
+		else
+			input_cal[10] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN11_CAL, input_cal[10]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN12_CAL, &input_cal[11]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[11] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[11] = 3680;
+		else
+			input_cal[11] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN12_CAL, input_cal[11]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN13_CAL, &input_cal[12]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[12] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[12] = 3680;
+		else
+			input_cal[12] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN13_CAL, input_cal[12]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN14_CAL, &input_cal[13]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[13] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[13] = 3680;
+		else
+			input_cal[13] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN14_CAL, input_cal[13]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN15_CAL, &input_cal[14]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[14] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[14] = 3680;
+		else
+			input_cal[14] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN15_CAL, input_cal[14]);
 	}
 	err = nvs_get_u16(my_handle, FLASH_IN16_CAL, &input_cal[15]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		input_cal[15] = 4095;
+		if(Modbus.mini_type == MINI_TSTAT10)
+			input_cal[15] = 3680;
+		else
+			input_cal[15] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN16_CAL, input_cal[15]);
 	}
 
@@ -445,6 +498,28 @@ esp_err_t read_default_from_flash(void)
 		Modbus.icon_config = 0;
 		nvs_set_u8(my_handle, FLASH_ICON_CONFIG, Modbus.icon_config);
 	}
+
+	err = nvs_get_u8(my_handle, FLASH_LCD_EN_TIMEOVER, &lcd_time_over_en);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		lcd_time_over_en = 0;
+		nvs_set_u8(my_handle, FLASH_LCD_EN_TIMEOVER, lcd_time_over_en);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_LCD_TIMEOVER, &lcd_time_over);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		lcd_time_over = 0;
+		nvs_set_u8(my_handle, FLASH_LCD_TIMEOVER, lcd_time_over);
+	}
+
+	err = nvs_get_u16(my_handle, FLASH_CURRENT_TLG_PAGE, &current_page);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		current_page = 0;  //AUTO
+		nvs_set_u16(my_handle, FLASH_CURRENT_TLG_PAGE, current_page);
+	}
+
 	// Close
 	nvs_close(my_handle);
 
@@ -1332,7 +1407,7 @@ void read_point_info(void)
 #define 	MAX_TREND_PAGE 16	// max page is 16, 16 * 4k = 64k
 uint16_t current_page;  //
 uint16_t total_page;
-
+extern uint8_t flag_flash_covered;
 esp_err_t save_trendlog(void)
 {
 	STR_flag_flash ptr_flash;
@@ -1342,10 +1417,10 @@ esp_err_t save_trendlog(void)
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
-
+	Test[20]++;
 //	sprintf(debug_array,"save_trendlog current_page = %d \r",current_page);
 //	debug_info(debug_array);
-	err = esp_partition_erase_range(partition, TRENDLOG_ADDR + current_page * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);
+	err = esp_partition_erase_range(partition, TRENDLOG_ADDR + (current_page % MAX_TREND_PAGE) * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);
 	if(err != 0)
 	{//debug_info("erase error");
 	 return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
@@ -1353,7 +1428,7 @@ esp_err_t save_trendlog(void)
 	//else
 		//debug_info("erase ok");
 
-	err = esp_partition_write(partition, TRENDLOG_ADDR + current_page * SPI_FLASH_SEC_SIZE,write_mon_point_buf_to_flash,SPI_FLASH_SEC_SIZE);
+	err = esp_partition_write(partition, TRENDLOG_ADDR + (current_page % MAX_TREND_PAGE) * SPI_FLASH_SEC_SIZE,write_mon_point_buf_to_flash,SPI_FLASH_SEC_SIZE);
 
    if(err != 0)
    {//debug_info("flash write error");
@@ -1361,15 +1436,22 @@ esp_err_t save_trendlog(void)
    }
    //else
 	  // debug_info("flash write ok");
-   current_page++;
-   if(current_page >= MAX_TREND_PAGE)
-	   current_page = 0;
+   // save current_page
 
+
+   current_page++;
+   /*if(current_page >= MAX_TREND_PAGE)
+   {
+	   current_page = 0;
+	   flag_flash_covered = 1;
+   }*/
+   save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE,current_page);
+	Test[21]++;
 	return ESP_OK;
 }
 
 
-esp_err_t read_trendlog(uint8_t page,uint8_t seg)
+esp_err_t read_trendlog(uint16_t page_total,uint8_t seg)
 {
 	// Find the partition map in the partition table
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
@@ -1384,6 +1466,10 @@ esp_err_t read_trendlog(uint8_t page,uint8_t seg)
 	// 400(read packet length)
 	// bacnet trasfer length is defined 400 by us
 	// total 11 packets, 400 * 10 + 96 = 4096
+	uint8_t page;
+	page = page_total % MAX_TREND_PAGE;
+
+
 	if(seg < 10)
 		err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 400);
 	else if(seg == 10)
@@ -1391,7 +1477,6 @@ esp_err_t read_trendlog(uint8_t page,uint8_t seg)
 	else
 		err = 1;
 
-	//memcpy(&Test[0],&read_mon_point_buf_from_flash[0],sizeof(Str_mon_element));
 	return err;
 
 }

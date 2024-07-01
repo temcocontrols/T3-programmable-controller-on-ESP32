@@ -1258,7 +1258,7 @@ int dlmstp_send_pdu(
 	int count;
 	bytes_sent = 0;
 	
-	if(MSTP_Flag.TransmitPacketPending == false)
+	//if(MSTP_Flag.TransmitPacketPending == false)
  	{
 		if(port == 0)  // MSTP
 		{

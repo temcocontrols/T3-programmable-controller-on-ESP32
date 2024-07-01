@@ -127,25 +127,55 @@ void menu_init(void)
 extern void watchdog(void);
 U16_T qKey = 0;
 void LCD_IO_Init(void);
+void lcd_back_set(uint8_t status);
+uint8_t lcd_time_over_en;
+uint8_t lcd_time_over;
 void MenuTask(void *pvParameters)
 {
 	static U8_T refresh_screen_timer = 0;
-	
 	U16_T key_temp = 0;
+	uint16_t lcd_time_over_count = 0;
 	portTickType xDelayPeriod = (portTickType)50 / portTICK_RATE_MS;
 //	U8_T i;
 	LCD_IO_Init();
 	menu_init();
 	delay_ms(100);
 
+	if(lcd_time_over_en != 1)
+	{
+		lcd_back_set(1);
+	}
+	else  // en == 1
+	{
+		lcd_back_set(0);
+	}
 	while(1)
 	{
 		//if(xQueueReceive(qKey, &key_temp, 20) == pdTRUE)
 		//if(key_temp = qKey)
+		if(lcd_time_over_en != 1)
+		{
+			lcd_back_set(1);
+		}
+		else  // en == 1
+		{
+			if(lcd_time_over_count++ > lcd_time_over * 60 * 20 )
+			{
+				lcd_time_over_count = 0;
+				lcd_back_set(0);
+			}
+		}
 
 
 		if(qKey != 0)
-		{Test[12]++;
+		{
+			if(lcd_time_over_en == 1)
+			{
+				lcd_back_set(1);
+				lcd_time_over_count = 0;
+				Test[5]++;
+			}
+
 			CurrentState.KeyCope(qKey);
 			if(CurrentState.BlockTime)
 				menu_block_timer_start = xTaskGetTickCount();
