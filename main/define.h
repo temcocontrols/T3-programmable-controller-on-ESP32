@@ -171,8 +171,9 @@ typedef	enum
 #define PROJECT_TSTAT9		17
 #define PROJECT_SAUTER		18
 #define PROJECT_NG2			19
+#define PROJECT_MPPT		20
 
-#define MAX_MINI_TYPE 		19
+#define MAX_MINI_TYPE 		20
 
 
 

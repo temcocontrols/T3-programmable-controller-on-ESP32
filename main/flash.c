@@ -1021,6 +1021,48 @@ void Initial_points(uint8_t point_type)
 	}
 	else if(point_type == IN)
 	{
+		if(Modbus.mini_type == PROJECT_MPPT)
+		{
+			ptr = put_io_buf(IN,0);
+			memcpy(ptr.pin->description,"INPUT VOLTAGE",strlen("INPUT VOLTAGE"));
+			memcpy(ptr.pin->label,"INVOLT",strlen("INVOLT"));
+			if(inputs[0].range == 0)
+			{
+				inputs[0].digital_analog = 1;
+				inputs[0].range = 30;
+				memcpy(ptr.pin->description,"INPUT VOLTAGE",strlen("INPUT VOLTAGE"));
+			}
+			
+			ptr = put_io_buf(IN,1);
+			memcpy(ptr.pin->description,"INPUT CURRENT",strlen("INPUT CURRENT"));
+			memcpy(ptr.pin->label,"INCURNT",strlen("INCURNT"));
+			if(inputs[1].range == 0)
+			{
+				inputs[1].digital_analog = 1;
+				inputs[1].range = 12;
+				memcpy(inputs[1].description,"INPUT CURRENT",strlen("INPUT CURRENT"));
+			}
+			
+			ptr = put_io_buf(IN,2);
+			memcpy(ptr.pin->description,"INPUT POWER",strlen("INPUT POWER"));
+			memcpy(ptr.pin->label,"INPWR",strlen("INPWR"));
+			if(inputs[2].range == 0)
+			{
+				inputs[2].digital_analog = 1;
+				inputs[2].range = 31;
+				memcpy(inputs[2].description,"INPUT POWER",strlen("INPUT POWER"));
+			}
+			
+			ptr = put_io_buf(IN,3);
+			memcpy(ptr.pin->description,"INPUT ENERGY",strlen("INPUT ENERGY"));
+			memcpy(ptr.pin->label,"INENGY",strlen("INENGY"));
+			if(inputs[3].range == 0)
+			{
+				inputs[3].digital_analog = 1;
+				inputs[3].range = 32;
+				memcpy(inputs[3].description,"INPUT ENERGY",strlen("INPUT ENERGY"));
+			}
+		}
 		if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		{
 			ptr = put_io_buf(IN,0);
