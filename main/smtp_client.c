@@ -202,8 +202,8 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     } while (1);
 
 exit:
-	Test[14]++;
-	Test[15] = ret;
+	//Test[14]++;
+	//Test[15] = ret;
 	debug_info("write_ssl_and_get_response end");
     return ret;
 }

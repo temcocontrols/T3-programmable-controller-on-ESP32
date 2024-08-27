@@ -255,7 +255,7 @@ void wifi_init_sta()
     debug_info("esp_event_loop_create_default");
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    debug_info("esp_wifi_init");
+    debug_info("app esp_wifi_init");
     ESP_LOGI(TAG, "esp_wifi_init");
 
     //--------------Add IP Set---------------
@@ -264,7 +264,7 @@ void wifi_init_sta()
 
    	esp_netif_t *netif = esp_netif_create_default_wifi_sta();
     assert(netif);
-
+    debug_info("app ip manual");
 	esp_netif_dhcpc_stop(netif);
 	esp_netif_ip_info_t info_t = {0};
 	info_t.ip.addr = ESP_IP4TOADDR(SSID_Info.ip_addr[0],SSID_Info.ip_addr[1],SSID_Info.ip_addr[2],SSID_Info.ip_addr[3]);
@@ -295,12 +295,13 @@ void wifi_init_sta()
     {
     	init_ssid_info();
     }
+    debug_info("app SSID_Info");
     SSID_Info.rev = 4;
     if(SSID_Info.bacnet_port == 0)
     	SSID_Info.bacnet_port = 47808;
     if(SSID_Info.modbus_port == 0)
     	SSID_Info.modbus_port = 502;
-
+    debug_info("app WIFI_MODE_STA");
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
@@ -404,7 +405,7 @@ void wifi_task(void *pvParameters)
 	}
 
 
-    ESP_LOGI(TAG, "Finish wifi init");
+    ESP_LOGI(TAG, "Finish wifi init1");
     task_test.enable[1] = 1;
 	while(1)
 	{task_test.count[1]++;

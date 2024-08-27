@@ -1101,6 +1101,17 @@ S32_T veval_exp(U8_T *local)
 							 push((float)exp(pop()));
 */
 							 break;
+		case SIN:
+							op1 = pop();							
+							op1 = (float)sin(3.14159 * op1 / 180000.0) * 1000;							
+							push(op1);
+							break;
+		case COS:
+							op1 = pop();							
+							op1 = (float)cos(3.14159 * op1 / 180000.0) * 1000;							
+							push(op1);
+							break;
+							 
 		case SQR:
 							 op1 = (float)sqrt(op1 / 1000.0) * 1000;
 							 push(op1);

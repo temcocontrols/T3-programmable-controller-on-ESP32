@@ -1235,20 +1235,47 @@ S8_T Get_rmp_index_by_panel(U8_T panel,U8_T sub_id,U8_T *index,U8_T protocal)
 
 
 // 1 - modbus points
-// 2 - bacnet points
+// 0 - bacnet points or network points
+// 2 - special remote mstp points (11VAR1  -- 11 is panel)
 U8_T check_point_type(Point_Net * point)
 {
 	U8_T point_type;
+	U8_T i;
+	STR_REMOTE_PANEL_DB *ptr;
+	
 	point_type = (point->point_type & 0x1f) + (point->network_number & 0x60);
-
+	
 	if(point_type == VAR + 1) // point type of T3-IO is VAR
-		return 1;
+	{		
+		// check whether panel is remote mstp device.
+		ptr = remote_panel_db;
+		for(i = 0;i < remote_panel_num;i++,ptr++)
+		{
+			if(ptr->protocal == BAC_MSTP)
+			{
+				if((ptr->sub_id == point->panel) 
+					&& (ptr->panel == panel_number)
+					&& (point->sub_id == 0) )
+				{
+					return 2; // remote mstp device
+				}
+				if(point->panel == panel_number)
+					return 2; // remote mstp device
+					
+			}
+		}		
+		
+		if(point->panel != panel_number) // network panel,bacnet point
+			return 0;
+		else 
+			return 1; // modbus point
+	}
+	
 	if((point_type <= MB_REG + 1) 
 		&& (point_type >= MB_COIL_REG + 1))
 		return 1;	
 	if((point_type >= BAC_FLOAT_ABCD + 1) && (point_type <= BAC_FLOAT_DCBA + 1))
 		return 1;
-
 	return 0;
 }
 
@@ -1256,20 +1283,36 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 {
 	U8_T i;
 	STR_REMOTE_PANEL_DB *ptr;
-	uint32_t instance;
+	U32_T instance;
+	U8_T ret;
 	// modbus points do not have instance
 
-	if(check_point_type(point) == 1) return -1;
-
+	ret = check_point_type(point);
+	if(ret == 1) return -1;
+	if(ret == 2) // specail remote mstp point
+	{
+		// check whether panel is remote mstp device.
+		ptr = remote_panel_db;
+		for(i = 0;i < remote_panel_num;i++,ptr++)
+		{
+			if((ptr->sub_id == point->panel) 				
+			&& (ptr->panel == panel_number)
+			&& (point->sub_id == 0) )
+			{
+				point->panel = ptr->panel;
+				point->sub_id = ptr->sub_id;
+				return 0;
+			}
+		}
+	}
 	if(point->network_number & 0x80)  // first bit is 1, new structure, it is for instance
 	{
-		instance = (uint32_t)((point->network_number & 0x7f) << 16) + (U16_T)(point->panel << 8) + point->sub_id;
+		instance = (U32_T)((point->network_number & 0x7f) << 16) + (U16_T)(point->panel << 8) + point->sub_id;
 		// find panel , sub id and protocal by instance
-
 		if(instance == 0)
-			return 0;
-
+			return 0;	
 		ptr = remote_panel_db;
+		
 		for(i = 0;i < remote_panel_num;i++,ptr++)
 		{
 			if(ptr->device_id == instance)
@@ -1283,11 +1326,15 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 #if (ARM_MINI || ARM_CM5 )
 			flag_start_scan_network = 1;
 			start_scan_network_count = 0;
+		
+			flag_start_scan_mstp = 1;			
+			start_scan_mstp_count = 0;
 #endif
 		point->panel = 0;
 	}
 	return -1;	
 }
+
 
 // 81 0b 00 18 
 // 01 20 ff ff 00 ff 10 00 c4 02 01 90 de 00 02 58 19 03 21 94
@@ -1410,37 +1457,32 @@ S8_T *rtrim(S8_T *text)
 S16_T find_network_point( Point_Net *point )
 {
 	S16_T i;
-	U8_T flag = 0;
+	U8_T flag;
 	NETWORK_POINTS *ptr;
 
-
 	ptr = network_points_list;
-
-//	if( point->network_number == 0x0FFFF )
-//	{
-//		point->network_number = Setting_Info.reg.network_number;//panel_net_info.network_number;
-//		flag = 1;
-//	}
-//	else
-//		flag = 0;
-
 	for( i = 0; i < MAXNETWORKPOINTS; i++, ptr++ )
-	{
-		if(!memcmp( (void*)point, (void*)&ptr->point, sizeof(Point_Net) ) )
+	{			
+		if(/*(point->network_number == ptr->point.network_number) &&*/ 
+		(point->panel == ptr->point.panel) &&
+		(point->point_type == ptr->point.point_type) &&
+		(point->number == ptr->point.number) )
 		{
-			break;
-		}
-	}
+			if((ptr->point.sub_id == 0) || (ptr->point.sub_id == point->panel))
+			{
+				break;
+			}			
+		}		
+	}	
 
-//	if(flag)
-//		point->network_number = 0x0FFFF;
 	if( i < MAXNETWORKPOINTS )
-	{
+	{		
 	// add to scan tabel
 		return i; // returns the index in the list
-	}
+	} 
 	else
 	{
+	
 		return -1;
 	}
 }
@@ -1454,13 +1496,12 @@ S16_T find_remote_point( Point_Net *point )
 
 	ptr = remote_points_list;
 
-
-	for( i=0; i<MAXREMOTEPOINTS; i++, ptr++ )
+	for(i = 0; i < MAXREMOTEPOINTS; i++, ptr++)
 	{
 		if( ptr->count )
 		{
 			// change size to 4, dont compare network number
-			if( !memcmp( (void*)point, (void*)&ptr->point, sizeof(Point_Net)) )
+			if( !memcmp( (void*)point, (void*)&ptr->point, 4/*sizeof(Point_Net)*/ ) )
 			{
 				break;
 			}
@@ -1471,9 +1512,9 @@ S16_T find_remote_point( Point_Net *point )
 	if( i < MAXREMOTEPOINTS )
 	{
 	// add to scan tabel
-
+	
 		return i; // returns the index in the list
-	}
+	} 
 	else
 		return -1;
 }
@@ -1511,23 +1552,29 @@ U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 
 	ptr = remote_points_list;
 
-
 	for(i = 0;i < MAXREMOTEPOINTS;i++,ptr++)
-	{
-		if(/*(point->network_number == remote_points_list[i].point.network_number) &&*/
+	{	
+		
+		if(/*(point->network_number == remote_points_list[i].point.network_number) &&*/ 
 		(point->panel == ptr->point.panel) &&
 		(point->sub_id == ptr->point.sub_id) &&
-		(point->point_type == ptr->point.point_type) &&
+		//(point->point_type == ptr->point.point_type) &&
 		(point->number == ptr->point.number) )
 		{
+			if(((point->point_type & 0x1f) == (ptr->point.point_type & 0x1f)) ||
+				(((point->point_type & 0x1f) == VAR + 1) && ((ptr->point.point_type & 0x1f) == MB_REG + 1)) || 
+				(((point->point_type & 0x1f) == MB_REG +1) && ((ptr->point.point_type & 0x1f)== VAR + 1)))			
+			{
 			*index = i;
 			return 1;
+			}			
 		}
 	}
-	return 0;
+	return 0;	
 }
 
 // special -- 2: bacnet points, 0/1 - modbus points
+// special -- 3: VAR OUT IN (mstp protocal)
 void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type)
 {
 	REMOTE_POINTS ptr;//	Point_Net *point;
@@ -1538,7 +1585,13 @@ void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T 
 	ptr.point.panel = panel_number;//Modbus.network_ID[2];
 	ptr.point.sub_id = id;
 
-	if(specail == 2)
+	if(specail == 3)  // VAR OUT IN
+	{
+		protocal = 1;
+		type = point_type & 0x1f;
+		ptr.point.point_type = type;
+	}
+	else if(specail == 2)
 	{
 		protocal = 1;
 		type = point_type & 0x1f;
@@ -1794,6 +1847,9 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 							remote_points_list[i].tb.RP_bacnet.object = OBJECT_BINARY_VALUE;
 						else if(point_type == BAC_BI + 1)
 							remote_points_list[i].tb.RP_bacnet.object = OBJECT_BINARY_INPUT;
+						else
+							remote_points_list[i].tb.RP_bacnet.object = point_type;
+						
 						number_of_remote_points_bacnet++;
 					}
 
@@ -1831,19 +1887,8 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 
 	if( index < 0 )
 	{ /* index < 0 means that the index is unknown */
-
-#if 1//NETWORK_MODBUS
-		if(check_point_type(point) == 1)
-		{ // only support MB_COIL_REG to MB_REG
-			if( number_of_network_points_modbus >= MAXNETWORKPOINTS )
-				return -1;
-		}
-		else
-#endif
-		{
-			if( number_of_network_points_bacnet >= MAXNETWORKPOINTS )
-				return -1;
-		}
+		if( number_of_network_points_bacnet >= MAXNETWORKPOINTS )
+			return -1;
 
 		if( ( i = find_network_point( point ) ) >= 0 )
 		{ /* the point is in the list */
@@ -1889,13 +1934,17 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 							}
 							else	// other things
 								network_points_list[i].tb.NT_modbus.func = READ_VARIABLES;
+							memcpy( &ptr->point, point, sizeof(Point_Net) );
 					}
 					else
 					{
+						memcpy( &ptr->point, point, sizeof(Point_Net) );						
+						if(point->sub_id == 0 || point->panel == point->sub_id)
+							ptr->point.sub_id = 0;	
 
 					}
 #endif
-					memcpy( &ptr->point, point, sizeof(Point_Net) );
+					
 					ptr->point_value = DEFUATL_REMOTE_NETWORK_VALUE;
 					//if( point->network_number == 0x0FFFF )
 					//ptr->point.network_number = Setting_Info.reg.network_number;
@@ -3268,17 +3317,17 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 	time += 60 * mon_ptr->minute_interval_time;
 	time += mon_ptr->second_interval_time;
 	mon_ptr->next_sample_time += time;
-	Test[23] = time;
+
 	if((get_current_time() < 1514736000) || (get_current_time() > 1893427200))
 	{
 		return;
 	}
-	Test[34]++;
+	
 	for(j = 0; j < mon_block[i * 2].no_points;j++)
 	{
 		ptr.pnet = mon_block[i * 2].inputs + j;
 		if( flash_trendlog_seg == 0 )
-		{Test[24]++;
+		{
 			mon_block[i * 2].start_time = get_current_time();
 #if DEBUG_TRENDLOG
     sprintf(debug_array,"start montior time %ld, \r\n",get_current_time());
@@ -3316,9 +3365,8 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 
 			write_mon_point_buf_to_flash[flash_trendlog_seg].value = temp[3] + (U16_T)(temp[2] << 8)
 						+ ((uint32_t)temp[1] << 16) + ((uint32_t)temp[0] << 24);
-
+			Test[21]++;
 			flash_trendlog_seg++;
-			Test[35]++;
 		}
 	}
 	
@@ -3579,14 +3627,16 @@ void sample_points( void  )
 	for( i = 0; i < MAX_MONITORS; i++, mon_ptr++)
 	{
 		if((mon_ptr->status > 0) /*&& (max_monitor_time[i] > 0)*/)
-		{Test[31]++;
+		{Test[10]++;
 			//if(count_max_time[i] > 0)
 			{
 				//count_max_time[i]--;
 				if( mon_ptr->an_inputs > 0)
-				{Test[32]++;
+				{
+					Test[11]++;
+					Test[12] = mon_ptr->next_sample_time - time_since_1970;
 					if( mon_ptr->next_sample_time <= get_current_time() )
-					{Test[33]++;
+					{Test[13]++;
 						sample_analog_points(i, mon_ptr);
 					}
 				}
@@ -3625,62 +3675,76 @@ uint8_t flag_flash_covered;
 
 U8_T ReadMonitor( Mon_Data *PTRtable)
 {
+	if(PTRtable->seg_index > 0)
+	{
+		uint16_t temp_seg = 0;
+		if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG + 1 + 176)
+		{
+			// 
+			Test[16]++;
+		}
+		else
+		{			
+			if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG + 1)
+			{// read last packet, not store into flash
+				PTRtable->special = 1;
+				Test[22]++;
+				temp_seg = (PTRtable->seg_index - 1 - current_page * MAX_TREND_SEG);
+	#if DEBUG_TRENDLOG
+		sprintf(debug_array," read last packet seg = %ld, temp_set = %u",PTRtable->seg_index,temp_seg);
+		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
+	#endif
+				if(temp_seg < 10)  //  MAX_MON_POINT_FLASH(256) = 25 * 10 + 6
+					memcpy( PTRtable->asdu,&write_mon_point_buf_to_flash[temp_seg * MAX_MON_POINT_READ],MAX_MON_POINT_READ * sizeof(Str_mon_element)); /* 400 = 25 * 16*/
+				else
+					memcpy( PTRtable->asdu,&write_mon_point_buf_to_flash[temp_seg * MAX_MON_POINT_READ], 6*sizeof(Str_mon_element));
+
+			}
+			else			
+			{	Test[24]++;
+				PTRtable->special = 0;
+				if(read_trendlog((PTRtable->seg_index - 1) / MAX_TREND_SEG, (PTRtable->seg_index - 1) % MAX_TREND_SEG) == 0) // no error
+				{
+	#if DEBUG_TRENDLOG
+		sprintf(debug_array," read from flash = %ld",PTRtable->seg_index);
+		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
+	#endif
+					memcpy( PTRtable->asdu,&read_mon_point_buf_from_flash, MAX_MON_POINT_READ * sizeof(Str_mon_element));
+				}
+				else
+				{
+	#if DEBUG_TRENDLOG
+		sprintf(debug_array," read error");
+		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
+	#endif
+				}
+			}
+		}
+	}
 	
 	if(PTRtable->seg_index == 0 && PTRtable->total_seg == 0)
 	{
-		//if(flag_flash_covered == 0)
+		uint32_t end_seg;
+		//uint32 start_time
+		//uint32 end_time;
+		//----Get_start_end_packet_by_time			
+		end_seg = current_page * MAX_TREND_SEG + flash_trendlog_seg / MAX_MON_POINT_READ;
+		Test[23]++;
+		if(end_seg > 176)
 		{
-			PTRtable->total_seg = current_page * MAX_TREND_SEG + flash_trendlog_seg / MAX_MON_POINT_READ;
-		}
-		/*else
-		{		
+			PTRtable->seg_index = end_seg - 176;
 			PTRtable->total_seg = 176;
-			PTRtable->seg_index = 1;
-			flag_flash_covered = 0;
-		}*/
-		
-#if DEBUG_TRENDLOG
-	sprintf(debug_array," total_seg = %lu",PTRtable->total_seg);
-	uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
-#endif
-	}
-	else if(PTRtable->seg_index > 0)
-	{
-		uint16_t temp_seg = 0;
-		
-		if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG + 1)
-		{// read last packet, not store into flash
-			PTRtable->special = 1;
-			temp_seg = (PTRtable->seg_index - 1 - current_page * MAX_TREND_SEG);
-#if DEBUG_TRENDLOG
-	sprintf(debug_array," read last packet = %u",temp_seg);
-	uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
-#endif
-			if(temp_seg < 10)  //  MAX_MON_POINT_FLASH(256) = 25 * 10 + 6
-				memcpy( PTRtable->asdu,&write_mon_point_buf_to_flash[temp_seg * MAX_MON_POINT_READ],MAX_MON_POINT_READ * sizeof(Str_mon_element)); /* 400 = 25 * 16*/
-			else
-				memcpy( PTRtable->asdu,&write_mon_point_buf_to_flash[temp_seg * MAX_MON_POINT_READ], 6*sizeof(Str_mon_element));
-
 		}
 		else
 		{
-			PTRtable->special = 0;
-			if(read_trendlog((PTRtable->seg_index - 1) / MAX_TREND_SEG, (PTRtable->seg_index - 1) % MAX_TREND_SEG) == 0) // no error
-			{
+			PTRtable->seg_index = 1;
+			PTRtable->total_seg = end_seg;
+		};
 #if DEBUG_TRENDLOG
-	sprintf(debug_array," read from flash = %ld",PTRtable->seg_index);
+	sprintf(debug_array," start read, seg = %lu, total = %lu",PTRtable->seg_index,PTRtable->total_seg);
 	uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
 #endif
-				memcpy( PTRtable->asdu,&read_mon_point_buf_from_flash, MAX_MON_POINT_READ * sizeof(Str_mon_element));
-			}
-			else
-			{
-#if DEBUG_TRENDLOG
-	sprintf(debug_array," read error");
-	uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
-#endif
-			}
-		}
+		
 	}
 	return 1;
 }
@@ -3778,7 +3842,7 @@ void monitor_init(void)
 	U8_T i;
 
 	flash_trendlog_seg = 0;
-
+	
 	for(i = 0;i < MAX_MONITORS - 1;i++)
 	{
 		if(monitors[i].status == 1)

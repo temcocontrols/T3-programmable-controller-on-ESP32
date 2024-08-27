@@ -36,7 +36,7 @@ extern uint8_t ChangeFlash;
 void MenuIdle_init(void)
 {
 	uint8 i,j;
-	
+	Str_points_ptr ptr;
 	//LCDtest();
 	ClearScreen(TSTAT8_BACK_COLOR);
 	flag_digital_top_area = 0;
@@ -57,12 +57,19 @@ void MenuIdle_init(void)
 	
 	if(digital_top_area_type == IN)
 	{
-		memcpy(UI_DIS_TOP, inputs[digital_top_area_num].label, 9);		
+		ptr = put_io_buf(IN,digital_top_area_num);
+		memcpy(UI_DIS_TOP, ptr.pin->label, 9);
 	}
 	else if(digital_top_area_type == OUT)
-		memcpy(UI_DIS_TOP, outputs[digital_top_area_num].label, 9);
+	{
+		ptr = put_io_buf(OUT,digital_top_area_num);
+		memcpy(UI_DIS_TOP, ptr.pout->label, 9);
+	}
 	else if(digital_top_area_type == VAR)
-		memcpy(UI_DIS_TOP, vars[digital_top_area_num].label, 9);		
+	{
+		ptr = put_io_buf(VAR,digital_top_area_num);
+		memcpy(UI_DIS_TOP, ptr.pvar->label, 9);
+	}
 
 	disp_null_icon(240, 36, 0, 0,TIME_POS,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR2);
 	
@@ -74,9 +81,12 @@ void MenuIdle_init(void)
 	draw_tangle(102,148);
 	draw_tangle(102,191);
 
-	memcpy(UI_DIS_LINE1, vars[0].label, 3);UI_DIS_LINE1[3] = 0;
-	memcpy(UI_DIS_LINE2, vars[1].label, 3);UI_DIS_LINE2[3] = 0;
-	memcpy(UI_DIS_LINE3, vars[2].label, 3);UI_DIS_LINE3[3] = 0;
+	ptr = put_io_buf(VAR,0);
+	memcpy(UI_DIS_LINE1, ptr.pvar->label, 3);UI_DIS_LINE1[3] = 0;
+	ptr = put_io_buf(VAR,1);
+	memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);UI_DIS_LINE2[3] = 0;
+	ptr = put_io_buf(VAR,2);
+	memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);UI_DIS_LINE3[3] = 0;
 	
 //	disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, str,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 	disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
@@ -143,24 +153,27 @@ void MenuIdle_display(void)
 {
    	static u8 count_tx = 0;
 	static u8 count_rx = 0;
-
-	if(memcmp(UI_DIS_LINE1,vars[0].label,3))
+	Str_points_ptr ptr;
+	ptr = put_io_buf(VAR,0);
+	if(memcmp(UI_DIS_LINE1,ptr.pvar->label,3))
 	{
 		disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, "   ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		memset(UI_DIS_LINE1,'\0',4);
-		memcpy(UI_DIS_LINE1, vars[0].label, 3);
+		memcpy(UI_DIS_LINE1, ptr.pvar->label, 3);
 	}
-	if(memcmp(UI_DIS_LINE2,vars[1].label,3))
+	ptr = put_io_buf(VAR,1);
+	if(memcmp(UI_DIS_LINE2,ptr.pvar->label,3))
 	{
 		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, "   ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		memset(UI_DIS_LINE2,'\0',4);
-		memcpy(UI_DIS_LINE2, vars[1].label, 3);
+		memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);
 	}
-	if(memcmp(UI_DIS_LINE3,vars[2].label,3))
+	ptr = put_io_buf(VAR,2);
+	if(memcmp(UI_DIS_LINE3,ptr.pvar->label,3))
 	{
 		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, "   ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		memset(UI_DIS_LINE3,'\0',4);
-		memcpy(UI_DIS_LINE3, vars[2].label, 3);
+		memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);
 	}
 		
     //display_input_value(inputs[0].value);
@@ -225,58 +238,60 @@ void MenuIdle_display(void)
 
 				if(type == IN)
 				{
-					if(inputs[num].digital_analog == 1)
+					ptr = put_io_buf(IN,num);
+					if(ptr.pin->digital_analog == 1)
 					{
 						flag_digital_top_area = 0;		
-						if(inputs[num].range == 4/* R10K_40_250DegF*/)
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, inputs[num].value / 100, TOP_AREA_DISP_UNIT_F);
-						else if(inputs[num].range == 3/*R10K_40_120DegC*/)
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, inputs[num].value / 100, TOP_AREA_DISP_UNIT_C);
-						else if(inputs[num].range == 27)  // humidity
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, inputs[num].value / 100, TOP_AREA_DISP_UNIT_RH);
+						if(ptr.pin->range == 4/* R10K_40_250DegF*/)
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 100, TOP_AREA_DISP_UNIT_F);
+						else if(ptr.pin->range == 3/*R10K_40_120DegC*/)
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 100, TOP_AREA_DISP_UNIT_C);
+						else if(ptr.pin->range == 27)  // humidity
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 100, TOP_AREA_DISP_UNIT_RH);
 						else 
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, inputs[num].value / 1000, TOP_AREA_DISP_UNIT_NONE);
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 1000, TOP_AREA_DISP_UNIT_NONE);
 					}
 					else
 					{
-						flag_digital_top_area = 1;						
-						memcpy(UI_DIS_TOP, inputs[digital_top_area_num].label, 9);
+						flag_digital_top_area = 1;
+						ptr = put_io_buf(IN,digital_top_area_num);
+						memcpy(UI_DIS_TOP, ptr.pin->label, 9);
 						disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-						
-						if(inputs[num].control)
+						ptr = put_io_buf(IN,num);
+						if(ptr.pin->control)
 						{
-							if(inputs[num].range == OFF_ON)
+							if(ptr.pin->range == OFF_ON)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ON",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == CLOSED_OPEN)
+							else if(ptr.pin->range == CLOSED_OPEN)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OPEN",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == STOP_START)
+							else if(ptr.pin->range == STOP_START)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "STRAT",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == DISABLED_ENABLED)
+							else if(ptr.pin->range == DISABLED_ENABLED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ENABLED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == NORMAL_ALARM)
+							else if(ptr.pin->range == NORMAL_ALARM)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ALARM",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == UNOCCUPIED_OCCUPIED)
+							else if(ptr.pin->range == UNOCCUPIED_OCCUPIED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OCC",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == LOW_HIGH)
+							else if(ptr.pin->range == LOW_HIGH)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "HIGH",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ON",SCH_COLOR,TSTAT8_BACK_COLOR);
 						}
 						else
 						{
-							if(inputs[num].range == OFF_ON)
+							if(ptr.pin->range == OFF_ON)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == CLOSED_OPEN)
+							else if(ptr.pin->range == CLOSED_OPEN)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "CLOSED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == STOP_START)
+							else if(ptr.pin->range == STOP_START)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "STOP",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == DISABLED_ENABLED)
+							else if(ptr.pin->range == DISABLED_ENABLED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "DISABLED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == NORMAL_ALARM)
+							else if(ptr.pin->range == NORMAL_ALARM)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "NORMAL",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == UNOCCUPIED_OCCUPIED)
+							else if(ptr.pin->range == UNOCCUPIED_OCCUPIED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "UNOCC",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(inputs[num].range == LOW_HIGH)
+							else if(ptr.pin->range == LOW_HIGH)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE1_POS, "LOW",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -286,50 +301,51 @@ void MenuIdle_display(void)
 				}
 				else if(type == OUT)
 				{
-					if(outputs[num].digital_analog == 1)
+					ptr = put_io_buf(OUT,num);
+					if(ptr.pout->digital_analog == 1)
 					{
 						flag_digital_top_area = 0;
 					}
 					else
 					{
 						flag_digital_top_area = 1;
-
-						memcpy(UI_DIS_TOP, outputs[digital_top_area_num].label, 9);
+						ptr = put_io_buf(OUT,digital_top_area_num);
+						memcpy(UI_DIS_TOP, ptr.pout->label, 9);
 						disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-						if(outputs[num].control)
+						if(ptr.pout->control)
 						{
-							if(outputs[num].range == OFF_ON)
+							if(ptr.pout->range == OFF_ON)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ON",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == CLOSED_OPEN)
+							else if(ptr.pout->range == CLOSED_OPEN)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OPEN",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == STOP_START)
+							else if(ptr.pout->range == STOP_START)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "START",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == DISABLED_ENABLED)
+							else if(ptr.pout->range == DISABLED_ENABLED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ENABLED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == NORMAL_ALARM)
+							else if(ptr.pout->range == NORMAL_ALARM)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ALARM",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == UNOCCUPIED_OCCUPIED)
+							else if(ptr.pout->range == UNOCCUPIED_OCCUPIED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OCC",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == LOW_HIGH)
+							else if(ptr.pout->range == LOW_HIGH)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "HIGH",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ON",SCH_COLOR,TSTAT8_BACK_COLOR);
 						}
 						else
 						{
-							if(outputs[num].range == OFF_ON)
+							if(ptr.pout->range == OFF_ON)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == CLOSED_OPEN)
+							else if(ptr.pout->range == CLOSED_OPEN)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "CLOSED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == STOP_START)
+							else if(ptr.pout->range == STOP_START)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "STOP",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == DISABLED_ENABLED)
+							else if(ptr.pout->range == DISABLED_ENABLED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "DISABLED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == NORMAL_ALARM)
+							else if(ptr.pout->range == NORMAL_ALARM)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "NORMAL",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == UNOCCUPIED_OCCUPIED)
+							else if(ptr.pout->range == UNOCCUPIED_OCCUPIED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "UNOCC",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(outputs[num].range == LOW_HIGH)
+							else if(ptr.pout->range == LOW_HIGH)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE1_POS, "LOW",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -339,73 +355,74 @@ void MenuIdle_display(void)
 				}
 				else if(type == VAR)
 				{
-					if(vars[num].digital_analog == 1)
+					ptr = put_io_buf(VAR,num);
+					if(ptr.pvar->digital_analog == 1)
 					{
 						flag_digital_top_area = 0;	
-						if(vars[num].range == degF) //���rangeѡ����10K type2 F ����ʾ F
+						if(ptr.pvar->range == degF) //���rangeѡ����10K type2 F ����ʾ F
 						{	
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, vars[num].value / 100, TOP_AREA_DISP_UNIT_F);
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pvar->value / 100, TOP_AREA_DISP_UNIT_F);
 						}
-						else	if(vars[num].range == degC) //���rangeѡ����10K type2 F ����ʾ F
+						else	if(ptr.pvar->range == degC) //���rangeѡ����10K type2 F ����ʾ F
 						{
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, vars[num].value / 100, TOP_AREA_DISP_UNIT_C);
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pvar->value / 100, TOP_AREA_DISP_UNIT_C);
 						}
-						else	if(vars[num].range == KPa) //���rangeѡ����10K type2 F ����ʾ F
+						else	if(ptr.pvar->range == KPa) //���rangeѡ����10K type2 F ����ʾ F
 						{
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, vars[num].value / 1000, TOP_AREA_DISP_UNIT_kPa);
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pvar->value / 1000, TOP_AREA_DISP_UNIT_kPa);
 						}
-						else	if(vars[num].range == Pa) //���rangeѡ����10K type2 F ����ʾ F
+						else	if(ptr.pvar->range == Pa) //���rangeѡ����10K type2 F ����ʾ F
 						{
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, vars[num].value / 1000, TOP_AREA_DISP_UNIT_Pa);
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pvar->value / 1000, TOP_AREA_DISP_UNIT_Pa);
 						}
-						else	if(vars[num].range == RH)
+						else	if(ptr.pvar->range == RH)
 						{
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, vars[num].value / 1000, TOP_AREA_DISP_UNIT_RH);
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pvar->value / 1000, TOP_AREA_DISP_UNIT_RH);
 						}
 						else
-							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, vars[num].value / 1000, TOP_AREA_DISP_UNIT_NONE);
+							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pvar->value / 1000, TOP_AREA_DISP_UNIT_NONE);
 					}
 					else
 					{
 						flag_digital_top_area = 1;						
-						
-						memcpy(UI_DIS_TOP, vars[digital_top_area_num].label, 9);
+						ptr = put_io_buf(VAR,digital_top_area_num);
+						memcpy(UI_DIS_TOP, ptr.pvar->label, 9);
 						disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-						
-						if(vars[num].control)
+						ptr = put_io_buf(VAR,num);
+						if(ptr.pvar->control)
 						{
-							if(vars[num].range == OFF_ON)
+							if(ptr.pvar->range == OFF_ON)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ON",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == CLOSED_OPEN)
+							else if(ptr.pvar->range == CLOSED_OPEN)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OPEN",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == STOP_START)
+							else if(ptr.pvar->range == STOP_START)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "START",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == DISABLED_ENABLED)
+							else if(ptr.pvar->range == DISABLED_ENABLED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ENABLED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == NORMAL_ALARM)
+							else if(ptr.pvar->range == NORMAL_ALARM)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ALARM",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == UNOCCUPIED_OCCUPIED)
+							else if(ptr.pvar->range == UNOCCUPIED_OCCUPIED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OCC",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == LOW_HIGH)
+							else if(ptr.pvar->range == LOW_HIGH)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "HIGH",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "ON",SCH_COLOR,TSTAT8_BACK_COLOR);
 						}
 						else
 						{
-							if(vars[num].range == OFF_ON)
+							if(ptr.pvar->range == OFF_ON)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == CLOSED_OPEN)
+							else if(ptr.pvar->range == CLOSED_OPEN)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "CLOSED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == STOP_START)
+							else if(ptr.pvar->range == STOP_START)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "STOP",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == DISABLED_ENABLED)
+							else if(ptr.pvar->range == DISABLED_ENABLED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "DISABLED",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == NORMAL_ALARM)
+							else if(ptr.pvar->range == NORMAL_ALARM)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "NORMAL",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == UNOCCUPIED_OCCUPIED)
+							else if(ptr.pvar->range == UNOCCUPIED_OCCUPIED)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "UNOCC",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-							else if(vars[num].range == LOW_HIGH)
+							else if(ptr.pvar->range == LOW_HIGH)
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE1_POS, "LOW",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -575,6 +592,7 @@ void MenuIdle_keycope(uint16 key_value)
 {
     uint8 i;
     uint8 temp_value = 0;
+    Str_points_ptr ptr;
 	switch(key_value /*& KEY_SPEED_MASK*/)
 	{
 		case 0:
@@ -583,7 +601,8 @@ void MenuIdle_keycope(uint16 key_value)
 			count_left_key = 0;
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
-				if ((vars[disp_index - 1].range >= 101) && (vars[disp_index - 1].range <= 103))  // 101 102 103 	MSV range
+				ptr = put_io_buf(VAR,disp_index - 1);
+				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 //					if (vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
 					{
@@ -591,7 +610,7 @@ void MenuIdle_keycope(uint16 key_value)
 						len = check_msv_data_len(disp_index - 1);
 						for (i = 0; i < len; i++)
 						{
-							if (vars[disp_index - 1].value / 1000 == msv_data[disp_index - 1][i].msv_value)
+							if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
 							{
 								temp_value = i;
 								break;
@@ -603,7 +622,7 @@ void MenuIdle_keycope(uint16 key_value)
 							if(strlen(msv_data[disp_index - 1][i + 1].msv_name) != 0
 								&& msv_data[disp_index - 1][i + 1].msv_name[0] != 0xff)
 							{
-								vars[disp_index - 1].value = msv_data[disp_index - 1][i + 1].msv_value * 1000;
+								ptr.pvar->value = msv_data[disp_index - 1][i + 1].msv_value * 1000;
 								break;
 							}
 						}
@@ -618,37 +637,41 @@ void MenuIdle_keycope(uint16 key_value)
 				}
 				else
 				{
-					if(vars[disp_index - 1].digital_analog == 0)
+					if(ptr.pvar->digital_analog == 0)
 					{
-						if(vars[disp_index - 1].control == 0)
-							vars[disp_index - 1].control = 1;
+						if(ptr.pvar->control == 0)
+							ptr.pvar->control = 1;
 						else
-							vars[disp_index - 1].control = 0;
+							ptr.pvar->control = 0;
 					}
 					else
 					{
-						if(vars[disp_index - 1].value < 999 * 1000)
-								vars[disp_index - 1].value = vars[disp_index - 1].value + 1000;
-							else
-								vars[disp_index - 1].value = 0;
+						if(ptr.pvar->value < 999 * 1000)
+							ptr.pvar->value = ptr.pvar->value + 1000;
+						else
+							ptr.pvar->value = 0;
 					}
 				}
 			}
 			else // disp_index == 4
 			{
+
 				digital_top_area_changed = 1;
 				if(digital_top_area_type == IN)
 				{
-					inputs[digital_top_area_num].control = ((inputs[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(IN,digital_top_area_num);
+					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == VAR)
 				{
-					vars[digital_top_area_num].control = ((vars[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(VAR,digital_top_area_num);
+					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == OUT)
 				{
-					outputs[digital_top_area_num].control = ((outputs[digital_top_area_num].control) == 0) ? 1 : 0;
-					if(outputs[digital_top_area_num].control) 					
+					ptr = put_io_buf(OUT,digital_top_area_num);
+					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+					if(ptr.pout->control)
 						set_output_raw(digital_top_area_num,1000);
 					else 
 						set_output_raw(digital_top_area_num,0);	
@@ -661,13 +684,14 @@ void MenuIdle_keycope(uint16 key_value)
 			count_left_key = 0;
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
-				if ((vars[disp_index - 1].range >= 101) && (vars[disp_index - 1].range <= 103))  // 101 102 103 	MSV range
+				ptr = put_io_buf(VAR,disp_index - 1);
+				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{					
 					char len;
 					len = check_msv_data_len(disp_index - 1);
 					for (i = 0; i < len; i++)
 					{
-						if (vars[disp_index - 1].value / 1000 == msv_data[disp_index - 1][i].msv_value)
+						if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
 						{
 							temp_value = i;
 							break;
@@ -679,26 +703,26 @@ void MenuIdle_keycope(uint16 key_value)
 						if(strlen(msv_data[disp_index - 1][i + 1].msv_name) != 0
 							&& msv_data[disp_index - 1][i + 1].msv_name[0] != 0xff)
 						{
-							vars[disp_index - 1].value = msv_data[disp_index - 1][i + 1].msv_value * 1000;
+							ptr.pvar->value = msv_data[disp_index - 1][i + 1].msv_value * 1000;
 							break;
 						}
 					}
 				}
 				else
 				{
-					if(vars[disp_index - 1].digital_analog == 0)
+					if(ptr.pvar->digital_analog == 0)
 					{
-						if(vars[disp_index - 1].control == 0)
-							vars[disp_index - 1].control = 1;
+						if(ptr.pvar->control == 0)
+							ptr.pvar->control = 1;
 						else
-							vars[disp_index - 1].control = 0;
+							ptr.pvar->control = 0;
 					}
 					else
 					{
-					if(vars[disp_index - 1].value < 999 * 1000)
-							vars[disp_index - 1].value = vars[disp_index - 1].value + 10000;
+						if(ptr.pvar->value < 999 * 1000)
+							ptr.pvar->value = ptr.pvar->value + 10000;
 						else
-							vars[disp_index - 1].value = 0;
+							ptr.pvar->value = 0;
 					}
 				}
 			}
@@ -707,16 +731,19 @@ void MenuIdle_keycope(uint16 key_value)
 				digital_top_area_changed = 1;
 				if(digital_top_area_type == IN)
 				{
-					inputs[digital_top_area_num].control = ((inputs[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(IN,digital_top_area_num);
+					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == VAR)
 				{
-					vars[digital_top_area_num].control = ((vars[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(VAR,digital_top_area_num);
+					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == OUT)
 				{
-					outputs[digital_top_area_num].control = ((outputs[digital_top_area_num].control) == 0) ? 1 : 0;
-					if(outputs[digital_top_area_num].control) 					
+					ptr = put_io_buf(OUT,digital_top_area_num);
+					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+					if(ptr.pout->control)
 						set_output_raw(digital_top_area_num,1000);
 					else 
 						set_output_raw(digital_top_area_num,0);	
@@ -730,7 +757,8 @@ void MenuIdle_keycope(uint16 key_value)
 			count_left_key = 0;			
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
-				if ((vars[disp_index - 1].range >= 101) && (vars[disp_index - 1].range <= 103))  // 101 102 103 	MSV range
+				ptr = put_io_buf(VAR,disp_index - 1);
+				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					//if(vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
 					{
@@ -739,7 +767,7 @@ void MenuIdle_keycope(uint16 key_value)
 						len = check_msv_data_len(disp_index - 1);
 							for (i = 0; i < len; i++)
 							{
-									if (vars[disp_index - 1].value / 1000 == msv_data[disp_index - 1][i].msv_value)
+									if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
 									{
 											temp_value = i;
 											break;
@@ -750,8 +778,8 @@ void MenuIdle_keycope(uint16 key_value)
 							{
 									if (strlen(msv_data[disp_index - 1][i - 1].msv_name) != 0)
 									{
-											vars[disp_index - 1].value = msv_data[disp_index - 1][i - 1].msv_value * 1000;
-											break;
+										ptr.pvar->value = msv_data[disp_index - 1][i - 1].msv_value * 1000;
+										break;
 									}
 							}
 					}
@@ -765,17 +793,17 @@ void MenuIdle_keycope(uint16 key_value)
 				}
 				else
 				{
-					if(vars[disp_index - 1].digital_analog == 0)
+					if(ptr.pvar->digital_analog == 0)
 					{
-						if(vars[disp_index - 1].control == 0)
-							vars[disp_index - 1].control = 1;
+						if(ptr.pvar->control == 0)
+							ptr.pvar->control = 1;
 						else
-							vars[disp_index - 1].control = 0;
+							ptr.pvar->control = 0;
 					}
 					else
 					{
 //					if(vars[disp_index - 1].value > 1000)
-							vars[disp_index - 1].value = vars[disp_index - 1].value - 1000;
+						ptr.pvar->value = ptr.pvar->value - 1000;
 //						else
 //							vars[disp_index - 1].value = 99 * 1000;
 					}
@@ -786,16 +814,19 @@ void MenuIdle_keycope(uint16 key_value)
 				digital_top_area_changed = 1;
 				if(digital_top_area_type == IN)
 				{
-					inputs[digital_top_area_num].control = ((inputs[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(IN,digital_top_area_num);
+					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == VAR)
 				{
-					vars[digital_top_area_num].control = ((vars[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(VAR,digital_top_area_num);
+					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == OUT)
 				{
-					outputs[digital_top_area_num].control = ((outputs[digital_top_area_num].control) == 0) ? 1 : 0;
-					if(outputs[digital_top_area_num].control) 					
+					ptr = put_io_buf(OUT,digital_top_area_num);
+					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+					if(ptr.pout->control)
 						set_output_raw(digital_top_area_num,1000);
 					else 
 						set_output_raw(digital_top_area_num,0);	
@@ -809,40 +840,41 @@ void MenuIdle_keycope(uint16 key_value)
 			count_left_key = 0;			
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
-				if ((vars[disp_index - 1].range >= 101) && (vars[disp_index - 1].range <= 103))  // 101 102 103 	MSV range
+				ptr = put_io_buf(VAR,disp_index - 1);
+				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					char len;
 					len = check_msv_data_len(disp_index - 1);
 					for (i = 0; i < len; i++)
 					{
-							if (vars[disp_index - 1].value / 1000 == msv_data[disp_index - 1][i].msv_value)
-							{
-									temp_value = i;
-									break;
-							}
+						if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
+						{
+							temp_value = i;
+							break;
+						}
 					}
 
 					for (i = temp_value; i > 0; i--)
 					{
-							if (strlen(msv_data[disp_index - 1][i - 1].msv_name) != 0)
-							{
-									vars[disp_index - 1].value = msv_data[disp_index - 1][i - 1].msv_value * 1000;
-									break;
-							}
+						if (strlen(msv_data[disp_index - 1][i - 1].msv_name) != 0)
+						{
+							ptr.pvar->value = msv_data[disp_index - 1][i - 1].msv_value * 1000;
+							break;
+						}
 					}
 				}
 				else
 				{
-					if(vars[disp_index - 1].digital_analog == 0)
+					if(ptr.pvar->digital_analog == 0)
 					{
-						if(vars[disp_index - 1].control == 0)
-							vars[disp_index - 1].control = 1;
+						if(ptr.pvar->control == 0)
+							ptr.pvar->control = 1;
 						else
-							vars[disp_index - 1].control = 0;
+							ptr.pvar->control = 0;
 					}
 					else
 					{
-						vars[disp_index - 1].value = vars[disp_index - 1].value - 10000;
+						ptr.pvar->value =ptr.pvar->value - 10000;
 					}
 				}
 			}
@@ -851,16 +883,19 @@ void MenuIdle_keycope(uint16 key_value)
 				digital_top_area_changed = 1;
 				if(digital_top_area_type == IN)
 				{
-					inputs[digital_top_area_num].control = ((inputs[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(IN,digital_top_area_num);
+					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == VAR)
 				{
-					vars[digital_top_area_num].control = ((vars[digital_top_area_num].control) == 0) ? 1 : 0;
+					ptr = put_io_buf(VAR,digital_top_area_num);
+					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 				}
 				else if(digital_top_area_type == OUT)
 				{
-					outputs[digital_top_area_num].control = ((outputs[digital_top_area_num].control) == 0) ? 1 : 0;
-					if(outputs[digital_top_area_num].control) 					
+					ptr = put_io_buf(OUT,digital_top_area_num);
+					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+					if(ptr.pout->control)
 						set_output_raw(digital_top_area_num,1000);
 					else 
 						set_output_raw(digital_top_area_num,0);	
@@ -903,40 +938,42 @@ void MenuIdle_keycope(uint16 key_value)
 //ÔÚÔ­ÏÈ setpoint  fan ºÍsysÎ»ÖÃ ÏÔÊ¾ in out var Öµ
 void display_screen_value(uint8 type)
 {
+	Str_points_ptr ptr;
     int i = 0;
     uint8 spbuf[20];
     float show_value = 0;
     uint8 str_length = 0;
     memset(spbuf, 0x20, 5);
     spbuf[5] = 0; //³õÊ¼»¯5¸ö×Ö½ÚÎª¿Õ¸ñ ±ÜÃâ µÚÒ»´ÎÏÔÊ¾12345 Öµ±äÎªABCµÄÊ±ºò   »áÏÔÊ¾ABC45
+    ptr = put_io_buf(VAR,type - 1);
     if (type >= 1 && type <= 3)  // ÏÔÊ¾ÔÚLCDµÄÊý¾Ý¹Ì¶¨ÎªVAR1-VAR3
     {// ONLY var1-3 support MSV
-		if ((vars[type - 1].range >= 101) && (vars[type - 1].range <= 103))  // 101 102 103 	MSV range
+		if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 		{
 			//sprintf(spbuf, "%d", msv_data[0][0].msv_value);
 			for ( i = 0; i < 8; i++)
 			{
-				if ((vars[type - 1].value/1000) == msv_data[vars[type - 1].range - 101][i].msv_value)
+				if ((ptr.pvar->value/1000) == msv_data[ptr.pvar->range - 101][i].msv_value)
 				{
-						str_length = strlen(msv_data[vars[type - 1].range - 101][i].msv_name);
+						str_length = strlen(msv_data[ptr.pvar->range - 101][i].msv_name);
 						if (str_length >= 5)
 								str_length = 5;
-						memcpy(spbuf, msv_data[vars[type - 1].range - 101][i].msv_name, str_length);
+						memcpy(spbuf, msv_data[ptr.pvar->range - 101][i].msv_name, str_length);
 						break;
 				}
 			}
 		}
 		else
 		{
-			show_value = ((float)vars[type - 1].value) / 1000;
-			if(vars[type - 1].value / 1000 >= 10000)
+			show_value = ((float)ptr.pvar->value) / 1000;
+			if(ptr.pvar->value / 1000 >= 10000)
 				show_value = 9999;
 
-			if(vars[type - 1].digital_analog == 0)
+			if(ptr.pvar->digital_analog == 0)
 			{
-				show_value = vars[type - 1].control ? 1 : 0;
+				show_value = ptr.pvar->control ? 1 : 0;
 
-				switch(vars[type - 1].range)
+				switch(ptr.pvar->range)
 				{
 					case OFF_ON:
 						if(show_value == 0)			memcpy(spbuf, "OFF  ", 5);
@@ -1036,11 +1073,11 @@ void display_screen_value(uint8 type)
 				{
 					sprintf((char *)spbuf, "%d",(int)show_value);
 				}
-				else if(vars[type - 1].value / 1000 >= 10)
+				else if(ptr.pvar->value / 1000 >= 10)
 					sprintf((char *)spbuf, "%.1f", show_value);
 				else
 				{
-					if(vars[type - 1].value > 0)
+					if(ptr.pvar->value > 0)
 					{
 						sprintf((char *)spbuf, "%.2f", show_value);
 					}

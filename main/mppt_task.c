@@ -195,7 +195,8 @@ void ina228_read_task(void* arg)
 
 	while(1)
 	{
-		inputs[0].value = Test[47] = gMPPT.input_voltage = (uint16_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		Test[47] = gMPPT.input_voltage = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		inputs[0].value = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
 		inputs[1].value = Test[48] = gMPPT.input_current = (uint16_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
 		inputs[2].value = Test[49] = gMPPT.input_power = (uint16_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
 		inputs[3].value = Test[46] = gMPPT.input_energy = (int16_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
@@ -339,7 +340,7 @@ void mppt_task(void* arg)
 
 		//ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, Test[44]);//gMPPT.output_pwm);
 
-		if(gMPPT.MPPT_Mode == 2)  //PID mode or manual mode
+		if(gMPPT.MPPT_Mode == 0)  //PID mode or manual mode
 		{
 			Test[44] = (outputs[0].value/1000)*125/100;
 			ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, (outputs[0].value/1000)*125/100);//gMPPT.output_pwm);

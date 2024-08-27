@@ -26,11 +26,12 @@ uint16_t Filter(uint8_t channel,uint16_t input)
 	int16  siDelta;
 	int32_t siResult = 0;
 	uint8_t I;
+	Str_points_ptr ptr;
 	signed int  siTemp;
 	signed long  slTemp;
 	I = channel;
   	siTemp = input;
-
+  	ptr = put_io_buf(IN,I);
   	siDelta = siTemp - (signed int)old_reading[I] ;    //compare new reading and old reading
 
   	// If the difference in new reading and old reading is greater than 5 degrees, implement rough filtering.
@@ -41,9 +42,9 @@ uint16_t Filter(uint8_t channel,uint16_t input)
   	// Otherwise, implement fine filtering.
   	else
   	{
-  		slTemp = (signed long)inputs[I].filter * old_reading[I];
+  		slTemp = (signed long)ptr.pin->filter * old_reading[I];
   		slTemp += (signed long)siTemp;
-  		old_reading[I] = (signed int)(slTemp/(inputs[I].filter +1));
+  		old_reading[I] = (signed int)(slTemp/(ptr.pin->filter +1));
   	}
 
   	siResult = old_reading[I];

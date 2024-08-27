@@ -6,7 +6,7 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
-#define NEW_IO  0//1
+#define NEW_IO  0  // 要同步修改bacnet库里的定义
 
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 

@@ -5,7 +5,7 @@
 #include "freertos/task.h"
 
 typedef struct {
-	int16_t input_voltage;
+	int32_t input_voltage;
 	int16_t input_current;
 	uint16_t input_power;
 	uint16_t input_energy;

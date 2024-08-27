@@ -1310,10 +1310,10 @@ void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
 		}
 
 	}
-#if 0//NEW_IO
-	else if(StartAdd >= MODBUS_EX_POINTS_START && StartAdd < 49999)
+#if NEW_IO
+	else if(StartAdd >= MODBUS_EXIO_REG_START && StartAdd < 49999)
 	{
-		U16_T ex_out_start = MODBUS_EX_POINTS_START;
+		U16_T ex_out_start = MODBUS_EXIO_REG_START;
 		U16_T ex_out_end = ex_out_start;
 		U16_T ex_in_start = ex_out_start;
 		U16_T ex_in_end = ex_out_start;
@@ -1468,10 +1468,10 @@ uint16_t read_user_data_by_block(uint16_t addr)
 		block = (U16_T *)&wr_time_on_off[index];
 		item = (addr - MODBUS_WR_FLAG_FIRST) % ((MAX_SCHEDULES_PER_WEEK * 8 + 1) / 2);
 	}
-#if 0//NEW_IO
-	else if(addr >= MODBUS_EX_POINTS_START && addr < 49999)
+#if NEW_IO
+	else if(addr >= MODBUS_EXIO_REG_START && addr < 49999)
 	{
-		U16_T ex_out_start = MODBUS_EX_POINTS_START;
+		U16_T ex_out_start = MODBUS_EXIO_REG_START;
 		U16_T ex_out_end = ex_out_start;
 		U16_T ex_in_start = ex_out_start;
 		U16_T ex_in_end = ex_out_start;

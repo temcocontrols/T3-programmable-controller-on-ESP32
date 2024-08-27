@@ -520,7 +520,7 @@ esp_err_t i2c_master_init()
     conf.mode = I2C_MODE_MASTER;
     if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER)||((Modbus.mini_type == PROJECT_POWER_METER)))
     	conf.sda_io_num = 12;//4;//I2C_MASTER_SDA_IO;
-    else
+    else  // PROJECT_LIGHT_SWITCH
     	conf.sda_io_num = 4;
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
     conf.scl_io_num = 14;//I2C_MASTER_SCL_IO;
@@ -657,7 +657,7 @@ void i2c_sensor_task(void *arg)
     int cnt = 0;
     g_sensors.co2_ready = false;
 
-    if(Modbus.mini_type == PROJECT_AIRLAB)
+   if( (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LIGHT_SWITCH))
     {
     	//voc_value_raw = 0;
     	VOC_Initial();
@@ -692,20 +692,6 @@ void i2c_sensor_task(void *arg)
 		if(Modbus.mini_type == PROJECT_POWER_METER)
 		{
 			Ade7953GetData();
-			/*
-			Test[0] = Ade7953_getVoltage();
-			vTaskDelay(100 / portTICK_RATE_MS);
-			//Test[1] = Ade7953_getCurrent(1);
-			Test[2] = Ade7953_getCurrent(2);
-			Test[3] = Ade7953_getActivePower(1);
-			Test[4] = Ade7953_getActivePower(2);
-			//Test[5] = Ade7953_getEnergy(1);
-			//Test[6] = Ade7953_getEnergy(2);
-			for(i=0;i<63;i++){
-				vars[i].auto_manual = 0;
-				//newAde7953Read()
-			}*/
-			//uint8 tempI2cBuf[4];
 
 			for(i=0; i<49; i++)
 			{
@@ -947,14 +933,13 @@ void i2c_sensor_task(void *arg)
 
 
         vTaskDelay(100 / portTICK_RATE_MS);
-        if(Modbus.mini_type == PROJECT_TRANSDUCER)
+        if(Modbus.mini_type == PROJECT_TRANSDUCER || Modbus.mini_type == PROJECT_LIGHT_SWITCH)
         {
-//			xSemaphoreTake(print_mux, portMAX_DELAY);
 			scd4x_start_periodic_measurement();
 			vTaskDelay(100 / portTICK_RATE_MS);
 			scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
 			Test[22]++;
-			ret = sht4x_measure_blocking_read( &sht4x_temp, &sht4x_hum);
+			ret = sht4x_measure_blocking_read(&sht4x_temp, &sht4x_hum);
 			if(ret != ESP_OK)
 			{
 
@@ -964,7 +949,6 @@ void i2c_sensor_task(void *arg)
 				g_sensors.temperature = (sht4x_temp)/100;
 				g_sensors.humidity = (sht4x_hum)/100;
 			}
-//			xSemaphoreGive(print_mux);
         }
 #if 0
 		xSemaphoreTake(print_mux, portMAX_DELAY);
@@ -1139,7 +1123,6 @@ void i2c_sensor_task(void *arg)
 //		xSemaphoreGive(print_mux);
 		vTaskDelay(2000 / portTICK_RATE_MS);
 #endif
-		//Refresh_SCD40();
 
         //---------------------------------------------------
 

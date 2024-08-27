@@ -306,6 +306,7 @@ esp_err_t read_default_from_flash(void)
 
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
+
 	if(count_reboot >= 3)
 	{ // reboot
 		nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
@@ -529,6 +530,12 @@ esp_err_t read_default_from_flash(void)
 	return ESP_OK;
 }
 
+
+void clear_currnet_page(void)
+{
+	current_page = 0;
+	save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE,current_page);
+}
 
 void clear_count_reboot(void)
 {
@@ -1002,8 +1009,8 @@ void Initial_points(uint8_t point_type)
 				ptr.pout->auto_manual = 1;
 				ptr.pout->digital_analog = 1;
 				ptr.pout->range = 4;
-				memcpy(outputs[1].description,"HUMI OUTPUT",strlen("HUMI OUTPUT"));
-				memcpy(outputs[1].label,"HUMIOUT",strlen("HUMIOUT"));
+				memcpy(ptr.pout->description,"HUMI OUTPUT",strlen("HUMI OUTPUT"));
+				memcpy(ptr.pout->label,"HUMIOUT",strlen("HUMIOUT"));
 			}
 
 			ptr = put_io_buf(OUT,2);
@@ -1026,41 +1033,41 @@ void Initial_points(uint8_t point_type)
 			ptr = put_io_buf(IN,0);
 			memcpy(ptr.pin->description,"INPUT VOLTAGE",strlen("INPUT VOLTAGE"));
 			memcpy(ptr.pin->label,"INVOLT",strlen("INVOLT"));
-			if(inputs[0].range == 0)
+			if(ptr.pin->range == 0)
 			{
-				inputs[0].digital_analog = 1;
-				inputs[0].range = 30;
+				ptr.pin->digital_analog = 1;
+				ptr.pin->range = 30;
 				memcpy(ptr.pin->description,"INPUT VOLTAGE",strlen("INPUT VOLTAGE"));
 			}
 			
 			ptr = put_io_buf(IN,1);
 			memcpy(ptr.pin->description,"INPUT CURRENT",strlen("INPUT CURRENT"));
 			memcpy(ptr.pin->label,"INCURNT",strlen("INCURNT"));
-			if(inputs[1].range == 0)
+			if(ptr.pin->range == 0)
 			{
-				inputs[1].digital_analog = 1;
-				inputs[1].range = 12;
-				memcpy(inputs[1].description,"INPUT CURRENT",strlen("INPUT CURRENT"));
+				ptr.pin->digital_analog = 1;
+				ptr.pin->range = 12;
+				memcpy(ptr.pin->description,"INPUT CURRENT",strlen("INPUT CURRENT"));
 			}
 			
 			ptr = put_io_buf(IN,2);
 			memcpy(ptr.pin->description,"INPUT POWER",strlen("INPUT POWER"));
 			memcpy(ptr.pin->label,"INPWR",strlen("INPWR"));
-			if(inputs[2].range == 0)
+			if(ptr.pin->range == 0)
 			{
-				inputs[2].digital_analog = 1;
-				inputs[2].range = 31;
-				memcpy(inputs[2].description,"INPUT POWER",strlen("INPUT POWER"));
+				ptr.pin->digital_analog = 1;
+				ptr.pin->range = 31;
+				memcpy(ptr.pin->description,"INPUT POWER",strlen("INPUT POWER"));
 			}
 			
 			ptr = put_io_buf(IN,3);
 			memcpy(ptr.pin->description,"INPUT ENERGY",strlen("INPUT ENERGY"));
 			memcpy(ptr.pin->label,"INENGY",strlen("INENGY"));
-			if(inputs[3].range == 0)
+			if(ptr.pin->range == 0)
 			{
-				inputs[3].digital_analog = 1;
-				inputs[3].range = 32;
-				memcpy(inputs[3].description,"INPUT ENERGY",strlen("INPUT ENERGY"));
+				ptr.pin->digital_analog = 1;
+				ptr.pin->range = 32;
+				memcpy(ptr.pin->description,"INPUT ENERGY",strlen("INPUT ENERGY"));
 			}
 		}
 		if(Modbus.mini_type == PROJECT_FAN_MODULE)
@@ -1110,9 +1117,9 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"FANSPD",strlen("FANSPD"));
 			if(ptr.pin->range == 0)
 			{
-				inputs[4].digital_analog = 1;
-				inputs[4].range = 26;
-				memcpy(inputs[4].description,"FAN SPEED",strlen("FAN SPEED"));
+				ptr.pin->digital_analog = 1;
+				ptr.pin->range = 26;
+				memcpy(ptr.pin->description,"FAN SPEED",strlen("FAN SPEED"));
 			}
 
 			ptr = put_io_buf(IN,5);
@@ -1130,7 +1137,7 @@ void Initial_points(uint8_t point_type)
 		{
 			ptr = put_io_buf(IN,0);
 			memcpy(ptr.pin->description,"TEMP ON BOARD",strlen("TEMP ON BOARD"));
-			memcpy(inputs[0].label,"TEMP1",strlen("TEMP1"));
+			memcpy(ptr.pin->label,"TEMP1",strlen("TEMP1"));
 			if(ptr.pin->range == 0)
 			{
 				ptr.pin->digital_analog = 1;
@@ -1209,8 +1216,8 @@ void Initial_points(uint8_t point_type)
 			ptr.pin->range = NUM_CM3;
 
 			ptr = put_io_buf(IN,9);
-			memcpy(inputs[9].description,"PM1.0C",strlen("PM1.0C"));
-			memcpy(inputs[9].label,"PM1.0C",strlen("PM1.0C"));
+			memcpy(ptr.pin->description,"PM1.0C",strlen("PM1.0C"));
+			memcpy(ptr.pin->label,"PM1.0C",strlen("PM1.0C"));
 			ptr.pin->range = NUM_CM3;
 
 			ptr = put_io_buf(IN,10);

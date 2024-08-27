@@ -12,6 +12,7 @@
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
@@ -58,7 +59,7 @@
 #include "fifo.h"
 #include "freertos/event_groups.h"
 #include "airlab.h"
-
+#include "mppt_task.h"
 
 //#include "types.h"
 #define PORT CONFIG_EXAMPLE_PORT
@@ -94,7 +95,7 @@ extern uint8_t gIdentify;
 extern uint8_t count_gIdentify;
 extern U8_T max_dos;
 extern U8_T max_aos;
-extern U16_T qKey;
+//extern U16_T qKey;
 extern uint32_t ether_rx;
 
 uint8_t flag_clear_count_reboot;
@@ -120,8 +121,10 @@ void Lcd_task(void *arg);
 void LCD_TEST(void);
 void vPM25Task(void *pvParameters);
 void vInputTask(void *pvParameters);
-//�����ź������ �ź������ ������ֵ����ʼ������ֵ �������ź��������Ƿ�����Դ���á���
-//MAX_COUNT ��������������м�����Դ
+void lightswitch_adc_init(void);
+void Light_Switch_IO_Init(void);
+//锟斤拷锟斤拷锟脚猴拷锟斤拷锟斤拷锟� 锟脚猴拷锟斤拷锟斤拷锟� 锟斤拷锟斤拷锟斤拷值锟斤拷锟斤拷始锟斤拷锟斤拷锟斤拷值 锟斤拷锟斤拷锟斤拷锟脚猴拷锟斤拷锟斤拷锟斤拷锟角凤拷锟斤拷锟斤拷源锟斤拷锟矫★拷锟斤拷
+//MAX_COUNT 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷屑锟斤拷锟斤拷锟皆�
 xSemaphoreHandle CountHandle;
 
 uint8_t flag_suspend_scan = 0;
@@ -156,7 +159,7 @@ TaskFunction_t taskList[MAX_SOC_COUNT] = {tcp_server_dealwith0,
 										  tcp_server_dealwith5,
 										  tcp_server_dealwith6};
 TaskHandle_t Task_handle[MAX_SOC_COUNT] = {0};
-//WIFI�¼���־�� Ҳ�������������б�־�飨���񱻴�����set ��ɾ����clean �൱����Դ�嵥��Щ��Դ�ǿ��õģ�
+//WIFI锟铰硷拷锟斤拷志锟斤拷 也锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟叫憋拷志锟介（锟斤拷锟今被达拷锟斤拷锟斤拷set 锟斤拷删锟斤拷锟斤拷clean 锟洁当锟斤拷锟斤拷源锟藉单锟斤拷些锟斤拷源锟角匡拷锟矫的ｏ拷
 EventGroupHandle_t network_EventHandle = NULL;
 const int CONNECTED_BIT = BIT0;
 const int TASK1_BIT		= BIT1;
@@ -276,7 +279,7 @@ struct sockaddr_in6 bip_source_addr; // Large enough for both IPv4 or IPv6
 
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len)
 {
-	// Send_SUB_I_Am ���߰�MSTP��ת�ص�����
+	// Send_SUB_I_Am 锟斤拷锟竭帮拷MSTP锟斤拷转锟截碉拷锟斤拷锟斤拷
 	if(len > 0)
 	{
 		sendto(bip_sock, (uint8_t *)buf, len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
@@ -1014,7 +1017,7 @@ void tcp_server_handle(void *args, int task_index)
 
 	}
 
-	// ��remoteInfo.remoteIp ����һ���Ŀռ� ��ע���ͷ�
+	// 锟斤拷remoteInfo.remoteIp 锟斤拷锟斤拷一锟斤拷锟侥空硷拷 锟斤拷注锟斤拷锟酵凤拷
 	//remoteInfo.remoteIp = (char *)heap_caps_malloc(32,MALLOC_CAP_8BIT);
 	memset(remoteInfo.remoteIp,0,32);
 
@@ -1030,10 +1033,10 @@ void tcp_server_handle(void *args, int task_index)
 		debug_print("TASK _BIT clear failed",task_index);
 	}
 
-	int keepAlive = 1; // ����keepalive����
-	int keepIdle = 10; // ���������10����û���κ���������,�����̽��
-	int keepInterval = 4; // ̽��ʱ������ʱ����Ϊ5 ��
-	int keepCount = 1; // ̽�Ⳣ�ԵĴ���.�����1��̽������յ���Ӧ��,���2�εĲ��ٷ�.
+	int keepAlive = 1; // 锟斤拷锟斤拷keepalive锟斤拷锟斤拷
+	int keepIdle = 10; // 锟斤拷锟斤拷锟斤拷锟斤拷锟�10锟斤拷锟斤拷没锟斤拷锟轿猴拷锟斤拷锟斤拷锟斤拷锟斤拷,锟斤拷锟斤拷锟教斤拷锟�
+	int keepInterval = 4; // 探锟斤拷时锟斤拷锟斤拷锟斤拷时锟斤拷锟斤拷为5 锟斤拷
+	int keepCount = 1; // 探锟解尝锟皆的达拷锟斤拷.锟斤拷锟斤拷锟�1锟斤拷探锟斤拷锟斤拷锟斤拷盏锟斤拷锟接︼拷锟�,锟斤拷锟�2锟轿的诧拷锟劫凤拷.
 
 	setsockopt(remoteInfo.sock,SOL_SOCKET,SO_KEEPALIVE,	(void *)&keepAlive,		sizeof(keepAlive));
 	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPIDLE,	(void *)&keepIdle,		sizeof(keepIdle));
@@ -1061,7 +1064,7 @@ void tcp_server_handle(void *args, int task_index)
         //}
 		debug_print("Readable_timeo ",task_index);
 
-		ret = Readable_timeo(remoteInfo.sock, 60);//һ���������ݾ͹ر��׽��� set timeout and add if
+		ret = Readable_timeo(remoteInfo.sock, 60);//一锟斤拷锟斤拷锟斤拷锟斤拷锟捷就关憋拷锟阶斤拷锟斤拷 set timeout and add if
         //if(task_index == 4)
         //{
         	char temp[20];
@@ -1218,7 +1221,7 @@ static void tcp_server_task(void *pvParameters)
 	int ip_protocol;
 	char debug_buffer[100] =  {0};
 	task_test.enable[2] = 0;
-	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BIT���ﻹ��Ҫ���� wifi�Ƿ����ӵ��ź���
+	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BIT锟斤拷锟斤还锟斤拷要锟斤拷锟斤拷 wifi锟角凤拷锟斤拷锟接碉拷锟脚猴拷锟斤拷
 	while(1)
 	{//task_test.count[2]++;
 			taskCount++;
@@ -1226,39 +1229,39 @@ static void tcp_server_task(void *pvParameters)
 		    int addr_family;
 			addr_family 			 = AF_INET;
 			ip_protocol 			 = IPPROTO_IP;
-			// ����IP��Ϊ0 Ӧ�õײ���Զ����ñ���IP �˿ڹ̶���7681
+			// 锟斤拷锟斤拷IP锟斤拷为0 应锟矫底诧拷锟斤拷远锟斤拷锟斤拷帽锟斤拷锟絀P 锟剿口固讹拷锟斤拷7681
 			struct sockaddr_in localAddr;
 			localAddr.sin_addr.s_addr 	= htonl(INADDR_ANY);
 			localAddr.sin_family		= AF_INET;
 			localAddr.sin_port			= htons(Modbus.tcp_port);
-			//�½�һ�� socket
+			//锟铰斤拷一锟斤拷 socket
 			int listen_sock = socket(addr_family, SOCK_STREAM, ip_protocol);
 			if (listen_sock < 0)
 			{
 				debug_info("Unable to create socket\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5���Ӻ�������ִ��
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5锟斤拷锟接猴拷锟斤拷锟斤拷锟斤拷执锟斤拷
 				continue;
 			}
 			int err = bind(listen_sock, (struct sockaddr *)&localAddr, sizeof(localAddr));
 			if (err < 0) {
 				debug_info("Socket unable to bind: errno\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5���Ӻ�������ִ��
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5锟斤拷锟接猴拷锟斤拷锟斤拷锟斤拷执锟斤拷
 				continue;
 			}
 
 
 
 
-			//�������� ����7681�˿�
+			//锟斤拷锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷7681锟剿匡拷
 			err = listen(listen_sock,0);
 			if(err != 0)
 			{
 				debug_info("Socket unable to connect: errno\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5���Ӻ�������ִ��
+				vTaskDelay(5000 / portTICK_PERIOD_MS); //5锟斤拷锟接猴拷锟斤拷锟斤拷锟斤拷执锟斤拷
 				continue;
 			}
 			debug_info("Socket is listening\r");
-			//Ϊaccpet���Ӵ��������ʼ��
+			//为accpet锟斤拷锟接达拷锟斤拷锟斤拷锟斤拷锟绞硷拷锟�
 			struct sockaddr_in6 sourceAddr;
 			uint addrLen = sizeof(sourceAddr);
 
@@ -1266,7 +1269,7 @@ static void tcp_server_task(void *pvParameters)
 			{
 				debug_info("ready to accept %d\r");
 
-				//��ȡ�ź���������������portMAX_DELAY
+				//锟斤拷取锟脚猴拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷portMAX_DELAY
 				if(CountHandle != NULL)
 				{
 					xSemaphoreTake(CountHandle,portMAX_DELAY);
@@ -1277,7 +1280,7 @@ static void tcp_server_task(void *pvParameters)
 				else
 					debug_info("SemaphoreHandle is NULL");
 
-				//accept�ǻ����������  ���SemaphorTake Ҳһֱ���Ͳ�֪���в��С�
+				//accept锟角伙拷锟斤拷锟斤拷锟斤拷锟斤拷锟�  锟斤拷锟絊emaphorTake 也一直锟斤拷锟酵诧拷知锟斤拷锟叫诧拷锟叫★拷
 				int sock = accept(listen_sock, (struct sockaddr *)&sourceAddr, &addrLen);
 				if (sock < 0)
 				{
@@ -1287,7 +1290,7 @@ static void tcp_server_task(void *pvParameters)
 				}
 				debug_info("Socket accepted\r");
 
-				//��ȡ��accept��IP sock �˿���Ϣ����
+				//锟斤拷取锟斤拷accept锟斤拷IP sock 锟剿匡拷锟斤拷息锟斤拷锟斤拷
 				struct sockinfo remoteInfo;
 
 				remoteInfo.sock = sock;
@@ -1313,16 +1316,16 @@ static void tcp_server_task(void *pvParameters)
 				for(int i = 0; i < MAX_SOC_COUNT; i++)
 				{
 					if((uxBits & (1 << (i + 1))) != 0)
-					{ //����i + 1����Ϊ �¼���־������һλ����CONNECT_BIT��ռ�� TASK2_BIT�Ǵӵ�BIT1��ʼ
+					{ //锟斤拷锟斤拷i + 1锟斤拷锟斤拷为 锟铰硷拷锟斤拷志锟斤拷锟斤拷锟斤拷一位锟斤拷锟斤拷CONNECT_BIT锟斤拷占锟斤拷 TASK2_BIT锟角从碉拷BIT1锟斤拷始
 						sprintf(taskName,"tcp_server_dealwith%d",i);
-						//��ӡremoteInfo������Ȼ���ٽ�������
+						//锟斤拷印remoteInfo锟斤拷锟斤拷锟斤拷然锟斤拷锟劫斤拷锟斤拷锟斤拷锟斤拷
 						//ESP_LOGI(TAG,"Currently socket NO:%d IP is:%s PORT is:%d",sock,remoteInfo.remoteIp,remoteInfo.remotePort);
 						task_sock[i] = remoteInfo.sock;
 						int res1 = xTaskCreate(taskList[i], taskName,	4096, (void *)&remoteInfo,7, &Task_handle[i]);
 						//assert(res1 == pdTRUE);
 						sprintf(debug_buffer,"xTaskCreate %d\r",i);
 						debug_info(debug_buffer);
-						break; //����ɹ��Ĵ�����һ�������Ӧ�ý������β�����
+						break; //锟斤拷锟斤拷晒锟斤拷拇锟斤拷锟斤拷锟揭伙拷锟斤拷锟斤拷锟斤拷应锟矫斤拷锟斤拷锟斤拷锟轿诧拷锟斤拷锟斤拷
 					}
 				}
 				vTaskDelay(200 / portTICK_PERIOD_MS);
@@ -1335,7 +1338,7 @@ static void tcp_server_task(void *pvParameters)
 				close(listen_sock);
 			}
 
-			vTaskDelay(5000 / portTICK_PERIOD_MS); //5���Ӻ�������ִ��
+			vTaskDelay(5000 / portTICK_PERIOD_MS); //5锟斤拷锟接猴拷锟斤拷锟斤拷锟斤拷执锟斤拷
 	}
 	vTaskDelete(NULL);
 }
@@ -1582,7 +1585,7 @@ static void tcp_client_task(void *pvParameters)
     		}
 
     	}
-    		// ��network modbus point
+    		// 锟斤拷network modbus point
     		for(network_point_index = 0;network_point_index < number_of_network_points_modbus;network_point_index++)
     		{
     			if(network_points_list[network_point_index].lose_count > 3)
@@ -1756,7 +1759,7 @@ static void tcp_client_task(void *pvParameters)
 					}
 
 
-    		}// end ��network modbus point
+    		}// end 锟斤拷network modbus point
     	}
     	else
     	{
@@ -1829,7 +1832,7 @@ void Inital_Bacnet_Server(void)
 	read_point_info();
 
 	initial_graphic_point();
-	monitor_init();
+
 	Comm_Tstat_Initial_Data();
 	init_scan_db();
 
@@ -1874,7 +1877,7 @@ void Inital_Bacnet_Server(void)
 		TemcoVars = 10;
 
 
-#if BAC_TRENDLOG
+#if 1//BAC_TRENDLOG
 	TRENDLOGS = 0;
 	//Trend_Log_Init();
 #endif
@@ -1934,7 +1937,7 @@ void Master0_Node_task(void)
 		task_test.count[8]++;
 		if(count_start_task % 12000 == 0)	// 1 min
 		{
-			if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
+			//if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
 			{
 				if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
 					Send_Whois_Flag = 1;
@@ -1947,7 +1950,7 @@ void Master0_Node_task(void)
 					|| Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
 			{
 #if 1
-				if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
+				//if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
 				{
 					if(count_start_task % 200 == 0) // 1s
 					{
@@ -2090,12 +2093,12 @@ void Master2_Node_task(void)
 		task_test.count[11]++;
 		if(count_start_task++ % 12000 == 0)	// 1 min
 		{
-			if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
-				||(Modbus.mini_type == PROJECT_NG2))
+			//if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
+			//	||(Modbus.mini_type == PROJECT_NG2))
 			{
 				if(Modbus.com_config[2] == BACNET_MASTER )
 				{
-					//Send_Whois_Flag = 1;
+					Send_Whois_Flag = 1;
 				}
 			}
 		}
@@ -2211,61 +2214,7 @@ uint8_t get_protocal(uint8 port)
 	return Modbus.com_config[port];
 }
 
-#if 0
-void uart0_rx_task(void)
-{
-	uint8_t i;
-	task_test.enable[9] = 1;
-	for (;;)
-	{
-		task_test.count[9]++;
-		if(Modbus.com_config[0] == BACNET_MASTER)
-		{
-			uint8_t *uart_rsv = (uint8_t*)malloc(512);
-			int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 10 / portTICK_RATE_MS);
 
-			if(len > 0)
-			{
-				led_sub_rx++;
-				com_rx[0]++;
-				flagLED_sub_rx = 1; flag_debug_rx = 1;
-				Timer_Silence_Reset();
-			}
-			free(uart_rsv);
-		}
-		else
-			vTaskDelay(5000 / portTICK_RATE_MS);
-	}
-
-}
-
-void uart2_rx_task(void)
-{
-	uint8_t i;
-	task_test.enable[12] = 1;
-	for (;;)
-	{
-		task_test.count[11]++;
-		if(Modbus.com_config[2] == BACNET_MASTER)
-		{
-			uint8_t *uart_rsv = (uint8_t*)malloc(512);
-			int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 10 / portTICK_RATE_MS);
-
-			if(len > 0)
-			{
-				led_main_rx++;
-				com_rx[2]++;
-				flagLED_main_rx = 1;
-				Timer_Silence_Reset();
-			}
-			free(uart_rsv);
-		}
-		else
-			vTaskDelay(5000 / portTICK_RATE_MS);
-	}
-
-}
-#endif
 
 uint32_t net_health[4];
 //uint32_t wifi_rx;
@@ -2342,12 +2291,12 @@ void Timer_task(void)
 	Mstp_ForUs = 0;
 	Mstp_NotForUs = 0;
 	task_test.enable[13] = 1;
+	monitor_init();
 	//FOR TEST
 	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
 	for (;;)
 	{// 10ms
 		task_test.count[13]++;
-		Test[10] = current_page;
 		if(Eth_IP_Change == 1)
 		{
 			if(ip_change_count++ > 5)
@@ -2399,8 +2348,8 @@ void Timer_task(void)
 		}
 
 
-		if((system_timer > 10000 / TIMER_INTERVAL) && (flag_clear_count_reboot == 0))
-		{
+		if((system_timer > 20000 / TIMER_INTERVAL) && (flag_clear_count_reboot == 0))
+		{ // 20s clear reboot count
 			flag_clear_count_reboot = 1;
 			save_uint8_to_flash(FLASH_COUNT_REBOOT,0); // clear reboot count
 		}
@@ -2781,6 +2730,7 @@ uint16_t adjust_output(uint16_t output)
 }
 
 uint8 flag_internal_temperature = 1;
+extern QueueHandle_t qKey;
 void i2c_master_task(void)
 {
 	Str_points_ptr ptr;
@@ -2866,14 +2816,6 @@ void i2c_master_task(void)
 	i2c_send_buf[0] = i2c_send_buf[1] = i2c_send_buf[2] = i2c_send_buf[3] = 0;
 	for (;;)
 	{
-
-		ptr = put_io_buf(VAR,0);
-		Test[4] = ptr.pvar->value / 100;
-		ptr = put_io_buf(VAR,1);
-		Test[5] = ptr.pvar->value / 100;
-		ptr = put_io_buf(VAR,2);
-		Test[6] = ptr.pvar->value / 100;
-
 		task_test.count[0]++;
 		i2c_send_buf[0] = 0x55;
 		if(Modbus.mini_type == PROJECT_TSTAT9)
@@ -2990,13 +2932,14 @@ void i2c_master_task(void)
 					}
 				}
 				stm_i2c_write(S_ALL_NEW,i2c_send_buf,79);
+
 			}
 			else if(index > 3)
 			{
 			// rcv
 				{
 					uint8_t i = 0;
-					uint16_t temp = 0;
+					uint32_t temp = 0;
 
 					{
 						if(Modbus.mini_type == MINI_SMALL_ARM)
@@ -3142,13 +3085,13 @@ void i2c_master_task(void)
 						else if(Modbus.mini_type == MINI_TSTAT10)
 						{
 							u16 crc_check;
-							u16 temp_key;
+							u16 temp_key = 0;
+							static uint32_t key_refresh_timer_last = 0;
+							uint32_t key_refresh_timer = 0;
 							int ret;
 
-							ptr = put_io_buf(VAR,0);
-							ptr = put_io_buf(VAR,1);
-							ptr = put_io_buf(VAR,2);
 							ret = stm_i2c_read(G_ALL_NEW,&i2c_rcv_buf,114);
+
 							if(ret != 0)
 							{// read error
 
@@ -3156,40 +3099,61 @@ void i2c_master_task(void)
 							}
 							crc_check = crc16(i2c_rcv_buf, 114 - 2);
 
+							//Test[0]++;
 							if((HIGH_BYTE(crc_check) == i2c_rcv_buf[112]) && (LOW_BYTE(crc_check) == i2c_rcv_buf[113]))
-							{
+							{//Test[1]++;
 								if(i2c_rcv_buf[0] == 0x55 && i2c_rcv_buf[1] == 0xaa)
 								{   // hardware >= 6
 									top_hardware = i2c_rcv_buf[2];
 									// key
 									temp_key = (i2c_rcv_buf[4] << 8) + i2c_rcv_buf[5];
+
 									if(temp_key != 0)
-									{
-										qKey = temp_key;
+									{//Test[2]++;
+										key_refresh_timer = xTaskGetTickCount();
+										//Test[31] = (key_refresh_timer - key_refresh_timer_last);
+										if(key_refresh_timer - key_refresh_timer_last > 1000)
+										{//Test[3]++;
+											key_refresh_timer_last = xTaskGetTickCount();
+											xQueueSend(qKey, &temp_key, 0);
+										}
+										else
+										{
+											//temp_key = 0;
+											//xQueueSend(qKey, &temp_key, 0);
+											//Test[30]++;
+											//Test[32] = (key_refresh_timer - key_refresh_timer_last);
+										}
 									}
+
 									for(i = 0;i < 8;i++)	  // 88 == 24+64
 									{
-										//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
+										//if(Test[10] == 500)
 										temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+
 										if((temp > 0) && (temp < 4200))
 										{// rev42 of top is 12U8_T, older rev is 10U8_T
-											temp = temp * 4095 / input_cal[i];
+
+											if(input_cal[i] != 0)
+												temp = temp * 4095 / input_cal[i];
+
 											temp = Filter(i,temp);
 											input_raw[i] = temp;
-											//Test[20 + i] = input_raw[i];
+
 										}
 										else
 											Test[29]++;
 
 									}
 
-									// in1-in8 common UI
+								// in1-in8 common UI
 									// input
 									ptr = put_io_buf(IN,9); // voc
 									ptr.pin->value = (i2c_rcv_buf[42] * 256 + i2c_rcv_buf[43]);
 									ptr = put_io_buf(IN,10);// humidity
 									ptr.pin->value = (i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]);
 									flag_internal_temperature = 1;
+
 									if((i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]) != 0)
 									{
 										if((i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]) != 0)
@@ -3204,7 +3168,10 @@ void i2c_master_task(void)
 											flag_internal_temperature = 1;
 											temp = (i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]);
 											temp = Filter(i,temp);
-											input_raw[8] = temp * 4095 / input_cal[8];
+											if(input_cal[8] != 0)
+												input_raw[8] = temp * 4095 / input_cal[8];
+											else
+												input_raw[8] = temp;
 											//Test[28] = input_raw[8];
 										}
 									}
@@ -3224,10 +3191,9 @@ void i2c_master_task(void)
 									ptr.pin->value = (i2c_rcv_buf[50] * 256 + i2c_rcv_buf[51]);
 									ptr = put_io_buf(IN,14); // voice
 									ptr.pin->value = (i2c_rcv_buf[52] * 256 + i2c_rcv_buf[53]);
+
 								}
-
 							}
-
 						}
 						else if(Modbus.mini_type == MINI_BIG_ARM)
 						{
@@ -3255,10 +3221,12 @@ void i2c_master_task(void)
 					}
 
 				}
-				vTaskDelay(100 / portTICK_RATE_MS);
+				//vTaskDelay(100 / portTICK_RATE_MS);
 			}
-
-			vTaskDelay(100 / portTICK_RATE_MS);
+			if(Modbus.mini_type == MINI_TSTAT10)
+				vTaskDelay(50 / portTICK_RATE_MS);
+			else
+				vTaskDelay(100 / portTICK_RATE_MS);
 		}
 	}
 
@@ -3315,7 +3283,7 @@ void Bacnet_Control(void)
 	for(;;)
 	{
 		task_test.count[14]++;
-
+		Test[20] = current_page;
 		/*if(Test[39] == 100)
 		{
 			smtp_client_task_ssl();
@@ -3417,11 +3385,11 @@ void Bacnet_Control(void)
 		}
 //		else
 //			count_1s = 0;
-#if BAC_TRENDLOG
+#if 1//BAC_TRENDLOG
 		check_trendlog_1s(2);
 #endif
 
-#if BAC_TRENDLOG
+#if 1//BAC_TRENDLOG
 		//trend_log_timer(0); // for standard trend log
 #endif
 		Check_Net_Point_Table();
@@ -3448,16 +3416,25 @@ void app_main()
 
 	SW_REV = SOFTREV;
 	count_reboot = 0;
+
+
 	Bacnet_Initial_Data();
 	read_default_from_flash();
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 	uart_init(0);
 	uart_init(2);
+#if 1
+    sprintf(debug_array,"app %u %u",SOFTREV,Modbus.mini_type);
+    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+    //Modbus.mini_type = MINI_TSTAT10;
+#endif
   // TEST_FLASH();
 #if 1
     ethernet_init();
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 6, &main_task_handle[1]);
+    if(Modbus.mini_type == PROJECT_MPPT)
+    	mppt_task_init();
+    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 0, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 2, &main_task_handle[2]);
@@ -3474,7 +3451,7 @@ void app_main()
     	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[0]);
 
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
-    		|| (Modbus.mini_type == PROJECT_AIRLAB))
+    		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LIGHT_SWITCH))
         xTaskCreate(i2c_sensor_task,"i2c_task", 2048*2, NULL, 5, NULL);
 
     if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
@@ -3486,8 +3463,14 @@ void app_main()
     	xTaskCreate(vInputTask,"InputTask",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[7]);
     	xTaskCreate(vPM25Task,"PM25Task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[15]);
     }
+    if(Modbus.mini_type == PROJECT_LIGHT_SWITCH)
+    {
+    	Light_Switch_IO_Init();
+    	lightswitch_adc_init();
+    }
+
     xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
-    xTaskCreate(uart0_rx_task,"uart0_rx_task",4096, NULL, 8, &main_task_handle[9]);
+    xTaskCreate(uart0_rx_task,"uart0_rx_task",4096, NULL, 11, &main_task_handle[9]);
 
     if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
     	|| (Modbus.mini_type == PROJECT_NG2))
@@ -3506,7 +3489,7 @@ void app_main()
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
-	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL,  12,&main_task_handle[14]);
+	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL,  3,&main_task_handle[14]);
 
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
@@ -3554,6 +3537,7 @@ U8_T Get_Mini_Type(void)
 {
 	return Modbus.mini_type;
 }
+
 
 void I2C_sensor_Init(void)
 {
@@ -3701,7 +3685,7 @@ void Scan_network_bacnet_Task(void)
 		}
 
 #if 1
-		// ÎªÁËÈ·±£²»»á¼ä¸ôÌ«¾Ã
+		// 脦陋脕脣脠路卤拢虏禄禄谩录盲赂么脤芦戮脙
 		if(scan_network_bacnet_count > 64)
 			scan_network_bacnet_count = 64;
 

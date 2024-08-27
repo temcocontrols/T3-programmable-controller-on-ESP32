@@ -65,7 +65,7 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port);
 extern U8_T send_mstp_index;
 extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];*/
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
-U32_T 	flash_trendlog_num[MAX_MONITORS * 2];
+//U32_T 	flash_trendlog_num[MAX_MONITORS * 2];
 extern uint16_t flash_trendlog_seg;
 extern uint16_t current_page;
 extern U8_T Send_bip_address[6];
@@ -77,6 +77,7 @@ U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
 */
 uint8_t invokeid_mstp = 0;
 void check_SD_PnP(void);
+void clear_currnet_page(void);
 
 #if ARM_TSTAT_WIFI 
 U16_T Test[50];
@@ -604,6 +605,26 @@ void Handler_Complex_Ack(
 					remote_panel_db[remote_mstp_panel_index].product_model = apdu[32];
 						}
 					}
+					// temco private bacnet to modbus
+					if(apdu[13] == READ_BACNET_TO_MDOBUS)
+					{
+						uint8_t len;
+						uint16_t reg;
+						len = apdu[11];
+						reg = apdu[14] * 256 + apdu[15];
+						if(len == apdu[16] * 2)
+						{
+							val_ptr = (float)((U32_T)(apdu[18] << 24) + (U32_T)(apdu[19] << 16) +
+							(U16_T)(apdu[20] << 8) + apdu[21]) / 1000;
+						}
+						Test[35] = val_ptr;
+						add_remote_point(remote_points_list[remote_bacnet_index].tb.RP_bacnet.panel,
+						remote_points_list[remote_bacnet_index].tb.RP_bacnet.object + 
+						(U8_T)((remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance & 0xff00) >> 3),
+						0,
+						remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance & 0xff,
+						val_ptr * 1000,3,0);
+					}
 				}
 				else
 				{
@@ -938,7 +959,16 @@ int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,ui
 			flag_mstp_source = 2;   // T3-CONTROLLER
 			Send_Private_Flag = 3;   // send normal bacnet packet
 			TransmitPacket_panel = sub_id;
-			invokeid_mstp = Send_Read_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,0,protocal);
+			if(object_type == VAR + 1 || object_type == IN + 1 || object_type == OUT + 1)
+			{
+				uint16_t databuf[10];
+				uint16_t reg;
+				uint8_t len;
+				reg = get_reg_from_list(object_type,object_instance,&len);				
+				invokeid_mstp = GetPrivateBacnetToModbusData(deviceid,reg,len,databuf,BAC_MSTP);
+			}
+			else  // standard object type
+				invokeid_mstp = Send_Read_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,0,protocal);
 			return invokeid_mstp;
 		}
 
@@ -1522,9 +1552,8 @@ void handler_private_transfer(
 #if STORE_TO_SD
 								SD_block_num[i] = 0;	
 #else
-								flash_trendlog_num[i] = 0;
 								flash_trendlog_seg = 0;
-								current_page = 0;
+								clear_currnet_page();
 #endif
 								if(i % 2 == 0)
 								{// analog data
@@ -1993,7 +2022,8 @@ void handler_private_transfer(
 				temp[19] = (Graphi_data->seg_index >> 8);
 				temp[20] = Graphi_data->seg_index >> 16;
 				temp[21] = Graphi_data->seg_index >> 24;
-			
+				
+				
 				temp[17] = Graphi_data->special;
 				ptr = (uint8_t *)(Graphi_data->asdu);	
 				
@@ -2080,7 +2110,7 @@ void handler_private_transfer(
 #if STORE_TO_SD
 						MISC_Info.reg.monitor_block_num[i] = (SD_block_num[i]);
 #endif
-						MISC_Info.reg.monitor_block_num[i] = (flash_trendlog_num[i] * MAX_MON_POINT_FLASH + flash_trendlog_seg);
+						MISC_Info.reg.monitor_block_num[i] = (current_page/*flash_trendlog_num[i]*/ * MAX_MON_POINT_FLASH + flash_trendlog_seg);
 					}
 						
 					MISC_Info.reg.flag = (0xff55);

@@ -99,7 +99,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_8AO_AI_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;										
@@ -110,7 +110,7 @@ void remap_table(U8_T index,U8_T type)
 			{ 
 				reg = T3_8AO_AO_REG_START + i;
 			  point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;										
@@ -127,7 +127,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_8A13O_AI_REG_START + i * 2;				
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -138,7 +138,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_8A13O_DO_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -156,7 +156,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_4AO_DO_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -166,7 +166,7 @@ void remap_table(U8_T index,U8_T type)
 			{ 
 				reg = T3_4AO_AO_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -176,7 +176,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_4AO_AI_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -193,7 +193,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_32I_AI_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -211,7 +211,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_LC_DO_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -222,7 +222,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_LC_AI_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -238,7 +238,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_6CTA_DO_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -249,7 +249,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_6CTA_AI_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -266,7 +266,7 @@ void remap_table(U8_T index,U8_T type)
 				//reg = T3_22I_AI_REG_START + i * 2;  read
 				reg = T3_22I_AI_REG_START + i;  // mult-read
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -284,7 +284,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_PT12_AI_REG_START + i;  // mult-read
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -302,7 +302,7 @@ void remap_table(U8_T index,U8_T type)
 			{  
 				reg = T3_8AIAO6DO_DO_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -312,7 +312,7 @@ void remap_table(U8_T index,U8_T type)
 			{ 
 				reg = T3_8AIAO6DO_AO_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	
@@ -323,7 +323,7 @@ void remap_table(U8_T index,U8_T type)
 				//reg = T3_8AIAO6DO_AI_REG_START + i * 2;
 				reg = T3_8AIAO6DO_AI_REG_START + i;
 				point.number = LOW_BYTE(reg);
-				point.point_type = (HIGH_BYTE(reg) << 5) + VAR + 1;
+				point.point_type = (HIGH_BYTE(reg) << 5) + MB_REG + 1;
 				point.panel = panel_number;//Modbus.network_ID[port];
 				point.sub_id = scan_db[index].id;
 				point.network_number = 0;//Setting_Info.reg.network_number;	

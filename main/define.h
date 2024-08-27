@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6407
+#define SOFTREV     6409
 
 
 #define		SW_OFF 	 0
@@ -172,8 +172,10 @@ typedef	enum
 #define PROJECT_SAUTER		18
 #define PROJECT_NG2			19
 #define PROJECT_MPPT		20
+#define PROJECT_LIGHT_SWITCH	21
 
-#define MAX_MINI_TYPE 		20
+
+#define MAX_MINI_TYPE 		21
 
 
 

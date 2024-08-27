@@ -4,6 +4,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 
 
 #define	MenuSTACK_SIZE		portMINIMAL_STACK_SIZE//1024
@@ -14,7 +15,7 @@
 
 U8_T show_identify;
 U8_T count_show_id;
-//extern xQueueHandle qKey;
+QueueHandle_t qKey = 0;
 
 uint8 text[50]; 
 uint8 int_text[21];
@@ -34,6 +35,7 @@ uint8 user_password[4] = {'1', '2', '3', '4'};
 uint8 password_index;
 
 uint32 menu_block_timer_start, menu_block_timer_end;
+uint32 menu_refresh_timer_start, menu_refresh_timer_end;
 uint8 menu_block_seconds = MENU_BLOCK_SECONDS_DEFAULT;
 //uint8 backlight_keep_seconds = BACKLIGHT_KEEP_SECONDS_DEFAULT;
 struct _MENU_STATE_ CurrentState;
@@ -125,7 +127,6 @@ void menu_init(void)
 
 
 extern void watchdog(void);
-U16_T qKey = 0;
 void LCD_IO_Init(void);
 void lcd_back_set(uint8_t status);
 uint8_t lcd_time_over_en;
@@ -133,13 +134,15 @@ uint8_t lcd_time_over;
 void MenuTask(void *pvParameters)
 {
 	static U8_T refresh_screen_timer = 0;
-	U16_T key_temp = 0;
+	u16 temp_key = 0;
 	uint16_t lcd_time_over_count = 0;
 	portTickType xDelayPeriod = (portTickType)50 / portTICK_RATE_MS;
 //	U8_T i;
 	LCD_IO_Init();
 	menu_init();
 	delay_ms(100);
+
+	qKey = xQueueCreate(2, 2);
 
 	if(lcd_time_over_en != 1)
 	{
@@ -151,8 +154,6 @@ void MenuTask(void *pvParameters)
 	}
 	while(1)
 	{
-		//if(xQueueReceive(qKey, &key_temp, 20) == pdTRUE)
-		//if(key_temp = qKey)
 		if(lcd_time_over_en != 1)
 		{
 			lcd_back_set(1);
@@ -167,41 +168,40 @@ void MenuTask(void *pvParameters)
 		}
 
 
-		if(qKey != 0)
+		if(lcd_time_over_en == 1)
 		{
-			if(lcd_time_over_en == 1)
-			{
-				lcd_back_set(1);
-				lcd_time_over_count = 0;
-				Test[5]++;
-			}
+			lcd_back_set(1);
+			lcd_time_over_count = 0;
+			Test[5]++;
+		}
 
-			CurrentState.KeyCope(qKey);
+		if(xQueueReceive(qKey, &temp_key, 5) == pdTRUE)
+		{Test[4]++;
+			CurrentState.KeyCope(temp_key);
 			if(CurrentState.BlockTime)
 				menu_block_timer_start = xTaskGetTickCount();
 			CurrentState.DisplayPeriod();
-			qKey = 0;
 		}
-
-		if(menu_system_start == TRUE)
+		else
 		{
-			refresh_screen_timer++;
-			if (refresh_screen_timer >= 10)
+			if(menu_system_start == TRUE)
 			{
-				CurrentState.DisplayPeriod();
-				refresh_screen_timer = 0;
-			}
-			
-			if(CurrentState.BlockTime)
-			{
-				menu_block_timer_end = xTaskGetTickCount();
-				if((menu_block_timer_end - menu_block_timer_start) >= (CurrentState.BlockTime * SWTIMER_COUNT_SECOND))
-					update_menu_state(MenuIdle);
+				menu_refresh_timer_end = xTaskGetTickCount();
+				if((menu_refresh_timer_end - menu_refresh_timer_start) >= 1000)
+				{Test[18]++;
+					menu_refresh_timer_start = xTaskGetTickCount();
+					CurrentState.DisplayPeriod();
+				}
+
+				if(CurrentState.BlockTime)
+				{
+					menu_block_timer_end = xTaskGetTickCount();
+					if((menu_block_timer_end - menu_block_timer_start) >= (CurrentState.BlockTime * SWTIMER_COUNT_SECOND))
+						update_menu_state(MenuIdle);
+				}
 			}
 		}
 
-		vTaskDelay(50);//50ms
-//		stack_detect(&test[9]);
 	}	
 }
 
