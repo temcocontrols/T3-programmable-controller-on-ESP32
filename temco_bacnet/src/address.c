@@ -365,7 +365,7 @@ bool address_get_by_device(
             (pMatch->device_id == device_id)) {
             if ((pMatch->Flags & BAC_ADDR_BIND_REQ) == 0) {     /* If bound then fetch data */
                 *src = pMatch->address;
-                //*max_apdu = pMatch->max_apdu;
+                *max_apdu = pMatch->max_apdu;
                found = true;   /* Prove we found it */
             }
             break;      /* Exit now if found at all - bound or unbound */

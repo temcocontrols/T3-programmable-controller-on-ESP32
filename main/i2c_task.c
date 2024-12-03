@@ -657,7 +657,7 @@ void i2c_sensor_task(void *arg)
     int cnt = 0;
     g_sensors.co2_ready = false;
 
-   if( (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LIGHT_SWITCH))
+   if( Modbus.mini_type == PROJECT_AIRLAB || (Modbus.mini_type == PROJECT_LIGHT_SWITCH))
     {
     	//voc_value_raw = 0;
     	VOC_Initial();
@@ -938,7 +938,6 @@ void i2c_sensor_task(void *arg)
 			scd4x_start_periodic_measurement();
 			vTaskDelay(100 / portTICK_RATE_MS);
 			scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
-			Test[22]++;
 			ret = sht4x_measure_blocking_read(&sht4x_temp, &sht4x_hum);
 			if(ret != ESP_OK)
 			{
@@ -946,8 +945,12 @@ void i2c_sensor_task(void *arg)
 			}
 			else
 			{
+				hum_sensor_type = 2;
 				g_sensors.temperature = (sht4x_temp)/100;
 				g_sensors.humidity = (sht4x_hum)/100;
+				Test[20]++;
+				Test[10] = g_sensors.temperature;
+				Test[11] = g_sensors.humidity;
 			}
         }
 #if 0
@@ -1040,86 +1043,85 @@ void i2c_sensor_task(void *arg)
 			}
 
 
-		// Persist the current baseline every hour
-		if (++baseline_time % 3600 == 3599)
-		{
-			ret = sgp30_get_iaq_baseline(&iaq_baseline);
-			if (ret == STATUS_OK)
+			// Persist the current baseline every hour
+			if (++baseline_time % 3600 == 3599)
 			{
-			  //write_eeprom(EEP_BASELINE1, iaq_baseline & 0XFF);  // IMPLEMENT: store baseline to presistent storage
-			  //write_eeprom(EEP_BASELINE2, (iaq_baseline>>8) & 0XFF);
-			  //write_eeprom(EEP_BASELINE3, (iaq_baseline>>16) & 0XFF);
-			  //write_eeprom(EEP_BASELINE4, (iaq_baseline>>24) & 0XFF);
-			  g_sensors.voc_baseline[0] = iaq_baseline & 0XFF;
-			  g_sensors.voc_baseline[1] = (iaq_baseline>>8) & 0XFF;
-			  g_sensors.voc_baseline[2] = (iaq_baseline>>16) & 0XFF;
-			  g_sensors.voc_baseline[3] = (iaq_baseline>>24) & 0XFF;
-     		}
-		}
-
-		if(g_sensors.voc_ini_baseline == 1)
-		{
-			ret = sgp30_iaq_init();
-			if (ret == STATUS_OK) {
-				g_sensors.voc_ini_baseline = 0;
-				printf("sgp30_iaq_init done\n");
-			} else
-				printf("sgp30_iaq_init failed!\n");
-		}
-
-//		xSemaphoreGive(print_mux);
-		vTaskDelay(500/portTICK_RATE_MS);
-	}
-
-		//------------------SCD40
-#if 1
-//		xSemaphoreTake(print_mux, portMAX_DELAY);
-		// get  serial number
-		if(co2_present == 1)
-		{
-			uint16_t co2;
-			int32_t temperature;
-			int32_t humidity;
-			static uint8_t count_err = 0;
-			if(scd4x_perform_forced == 1)
-			{
-				scd4x_stop_periodic_measurement();
-				vTaskDelay(1000/portTICK_RATE_MS);
-				scd4x_perform_forced_recalibration(co2_frc,&co2_asc);
-				vTaskDelay(1000/portTICK_RATE_MS);
-				scd4x_start_periodic_measurement();
-				vTaskDelay(5000/portTICK_RATE_MS);
-				scd4x_perform_forced = 0;
-			}
-			uint8_t error = scd4x_read_measurement(&co2, &temperature, &humidity);
-			if (error) { count_err++;
-					//printf("Error executing scd4x_read_measurement(): %i\n", error);
-			} else if (co2 == 0) {
-				 // printf("Invalid sample detected, skipping.\n");
-			} else {count_err = 0;
-				//CO2_get_value(co2,temperature / 100,humidity / 100);
-				if(hum_sensor_type == 1)
+				ret = sgp30_get_iaq_baseline(&iaq_baseline);
+				if (ret == STATUS_OK)
 				{
-
+				  //write_eeprom(EEP_BASELINE1, iaq_baseline & 0XFF);  // IMPLEMENT: store baseline to presistent storage
+				  //write_eeprom(EEP_BASELINE2, (iaq_baseline>>8) & 0XFF);
+				  //write_eeprom(EEP_BASELINE3, (iaq_baseline>>16) & 0XFF);
+				  //write_eeprom(EEP_BASELINE4, (iaq_baseline>>24) & 0XFF);
+				  g_sensors.voc_baseline[0] = iaq_baseline & 0XFF;
+				  g_sensors.voc_baseline[1] = (iaq_baseline>>8) & 0XFF;
+				  g_sensors.voc_baseline[2] = (iaq_baseline>>16) & 0XFF;
+				  g_sensors.voc_baseline[3] = (iaq_baseline>>24) & 0XFF;
 				}
-				else
+			}
+
+			if(g_sensors.voc_ini_baseline == 1)
+			{
+				ret = sgp30_iaq_init();
+				if (ret == STATUS_OK) {
+					g_sensors.voc_ini_baseline = 0;
+					printf("sgp30_iaq_init done\n");
+				} else
+					printf("sgp30_iaq_init failed!\n");
+			}
+
+	//		xSemaphoreGive(print_mux);
+			vTaskDelay(500/portTICK_RATE_MS);
+		}
+
+			//------------------SCD40
+	#if 1
+	//		xSemaphoreTake(print_mux, portMAX_DELAY);
+			// get  serial number
+			if(co2_present == 1)
+			{
+				uint16_t co2;
+				int32_t temperature;
+				int32_t humidity;
+				static uint8_t count_err = 0;
+				if(scd4x_perform_forced == 1)
 				{
-					g_sensors.temperature = temperature / 100;
-					g_sensors.humidity = humidity/ 100;
+					scd4x_stop_periodic_measurement();
+					vTaskDelay(1000/portTICK_RATE_MS);
+					scd4x_perform_forced_recalibration(co2_frc,&co2_asc);
+					vTaskDelay(1000/portTICK_RATE_MS);
+					scd4x_start_periodic_measurement();
+					vTaskDelay(5000/portTICK_RATE_MS);
+					scd4x_perform_forced = 0;
+				}
+				uint8_t error = scd4x_read_measurement(&co2, &temperature, &humidity);
+				if (error) { count_err++;
+						//printf("Error executing scd4x_read_measurement(): %i\n", error);
+				} else if (co2 == 0) {
+					 // printf("Invalid sample detected, skipping.\n");
+				} else {count_err = 0;
+					//CO2_get_value(co2,temperature / 100,humidity / 100);
+				Test[13] = hum_sensor_type + 10;
+					if((hum_sensor_type != 1) && (hum_sensor_type != 2) )
+					{Test[12]++;
+						g_sensors.temperature = temperature / 100;
+						g_sensors.humidity = humidity/ 100;
+
+					}
 					ptr = put_io_buf(IN,0);
-					ptr.pin->value = g_sensors.temperature;
+					ptr.pin->value = g_sensors.temperature * 100;
 					ptr = put_io_buf(IN,1);
-					ptr.pin->value = g_sensors.humidity;
+					ptr.pin->value = g_sensors.humidity * 100;
+					g_sensors.co2 = co2;
+
+					ptr = put_io_buf(IN,2);
+					ptr.pin->value = g_sensors.co2 * 1000;
 				}
+				if(count_err > 10)
+					co2_present = 0;
 
-				g_sensors.co2 = co2;
-				ptr = put_io_buf(IN,2);
-				ptr.pin->value = g_sensors.co2 * 1000;
 			}
-			if(count_err > 10)
-				co2_present = 0;
 
-		}
 //		xSemaphoreGive(print_mux);
 		vTaskDelay(2000 / portTICK_RATE_MS);
 #endif

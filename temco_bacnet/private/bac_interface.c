@@ -37,6 +37,7 @@ U8_T Get_index_by_BOx(uint8_t do_index,uint8_t *out_index);*/
 extern uint8_t count_lcd_time_off_delay;
 extern uint8_t count_hold_on_bip_to_mstp;
 extern uint32_t net_health[4];
+void Set_broadcast_bip_address(uint32_t net_address);
 
 char get_current_mstp_port(void)
 {
@@ -44,6 +45,8 @@ char get_current_mstp_port(void)
 }
 uint8_t get_max_internal_output(void);
 extern void set_output_raw(uint8_t point,uint16_t value);
+int save_point_info(uint8_t point_type);
+void save_icon_config(uint8_t value);
 
 U8_T Get_Mini_Type(void);
 void Get_AVS(void);
@@ -275,21 +278,38 @@ char* get_description(uint8_t type,uint8_t num)
 		ptr = put_io_buf(OUT,io_index);
 		return (char*)ptr.pout->label;
 	}
-#if BAC_PROPRIETARY
 	if(type == TEMCOAV)
 	{
-		if(num == 0) return "panel number";
-/*		else if(num == 1) return "dead master";
-		else if(num == 2) return "lcd time off delay";
-		else if(num == 3) return "disable icon";
-		else if(num == 4) return "lcd display configure";*/
-		else if(num == 6) return "rx of main rs485";
-		else if(num == 7) return "rx of sub rs485";
-		else if(num == 8) return "rx of ethernet";
-		else if(num == 9) return "rx of wifi";
-		else return "reserved";
+		if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
+		{
+			if(num == 0) return "panel number";
+			/*else if(num == 1) return "dead master";
+			else if(num == 2) return "lcd time off delay";
+			else if(num == 3) return "disable icon";
+			else if(num == 4) return "lcd display configure";
+			else if(num == 5) return "icon configure";*/
+			else if(num == 1) return "range_IN1";
+			else if(num == 2) return "range_IN2";
+			else if(num == 3) return "range_IN3";
+			else if(num == 4) return "range_IN4";
+			else if(num == 5) return "range_IN5";
+			else if(num == 6) return "range_IN6";
+			else if(num == 7) return "range_IN7";
+			else if(num == 8) return "range_IN8";
+			else return "reserved";
+		}
+		else
+		{
+			if(num == 0) return "panel number";
+			if(num == 1) return "rx of main rs485";
+			if(num == 2) return "rx of sub rs485";
+			if(num == 3) return "rx of ethernet";
+			if(num == 4) return "rx of wifi";
+			else return "reserved";
+		}
+
 	}
-#endif
+
 #if 1//ARM_TSTAT_WIFI
 	if(type == MSV)
 	{
@@ -367,16 +387,35 @@ char* get_label(uint8_t type,uint8_t num)
 #if BAC_PROPRIETARY
 	if(type == TEMCOAV)
 	{
-		if(num == 0) return "panel number";
-		/*else if(num == 1) return "dead master";
-		else if(num == 2) return "lcd time off delay";
-		else if(num == 3) return "disable icon";
-		else if(num == 4) return "lcd display configure";*/
-		else if(num == 6) return "rx of main rs485";
-		else if(num == 7) return "rx of sub rs485";
-		else if(num == 8) return "rx of ethernet";
-		else if(num == 9) return "rx of wifi";
-		else return "reserved";
+
+		if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
+		{
+			if(num == 0) return "panel number";
+			/*else if(num == 1) return "dead master";
+			else if(num == 2) return "lcd time off delay";
+			else if(num == 3) return "disable icon";
+			else if(num == 4) return "lcd display configure";
+			else if(num == 5) return "icon configure";*/
+			else if(num == 1) return "range_IN1";
+			else if(num == 2) return "range_IN2";
+			else if(num == 3) return "range_IN3";
+			else if(num == 4) return "range_IN4";
+			else if(num == 5) return "range_IN5";
+			else if(num == 6) return "range_IN6";
+			else if(num == 7) return "range_IN7";
+			else if(num == 8) return "range_IN8";
+			else return "reserved";
+		}
+		else
+		{
+			if(num == 0) return "panel number";
+			else if(num == 1) return "rx of main rs485";
+			else if(num == 2) return "rx of sub rs485";
+			else if(num == 3) return "rx of ethernet";
+			else if(num == 4) return "rx of wifi";
+			else return "reserved";
+		}
+
 	}
 #endif
 	return NULL;
@@ -756,40 +795,59 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		case CALENDAR:			
 			return annual_routines[i].value ? 1 : 0;
 		//break;	
-#if BAC_PROPRIETARY
+//#if BAC_PROPRIETARY
 		case TEMCOAV:
 		{
 			uint32 value = 0;
-			switch(i)
+			if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
 			{
-				case 0: value = panel_number; 	
-				case 6: value = net_health[0]; 	// main rs485
-					break;
-				case 7: value = net_health[1];	// sub rs485
-					break;
-				case 8: value = net_health[2];	// network 
-					break;
-				case 9: value = net_health[3];	// wifi
-					break;
-				
-				/*case 1: 
-					if(Modbus.dead_master & 0x80)  // bit7 is tha flag whether enable deadmaster
-						value = Modbus.dead_master & 0x7f;
-					else  // disable deadmaster
+				switch(i)
+				{
+					case 0: value = panel_number; 				
+						break;				
+/*					case 1:
+						if(Modbus.dead_master & 0x80)  // bit7 is tha flag whether enable deadmaster
+							value = Modbus.dead_master & 0x7f;
+						else  // disable deadmaster
+							value = 0;
+						break;
+					case 2:	value = Modbus.LCD_time_off_delay;					break;
+					case 3:	value = Modbus.disable_tstat10_display;			break;
+	//					case 4:		value = Modbus.display_lcd;		break;
+					case 5:	value = Modbus.icon_config;				break;*/
+					case 1: value = (inputs[0].digital_analog << 8) + inputs[0].range;					break;
+					case 2: value = (inputs[1].digital_analog << 8) + inputs[1].range;					break;
+					case 3: value = (inputs[2].digital_analog << 8) + inputs[2].range;					break;
+					case 4: value = (inputs[3].digital_analog << 8) + inputs[3].range;					break;
+					case 5: value = (inputs[4].digital_analog << 8) + inputs[4].range;					break;
+					case 6: value = (inputs[5].digital_analog << 8) + inputs[5].range;					break;
+					case 7: value = (inputs[6].digital_analog << 8) + inputs[6].range;					break;
+					case 8: value = (inputs[7].digital_analog << 8) + inputs[7].range;					break;
+					default:
 						value = 0;
 					break;
-					case 2:
-						value = Modbus.LCD_time_off_delay;
-					break;
-					case 3:
-						value = Modbus.disable_tstat10_display;
-					break;*/
-				default:
-				break;
+				}
 			}
+			else
+			{
+				switch(i)
+				{
+					case 0: value = panel_number; 	break;	
+					case 1: value = net_health[0]; 	// main rs485
+						break;
+					case 2: value = net_health[1];	// sub rs485
+						break;
+					case 3: value = net_health[2];	// network 
+						break;
+					case 4: value = net_health[3];	// wifi
+						break;
+					default:
+					break;
+				}
+			}			
 			return value;
 		}
-#endif
+//#endif
 		
 #if ARM_TSTAT_WIFI
 				case MSV:
@@ -1445,6 +1503,42 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 				}
 				break;
 
+			case TEMCOAV:
+			if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
+			{
+				/*if(i == 1)
+				{
+					//Modbus.dead_master = value;				
+					//E2prom_Write_Byte(EEP_DEAD_MASTER,Modbus.dead_master);
+					//clear_dead_master();
+				}
+				else if(i == 2)
+				{
+					//Modbus.LCD_time_off_delay = value;				
+					//E2prom_Write_Byte(EEP_LCD_TIME_OFF_DELAY,value);
+					//count_lcd_time_off_delay = 0;
+				}
+				else if(i == 3)
+				{
+					//Modbus.disable_tstat10_display = value;
+					//E2prom_Write_Byte(EEP_DISABLE_T10_DIS,value);
+				}
+				else if(i == 5)
+				{
+					save_icon_config(value);
+				}
+				else*/ if(i >= 1 && i<= 8)
+				{				
+					inputs[i - 1].digital_analog = (U16_T)value >> 8;
+					inputs[i - 1].range = (U8_T)value;
+					//write_page_en[IN] = 1;	
+					//ChangeFlash = 1;
+					save_point_info(0);
+				}
+			}
+			break;
+
+
 			default:
 			break;
 		}			
@@ -1781,15 +1875,13 @@ void Send_TimeSync_Broadcast(uint8_t protocal)
 
   if(protocal == BAC_IP_CLIENT)
 	{
-		//Send_bip_Flag = 1;	
-		//count_send_bip = 0;
-		//Send_bip_count = MAX_RETRY_SEND_BIP;	
-//		Set_broadcast_bip_address(0xffffffff);	
+		Set_broadcast_bip_address(0xffffffff);
+		bip_set_broadcast_addr(0xffffffff);
 		Send_TimeSync(&bdate,&btime,protocal);
 	}
 	else if(protocal == BAC_MSTP)
 	{
-//		Send_Time_Sync = 1;  //?????????????????
+		Send_Time_Sync = 1;
 	}
 
 }

@@ -3,7 +3,7 @@
 
 #include "esp_wifi.h"
 
-#define DEBUG_INFO_UART0	0
+#define DEBUG_INFO_UART0	0//1
 
 typedef enum
 {

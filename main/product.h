@@ -89,6 +89,13 @@
 #define NG2_MAX_DIS 0
 #define NG2_MAX_SCS 8
 
+#define NEWNG2_MAX_AIS 24 + 4
+#define NEWNG2_MAX_DOS 8
+#define NEWNG2_MAX_AOS 4
+#define NEWNG2_MAX_AVS 128
+#define NEWNG2_MAX_DIS 0
+#define NEWNG2_MAX_SCS 8
+
 #define MINI_CM5  0
 #define MINI_BIG	 1
 #define MINI_SMALL  2

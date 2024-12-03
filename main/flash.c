@@ -35,6 +35,7 @@ extern uint8_t lcd_time_over_en;
 extern uint8_t lcd_time_over;
 
 extern uint16_t current_page;
+extern char sntp_server[30];
 
 #define POINT_INFO_ADDR	0
 #define POINT_INFO_LEN 	0x10000
@@ -48,7 +49,6 @@ esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 	nvs_handle_t my_handle;
 	esp_err_t err;
 	// Open
-
 	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
 	if (err != ESP_OK) return err;
 
@@ -63,7 +63,7 @@ esp_err_t save_uint16_to_flash(const char* key, uint16_t value)
 {
 	nvs_handle_t my_handle;
 	esp_err_t err;
-
+//	return ESP_OK;
 	// Open
 	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
 	if (err != ESP_OK) return err;
@@ -157,6 +157,7 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_BAUD_RATE, Modbus.baudrate[0]);
 	}
 	err = nvs_get_u8(my_handle, FLASH_BAUD_RATE2, &Modbus.baudrate[2]);
+
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
 		Modbus.baudrate[2] = 9;
@@ -275,6 +276,20 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_TCP_TYPE, Modbus.tcp_type);
 	}
 
+	nvs_get_u8(my_handle, FLASH_JASON, &webview_json_flash);
+	nvs_get_u8(my_handle, FLASH_EN_TIME_SYNC_PC, &Modbus.en_time_sync_with_pc);
+	if(Modbus.en_time_sync_with_pc == 255)
+	{
+		Modbus.en_time_sync_with_pc = 1;
+		nvs_set_u8(my_handle, FLASH_EN_TIME_SYNC_PC, Modbus.en_time_sync_with_pc);
+	}
+	nvs_get_u8(my_handle, FLASH_EN_SNTP, &Modbus.en_sntp);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.en_sntp = 1;
+		nvs_set_u8(my_handle, FLASH_EN_SNTP, Modbus.en_sntp);
+	}
+
 	nvs_get_u16(my_handle, FLASH_TIME_ZONE, (uint16 *)&timezone);
 	nvs_get_u16(my_handle, FLASH_DSL, &Daylight_Saving_Time);
 
@@ -307,14 +322,29 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
 
-	if(count_reboot >= 3)
-	{ // reboot
-		nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
-		start_fw_update();
+	if(Modbus.mini_type == MINI_SMALL_ARM|| Modbus.mini_type == MINI_BIG_ARM )
+	{
+		if(count_reboot >= 6)
+		{ // reboot
+			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
+			start_fw_update();
+		}
+		else
+		{
+			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
+		}
 	}
 	else
 	{
-		nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
+		if(count_reboot >= 3)
+		{ // reboot
+			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
+			start_fw_update();
+		}
+		else
+		{
+			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
+		}
 	}
 
 	if(err == ESP_ERR_NVS_NOT_FOUND)
@@ -324,6 +354,9 @@ esp_err_t read_default_from_flash(void)
 
 	}
 
+/*	len = sizeof(Str_Email_point);
+	nvs_get_blob(my_handle, FLASH_EMAIL, &Email_Setting, &len);
+*/
 	len = sizeof(STR_SSID);
 	nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
 	SSID_Info.IP_Wifi_Status = 0;
@@ -335,14 +368,19 @@ esp_err_t read_default_from_flash(void)
 	len = 20;
 	err = nvs_get_blob(my_handle, FLASH_PANEL_NAME, &panelname, &len);
 
+	// SNTP
+	len = 30;
+	err = nvs_get_blob(my_handle, FLASH_SNTP, &sntp_server, &len);
+
 	len = 7;
 	err = nvs_get_blob(my_handle, FLASH_LCD_CONFIG, &lcddisplay, &len);
-	if(lcddisplay[0] == 0xff || lcddisplay[0] == 0)
+
+	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
 		memset(lcddisplay,0,sizeof(lcdconfig));
 		lcddisplay[0] = 1;
-		lcddisplay[5] = IN;
-		lcddisplay[6] = 9;  // IN9 is internal termperature
+		lcddisplay[2] = IN;
+		lcddisplay[1] = 9;  // IN9 is internal termperature
 	}
 	// read input calibrate
 	err = nvs_get_u16(my_handle, FLASH_IN1_CAL, &input_cal[0]);
@@ -519,6 +557,15 @@ esp_err_t read_default_from_flash(void)
 	{
 		current_page = 0;  //AUTO
 		nvs_set_u16(my_handle, FLASH_CURRENT_TLG_PAGE, current_page);
+	}
+
+
+	err = nvs_get_u16(my_handle, FLASH_READ_POINT_TIMER, &READ_POINT_TIMER_FROM_EEP);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		READ_POINT_TIMER_FROM_EEP = 200;
+		nvs_set_u16(my_handle, FLASH_READ_POINT_TIMER, READ_POINT_TIMER_FROM_EEP);
+		READ_POINT_TIMER = READ_POINT_TIMER_FROM_EEP;
 	}
 
 	// Close
@@ -727,6 +774,14 @@ void Set_Object_Name(char * name)
 	save_block(FLASH_BLOCK2_PN);
 }
 
+
+void Save_SNTP_sever(void)
+{
+	// store it to flash memory
+	//memcpy(sntp_server,sntp,strlen(sntp));
+	save_block(FLASH_BLOCK_SNTP);
+}
+
 esp_err_t Save_Ethernet_Info(void)
 {
 	esp_err_t err = 0;
@@ -740,6 +795,17 @@ esp_err_t Save_Lcd_config(void)
 	err = save_block(FLASH_BLOCK_LCD_CONFIG);
 	return err;
 }
+
+void Save_Email_Setting(void)
+{
+	save_block(FLASH_BLOCK_EMAIL);
+}
+
+//void save_icon_config(uint8_t value)
+//{
+//	Modbus.icon_config = value;
+//	save_uint8_to_flash( FLASH_ICON_CONFIG, Modbus.icon_config);
+//}
 
 void Store_Instance_To_Eeprom(uint32_t Instance)
 {
@@ -757,7 +823,6 @@ esp_err_t save_block(uint8_t key)
 	// Open
 	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
 	if (err != ESP_OK) return err;
-
 	switch(key)
 	{
 	case FLASH_BLOCK1_SSID:
@@ -774,6 +839,14 @@ esp_err_t save_block(uint8_t key)
 		break;
 	case FLASH_BLOCK_LCD_CONFIG:
 		err = nvs_set_blob(my_handle, FLASH_LCD_CONFIG, (const void*)(&lcddisplay[0]), 7);
+		if (err != ESP_OK) return err;
+		break;
+	case FLASH_BLOCK_EMAIL:
+		err = nvs_set_blob(my_handle, FLASH_EMAIL, (const void*)(&Email_Setting), sizeof(Str_Email_point));
+		if (err != ESP_OK) return err;
+		break;
+	case FLASH_BLOCK_SNTP:
+		err = nvs_set_blob(my_handle, FLASH_SNTP, (const void*)(&sntp_server), sizeof(sntp_server));
 		if (err != ESP_OK) return err;
 		break;
 	default:
@@ -805,7 +878,7 @@ esp_err_t save_point_info(uint8_t point_type)
 	uint8_t err=0xff;
 	uint16_t loop;
 	//  step 1: Ѱ���û�flash id
-
+//	return ESP_OK;
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
@@ -921,7 +994,7 @@ esp_err_t save_point_info(uint8_t point_type)
 				break;
 
 			case GRP_POINT:
-				memcpy(tempbuf,&group_data,sizeof(Str_grp_element) * 240);
+				memcpy(tempbuf,&group_data_new,sizeof(Str_grp_element_new));
 				break;
 	/*		case ID_ROUTION:
 				for(i = 0;i < 254;i++)
@@ -1419,10 +1492,10 @@ void read_point_info(void)
 		case SUB_DB:
 			memcpy(&scan_db,tempbuf,sizeof(SCAN_DB) * SUB_NO);
 			break;
-	/*	case GRP_POINT:
-			memcpy(&group_data,&tempbuf,sizeof(Str_grp_element) * 240);
+		case GRP_POINT:
+			memcpy(&group_data_new,tempbuf,sizeof(Str_grp_element_new));
 			break;
-		case ID_ROUTION:
+		/*case ID_ROUTION:
 			for(i = 0;i < 254;i++)
 			{
 				memcpy(&ID_Config[i],&tempbuf[i * STORE_ID_LEN],STORE_ID_LEN);
@@ -1495,7 +1568,6 @@ esp_err_t save_trendlog(void)
 	   flag_flash_covered = 1;
    }*/
    save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE,current_page);
-	Test[21]++;
 	return ESP_OK;
 }
 
@@ -1530,12 +1602,5 @@ esp_err_t read_trendlog(uint16_t page_total,uint8_t seg)
 
 }
 
-
-void TRENLOG_TEST(void)
-{
-	save_trendlog();
-	Test[28] = read_trendlog(0,0);
-	memcpy(&Test[0],&read_mon_point_buf_from_flash[Test[27]],sizeof(Str_mon_element));
-}
 
 #endif

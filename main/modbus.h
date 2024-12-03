@@ -69,25 +69,20 @@ enum {
 	MODBUS_ADDRESS,							// 1	254	Device modbus address
 	PRODUCT_MODEL,					// -	-	Temco Product Model	1=Tstat5B, 2=Tstat5A, 4=Tstat5C, 12=Tstat5D,
 	HARDWARE_REV,					// -	-	Hardware Revision
-	PIC882VERSION,						// -	-	PIC firmware version
-	PLUG_N_PLAY,				// -	-	Temporary address for plug-n-play addressing scheme
-	ISP_MODE_INDICATION,
+
 	MODBUS_UART0_BAUDRATE = 12,	// 0	1	Baudrate 0 = 9.6kb/s, 1 = 19.2kb/s
 	MODBUS_ISP_VER = 14,
-	UPDATE_STATUS	= 16,			// reg 16 status for update_flash											// writing 0x7F means jump to ISP routine											// writing 0x8F means completely erase eeprom
-
-	MODBUS_UART1_BAUDRATE = 17,
+	UPDATE_STATUS	= 16,			// reg 16 status for update_flash											// writing 0x7F means jump to ISP routine
 	MODBUS_UART2_BAUDRATE = 18,
-	MODBUS_COM0_TYPE,
-	MODBUS_COM1_TYPE,
-	MODBUS_COM2_TYPE,
+	MODBUS_COM0_TYPE = 19,
+	MODBUS_COM2_TYPE = 21,
 	MODBUS_ETHERNET_STATUS	= 22,
 	MODBUS_ENABLE_DEBUG = 23,
-	MODBUS_TIME_ZONE = 24,
+
 	MODBUS_DSL = 25,
-
-
-
+	MODBUS_TIME_ZONE = 26,
+	MODBUS_SNTP_EN,		//  27
+	MODBUS_TIMEZONE_SUMMER,
 
 	MODBUS_INSTANCE_HI = 32,
 	MODBUS_TEST_CMD = 33, // NG2
@@ -117,14 +112,15 @@ enum {
 	IP_GATE_WAY_2,
 	IP_GATE_WAY_3,
 	IP_GATE_WAY_4,
-	WIFI_FAC,//79
-	WIFI_RSSI, //80
+
+	WIFI_RSSI = 80, //80
 	MODBUS_TCP_PORT,
+	MODBUS_READ_POINT_TIMER = 85,
 
 	MODBUS_RUN_TIME_LO = 94,
 	MODBUS_RUN_TIME_HI,
 
-	MODBUS_DEAD_MASTER_FOR_PLC = 96, // ONLY FOR PLC
+	MODBUS_DEAD_MASTER_FOR_PLC = 96, // ONLY FOR PLC ？？？？？ no used
 
 	MODBUS_MAX_VARS = 100,
 	MODBUS_MAX_INS,
@@ -147,7 +143,7 @@ enum {
 	MODBUS_IN15_CAL,
 	MODBUS_IN16_CAL,
 
-	MODBUS_TIMER_ADDRESS = 200, // 200
+	MODBUS_TIMER_ADDRESS = 200, // 200 + 7
 
 	MODBUS_TOTAL_NO = 299  ,  // NUMBER OF ZONES
 
@@ -181,14 +177,14 @@ enum {
 
 	MODBUS_CO2_CALIBRATION,
 
-	MODBUS_DEW_PT = 745,
-	MODBUS_DEW_PT_F,
-	MODBUS_PWS,
-	MODBUS_MIX_RADIO,
-	MODBUS_ENTHALPY,
+//	MODBUS_DEW_PT = 745,
+//	MODBUS_DEW_PT_F,
+//	MODBUS_PWS,
+//	MODBUS_MIX_RADIO,
+//	MODBUS_ENTHALPY,
 
-	MODBUS_PTERM1 = 800,
-	MODBUS_ITERM1 = 801,
+//	MODBUS_PTERM1 = 800,
+//	MODBUS_ITERM1 = 801,
 	// type
 	// uint8_t number;
 //	uint8_t point_type;	 // first 3 bit for number

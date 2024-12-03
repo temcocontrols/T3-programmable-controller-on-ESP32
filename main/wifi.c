@@ -47,7 +47,7 @@ void debug_print(char *string,char task_index)
 
 void debug_info(char *string)
 {
-#if DEBUG_INFO_UART0
+#if 0//DEBUG_INFO_UART0
  	//uart_write_bytes(UART_NUM_0, "\r\n", 1);
  	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 
@@ -70,17 +70,17 @@ void init_ssid_info()
 //#define WIFI_RETRY_NEED_INITIAL_COUNT  20
 unsigned char wifi_retry_count = 0;
 //unsigned char wifi_task_running = 1;
-//Fandu : ���ú��� esp_wifi_connect()
-//�� wifi �����ٴγ������ȵ㽨�����ӡ�������������ɹ�������ٴν��� CONNECT��GOTIP ������״̬��
-//�����������ʧ�ܣ����ٴν��� DISCONNECT ״̬�����η���ѭ����ֱ�����ӳɹ�Ϊֹ�� ��������
-//��̫����Ϊʲô event_handler Ϊʲô������ʱ�򲻴��� SYSTEM_EVENT_STA_DISCONNECTED
+//Fandu : 锟斤拷锟矫猴拷锟斤拷 esp_wifi_connect()
+//锟斤拷 wifi 锟斤拷锟斤拷锟劫次筹拷锟斤拷锟斤拷锟饺点建锟斤拷锟斤拷锟接★拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷晒锟斤拷锟斤拷锟斤拷锟劫次斤拷锟斤拷 CONNECT锟斤拷GOTIP 锟斤拷锟斤拷锟斤拷状态锟斤拷
+//锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟绞э拷埽锟斤拷锟斤拷俅谓锟斤拷锟� DISCONNECT 状态锟斤拷锟斤拷锟轿凤拷锟斤拷循锟斤拷锟斤拷直锟斤拷锟斤拷锟接成癸拷为止锟斤拷 锟斤拷锟斤拷锟斤拷锟斤拷
+//锟斤拷太锟斤拷锟斤拷为什么 event_handler 为什么锟斤拷锟斤拷锟斤拷时锟津不达拷锟斤拷 SYSTEM_EVENT_STA_DISCONNECTED
 esp_err_t event_handler_2(void *ctx, system_event_t *event)
 {
     switch (event->event_id)
     {
     case SYSTEM_EVENT_STA_START:
         ESP_LOGI(TAG, "Connecting to AP...");
-        debug_info("event_handler_2 esp_wifi_connect()");
+        //debug_info("event_handler_2 esp_wifi_connect()");
         esp_wifi_connect();
         SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
         if(SSID_Info.IP_Auto_Manual == 1)
@@ -89,7 +89,7 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
 
     case SYSTEM_EVENT_STA_GOT_IP:
         ESP_LOGI(TAG, "Connected.");
-        debug_info("event_handler_2 SYSTEM_EVENT_STA_GOT_IP");
+       // debug_info("event_handler_2 SYSTEM_EVENT_STA_GOT_IP");
         wifi_retry_count = 0;
         //wifi_task_running = 1;
         //xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
@@ -108,7 +108,7 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
     		if(Task_handle[i] != 0)
     		{
     			sprintf(temp_test,"shutdown sock %d\r",i);
-    			debug_info(temp_test);
+    			//debug_info(temp_test);
     			shutdown(task_sock[i],2);
     			close(task_sock[i]);
     			task_sock[i] = NULL;
@@ -119,10 +119,10 @@ esp_err_t event_handler_2(void *ctx, system_event_t *event)
     			{
     				if(xSemaphoreGive(CountHandle) != pdTRUE)
     				{
-    					debug_info("Disconnected Try to Give semaphore and failed!");
+    					//debug_info("Disconnected Try to Give semaphore and failed!");
     				}
     				else
-    					debug_info("Disconnected Give semaphore success!");
+    					;//debug_info("Disconnected Give semaphore success!");
     			}
 
     			vTaskDelay(1000 / portTICK_RATE_MS);
@@ -175,19 +175,19 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
         esp_wifi_connect();
-        debug_info("esp_wifi_connect()");
+        //debug_info("esp_wifi_connect()");
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
         if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY)
         {
-        	debug_info("s_retry_num ++ ");
+        	//debug_info("s_retry_num ++ ");
             esp_wifi_connect();
             s_retry_num++;
             //ESP_LOGI(TAG, "retry to connect to the AP");
         } else
         {
-        	debug_info("s_retry_num  big ,stop try!");
+        	//debug_info("s_retry_num  big ,stop try!");
         	 esp_wifi_connect();
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
@@ -214,6 +214,11 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
         save_wifi_info();
         s_retry_num = 0;
+#if 1//DNS
+		tcpip_adapter_dns_info_t dns_info = {0};
+		IP_ADDR4(&dns_info.ip, SSID_Info.getway[0],SSID_Info.getway[1],SSID_Info.getway[2],SSID_Info.getway[3]);
+		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, 2/*TCPIP_ADAPTER_DNS_FALLBACK*/, &dns_info));
+#endif
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 
     }
@@ -237,25 +242,25 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
 void wifi_init_sta()
 {
 	//init_ssid_info();
-
+	//const uint8_t protocol = WIFI_PROTOCOL_LR;
     s_wifi_event_group = xEventGroupCreate();
 
     CountHandle = xSemaphoreCreateCounting(7,7);
 	if(s_wifi_event_group == NULL)
 	{
-		debug_info("Create event group failed!");
+		//debug_info("Create event group failed!");
 	}
 	else
-		debug_info("Create event group success!");
+		;//debug_info("Create event group success!");
 
 	ESP_ERROR_CHECK(esp_event_loop_init(event_handler_2,NULL));
 
 
 
-    debug_info("esp_event_loop_create_default");
+    //debug_info("esp_event_loop_create_default");
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    debug_info("app esp_wifi_init");
+    //debug_info("app esp_wifi_init");
     ESP_LOGI(TAG, "esp_wifi_init");
 
     //--------------Add IP Set---------------
@@ -264,13 +269,21 @@ void wifi_init_sta()
 
    	esp_netif_t *netif = esp_netif_create_default_wifi_sta();
     assert(netif);
-    debug_info("app ip manual");
+    //debug_info("app ip manual");
 	esp_netif_dhcpc_stop(netif);
 	esp_netif_ip_info_t info_t = {0};
 	info_t.ip.addr = ESP_IP4TOADDR(SSID_Info.ip_addr[0],SSID_Info.ip_addr[1],SSID_Info.ip_addr[2],SSID_Info.ip_addr[3]);
 	info_t.netmask.addr = ESP_IP4TOADDR(SSID_Info.net_mask[0],SSID_Info.net_mask[1],SSID_Info.net_mask[2],SSID_Info.net_mask[3]);
 	info_t.gw.addr = ESP_IP4TOADDR(SSID_Info.getway[0], SSID_Info.getway[1], SSID_Info.getway[2], SSID_Info.getway[3]);
 	esp_netif_set_ip_info(netif,&info_t);
+#if 1//DNS
+	if(info_t.gw.addr != 0)
+	{
+		tcpip_adapter_dns_info_t dns_info = {0};
+		IP_ADDR4(&dns_info.ip, SSID_Info.getway[0],SSID_Info.getway[1],SSID_Info.getway[2],SSID_Info.getway[3]);
+		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, 2/*TCPIP_ADAPTER_DNS_FALLBACK*/, &dns_info));
+	}
+#endif
 
     }
     //--------------Add IP Set---------------
@@ -295,19 +308,23 @@ void wifi_init_sta()
     {
     	init_ssid_info();
     }
-    debug_info("app SSID_Info");
+    //debug_info("app SSID_Info");
     SSID_Info.rev = 4;
     if(SSID_Info.bacnet_port == 0)
     	SSID_Info.bacnet_port = 47808;
     if(SSID_Info.modbus_port == 0)
     	SSID_Info.modbus_port = 502;
+
+    //debug_info("app WIFI_MODE_STA");
+
     debug_info("app WIFI_MODE_STA");
+    //ESP_ERROR_CHECK( esp_wifi_set_protocol(WIFI_IF_STA, protocol) );
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
 
     //ESP_LOGI(TAG, "wifi_init_sta finished.");
-    debug_info("wifi_init_sta finished.");
+    //debug_info("wifi_init_sta finished.");
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
 

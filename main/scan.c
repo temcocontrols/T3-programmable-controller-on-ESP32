@@ -1665,8 +1665,10 @@ void Count_com_config(void)
 }
 
 
-#define READ_POINT_TIMER 100
-#define SCAN_SUB_TIMER   1000
+//#define READ_POINT_TIMER 100
+//#define SCAN_SUB_TIMER   1000
+uint16 READ_POINT_TIMER;
+uint16 READ_POINT_TIMER_FROM_EEP;
 
 U8_T far index_sub;
 
@@ -1740,7 +1742,25 @@ U8_T SendSchedualData(U8_T protocal);
 #endif
 uint8 flag_response_zigbee;
 void Get_ZIGBEE_ID(void);
-//xSemaphoreHandle xSem_comport;
+
+extern uint32_t  system_timer;
+
+void update_Read_point_timer(void)
+{
+	if(((system_timer / 1000) > 120) && (force_scan == 0)) //update Read_point_timer 10min later
+	{
+		READ_POINT_TIMER = READ_POINT_TIMER_FROM_EEP;
+	}
+	if(force_scan == 1)
+		READ_POINT_TIMER = 100;
+
+	// limit range (100ms ~ 10s)
+	if(READ_POINT_TIMER < 100)
+		READ_POINT_TIMER = 100;
+	else if(READ_POINT_TIMER > 10000)
+		READ_POINT_TIMER = 10000;
+}
+
 void ScanTask(void)
 {
 	U8_T far port = 0;
@@ -1758,14 +1778,16 @@ void ScanTask(void)
 	index_sub = 0;
 	flag_response_zigbee = 0;
 	type = 0;
+
 	while(1)	 
 	{	
 
+		update_Read_point_timer();
 		if(flag_suspend_scan == 0)
 		{
 			// write schedule data
 			check_whether_force_scan();
-			if(tempcount >= 20000 / READ_POINT_TIMER)	 // 20s
+			if(tempcount >= 10000 / READ_POINT_TIMER)	 // 10s
 			{
 				if(subcom_num >= 1)
 				{
@@ -1825,7 +1847,7 @@ void ScanTask(void)
 						{  // no remote point, go to heartbeat
 
 							Scan_Idle();
-							vTaskDelay( READ_POINT_TIMER * 50 / portTICK_RATE_MS);
+							vTaskDelay( 5000 / portTICK_RATE_MS);
 							tempcount = tempcount + 50;
 	// only heartbeat frame, slow down
 						}
@@ -1974,13 +1996,14 @@ void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * 
 }
 
 
+uint8 tmp_sendbuf[250];
+uint8_t subnet_response_buf[300];
 void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 {
 	int length = 0;
 	U16_T crc_check = 0;
 	U16_T size0 = 0;
 	U8_T flag_expansion = 0;
-	uint8 tmp_sendbuf[250];
 	U8_T ret = 0;
 	flag_expansion = 0;
 
@@ -2070,7 +2093,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	}
 
 #if 1
-	uint8_t *subnet_response_buf = (uint8_t*)malloc(300);
+	//uint8_t *subnet_response_buf = (uint8_t*)malloc(300);
 	
 	if(buf[1] == CHECKONLINE)  // scan command
 	{
@@ -2220,7 +2243,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			}
 		}*/
 	}	
-	free(subnet_response_buf);
+	//free(subnet_response_buf);
 
 
 //	free(tmp_sendbuf);
@@ -2270,7 +2293,7 @@ void vStartScanTask(unsigned char uxPriority)
 	scan_port = 0xff;
     scan_baut = 0xff;
 
-    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (xTaskHandle *)&main_task_handle[15]);
+    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (xTaskHandle *)&main_task_handle[5]);
 
 }
 

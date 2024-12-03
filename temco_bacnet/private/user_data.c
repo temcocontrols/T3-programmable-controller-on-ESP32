@@ -23,6 +23,8 @@ void debug_info(char *string);
 #define DEBUG_TRENDLOG 0
 
 extern uint16_t current_page;
+extern char sntp_server[30];
+
 uint16_t 	flash_trendlog_num[MAX_MONITORS * 2];
 
 uint32 get_current_time(void);
@@ -52,6 +54,7 @@ U8_T PRODUCT;
 U8_T uart0_baudrate;
 U8_T uart1_baudrate;
 U8_T uart2_baudrate;
+U8_T webview_json_flash;
 
 
 uint8_t  invokeid_mstp;
@@ -85,6 +88,10 @@ extern uint8_t flag_start_scan_network;
 extern uint8_t start_scan_network_count;
 extern uint16_t scan_network_bacnet_count;
 
+extern uint16_t collision[3];  // id collision
+extern uint16_t packet_error[3];  // bautrate not match
+extern uint16_t timeout[3];
+
 BACNET_DATE Local_Date;
 BACNET_TIME Local_Time;
 
@@ -98,7 +105,7 @@ BACNET_TIME Local_Time;
  U16_T  output_raw[MAX_OUTS];
  U16_T  output_raw_back[MAX_OUTS];
  U16_T  chip_info[6];
- uint32  Instance;
+ U32_T  Instance;
 
 //U8_T  control_auto[MAX_OUTS];
 //U8_T  switch_status_back[MAX_OUTS];
@@ -177,7 +184,8 @@ Str_Email_point Email_Setting;
 //S8_T                    far		Icon_names[MAX_ICONS][14];
 EXT_RAM_ATTR Control_group_point  	 		control_groups[MAX_GRPS];// _at_ 0x14000;
 //Str_grp_element		    far	    	group_data[MAX_ELEMENTS];// _at_ 0x14500;
-EXT_RAM_ATTR Str_grp_element			   	  group_data[MAX_ELEMENTS];
+//EXT_RAM_ATTR Str_grp_element			   	  group_data[MAX_ELEMENTS];
+EXT_RAM_ATTR Str_grp_element_new   		group_data_new;
 
 S16_T 					far							 total_elements;
 S16_T 					far							 group_data_length;
@@ -588,7 +596,8 @@ void init_panel(void)
 #if 1//TEST
 	memset( control_groups,'\0', MAX_GRPS * sizeof( Control_group_point) );
 //	memset( aux_groups,'\0', MAX_GRPS * sizeof( Aux_group_point) );
-	memset( group_data, '\0', MAX_ELEMENTS * sizeof( Str_grp_element) );
+//	memset( group_data, '\0', MAX_ELEMENTS * sizeof( Str_grp_element) );
+	memset( &group_data_new, '\0', sizeof( Str_grp_element_new) );
 	total_elements = 0;
 	group_data_length = 0;
 	ptr.pgrp = control_groups;		
@@ -730,7 +739,7 @@ void init_panel(void)
 	
 
 //	memset(panelname,0,20);
-//	memset(&Email_Setting, 0, sizeof(Str_Email_point));
+	memset(&Email_Setting, 0, sizeof(Str_Email_point));
 
 	//memset(&SSID_Info,0,sizeof(STR_SSID));
 #endif
@@ -891,6 +900,8 @@ void Sync_Panel_Info(void)
 
 	Setting_Info.reg.MAX_MASTER = MAX_MASTER;
 	
+	Setting_Info.reg.webview_json_flash = webview_json_flash;
+	
 	Setting_Info.reg.start_month = Modbus.start_month;
 	Setting_Info.reg.start_day = Modbus.start_day;
 	Setting_Info.reg.end_month = Modbus.end_month;
@@ -902,8 +913,16 @@ void Sync_Panel_Info(void)
 	
 	if(Modbus.mini_type == 9/*MINI_TSTAT10*/)
 	{
-		memcpy(Setting_Info.reg.display_lcd.lcddisplay, &lcddisplay,sizeof(lcdconfig));
+		memcpy(Setting_Info.reg.display_lcd.lcddisplay, lcddisplay,sizeof(lcdconfig));
 	}
+	
+	Setting_Info.reg.en_sntp = Modbus.en_sntp;
+	Setting_Info.reg.en_time_sync_with_pc = Modbus.en_time_sync_with_pc;
+	if(Setting_Info.reg.en_time_sync_with_pc == 1)
+		Setting_Info.reg.update_time_sync_pc = 1;
+	else
+		Setting_Info.reg.update_time_sync_pc = 0;
+	memcpy(Setting_Info.reg.sntp_server,sntp_server,30);
 }
 
 
@@ -1020,11 +1039,25 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 	if(remote_panel_num > MAX_REMOTE_PANEL_NUMBER) 
 		return ;
 
-	if((panel < panel_number) && (protocal == BAC_IP || protocal == BAC_IP_CLIENT))
+
+// check who is network master
+	if(((protocal == BAC_IP) ||(protocal == BAC_IP_CLIENT))  && temcoproduct == 1) // current device is temco device, and it is not subdevice
 	{
-		Modbus.network_master = 0;
-		Master_Scan_Network_Count = 0;
+		if(panel == 255)
+		{
+			if(src->mac[3] != 0)
+			{
+				panel = src->mac[3];
+			}
+		}
+		if(panel < panel_number)
+		{
+			Modbus.network_master = 0;
+			Master_Scan_Network_Count = 0;
+		}
 	}
+
+
 
 	//if(Master_node)
 	{
@@ -1062,12 +1095,8 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 				else if(src->len == 6)  // wifi-tstat for cusomter
 				{ // 有 netowrk number
 					remote_panel_db[remote_panel_num].sub_id = src->adr[3];//?????????
-					//memcpy(&Test[32],src->mac,6);
-					//memcpy(&Test[35],src->adr,6);
 				}
 				else {// 没有 network number
-					//memcpy(&Test[42],src->mac,6);
-					//memcpy(&Test[45],src->adr,6);
 					remote_panel_db[remote_panel_num].sub_id = panel;
 				}
 
@@ -1408,17 +1437,17 @@ void Send_SUB_I_Am(uint8_t index)
 
 void chech_mstp_collision(void)
 {
-	//Test[0]++;//collision[2]++;
+	collision[2]++;
 }
 
 void check_mstp_packet_error(void)
 {
-	//Test[1]++;//packet_error[2]++;
+	packet_error[2]++;
 }
 
 void check_mstp_timeout(void)
 {
-	//Test[2]++;//timeout[2]++;
+	timeout[2]++;
 }
 
 #if 1 //BAC_POINT
@@ -1468,7 +1497,8 @@ S16_T find_network_point( Point_Net *point )
 		(point->point_type == ptr->point.point_type) &&
 		(point->number == ptr->point.number) )
 		{
-			if((ptr->point.sub_id == 0) || (ptr->point.sub_id == point->panel))
+			if((ptr->point.sub_id == 0) || (ptr->point.sub_id == point->panel)
+				|| (ptr->point.sub_id == point->sub_id))
 			{
 				break;
 			}			
@@ -1537,8 +1567,12 @@ U8_T check_network_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 		//(point->point_type == ptr->point.point_type) &&
 		(point->number == ptr->point.number) )
 		{
-			*index = i;
-			return 1;
+			if((ptr->point.sub_id == 0) || (ptr->point.sub_id == point->panel)
+				|| (ptr->point.sub_id == point->sub_id))
+			{
+				*index = i;
+				return 1;
+			}
 		}
 	}
 	return 0;
@@ -2595,7 +2629,7 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 	if( point.network_number != Setting_Info.reg.network_number)
 		return 0;*/  // change structure, network is used for instance
 
-	
+
 	get_point_info_by_instacne(&point);
 
 	if(point.panel == 0)
@@ -2932,6 +2966,7 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 				else if(((ptr1->point.point_type == OUT + 1) && (point.number < max_dos))
 					|| (ptr1->point.point_type == BAC_BO + 1))
 				{		// ptransfer output
+
 					if(value != *val_ptr)
 					{
 						WriteRemotePoint(OBJECT_BINARY_OUTPUT,
@@ -3164,12 +3199,12 @@ void initial_graphic_point(void)
 	S32_T value;
 	for(i = 0;i < MAX_ELEMENTS;i++)
 	{
-		if(group_data[i].reg.label_status == 0)
+		if(group_data_new.old_item[i].reg.label_status == 0)
 			break;
-		point.number = group_data[i].reg.nPoint_number;
-		point.point_type = group_data[i].reg.nPoint_type;
-		point.panel = group_data[i].reg.nMain_Panel;
-		point.sub_id = group_data[i].reg.nSub_Panel;
+		point.number = group_data_new.old_item[i].reg.nPoint_number;
+		point.point_type = group_data_new.old_item[i].reg.nPoint_type;
+		point.panel = group_data_new.old_item[i].reg.nMain_Panel;
+		point.sub_id = group_data_new.old_item[i].reg.nSub_Panel;
 		point.network_number = 0;//Setting_Info.reg.network_number;
 
 		get_net_point_value(&point,&value,1,1);
@@ -3351,7 +3386,7 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		write_mon_point_buf_to_flash[flash_trendlog_seg].time = temp[3] + (U16_T)(temp[2] << 8)
 	 + ((uint32_t)temp[1] << 16) + ((uint32_t)temp[0] << 24);
 
-	
+
 		write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
 		if(get_net_point_value( ptr.pnet, &value,0,0 ) == 1)  // get rid of default value 0x55555555
@@ -3365,11 +3400,11 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 
 			write_mon_point_buf_to_flash[flash_trendlog_seg].value = temp[3] + (U16_T)(temp[2] << 8)
 						+ ((uint32_t)temp[1] << 16) + ((uint32_t)temp[0] << 24);
-			Test[21]++;
+
 			flash_trendlog_seg++;
 		}
 	}
-	
+
 	if(flash_trendlog_seg +  mon_block[i * 2].no_points >= MAX_MON_POINT_FLASH/*256*/)
 	{
 		// current buffer is full, save data to SD card.
@@ -3627,16 +3662,14 @@ void sample_points( void  )
 	for( i = 0; i < MAX_MONITORS; i++, mon_ptr++)
 	{
 		if((mon_ptr->status > 0) /*&& (max_monitor_time[i] > 0)*/)
-		{Test[10]++;
+		{
 			//if(count_max_time[i] > 0)
 			{
 				//count_max_time[i]--;
 				if( mon_ptr->an_inputs > 0)
 				{
-					Test[11]++;
-					Test[12] = mon_ptr->next_sample_time - time_since_1970;
 					if( mon_ptr->next_sample_time <= get_current_time() )
-					{Test[13]++;
+					{
 						sample_analog_points(i, mon_ptr);
 					}
 				}
@@ -3681,14 +3714,14 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 		if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG + 1 + 176)
 		{
 			// 
-			Test[16]++;
+
 		}
 		else
 		{			
 			if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG + 1)
 			{// read last packet, not store into flash
 				PTRtable->special = 1;
-				Test[22]++;
+
 				temp_seg = (PTRtable->seg_index - 1 - current_page * MAX_TREND_SEG);
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read last packet seg = %ld, temp_set = %u",PTRtable->seg_index,temp_seg);
@@ -3701,7 +3734,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 
 			}
 			else			
-			{	Test[24]++;
+			{
 				PTRtable->special = 0;
 				if(read_trendlog((PTRtable->seg_index - 1) / MAX_TREND_SEG, (PTRtable->seg_index - 1) % MAX_TREND_SEG) == 0) // no error
 				{
@@ -3729,7 +3762,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 		//uint32 end_time;
 		//----Get_start_end_packet_by_time			
 		end_seg = current_page * MAX_TREND_SEG + flash_trendlog_seg / MAX_MON_POINT_READ;
-		Test[23]++;
+
 		if(end_seg > 176)
 		{
 			PTRtable->seg_index = end_seg - 176;

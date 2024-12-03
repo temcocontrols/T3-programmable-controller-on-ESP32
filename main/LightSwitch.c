@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -10,12 +11,17 @@
 #include "esp_log.h"
 #include "types.h"
 #include "define.h"
-#include "driver/uart.h"
+//#include "driver/uart.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 #include "modbus.h"
 #include "i2c_task.h"
-#include "user_data.h"
+#include "user_data.h"//?????????????????????
+
+#include "esp_attr.h"
+#include "led_strip.h"
+#include "driver/rmt.h"
+
 
 #define PIR_NOTTRIGGERED   0
 #define PIR_TRIGGERED   1
@@ -23,6 +29,7 @@
 #define LIGHT_DEFAULT_VREF    1100//3300        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define LIGHT_NO_OF_SAMPLES   64          //Multisampling
 
+extern uint16_t Test[50];
 extern uint8 DEGCorF;
 extern uint32_t PirSensorZero;
 extern uint32_t Pir_Sensetivity;
@@ -32,22 +39,24 @@ extern uint8_t scd4x_perform_forced;
 extern uint16_t co2_asc;
 extern uint16_t co2_frc;
 extern uint8 sensirion_co2_cmd_ForcedCalibration[8];
-
+extern char debug_array[100];
+void LS_led_task(void);
 
 //-----------LIGHT SWITCH IO define
 #define LS_SENSOR_EN		2
 #define LS_SENSOR_EN_SEL  	(1ULL<<LS_SENSOR_EN)
 
-#define LS_S1				12
-#define LS_S1_SEL  			(1ULL<<LS_S1)
+#define LS_S7				12
+#define LS_S7_SEL  			(1ULL<<LS_S7)
 
-
-#define LS_S2_S3_SEL  		(1ULL<<36)
-#define LS_S4_S6_SEL  		(1ULL<<32)
-#define LS_S5_S7_SEL  		(1ULL<<33)
+#define LS_S1_S2_SEL  		(1ULL<<33)
+#define LS_S3_S4_SEL  		(1ULL<<32)
+#define LS_S5_S6_SEL  		(1ULL<<36)
 #define LS_AIN_TEMP_SET		(1ULL<<34)
 #define LS_AIN_LIGHT_SET	(1ULL<<35)
 #define LS_AIN_OCC_SET		(1ULL<<39)
+
+portMUX_TYPE led_spinlock;
 
 void Light_Switch_IO_Init(void)
 {
@@ -67,18 +76,16 @@ void Light_Switch_IO_Init(void)
 	
 	gpio_set_level(LS_SENSOR_EN, 1);  // ENABLE SENSOR
 
-
 	//disable interrupt
 	io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
 	//set as output mode
 	io_conf.mode = GPIO_MODE_INPUT;
 	//bit mask of the pins that you want to set
-	io_conf.pin_bit_mask = LS_S1_SEL | LS_S2_S3_SEL | LS_S4_S6_SEL | LS_S5_S7_SEL | LS_AIN_TEMP_SET | LS_AIN_LIGHT_SET | LS_AIN_OCC_SET;
+	io_conf.pin_bit_mask = LS_S7_SEL | LS_S1_S2_SEL | LS_S3_S4_SEL | LS_S5_S6_SEL | LS_AIN_TEMP_SET | LS_AIN_LIGHT_SET | LS_AIN_OCC_SET;
 
 	io_conf.pull_up_en = 1;
 	//configure GPIO with the given settings
 	gpio_config(&io_conf);
-
 }
 
 // ADC
@@ -92,33 +99,31 @@ static const adc_unit_t lightswitch_unit = ADC_UNIT_1;
 static const adc_channel_t lightswitch_Light = ADC_CHANNEL_7;  // light  IO34
 static const adc_channel_t lightswitch_PIR = ADC_CHANNEL_3;  //  occ	IO35
 static const adc_channel_t lightswitch_TEMP = ADC_CHANNEL_6;  // temperature  IO39
-static const adc_channel_t lightswitch_S2S3 = ADC_CHANNEL_0;  // S2 S3
-static const adc_channel_t lightswitch_S4S6 = ADC_CHANNEL_4;  //  S4 S6
-static const adc_channel_t lightswitch_S5S7 = ADC_CHANNEL_5;  // S5 S7
+static const adc_channel_t lightswitch_S1S2 = ADC_CHANNEL_5;  // S2 S1
+static const adc_channel_t lightswitch_S3S4 = ADC_CHANNEL_4;  //  S4 S3
+static const adc_channel_t lightswitch_S5S6 = ADC_CHANNEL_0;  //  S5 S6
 
 uint8_t light_key[7];
 
 static void Light_adc_task(void* arg);
 void lightswitch_adc_init(void)
 {
-	// EN SENSOR_IO IO2
-	
-	
-    //Configure ADC
+	//Configure ADC
 
 	adc1_config_width(ADC_WIDTH_BIT_12);
 	adc1_config_channel_atten(lightswitch_Light, lightswitch_atten);
 	adc1_config_channel_atten(lightswitch_PIR, lightswitch_atten);
 	adc1_config_channel_atten(lightswitch_TEMP, lightswitch_atten);
-	adc1_config_channel_atten(lightswitch_S2S3, lightswitch_atten);
-	adc1_config_channel_atten(lightswitch_S4S6, lightswitch_atten);
-	adc1_config_channel_atten(lightswitch_S5S7, lightswitch_atten);
+	adc1_config_channel_atten(lightswitch_S1S2, lightswitch_atten);
+	adc1_config_channel_atten(lightswitch_S3S4, lightswitch_atten);
+	adc1_config_channel_atten(lightswitch_S5S6, lightswitch_atten);
 
-    xTaskCreate(Light_adc_task, "adc_task", 2048*2, NULL, 2, NULL);
+    xTaskCreate(Light_adc_task, "adc_task", 2048, NULL, 2, NULL);
 }
 
 
 
+void LS_LED_Control(uint8_t index,uint8_t color1,uint8_t color2,uint8_t color3,uint8_t color4);
 static void Light_adc_task(void* arg)
 {
 	//uint32_t adc_reading = 0;
@@ -127,67 +132,123 @@ static void Light_adc_task(void* arg)
 	uint32_t adc_light = 0;
 	uint32_t adc_pir = 0;
 	uint32_t adc_tempertature = 0;
-	uint32_t adc_S2S3 = 0;
-	uint32_t adc_S4S6 = 0;
-	uint32_t adc_S5S7 = 0;
+	uint32_t adc_S1S2 = 0;
+	uint32_t adc_S3S4 = 0;
+	uint32_t adc_S5S6 = 0;
 	Str_points_ptr ptr;
-
+	uint32_t key_refresh_timer[7] = {0,0,0,0,0,0,0};
 
 
 	uint32_t vol_light = 0;
 	uint32_t vol_pir = 0;
 	uint32_t vol_tempertature = 0;
-	uint32_t vol_S2S3 = 0;
-	uint32_t vol_S4S6 = 0;
-	uint32_t vol_S5S7 = 0;
-	
+	uint32_t vol_S1S2 = 0;
+	uint32_t vol_S3S4 = 0;
+	uint32_t vol_S5S6 = 0;
+
 	int i = 0;
     //Continuously sample ADC1//Characterize ADC
 	lightswitch_adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
 	esp_adc_cal_value_t val_type = esp_adc_cal_characterize(lightswitch_unit, lightswitch_atten, ADC_WIDTH_BIT_12, LIGHT_DEFAULT_VREF, lightswitch_adc_chars);
 
     while (1) {
+
+    	//LS_LED_Control(Test[44],Test[45],Test[46],Test[47],Test[48]);
         //Multisampling
         for (i = 0; i < LIGHT_NO_OF_SAMPLES; i++) {
             if (lightswitch_unit == ADC_UNIT_1) {
             	adc_light += adc1_get_raw((adc1_channel_t)lightswitch_Light);
             	adc_pir += adc1_get_raw((adc1_channel_t)lightswitch_PIR);
             	adc_tempertature += adc1_get_raw((adc1_channel_t)lightswitch_TEMP);
-            	adc_S2S3 += adc1_get_raw((adc1_channel_t)lightswitch_S2S3);
-            	adc_S4S6 += adc1_get_raw((adc1_channel_t)lightswitch_S4S6);
-            	adc_S5S7 += adc1_get_raw((adc1_channel_t)lightswitch_S5S7);
+            	adc_S1S2 += adc1_get_raw((adc1_channel_t)lightswitch_S1S2);
+            	adc_S3S4 += adc1_get_raw((adc1_channel_t)lightswitch_S3S4);
+            	adc_S5S6 += adc1_get_raw((adc1_channel_t)lightswitch_S5S6);
             }
         }
 
         adc_light /= LIGHT_NO_OF_SAMPLES;
         adc_pir /= LIGHT_NO_OF_SAMPLES;
         adc_tempertature /= LIGHT_NO_OF_SAMPLES;
-        adc_S2S3 /= LIGHT_NO_OF_SAMPLES;
-        adc_S4S6 /= LIGHT_NO_OF_SAMPLES;
-        adc_S5S7 /= LIGHT_NO_OF_SAMPLES;
+        adc_S1S2 /= LIGHT_NO_OF_SAMPLES;
+        adc_S3S4 /= LIGHT_NO_OF_SAMPLES;
+        adc_S5S6 /= LIGHT_NO_OF_SAMPLES;
         
+
         vol_light = esp_adc_cal_raw_to_voltage(adc_light, lightswitch_adc_chars);
         vol_pir = esp_adc_cal_raw_to_voltage(adc_pir, lightswitch_adc_chars);
         vol_tempertature = esp_adc_cal_raw_to_voltage(adc_tempertature, lightswitch_adc_chars);
-        vol_S2S3 = esp_adc_cal_raw_to_voltage(adc_S2S3, lightswitch_adc_chars);
-        vol_S4S6 = esp_adc_cal_raw_to_voltage(adc_S4S6, lightswitch_adc_chars);
-        vol_S5S7 = esp_adc_cal_raw_to_voltage(adc_S5S7, lightswitch_adc_chars);
+        vol_S1S2 = esp_adc_cal_raw_to_voltage(adc_S1S2, lightswitch_adc_chars);
+        vol_S3S4 = esp_adc_cal_raw_to_voltage(adc_S3S4, lightswitch_adc_chars);
+        vol_S5S6 = esp_adc_cal_raw_to_voltage(adc_S5S6, lightswitch_adc_chars);
 
-        light_key[0] = gpio_get_level(LS_S1);
-        if(vol_S2S3 < 1)	{light_key[1] = 1;light_key[2] = 1;}// 1/4
-        else if(vol_S2S3 < 1.8)	{light_key[1] = 1;light_key[2] = 0;}// 1/2
-        else if(vol_S2S3 < 2.4)	{light_key[1] = 1;light_key[2] = 0;}// 2/3
-        else 					{light_key[1] = 0;light_key[2] = 0;}// 1
 
-        if(vol_S4S6 < 1)	{light_key[3] = 1;light_key[5] = 1;}// 1/4
-		else if(vol_S4S6 < 1.8)	{light_key[3] = 1;light_key[5] = 0;}// 1/2
-		else if(vol_S4S6 < 2.4)	{light_key[3] = 1;light_key[5] = 0;}// 2/3
-		else 					{light_key[3] = 0;light_key[5] = 0;}// 1
+        if(gpio_get_level(LS_S7) == 0)
+        {
+        	light_key[6] = 0;
+        	key_refresh_timer[6] = xTaskGetTickCount();
+        }
+        else
+        {
+        	if(xTaskGetTickCount() - key_refresh_timer[6] > 500)     	light_key[6] = 1;
+        }
 
-        if(vol_S5S7 < 1)	{light_key[4] = 1;light_key[6] = 1;}// 1/4
-		else if(vol_S5S7 < 1.8)	{light_key[4] = 1;light_key[6] = 0;}// 1/2
-		else if(vol_S5S7 < 2.4)	{light_key[4] = 1;light_key[6] = 0;}// 2/3
-		else 					{light_key[4] = 0;light_key[6] = 0;}// 1
+        if(vol_S1S2 < 500)	{
+        	if(xTaskGetTickCount() - key_refresh_timer[0] > 500)     	light_key[0] = 1;
+        	if(xTaskGetTickCount() - key_refresh_timer[1] > 500)     	light_key[1] = 1;
+        }// 1/4
+        else if(vol_S1S2 < 1800)	{light_key[0] = 1;light_key[1] = 0; key_refresh_timer[1] = xTaskGetTickCount();}// 1/2
+        else if(vol_S1S2 < 2400)	{light_key[0] = 0;light_key[1] = 1; key_refresh_timer[0] = xTaskGetTickCount();}// 2/3
+        else 					{light_key[0] = 0;light_key[1] = 0; 	key_refresh_timer[0] = xTaskGetTickCount(); key_refresh_timer[1] = xTaskGetTickCount();}// 1
+
+        if(vol_S3S4 < 500)	{
+        	if(xTaskGetTickCount() - key_refresh_timer[2] > 500)     	light_key[2] = 1;
+        	if(xTaskGetTickCount() - key_refresh_timer[3] > 500)     	light_key[3] = 1;
+        }// 1/4
+		else if(vol_S3S4 < 1800)	{light_key[2] = 1;light_key[3] = 0;	key_refresh_timer[3] = xTaskGetTickCount();}// 1/2
+		else if(vol_S3S4 < 2400)	{light_key[2] = 0;light_key[3] = 1;	key_refresh_timer[2] = xTaskGetTickCount();}// 2/3
+		else 					{light_key[2] = 0;light_key[3] = 0;		key_refresh_timer[2] = xTaskGetTickCount();	key_refresh_timer[3] = xTaskGetTickCount();}// 1
+
+        if(vol_S5S6 < 500)	{
+        	if(xTaskGetTickCount() - key_refresh_timer[4] > 500)     	light_key[4] = 1;
+        	if(xTaskGetTickCount() - key_refresh_timer[5] > 500)     	light_key[5] = 1;
+        }// 1/4
+		else if(vol_S5S6 < 1800)	{light_key[4] = 1;light_key[5] = 0;	key_refresh_timer[5] = xTaskGetTickCount();}// 1/2
+		else if(vol_S5S6 < 2400)	{light_key[4] = 0;light_key[5] = 1;	key_refresh_timer[4] = xTaskGetTickCount();}// 2/3
+		else 					{light_key[4] = 0;light_key[5] = 0;		key_refresh_timer[4] = xTaskGetTickCount();	key_refresh_timer[5] = xTaskGetTickCount();}// 1
+
+
+		Test[20] = light_key[0];
+		Test[21] = light_key[1];
+		Test[22] = light_key[2];
+		Test[23] = light_key[3];
+		Test[24] = light_key[4];
+		Test[25] = light_key[5];
+		Test[26] = light_key[6];
+
+
+        for(i = 0;i < 7;i++)
+        {
+        	ptr = put_io_buf(2/*VAR*/,i);
+        	ptr.pvar->range = 1/*OFF_ON*/;
+        	ptr.pvar->digital_analog = 0;
+        	ptr.pvar->control = (light_key[i] == 0) ? 1 : 0;
+        }
+
+        // control led
+#if 1
+        uint8_t temp_index = 0;
+        uint8_t temp_color = 0;
+        for(i = 0;i < 4;i++)
+		{
+			ptr = put_io_buf(2/*VAR*/,i+10);
+			ptr.pvar->range = 1/*OFF_ON*/;
+			ptr.pvar->digital_analog = 0;
+			temp_index &= ~(0x01 << i);
+			if(ptr.pvar->control == 1)
+				temp_index |= (0x01 << i);
+		}
+        LS_LED_Control(temp_index,1,2,3,4);
+#endif
 
         if(abs(vol_pir - PirSensorZero) > Pir_Sensetivity) //occupied
 		{
@@ -197,12 +258,13 @@ static void Light_adc_task(void* arg)
 		{
 			pir_trigger = PIR_NOTTRIGGERED;
 		}
-        
-        vTaskDelay(1000 / portTICK_RATE_MS);
+
+        vTaskDelay(50 / portTICK_RATE_MS);
+
     }
 }
 
-
+#if 1
 uint16_t read_lightswitch_by_block(uint16_t addr)
 {
 	uint8_t item;
@@ -351,5 +413,94 @@ void write_lightswitch_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uin
 		}
 	}	
 }
+#endif
+
+#if 0
+static const char *TAG = "ws2812";
+
+#define RMT_TX_CHANNEL RMT_CHANNEL_0
+//#define CONFIG_EXAMPLE_RMT_TX_GPIO 15
+//#define CONFIG_EXAMPLE_STRIP_LED_NUMBER 4
 
 
+
+
+
+
+void LS_led_task(void)
+{
+	uint32_t red = 0;
+	uint32_t green = 0;
+	uint32_t blue = 0;
+	uint16_t hue = 0;
+	uint16_t start_rgb = 0;
+	uint16_t t1 = 0;
+	uint8_t t2 = 0;
+	//uart_init_test();
+	rmt_config_t config = RMT_DEFAULT_CONFIG_TX(CONFIG_EXAMPLE_RMT_TX_GPIO, RMT_TX_CHANNEL);
+	// set counter clock to 40MHz
+	config.clk_div = 2;
+
+	ESP_ERROR_CHECK(rmt_config(&config));
+	ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
+	// install ws2812 driver
+	led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(CONFIG_EXAMPLE_STRIP_LED_NUMBER, (led_strip_dev_t)config.channel);
+	led_strip_t *strip = led_strip_new_rmt_ws2812(&strip_config);
+	if (!strip) {
+		ESP_LOGE(TAG, "install WS2812 driver failed");
+	}
+	// Clear LED strip (turn off all LEDs)
+	ESP_ERROR_CHECK(strip->clear(strip, 100));
+	// Show simple rainbow chasing pattern
+	//ESP_LOGI(TAG, "LED Rainbow Chase Start");
+
+	while (true) {
+
+		//Test[16] = t2;
+		if(t1++ > 20)
+		{
+			//start_fw_update();
+		}
+		switch(t2)
+		{
+		case 0:
+			strip->set_pixel(strip, 0, 255, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 1, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 2, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 3, 0, 0, 0);strip->refresh(strip, 100);
+			break;
+		case 2:
+			strip->set_pixel(strip, 0, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 1, 0, 255, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 2, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 3, 0, 0, 0);strip->refresh(strip, 100);
+			break;
+		case 4:
+			strip->set_pixel(strip, 0, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 1, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 2, 0, 0, 255);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 3, 0, 0, 0);strip->refresh(strip, 100);
+			break;
+		case 6:
+			strip->set_pixel(strip, 0, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 1, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 2, 0, 0, 0);strip->refresh(strip, 100);
+			strip->set_pixel(strip, 3, 255, 255, 255);strip->refresh(strip, 100);
+			break;
+		case 1:
+		case 3:
+		case 5:
+		case 7:
+			strip->clear(strip, 100);
+		default:
+			break;
+		}
+		t2++;
+		if(t2 >= 8) t2 = 0;
+		vTaskDelay(1000 / portTICK_RATE_MS);
+
+	}
+
+}
+
+#endif

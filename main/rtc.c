@@ -14,6 +14,9 @@
 extern uint16_t Test[50];
 int16_t  timezone;
 uint8_t  Daylight_Saving_Time;
+U32_T RTC_GetCounter(void);
+void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag);
+U32_T get_current_time_with_timezone(void);
 
 const uint8_t	Month[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
 const uint8_t	AddMonth[12] = {31,29,31,30,31,30,31,31,30,31,30,31};
@@ -317,10 +320,11 @@ int PCF_systohc(){
 	rtc_date.weekday = RTC_Get_Week(rtc_date.year,rtc_date.month,rtc_date.day);//tm.tm_wday;
 	ret = PCF_SetDateTime(&rtc_date);
 
+
 fail:
 	return ret;
 }
-void update_timers( void );
+
 
 
 void update_timers( void )
@@ -393,6 +397,8 @@ void update_timers( void )
 	}
 
 	time_since_1970 += timestart;
+
+	Get_Time_by_sec(get_current_time_with_timezone(),&Rtc,1);
 
 }
 
@@ -517,14 +523,14 @@ void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag)
 
 	if(flag == 1)
 	{
-	Local_Date.year = rtc->Clk.year + 2000;
-	Local_Date.month = rtc->Clk.mon;
-	Local_Date.day = rtc->Clk.day;
-	Local_Date.wday = rtc->Clk.week;
+	Local_Date.year = rtc_date.year;
+	Local_Date.month = rtc_date.month;
+	Local_Date.day = rtc_date.day;
+	Local_Date.wday = rtc_date.weekday;
 
-	Local_Time.hour = rtc->Clk.hour;
-	Local_Time.min = rtc->Clk.min;
-	Local_Time.sec = rtc->Clk.sec;
+	Local_Time.hour = rtc_date.hour;
+	Local_Time.min = rtc_date.minute;
+	Local_Time.sec = rtc_date.second;
 	}
 }
 
@@ -543,10 +549,15 @@ uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8
 		PCF_SetDateTime(&rtc_date);
 	}
 
-	update_timers();
+	//update_timers();
+	//PCF_systohc();
 	return time_since_1970 + system_timer / 1000;
 }
 
+
+
+
+// source -- 0: timer server(since 1900)	1: T3000 timesync
 void Get_RTC_by_timestamp(U32_T timestamp,UN_Time* rtc,U8_T source)
 {
 	S8_T	signhour, signmin;

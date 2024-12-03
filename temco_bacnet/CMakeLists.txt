@@ -48,7 +48,7 @@ idf_component_register(SRCS
 				"src/h_rpm.c"				
 		#		"src/h_rr.c"
 		#		"src/h_rr_a.c"				
-		#		"src/h_ts.c"
+				"src/h_ts.c"
 				"src/h_whohas.c"
 				"src/h_whois.c"
 				"src/h_wp.c"

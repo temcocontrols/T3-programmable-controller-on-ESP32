@@ -68,7 +68,9 @@ void Comm_Tstat_Initial_Data(void)
 	else if(Modbus.mini_type == MINI_T10P) 		{	base_in = T10P_MAX_AIS;			base_out = T10P_MAX_DOS + T10P_MAX_AOS;}
 	else if(Modbus.mini_type == PROJECT_FAN_MODULE)	{	base_in = 6;		base_out = 2;}
 	else if(Modbus.mini_type == PROJECT_AIRLAB)	{	base_in = 16;		base_out = 0;}
-	else if(Modbus.mini_type == PROJECT_NG2) {base_in = 16/*18*/;		base_out = 7;}
+	else if(Modbus.mini_type == PROJECT_NG2) 	{	base_in = 16;		base_out = 7;}
+	else if(Modbus.mini_type == PROJECT_NG2_NEW) {	base_in = 24;		base_out = 12;}
+	else if(Modbus.mini_type == PROJECT_LIGHT_SWITCH) {base_in = 16;		base_out = 4;}
 	else /*if(Modbus.mini_type == MINI_NANO) */		{	base_in = 0;		base_out = 0;}
 	base_var = 0;
 
@@ -976,7 +978,8 @@ void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start
 	else if(Modbus.mini_type == MINI_TINY_11I)	{	ptr->reg.input_end = 11;		ptr->reg.output_end = 11;		}
 	else if(Modbus.mini_type == MINI_NANO)	{	// no I/O
 		ptr->reg.input_start = 0;		ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 0;		}
-	else if(Modbus.mini_type == PROJECT_NG2) {ptr->reg.input_end = 18;		ptr->reg.output_end = 7;}
+	else if(Modbus.mini_type == PROJECT_NG2) {ptr->reg.input_end = 16;		ptr->reg.output_end = 7;}
+	else if(Modbus.mini_type == PROJECT_NG2_NEW) {ptr->reg.input_end = 24;		ptr->reg.output_end = 12;}
 
 
 	j = 0;

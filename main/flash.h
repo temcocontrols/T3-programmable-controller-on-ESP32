@@ -13,6 +13,8 @@ enum
 	FLASH_BLOCK2_PN,
 	FLASH_BLOCK3_NET,
 	FLASH_BLOCK_LCD_CONFIG,
+	FLASH_BLOCK_EMAIL,
+	FLASH_BLOCK_SNTP,
 }E_BLOCK;
 
 
@@ -24,6 +26,9 @@ enum
 #define FLASH_NET_INFO		"NET_INFO"
 #define FLASH_PANEL_NAME	"PANEL_NAME"
 #define FLASH_LCD_CONFIG	"LCD_CONFIG"
+#define FLASH_READ_POINT_TIMER "READ_POINT_TIMER"
+#define FLASH_EMAIL			"Email_Setting"
+#define FLASH_SNTP			"Email_SNTP"
 
 
 #define FLASH_MODBUS_ID		"MODBUS_ID"
@@ -40,6 +45,7 @@ enum
 #define FLASH_BOOTLOADER    "BOOTLOADER"
 #define FLASH_COUNT_REBOOT	"COUNT_REBOOT"
 #define FLASH_SUB_TYPE		"SUB_TYPE"
+#define FLASH_JASON			"WEBWIEW_JASON"
 
 
 #define FLASH_UART2_CONFIG	"UART2_CONFIG"
@@ -53,6 +59,9 @@ enum
 #define FLASH_INSTANCE2		"INSTANCE2"
 #define FLASH_INSTANCE3		"INSTANCE3"
 #define FLASH_INSTANCE4		"INSTANCE4"
+
+#define FLASH_EN_TIME_SYNC_PC	"EN_TIME_SYNC_PC"
+#define FLASH_EN_SNTP			"EN_SNTP"
 
 #define FLASH_EN_USERNAME	"EN_USERNAME"
 #define FLASH_TIME_ZONE		"TIME_ZONE"
@@ -132,6 +141,7 @@ enum
 extern esp_err_t save_block(uint8_t key);
 extern esp_err_t read_default_from_flash(void);
 extern esp_err_t save_wifi_info(void);
+void Save_SNTP_sever(void);
 extern esp_err_t save_point_info(uint8_t point_type);
 extern esp_err_t save_uint8_to_flash(const char* key, uint8_t value);
 extern esp_err_t save_uint16_to_flash(const char* key, uint16_t value);

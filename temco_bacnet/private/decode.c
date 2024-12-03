@@ -192,7 +192,7 @@ uint32_t convert_pointer_to_double( U8_T *iAddr )	  // DoulbemGetPointWord
 //	return( temp4 | (U16_T)temp3 << 8 | (uint32_t)temp2 << 16 |  (uint32_t)temp1 << 24);
 //}
 
-//extern u32 uip_timer;
+extern uint32_t system_timer;
 S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 {
 
@@ -216,7 +216,8 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	U8_T *local = NULL;
 	static U16_T temp = 0;
 #if 1
-//	u32 t1,t2;
+	u32 t1 = 0;
+	u32 t2 = 0;
 	// S16_T r_ind_remote;
 //	Program_remote_points /**r_remote,*/ *remote_local_list;
 //	S16_T ind_remote_local_list;
@@ -325,23 +326,17 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 
 	temp = 0;
 
-/*#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)
-	t1 = uip_timer;
-#else	// tbd: for asix
-	t1 = (U16_T)SWTIMER_Tick();
-#endif*/
+
+	t1 = system_timer;
+
 	while((*prog != 0xfe) && (temp++ < 2000))
 	{
-/*#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI)		
-		t2 = uip_timer;		
-		if(t2 - t1 > 100)	// avoid dead cycle		
-		{		
+
+		t2 = system_timer;
+		if(t2 - t1 > 20)	// avoid dead cycle
+		{	
 			return 0;
 		}
-#else
-		t2 = (U16_T)SWTIMER_Tick();
-		//Test[20] = t2 - t1;
-#endif	*/	
 		
 
 		lvar = 0;
@@ -845,6 +840,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	 	}
 		 
 	}
+	t2 = system_timer;
 	if(temp >= 2000) 
 	{
 // generate a alarm		
@@ -1423,11 +1419,11 @@ S32_T veval_exp(U8_T *local)
 				push(value);
             	break;
 		case DOY:
-				value = (Test[24] * 1000);//Rtc.Clk.day_of_year) * 1000L;
+				value = Rtc.Clk.day_of_year * 1000L;
 				push(value);
             	break;
 		case MOY:
-				value = (Test[25] * 1000);//(Rtc.Clk.mon)*1000L;
+				value = (Rtc.Clk.mon)*1000L;
 				push(value);
             	break;
 /*

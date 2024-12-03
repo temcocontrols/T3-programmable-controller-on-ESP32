@@ -43,6 +43,7 @@
 #define MAX_TOTALIZERS         2  /* MAX_IO_POINTS */
 
 #define MAX_ELEMENTS        240    /* total number of group element allowed */
+#define MAX_ELEMENTS_NEW 		80
 
 #define MAX_GRPS               16
 #define MAX_ICONS              16
@@ -220,6 +221,10 @@ typedef enum {
 		 WRITE_BACNET_TO_MDOBUS	=	194,		
 		 
 
+		 READ_JSON_SCREEN          = 86,
+		 READ_JSON_ITEM            = 87,
+		 WRITE_JSON_SCREEN			= 186,
+		 WRITE_JSON_ITEM			= 187,
 
 } CommandRequest;
 
@@ -741,57 +746,8 @@ typedef struct
 
 } Str_totalizer_point;  /* 9+5+4+4+4+4+1+2=33 uint8_ts */
 
-#if 0
-typedef struct
-{
-	Point_Net point; /* 5 uint8_ts */
-
-	S32_T point_value;
 
 
-	U8_T auto_manual	;//     : 1;  /* 0=auto, 1=manual*/
-	U8_T digital_analog	 ;//  : 1;  /* 0=digital, 1=analog*/
-	U8_T description_label ;//: 3;  /* 0=display description, 1=display label*/
-	U8_T security	       ;//  : 2;  /* 0-3 correspond to 2-5 access level*/
-	U8_T decomisioned	  ;//   : 1;  /* 0=normal, 1=point decommissioned*/
-
-	U8_T units           ;//  : 8;
-/*		Point_info		info;  11 uint8_ts */
-/*		***!!! - I replaced Point_info with it's content */
-
-	U8_T 	show_point	;//	   : 1;
-	U8_T 	icon_name_index ;// : 7;
-	U8_T 	nr_element    ;//   : 8;
-
-	S32_T high_limit;
-	S32_T low_limit;
-
-	U8_T 	graphic_y_coordinate;//	: 10;
-	U8_T 	off_low_color	;//				: 4;
-	U8_T 	type_icon	  	 ;//       : 2;
-	U8_T 	graphic_x_coordinate;//	: 10;
-	U8_T 	on_high_color	;//				: 4;
-	U8_T 	display_point_name;//		: 1;
-	U8_T 	default_icon	;//		    : 1;
-
-	U8_T 	text_x_coordinate  ;//   : 7; /* */
-	U8_T 	modify             ;//   : 1;
-	U8_T 	absent            ;//    : 1; /* 1 = absent 0= present */
-	U8_T 	location           ;//   : 2; /* where is located Local or Remote */
-	U8_T 	text_y_coordinate  ;//   : 5;
-
-	S8_T    bkgnd_icon;
-
-	U8_T 	xicon           ;//  : 10;
-	U8_T 	text_place		;//		: 4;
-	U8_T 	text_present	;//		: 1;
-	U8_T 	icon_present;//			: 1;
-	U8_T 	yicon          ;//   : 10;
-	U8_T 	text_size	;//		    : 2;
-	U8_T 	normal_color	;//    : 4; 
-
-}	Str_grp_element; /* 5+4+2+2+4+4+2+1+1+1+2+2 = 32 */
-#endif
 typedef struct
 {
 	S8_T description[21];				/* (21 uint8_ts; string)	*/
@@ -1092,6 +1048,39 @@ typedef struct
 
 typedef union
 {
+	uint8_t all[50];
+	/*struct
+	{
+		unsigned short ncount; //????? myitems ????,?????
+		unsigned char ntranslate_count;// ????? translate ??
+		unsigned char activeItemIndex;
+		unsigned char customObjectsCount;
+		unsigned char groupCount;
+		unsigned short itemsCount;
+		char version[JSON_COLOR_LENGTH];
+		str_viewportTransform viewportTransform;
+	}reg;*/
+}Str_t3_screen_Json;
+
+
+typedef union
+{
+	uint8_t all[200];
+	/*struct
+	{
+		myitems json_items;  //size?185
+	}reg;*/
+}Str_item_Json;
+
+typedef struct
+{  // 800+16000 = 16800
+	Str_t3_screen_Json screen[MAX_GRPS];  // 50 * 16
+	Str_item_Json	item[MAX_ELEMENTS_NEW];  // 200 * 80
+	//160 reserverd
+}Str_json_item;
+
+typedef union
+{
  uint8_t all[70];
  struct
  {
@@ -1113,6 +1102,12 @@ typedef union
   S8_T icon_name_2[STR_ICON_2_NAME_LENGTH];
  }reg;
 } Str_grp_element;//Str_label_point;
+
+typedef union
+{
+	Str_grp_element old_item[MAX_ELEMENTS];  // 70 * 240 = 16800
+	Str_json_item new_item;
+}Str_grp_element_new;
 
 typedef struct
 {

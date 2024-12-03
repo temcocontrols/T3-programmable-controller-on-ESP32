@@ -1,5 +1,5 @@
 menu "Example Configuration"
-
+    
     choice EXAMPLE_IP_MODE
         prompt "IP Version"
         help
@@ -39,4 +39,17 @@ menu "Example Configuration"
         default y
         help
             It is an ad hoc solution and needs further modifications
+    
+            
+    config EXAMPLE_RMT_TX_GPIO
+        int "RMT TX GPIO"
+        default 15
+        help
+            Set the GPIO number used for transmitting the RMT signal.
+
+    config EXAMPLE_STRIP_LED_NUMBER
+        int "Number of LEDS in a strip"
+        default 4
+        help
+            A single RGB strip contains several LEDs.
 endmenu

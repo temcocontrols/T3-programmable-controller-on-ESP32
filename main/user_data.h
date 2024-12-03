@@ -245,6 +245,9 @@ typedef union
         char user_name[60];
         char password[20];
         char secure_connection_type;  //0 -NULL   1-SSL   2-TLS
+		char To1Addr[60];
+		char To2Addr[60];
+		uint8_t error_code; 
     }reg;
 }Str_Email_point;
 
@@ -426,8 +429,9 @@ extern EXT_RAM_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];
 extern EXT_RAM_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;
 //extern Aux_group_point        	 		 aux_groups[MAX_GRPS];
 //extern S8_T                     		 Icon_names[MAX_ICONS][14];
-extern Control_group_point  	 		 control_groups[MAX_GRPS];
-extern Str_grp_element			 	    		 group_data[MAX_ELEMENTS];
+extern EXT_RAM_ATTR Control_group_point  	 		 control_groups[MAX_GRPS];
+//extern Str_grp_element			 	    		 group_data[MAX_ELEMENTS];
+extern EXT_RAM_ATTR 	Str_grp_element_new   		group_data_new;
 extern S16_T 					 							 total_elements;
 extern S16_T 					 							 group_data_length;
 
@@ -502,6 +506,7 @@ extern Byte	 Station_NUM;
 extern Byte  MAX_MASTER;
 extern 	U8_T panel_number;
 extern U16_T SW_REV;
+extern U8_T webview_json_flash;
 
 
 extern uint8 max_inputs;

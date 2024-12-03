@@ -235,7 +235,7 @@ int bip_send_pdu_client(
 		
     bip_dest.sin_addr.s_addr = address.s_addr;
     bip_dest.sin_port = port;
-		
+
     memset(&(bip_dest.sin_zero), '\0', 8);
     mtu_len = 2;
     mtu_len += encode_unsigned16(&mtu1[mtu_len],
@@ -248,6 +248,7 @@ int bip_send_pdu_client(
 	bytes_sent = mtu_len;
 	memset(mtu1,0,MAX_MPDU_IP);
 	mtu_len = 0;
+
 	return bytes_sent;
 
 }

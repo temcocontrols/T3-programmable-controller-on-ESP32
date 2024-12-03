@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6409
+#define SOFTREV     6501
 
 
 #define		SW_OFF 	 0
@@ -170,15 +170,17 @@ typedef	enum
 #define PROJECT_TRANSDUCER 	16
 #define PROJECT_TSTAT9		17
 #define PROJECT_SAUTER		18
-#define PROJECT_NG2			19
+#define PROJECT_NG2			19  // RMC1216
 #define PROJECT_MPPT		20
 #define PROJECT_LIGHT_SWITCH	21
+#define PROJECT_NG2_NEW		22
+#define PROJECT_MULTIMETER	23
 
+#define MAX_MINI_TYPE 		24
 
-#define MAX_MINI_TYPE 		21
-
-
-
+uint16 READ_POINT_TIMER;
+uint16 READ_POINT_TIMER_FROM_EEP;
+extern uint8 uart0_config;
 extern STR_MODBUS Modbus;
 extern U16_T Test[50];
 //extern uint8_t modbus_wifi_buf[500];

@@ -56,7 +56,7 @@ void pid_controller( S16_T p_number )   // 10s
 	conx = &con_aux[p_number];
 
 #if 1
-	//
+	
 	get_point_value( (Point*)&con->input, &con->input_value);
 	get_point_value( (Point*)&con->setpoint, &con->setpoint_value );
 	od = oi = op = 0;
@@ -296,21 +296,24 @@ void check_graphic_element(void)
 	{
 		control_groups[i].element_count = 0;
 	}
-	
-	for(i = 0;i < MAX_ELEMENTS;i++)
-	{		
-		if(group_data[i].reg.label_status == 0)
-				break;
-		
-		if(group_data[i].reg.label_status == 1)  // current element is valid
+	if(Setting_Info.reg.webview_json_flash != 2)
+	{
+		for(i = 0;i < MAX_ELEMENTS;i++)
 		{
-			if(group_data[i].reg.nScreen_index < MAX_GRPS)
+			if(group_data_new.old_item[i].reg.label_status == 0)
+					break;
+
+			if(group_data_new.old_item[i].reg.label_status == 1)  // current element is valid
 			{
-				control_groups[group_data[i].reg.nScreen_index].element_count++;
+				if(group_data_new.old_item[i].reg.nScreen_index < MAX_GRPS)
+				{
+					control_groups[group_data_new.old_item[i].reg.nScreen_index].element_count++;
+				}
 			}
-		}			
+		}
 	}
 }
+
 
 //1a 00 74 00 00 13 00 0c 00 01 0a 00 09 9c 02 12 9d a0 86 01 00 fe 00
 //10  VAR1 = 100  TST1-SETPOINT = 100
@@ -395,7 +398,7 @@ void Set_AO_raw(uint8 i,float value)
 		case P0_100_Open:
 		case P0_100_Close:
 		case P0_100:
-		case P0_100_PWM:	
+		case P0_100_PWM:
 			set_output_raw(i,value / 100);
 			break;
 		case P0_20psi:
@@ -611,10 +614,8 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 			{
 				if(i < get_max_internal_output())
 				{
-
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 					// set output_raw
-
 					Set_AO_raw(i,(ptr.pout->value));
 				}
 				else
@@ -626,6 +627,7 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 		} // else manual
 		else
 		{
+
 #if OUTPUT_DEATMASTER
 			clear_dead_master();
 #endif			

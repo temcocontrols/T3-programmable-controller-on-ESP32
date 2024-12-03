@@ -237,14 +237,17 @@ typedef union
     uint8_t all[400];
     struct
     {
-        unsigned char smtp_type;  //  0   ipaddress   // 1   domain
-        unsigned char smtp_ip[4];
-        char smtp_domain[40];
-        unsigned short smtp_port;
-        char email_address[60];
-        char user_name[60];
-        char password[20];
-        char secure_connection_type;  //0 -NULL   1-SSL   2-TLS
+    	 unsigned char smtp_type;  //  0   ipaddress   // 1   domain
+		unsigned char smtp_ip[4];
+		char smtp_domain[40];
+		unsigned short smtp_port;
+		char email_address[60];
+		char user_name[60];
+		char password[20];
+		char secure_connection_type;  //0 -NULL   1-SSL   2-TLS
+		char To1Addr[60];
+		char To2Addr[60];
+		uint8_t error_code;
     }reg;
 }Str_Email_point;
 
@@ -427,7 +430,8 @@ extern EXT_RAM_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 
 //extern Aux_group_point        	 		 aux_groups[MAX_GRPS];
 //extern S8_T                     		 Icon_names[MAX_ICONS][14];
 extern EXT_RAM_ATTR Control_group_point  	 			control_groups[MAX_GRPS];
-extern EXT_RAM_ATTR Str_grp_element			 	     	group_data[MAX_ELEMENTS];
+//extern EXT_RAM_ATTR Str_grp_element			 	     	group_data[MAX_ELEMENTS];
+extern EXT_RAM_ATTR Str_grp_element_new   		group_data_new;
 extern S16_T 					 						total_elements;
 extern S16_T 					 						group_data_length;
 

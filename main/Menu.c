@@ -126,7 +126,7 @@ void menu_init(void)
 
 
 
-extern void watchdog(void);
+
 void LCD_IO_Init(void);
 void lcd_back_set(uint8_t status);
 uint8_t lcd_time_over_en;

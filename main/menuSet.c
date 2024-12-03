@@ -120,6 +120,8 @@ void Save_Parmeter(uint8_t item_to_adjust)
         Setting_Info.reg.com_baudrate[0] = Modbus.baudrate[0];
        // E2prom_Write_Byte(EEP_UART0_BAUDRATE, uart0_baudrate);
         uart_init(0);
+        save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
+		Count_com_config();
     }
 
     break;
@@ -147,7 +149,7 @@ void Save_Parmeter(uint8_t item_to_adjust)
             ;//Recievebuf_Initialize(0);
             dlmstp_init(NULL);
         }
-        save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
+        save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
 		uart_init(0);
 		Count_com_config();
     }

@@ -44,7 +44,10 @@ uint16_t Filter(uint8_t channel,uint16_t input)
   	{
   		slTemp = (signed long)ptr.pin->filter * old_reading[I];
   		slTemp += (signed long)siTemp;
-  		old_reading[I] = (signed int)(slTemp/(ptr.pin->filter +1));
+  		if(ptr.pin->filter + 1 > 0)
+  			old_reading[I] = (signed int)(slTemp/(ptr.pin->filter +1));
+  		else
+  			Test[20 + I] = ptr.pin->filter + 10;
   	}
 
   	siResult = old_reading[I];

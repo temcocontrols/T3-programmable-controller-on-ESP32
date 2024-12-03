@@ -1,4 +1,5 @@
-idf_component_register(SRCS "tcp_server.c"
+idf_component_register(			SRCS 
+							"tcp_server.c"
 							"modbus.c"
 #							"deviceparams.c"
 							"i2c_task.c"
@@ -21,7 +22,6 @@ idf_component_register(SRCS "tcp_server.c"
 							"mlx90632_extended_meas.c"	
 							"rtc.c"
 							"timegm.c"
-							#"scd40.c"  seems dont need, commented by chelsea
 							"sht4x.c"
 							"sht3x.c"
 							"scd4x_i2c.c"													
@@ -30,9 +30,10 @@ idf_component_register(SRCS "tcp_server.c"
 							"ade7953.c"	
 							"lcd.c"						
 #							"pic.c"
-							"smtp_client.c"
+						#	"smtp_client.c"
 							"airlab.c"
 							"LightSwitch.c"
+							"LS_LED.c"
 							"INA228.c"
 							"mppt_task.c"
 #							"spi_master_arm.c"
@@ -43,7 +44,8 @@ idf_component_register(SRCS "tcp_server.c"
 						#	"Constcode.c"
 							"menuSet.c"							
 						#	"menuDaySet.c"
-							EMBED_TXTFILES server_root_cert.pem esp_logo.png
+							"sntp_app.c"
+						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)

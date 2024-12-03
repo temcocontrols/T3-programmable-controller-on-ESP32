@@ -19,6 +19,8 @@
 #include "flash.h"
 #include "controls.h"
 #include "lcd.h"
+#include "sntp_app.h"
+
 
 
 
@@ -78,6 +80,37 @@ void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS);
 void dealwith_write_setting(Str_Setting_Info * ptr);
 uint16_t read_user_data_by_block(uint16_t addr);
 uint16_t read_tstat10_data_by_block(uint16_t addr);
+uint8_t flag_change_uart0 = 0;
+uint8_t flag_change_uart2 = 0;
+uint8_t count_change_uart0 = 0;
+uint8_t count_change_uart2 = 0;
+void Check_change_uart(void)
+{
+	if(flag_change_uart0 == 1)
+	{
+		if(count_change_uart0++ > 3)
+		{
+			flag_change_uart0 = 0;
+			count_change_uart0 = 0;
+			uart_init(0);
+			Count_com_config();
+		}
+
+	}
+
+	if(flag_change_uart2 == 1)
+	{
+		if(count_change_uart2++ > 3)
+		{
+			flag_change_uart2 = 0;
+			count_change_uart2 = 0;
+			uart_init(2);
+			Count_com_config();
+		}
+
+	}
+}
+
 
 extern U8_T 	bacnet_to_modbus[300];
 #define MAX_REG 50
@@ -462,12 +495,13 @@ void uart0_rx_task(void)
 
 			if(Modbus.com_config[0] == MODBUS_SLAVE)
 			{
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 20 / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 				if(len > 0)
 				{led_sub_rx++;
 					com_rx[0] += len;
-					flagLED_sub_rx = 1; flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+					flagLED_sub_rx = 1;
+					//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 
 					if(checkdata(uart_rsv,len))
 					{
@@ -500,7 +534,8 @@ void uart0_rx_task(void)
 					{
 						led_sub_rx++;
 						com_rx[0] += len;
-						flagLED_sub_rx = 1; flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+						flagLED_sub_rx = 1;
+						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 						Timer_Silence_Reset();
 
 					}
@@ -518,7 +553,8 @@ void uart0_rx_task(void)
 					{
 						led_sub_rx++;
 						com_rx[0] += len;
-						flagLED_sub_rx = 1;	flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+						flagLED_sub_rx = 1;
+						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 						if(checkdata(uart_rsv,len))
 						{
 							Modbus.com_config[0] = MODBUS_SLAVE;
@@ -547,7 +583,7 @@ void uart2_rx_task(void)
 		task_test.count[10]++;
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 20 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 			if(len>0)
 			{
@@ -578,7 +614,7 @@ void uart2_rx_task(void)
 		{
 			if(system_timer / 1000 > 10)
 			{
-				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 5 / portTICK_RATE_MS);
+				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_RATE_MS);
 
 				if(len > 0)
 				{
@@ -889,10 +925,20 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0;
 			temp2 = Daylight_Saving_Time;
 		}
+		else if(address == MODBUS_SNTP_EN)
+		{
+			temp1 = 0;
+			temp2 =  Modbus.en_sntp;
+		}
 		else if(address == MODBUS_TCP_PORT)
 		{
 			temp1 = Modbus.tcp_port >> 8;
 			temp2 = Modbus.tcp_port;
+		}
+		else if(address == MODBUS_READ_POINT_TIMER)
+		{
+			temp1 = READ_POINT_TIMER >> 8;
+			temp2 = READ_POINT_TIMER;
 		}
 		else if(address == IP_MODE)
 		{
@@ -925,7 +971,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             temp1 = 0;
             temp2 = Modbus.getway[address - IP_GATE_WAY_1];
          }
-         else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)
+         else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 7)
 		 {
         	if(address - MODBUS_TIMER_ADDRESS == 0)  // second
 			{
@@ -961,6 +1007,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			{ // day of year
         		temp1 = rtc_date.year >> 8;
 				temp2 =  rtc_date.year;
+			}
+        	else if(address - MODBUS_TIMER_ADDRESS == 7)//day of year
+			{ // day of year
+				temp1 = rtc_date.day_of_year >> 8;
+				temp2 =  rtc_date.day_of_year;
 			}
 		}
         else if(address == MODBUS_RUN_TIME_LO)
@@ -1780,15 +1831,15 @@ static void write_tstat10_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_
 		display_lcd.lcddisplay[StartAdd - MODBUS_LCD_CONFIG_FIRST] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 		memcpy(Setting_Info.reg.display_lcd.lcddisplay,display_lcd.lcddisplay,sizeof(lcdconfig));
 		// clear first screen
-		disp_str(FORM15X30, 6,  32, " ",SCH_COLOR,TSTAT8_BACK_COLOR);
+		/*disp_str(FORM15X30, 6,  32, " ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 		disp_ch(0,SECOND_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 		disp_ch(0,THIRD_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-		disp_ch(0,UNIT_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+		disp_ch(0,UNIT_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);*/
 		// save it to flash memory
 		//write_page_en[25] = 1;
 		//Flash_Write_Mass();
-		ChangeFlash = 1;
+		Save_Lcd_config();
 //		vTaskResume(Handle_Menu);
 
    }
@@ -1953,7 +2004,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
          {
             Modbus.baudrate[0] = *(bufadd + 5);
             save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate[0]);
-            uart_init(0);
+            //uart_init(0);
+            flag_change_uart0 = 1;
+            count_change_uart0 = 0;
          }
       }
       else if(address == MODBUS_UART2_BAUDRATE)
@@ -1961,8 +2014,10 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		   if(*(bufadd + 5)<10)
 		   {
 			  Modbus.baudrate[2] = *(bufadd + 5);
-			  save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate[2]);
-			  uart_init(2);
+			  save_uint8_to_flash( FLASH_BAUD_RATE2, Modbus.baudrate[2]);
+			  //uart_init(2);
+			  flag_change_uart2 = 1;
+			  count_change_uart2 = 0;
 		   }
 		}
       else if(address == MODBUS_ENABLE_DEBUG)
@@ -1983,10 +2038,27 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		  save_uint8_to_flash( FLASH_DSL, Daylight_Saving_Time);
 
 	   }
+      else if(address == MODBUS_SNTP_EN)
+	   {
+			Modbus.en_sntp =  *(bufadd + 5);
+			sntp_select_time_server(Modbus.en_sntp);
+			save_uint8_to_flash(FLASH_EN_SNTP, Modbus.en_sntp);
+			if(Modbus.en_sntp >= 2)
+			{
+				flag_Update_Sntp = 0;
+				Update_Sntp_Retry = 0;
+			}
+	   }
       else if(address == MODBUS_TCP_PORT)
 	   {
     	  Modbus.tcp_port = *(bufadd + 5) + (*(bufadd + 4)) * 256;
 		  save_uint16_to_flash( FLASH_TCP_PORT,Modbus.tcp_port);
+	   }
+      else if(address == MODBUS_READ_POINT_TIMER)
+	   {
+		  READ_POINT_TIMER = *(bufadd + 5) + (*(bufadd + 4)) * 256;
+		  READ_POINT_TIMER_FROM_EEP = READ_POINT_TIMER;
+		  save_uint16_to_flash( FLASH_READ_POINT_TIMER,READ_POINT_TIMER);
 	   }
       else if(address == IP_MODE)
       {
@@ -1999,7 +2071,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		   {
 			  Modbus.com_config[0] = *(bufadd + 5);
 			  save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
-			  uart_init(0);
+			  //uart_init(0);
+			  flag_change_uart0 = 1;
+			  count_change_uart0 = 0;
 			  Count_com_config();
 			  if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
 				{
@@ -2014,7 +2088,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		   {
 			  Modbus.com_config[2] = *(bufadd + 5);
 			  save_uint8_to_flash( FLASH_UART2_CONFIG, Modbus.com_config[2]);
-			  uart_init(2);
+			  flag_change_uart2 = 1;
+			  count_change_uart2 = 0;
+			  //uart_init(2);
 			  Count_com_config();
 			  if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
 			  {
@@ -2038,6 +2114,31 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			{
 				Modbus.mini_type = *(bufadd + 5);
 				save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
+			}
+		}
+		else if(address == MODBUS_PANEL_NUMBER)
+		{
+			if(*(bufadd + 5) != 0 && *(bufadd + 5) != 255)
+			{
+				panel_number = *(bufadd + 5);
+
+				change_panel_number_in_code(Setting_Info.reg.panel_number,panel_number);
+				Setting_Info.reg.panel_number	= panel_number;
+				Modbus.address = panel_number;
+				Station_NUM = panel_number;
+				save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
+			}
+		}
+		else if(address == MODBUS_STATION_NUM)
+		{
+			if(*(bufadd + 5) != 0 && *(bufadd + 5) != 255)
+			{
+				Station_NUM = *(bufadd + 5);
+				Modbus.address = Station_NUM;
+				panel_number = Station_NUM;
+				save_uint8_to_flash( FLASH_MODBUS_ID,panel_number);
+				Setting_Info.reg.MSTP_ID	= Station_NUM;
+				dlmstp_init(NULL);
 			}
 		}
 		else if(address == MODBUS_NETWORK_NUMBER)
@@ -2070,7 +2171,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
     	 update_flash = *(bufadd + 5);
 		 if (update_flash == 0x7f)
 		 {
-			start_fw_update();
+			 start_fw_update();
 		 }
 		 else if((update_flash == 0x8E) || (update_flash == 0x8F))
 		 {
@@ -2137,8 +2238,8 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			rtc_date.month = *(bufadd + 5);
 		else if(address - MODBUS_TIMER_ADDRESS == 6)  // sec
 			rtc_date.year = (((uint16_t)*(bufadd+0 + 4)<<8) + *(bufadd + 5));
-
 		PCF_SetDateTime(&rtc_date);
+		update_timers();
 	  }
       else if((address >= MODBUS_IO_REG_START && address <= MODBUS_IO_REG_END) ||
     		  (address >= MODBUS_EXIO_REG_START && address <= MODBUS_EXIO_REG_END))
@@ -3152,6 +3253,7 @@ void set_default_parameters(void);
 void dealwith_write_setting(Str_Setting_Info * ptr)
 {
 // compare sn to check whether it is current panel
+
 	if(ptr->reg.sn == (Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8)	+ ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24)))
 	{
 		if(memcmp(panelname,ptr->reg.panel_name,20))
@@ -3160,7 +3262,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			memcpy(panelname,ptr->reg.panel_name,20);
 			Set_Object_Name(panelname);
 		}
-#if 0
+
 		if(Modbus.en_time_sync_with_pc != ptr->reg.en_time_sync_with_pc)
 		{
 			flag_Update_Sntp = 0;
@@ -3169,15 +3271,13 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			// start SYNC with PC
 			Setting_Info.reg.update_time_sync_pc = 1;
 			Modbus.en_time_sync_with_pc = ptr->reg.en_time_sync_with_pc;
-			E2prom_Write_Byte(EEP_EN_TIME_SYNC_PC,Modbus.en_time_sync_with_pc);
+			save_uint8_to_flash(FLASH_EN_TIME_SYNC_PC,Modbus.en_time_sync_with_pc);
 		}
-#endif
+
 		if(timezone != ptr->reg.time_zone)
 		{
 			Sync_timestamp(ptr->reg.time_zone,timezone,0,0);
 			timezone = ptr->reg.time_zone;
-			//E2prom_Write_Byte(EEP_TIME_ZONE_HI,(U8_T)(timezone >> 8));
-			//E2prom_Write_Byte(EEP_TIME_ZONE_LO,(U8_T)timezone);
 			save_uint8_to_flash( FLASH_TIME_ZONE, timezone);
 		}
 		if(Daylight_Saving_Time!= ptr->reg.Daylight_Saving_Time)
@@ -3185,40 +3285,33 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			Sync_timestamp(0,0,ptr->reg.Daylight_Saving_Time,Daylight_Saving_Time);
 			Daylight_Saving_Time = ptr->reg.Daylight_Saving_Time;
 //			update_timers();
-			//E2prom_Write_Byte(EEP_DAYLIGHT_SAVING_TIME,(U8_T)Daylight_Saving_Time);
 			save_uint8_to_flash( FLASH_DSL, Daylight_Saving_Time);
 		}
-#if 0
+
 		if((Modbus.en_sntp != ptr->reg.en_sntp) || ((Modbus.en_sntp == 5) && memcmp(sntp_server,Setting_Info.reg.sntp_server,30)))
 		{
 			Modbus.en_sntp = ptr->reg.en_sntp;
-
 			if(Modbus.en_sntp <= 5)
 			{
-				E2prom_Write_Byte(EEP_EN_SNTP,Modbus.en_sntp);
+				save_uint8_to_flash(FLASH_EN_SNTP,Modbus.en_sntp);
 				if(Modbus.en_sntp >= 2)
 				{
 						if(Modbus.en_sntp == 5)  // defined by customer
 						{
 							memcpy(sntp_server,Setting_Info.reg.sntp_server,30);
-#if (ASIX_MINI || ASIX_CM5)
-							DNSC_Start(sntp_server);
-#endif
-
-#if (ARM_MINI || ARM_CM5)
-							resolv_query(sntp_server);
-#endif
+							Save_SNTP_sever();
 						}
 						sntp_select_time_server(Modbus.en_sntp);
 						flag_Update_Sntp = 0;
 						Update_Sntp_Retry = 0;
 						count_sntp = 0;
 
-						SNTPC_Start(timezone, (((U32_T)SntpServer[0]) << 24) | ((U32_T)SntpServer[1] << 16) | ((U32_T)SntpServer[2] << 8) | (SntpServer[3]));
+						//SNTPC_Start(timezone, (((U32_T)SntpServer[0]) << 24) | ((U32_T)SntpServer[1] << 16) | ((U32_T)SntpServer[2] << 8) | (SntpServer[3]));
 
 				}
 			}
 		}
+#if 0
 //!(ARM_TSTAT_WIFI )
 		if(Modbus.en_dyndns != ptr->reg.en_dyndns)
 		{
@@ -3256,6 +3349,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		memcpy(Modbus.mac_addr,ptr->reg.mac_addr,6);
 		if(Modbus.com_config[0] != ptr->reg.com_config[0])
 		{
+
 			Modbus.com_config[0] = ptr->reg.com_config[0];
 			//if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
 			//	Recievebuf_Initialize(0);
@@ -3410,25 +3504,34 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		if(Modbus.baudrate[0] != ptr->reg.com_baudrate[0]) // com_baudrate[2]??T3000
 		{
 			Modbus.baudrate[0] = ptr->reg.com_baudrate[0];
+
 			/*if((Modbus.com_config[0] == MODBUS_SLAVE) || (Modbus.com_config[0] == NOUSE) || (Modbus.com_config[0] == MODBUS_MASTER)
 				|| (Modbus.com_config[0] == BACNET_SLAVE) || (Modbus.com_config[0] == BACNET_MASTER))*/
 			save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
+			flag_change_uart0 = 1;
+			count_change_uart0 = 0;
+#if 0
 			uart_init(0);
 			Count_com_config();
+#endif
 		}
 		if(Modbus.baudrate[2] != ptr->reg.com_baudrate[2]) // com_baudrate[2]??T3000
 		{
 			Modbus.baudrate[2] = ptr->reg.com_baudrate[2];
+
 			/*if((Modbus.com_config[2] == MODBUS_SLAVE) || (Modbus.com_config[2] == NOUSE) || (Modbus.com_config[2] == MODBUS_MASTER)
 				|| (Modbus.com_config[2] == BACNET_SLAVE) || (Modbus.com_config[2] == BACNET_MASTER))*/
 			save_uint8_to_flash(FLASH_BAUD_RATE2, Modbus.baudrate[2]);
+			flag_change_uart2 = 1;
+			count_change_uart2 = 0;
+#if 0
 			uart_init(2);
 			Count_com_config();
+#endif
 		}
 
 		if(ptr->reg.reset_default == 88)	// reset default
 		{
-			//flag_reset_default = 1;
 			ptr->reg.reset_default = 0;
 			set_default_parameters();
 		}
@@ -3502,8 +3605,6 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 
 		}
 
-
-
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 		if(MAX_MASTER != ptr->reg.MAX_MASTER)
 		{
@@ -3511,31 +3612,35 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			E2prom_Write_Byte(EEP_MAX_MASTER, ptr->reg.MAX_MASTER);
 		}
 #endif
-
+		if(webview_json_flash != ptr->reg.webview_json_flash)
+		{
+			webview_json_flash = ptr->reg.webview_json_flash;
+			save_uint8_to_flash( FLASH_JASON,ptr->reg.webview_json_flash);
+		}
 		if(Modbus.start_month != ptr->reg.start_month)
-			{
-				Modbus.start_month = ptr->reg.start_month;
-				//E2prom_Write_Byte(EEP_DLS_START_MON, ptr->reg.start_month);
-				Calculate_DSL_Time();
-			}
-			if(Modbus.start_day != ptr->reg.start_day)
-			{
-				Modbus.start_day = ptr->reg.start_day;
-				//E2prom_Write_Byte(EEP_DLS_START_DAY, ptr->reg.start_day);
-				Calculate_DSL_Time();
-			}
-			if(Modbus.end_month != ptr->reg.end_month)
-			{
-				Modbus.end_month = ptr->reg.end_month;
-				//E2prom_Write_Byte(EEP_DLS_END_MON, ptr->reg.end_month);
-				Calculate_DSL_Time();
-			}
-			if(Modbus.end_day != ptr->reg.end_day)
-			{
-				Modbus.end_day = ptr->reg.end_day;
-				//E2prom_Write_Byte(EEP_DLS_END_DAY, ptr->reg.end_day);
-				Calculate_DSL_Time();
-			}
+		{
+			Modbus.start_month = ptr->reg.start_month;
+			//E2prom_Write_Byte(EEP_DLS_START_MON, ptr->reg.start_month);
+			Calculate_DSL_Time();
+		}
+		if(Modbus.start_day != ptr->reg.start_day)
+		{
+			Modbus.start_day = ptr->reg.start_day;
+			//E2prom_Write_Byte(EEP_DLS_START_DAY, ptr->reg.start_day);
+			Calculate_DSL_Time();
+		}
+		if(Modbus.end_month != ptr->reg.end_month)
+		{
+			Modbus.end_month = ptr->reg.end_month;
+			//E2prom_Write_Byte(EEP_DLS_END_MON, ptr->reg.end_month);
+			Calculate_DSL_Time();
+		}
+		if(Modbus.end_day != ptr->reg.end_day)
+		{
+			Modbus.end_day = ptr->reg.end_day;
+			//E2prom_Write_Byte(EEP_DLS_END_DAY, ptr->reg.end_day);
+			Calculate_DSL_Time();
+		}
 #if NEW_IO
 			if(max_vars != ptr->reg.max_var)
 			{
@@ -3568,9 +3673,11 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				save_point_info(0);
 			}
 #endif
+
 			if(memcmp(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcdconfig)))
 			{
 				memcpy(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcdconfig));
+
 				// clear first screen
 				/*disp_str(FORM15X30, 6,  32, "     ",SCH_COLOR,TSTAT8_BACK_COLOR);
 				disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
@@ -3579,7 +3686,6 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 				disp_ch(0,THIRD_CH_POS - 16 + 48,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);*/
 				// save it to flash memory
 				Save_Lcd_config();
-				//Test[21]++;
 			}
 
 

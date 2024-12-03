@@ -654,7 +654,7 @@ void apdu_handler(
 										handler_private_transfer(apdu,apdu_len,src,protocal);
 #endif
 									}
-#if 0//BAC_TIMESYNC
+
 							else	if (service_choice == SERVICE_UNCONFIRMED_UTC_TIME_SYNCHRONIZATION) {
 								handler_timesync_utc(service_request,service_request_len, src);
 							}
@@ -662,7 +662,7 @@ void apdu_handler(
 								handler_timesync(service_request,service_request_len, src);
 							}
 							
-#endif
+
 							else if (service_choice == SERVICE_UNCONFIRMED_I_AM)
 							{
 								handler_i_am_add(service_request,service_request_len, src,protocal);

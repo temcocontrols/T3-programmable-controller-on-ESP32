@@ -70,6 +70,7 @@ extern uint16_t flash_trendlog_seg;
 extern uint16_t current_page;
 extern U8_T Send_bip_address[6];
 U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
+void udp_client_send(uint16 time);
 /** @file ptransfer.c  Encode/Decode Private Transfer data */
 /* 
 	handler roution for private transfer
@@ -78,6 +79,7 @@ U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
 uint8_t invokeid_mstp = 0;
 void check_SD_PnP(void);
 void clear_currnet_page(void);
+void Save_Email_Setting(void);
 
 #if ARM_TSTAT_WIFI 
 U16_T Test[50];
@@ -261,17 +263,20 @@ void change_panel_number_in_code(U8_T old, U8_T new_panel)
 	}
 	
 	// change panel number in graphic
-
-	for( i = 0; i < MAX_ELEMENTS; i++ )
+	if(Setting_Info.reg.webview_json_flash != 2)
 	{
-		if(group_data[i].reg.nMain_Panel == old)
+		for( i = 0; i < MAX_ELEMENTS; i++ )
 		{
-			group_data[i].reg.nMain_Panel = new_panel;
-			if(group_data[i].reg.nSub_Panel == old)
-				group_data[i].reg.nSub_Panel = new_panel;
-			changed = 1;
+			if(group_data_new.old_item[i].reg.nMain_Panel == old)
+			{
+				group_data_new.old_item[i].reg.nMain_Panel = new_panel;
+				if(group_data_new.old_item[i].reg.nSub_Panel == old)
+					group_data_new.old_item[i].reg.nSub_Panel = new_panel;
+				changed = 1;
+			}
 		}
 	}
+	
 	
 	if(changed)	{
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
@@ -339,15 +344,17 @@ void change_panel_number_in_trendlog(U8_T old, U8_T new_panel)
 	}
 	
 	// change panel number in graphic
-
-	for( i = 0; i < MAX_ELEMENTS; i++ )
+	if(Setting_Info.reg.webview_json_flash != 2)
 	{
-		if(group_data[i].reg.nMain_Panel == old)
+		for( i = 0; i < MAX_ELEMENTS; i++ )
 		{
-			group_data[i].reg.nMain_Panel = new_panel;
-			if(group_data[i].reg.nSub_Panel == old)
-				group_data[i].reg.nSub_Panel = new_panel;
-			changed = 1;
+			if(group_data_new.old_item[i].reg.nMain_Panel == old)
+			{
+				group_data_new.old_item[i].reg.nMain_Panel = new_panel;
+				if(group_data_new.old_item[i].reg.nSub_Panel == old)
+					group_data_new.old_item[i].reg.nSub_Panel = new_panel;
+				changed = 1;
+			}
 		}
 	}
 	
@@ -617,7 +624,6 @@ void Handler_Complex_Ack(
 							val_ptr = (float)((U32_T)(apdu[18] << 24) + (U32_T)(apdu[19] << 16) +
 							(U16_T)(apdu[20] << 8) + apdu[21]) / 1000;
 						}
-						Test[35] = val_ptr;
 						add_remote_point(remote_points_list[remote_bacnet_index].tb.RP_bacnet.panel,
 						remote_points_list[remote_bacnet_index].tb.RP_bacnet.object + 
 						(U8_T)((remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance & 0xff00) >> 3),
@@ -884,6 +890,7 @@ U32_T Get_device_id_by_panel(uint8 panel,uint8 sub_id,uint8_t protocal);
 int WriteRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub_id,float value,uint8_t protocal)
 {
 	uint32 deviceid;
+	uint8_t invoke_id = 0;
 //	U8_T invokeid_bip;
 //	U8_T invokeid_mstp;
 	BACNET_APPLICATION_DATA_VALUE val;
@@ -921,7 +928,12 @@ int WriteRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,
 		{
 			Get_address_by_panel(panel,Send_bip_address);
 
-			return	Send_Write_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,&val,0,value,BACNET_ARRAY_ALL,protocal);
+			invoke_id = Send_Write_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,&val,0,value,BACNET_ARRAY_ALL,protocal);
+
+			if(invoke_id >= 0)
+				udp_client_send(5);
+
+			return invoke_id;
 		}
 
 	}
@@ -1013,7 +1025,6 @@ int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,ui
 			{
 				invokeid_bip = Send_Read_Property_Request(deviceid,OBJECT_BINARY_INPUT,object_instance/* + 1*/,PROP_PRESENT_VALUE,0,protocal);
 			}
-			//Test[39] = invokeid_bip;
 			return invokeid_bip;
 		}
 
@@ -1316,7 +1327,7 @@ void handler_private_transfer(
 			if((apdu[7] + apdu[8] * 256) > (MAX_APDU - 6)) 
 				return;			
 			
-			memcpy(&Temp_CS.value[0],&apdu[7],apdu[7] + apdu[8] * 256);	
+			memcpy(&Temp_CS.value[0],&apdu[7],apdu[7] + apdu[8] * 256);				
 			
 		}
 
@@ -1479,14 +1490,20 @@ void handler_private_transfer(
 					break;
 				case WRITEGROUPELEMENTS_T3000:
 					if(private_header.point_end_instance <= MAX_ELEMENTS)
-					ptr = (uint8_t *)(&group_data[private_header.point_start_instance]);
+					ptr = (uint8_t *)(&group_data_new.old_item[private_header.point_start_instance]);
 					break;
 				case WRITEREMOTEPOINT:
 					if(private_header.point_end_instance <= MAXREMOTEPOINTS)
 					ptr = (uint8_t *)(&remote_points_list[private_header.point_start_instance]);
 					break;
+				case WRITE_JSON_SCREEN:
+					if(private_header.point_end_instance <= MAX_GRPS)
+					ptr = (uint8_t *)(&group_data_new.new_item.screen[private_header.point_start_instance]);
 					break;
-//
+				case WRITE_JSON_ITEM:
+					if(private_header.point_end_instance <= MAX_ELEMENTS_NEW)
+					ptr = (uint8_t *)(&group_data_new.new_item.item[private_header.point_start_instance]);
+					break;
 				case WRITE_SETTING:	
 					ptr = (uint8_t *)(&Setting_Info.all[0]);
 					break;
@@ -1580,11 +1597,12 @@ void handler_private_transfer(
 					//write_page_en[25] = 1;
 					ptr = (uint8_t *)&msv_data[private_header.point_start_instance];
 					break;	
-#if 1					
+
 				case WRITE_EMAIL_ALARM:
 					//write_page_en[4] = 1;
+					
 					ptr = (uint8_t *)&Email_Setting;	
-#endif					break;
+				break;
 
 				default:
 					break;	
@@ -1793,17 +1811,8 @@ void handler_private_transfer(
 					}
 					else if(command == WRITE_SETTING)
 					{	
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-						write_page_en[24] = 1;
-#endif
 						// deal with writen_setting
-						// �����ǰ�Ǵ��ڣ���ʱ���������ʵ��޸�?						//if(protocal < 0xa0)
 							dealwith_write_setting(&Setting_Info);
-//						else
-//						{
-//							// delay_write_setting
-//							delay_write_setting = 1;
-//						}
 					}
 					/*else if(command == WRITEALARM_T3000)
 					{
@@ -1812,7 +1821,7 @@ void handler_private_transfer(
 //						for(i = private_header.point_start_instance;i <= private_header.point_end_instance;i++ )
 //							AlarmSync(1,i,0,Station_NUM);
 					}*/
-#if 0//ASIX
+
 					else if(command == WRITEGROUPELEMENTS_T3000)
 					{
 						// check whether exist remote point, if exist, add it to remote point list
@@ -1824,10 +1833,10 @@ void handler_private_transfer(
 						{  
 							if(i < MAX_ELEMENTS) 
 							{
-								point.number = group_data[i].reg.nPoint_number;
-								point.point_type = group_data[i].reg.nPoint_type;
-								point.panel = group_data[i].reg.nMain_Panel;
-								point.sub_id = group_data[i].reg.nSub_Panel;
+								point.number = group_data_new.old_item[i].reg.nPoint_number;
+								point.point_type = group_data_new.old_item[i].reg.nPoint_type;
+								point.panel = group_data_new.old_item[i].reg.nMain_Panel;
+								point.sub_id = group_data_new.old_item[i].reg.nSub_Panel;
 								point.network_number = Setting_Info.reg.network_number;	
 								
 						//		if(point.panel == 0)
@@ -1835,19 +1844,19 @@ void handler_private_transfer(
 								get_net_point_value(&point,&value,1,1);
 							}							
 						}
-							
+
 						check_graphic_element();
 					}
 
 					else if(command == WRITEREMOTEPOINT)
 					{	// write remote point value
-						put_net_point_value(&(remote_points_list[private_header.point_start_instance].point), \
+					put_net_point_value(&(remote_points_list[private_header.point_start_instance].point), \
 						&(remote_points_list[private_header.point_start_instance].point_value) \
-						,0,1,1);  // OPERATOR  1					   		
+						,0,1,1);  // OPERATOR  1
 					}
 
 
-#endif					
+					
 					else if(command == WRITE_MISC)
 					{
 						// store it to flash memory
@@ -1871,10 +1880,10 @@ void handler_private_transfer(
 						}
 					}
 					
-//					else if(command == WRITE_SUB_ID_BY_HAND)
-//					{ 
-//					    list_tstat_pos(); 	
-//					}
+					else if(command == WRITE_EMAIL_ALARM)
+					{
+					    Save_Email_Setting(); 	
+					}
 
 				}
 			}
@@ -2001,9 +2010,7 @@ void handler_private_transfer(
 				break;
 			case READGROUPELEMENTS_T3000:
 				if(private_header.point_end_instance <= MAX_ELEMENTS)
-				{
-				ptr = (uint8_t *)(&group_data[private_header.point_start_instance]);
-				}
+				ptr = (uint8_t *)(&group_data_new.old_item[private_header.point_start_instance]);
 				break;
 			case READREMOTEPOINT:
 				if(private_header.point_end_instance <= MAXREMOTEPOINTS)
@@ -2059,14 +2066,14 @@ void handler_private_transfer(
 
 			case READ_SETTING:	
 				Sync_Panel_Info();
-			  ptr = (uint8_t *)(Setting_Info.all);
+				ptr = (uint8_t *)(Setting_Info.all);
 				break;
 			case READVARUNIT_T3000:
-					ptr = (uint8_t *)(var_unit);
-					break;
+				ptr = (uint8_t *)(var_unit);
+				break;
 			case READEXT_IO_T3000:					
-					ptr = (uint8_t *)(extio_points);	
-					break;
+				ptr = (uint8_t *)(extio_points);
+				break;
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 			case READ_ZONE_T3000:		
 					refresh_zone();
@@ -2129,11 +2136,11 @@ void handler_private_transfer(
 			case READ_MSV_COMMAND:	
 				ptr = (uint8_t *)&msv_data[private_header.point_start_instance];	
 				break;
-#if 1
+
 			case READ_EMAIL_ALARM:
 				ptr = (uint8_t *)&Email_Setting;	
 				break;
-#endif
+
 			default:
 				break;
 		}
