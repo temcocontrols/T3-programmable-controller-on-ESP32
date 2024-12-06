@@ -124,8 +124,7 @@ uint16_t input_cal[16];
 
 void Bacnet_Control(void);
 
-void smtp_client_task_nossl(void);
-void smtp_client_task_ssl(void);
+
 void Lcd_task(void *arg);
 void LCD_TEST(void);
 void vPM25Task(void *pvParameters);
@@ -2348,28 +2347,11 @@ void Timer_task(void)
 	monitor_init();
 	//FOR TEST
 	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
-#if EMAIL
-	/*Email_Setting.reg.smtp_ip[0] = 192;
-	Email_Setting.reg.smtp_ip[1] = 168;
-	Email_Setting.reg.smtp_ip[2] = 0;
-	Email_Setting.reg.smtp_ip[3] = 7;
-	Email_Setting.reg.smtp_port = 25;
-	memcpy(Email_Setting.reg.email_address,"chelsea@temcocontrols.com",26);
-	memcpy(Email_Setting.reg.To1Addr,"chelsea@temcocontrols.com",26);
-	memcpy(Email_Setting.reg.password,"u6flh?lO",9);*/
-	Email_Setting.reg.secure_connection_type = 0; // no ssl
-	Email_Setting.reg.smtp_type = 1;
-#endif
+
 	for (;;)
 	{// 10ms
 		task_test.count[13]++;
-#if EMAIL
-		if(Test[20] == 5555)
-		{
-			smtp_client_task_nossl();
-			Test[20] = 0;
-		}
-#endif
+
 		if(Eth_IP_Change == 1)
 		{
 			if(ip_change_count++ > 5)
@@ -2538,11 +2520,17 @@ void Update_Led(void)
 		max_out = 24;
 		max_digout = 12;
 	}
-	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_NG2_NEW)
+	else if(Modbus.mini_type == MINI_SMALL_ARM)
 	{
 		max_in = 16;
 		max_out = 10;
 		max_digout = 6;
+	}
+	else if(Modbus.mini_type == PROJECT_NG2_NEW)
+	{
+		max_in = 24;
+		max_out = 12;
+		max_digout = 8;
 	}
 	else if(Modbus.mini_type == PROJECT_NG2)
 	{
@@ -2576,7 +2564,7 @@ void Update_Led(void)
 				{
 					if(ptr.pin->range <= 9/*PT1000_200_570DegF*/)	  // temperature
 					{	//  10k termistor GREYSTONE
-						if(input_raw[loop]  > TEMPER_0_C) 	InputLed[loop] = 0;	   // 0 degree
+						if(input_raw[loop]  > TEMPER_0_C) 			InputLed[loop] = 0;	   // 0 degree
 						else  if(input_raw[loop]  > TEMPER_10_C) 	InputLed[loop] = 1;	// 10 degree
 						else  if(input_raw[loop]  > TEMPER_20_C) 	InputLed[loop] = 2;	// 20 degree
 						else  if(input_raw[loop]  > TEMPER_30_C) 	InputLed[loop] = 3;	// 30 degree
@@ -2587,7 +2575,7 @@ void Update_Led(void)
 					}
 					else 	  // voltage or current
 					{
-						if(input_raw[loop]  < 200) 	InputLed[loop] = 0;
+						if(input_raw[loop]  < 200) 			InputLed[loop] = 0;
 						else  if(input_raw[loop] < 800) 	InputLed[loop] = 1;
 						else  if(input_raw[loop] < 1600) 	InputLed[loop] = 2;
 						else  if(input_raw[loop] < 2400) 	InputLed[loop] = 3;
@@ -3251,15 +3239,20 @@ void i2c_master_task(void)
 									//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
 									//uint16 temp1 = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
 									temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
-									//if((temp > 0) && (temp < 4200))
+									Test[10 + i] = temp;
+									if((temp > 0) && (temp < 4200))
 									//if(temp != 0xffff)
 									{// rev42 of top is 12U8_T, older rev is 10U8_T
 										//temp = Filter(i,temp);
-										input_raw[i] = temp;//* input_cal[i] / 4095;
-										//Test[10 + i] = input_raw[i];
+										//input_raw[i] = temp;//* input_cal[i] / 4095;
+										//
+										if(input_cal[0] != 0)
+											temp = temp * 4095 / input_cal[0];
+										temp = Filter(i,temp);
+										input_raw[i] = temp;
 									}
-									//else
-									//	Test[29]++;
+									else
+										Test[29]++;
 								}
 
 								if(Modbus.mini_type == PROJECT_NG2)
@@ -3624,6 +3617,12 @@ void check_monitor_sample_points(U8_T i);
 #define PID_SAMPLE_COUNT 20
 #define PID_SAMPLE_TIME 10
 
+#if 1//EMAIL
+extern U8_T flag_sendemail;
+extern char send_message[200];
+extern U8_T panel_alarm;
+void smtp_client_task_nossl(char *);
+#endif
 
 void update_sntp(void);
 void Bacnet_Control(void)
@@ -3674,9 +3673,35 @@ void Bacnet_Control(void)
 	Update_Sntp_Retry = 0;
 	count_sntp = 0;
 #endif
+
+#if 1//EMAIL
+	/*Email_Setting.reg.smtp_ip[0] = 192;
+	Email_Setting.reg.smtp_ip[1] = 168;
+	Email_Setting.reg.smtp_ip[2] = 0;
+	Email_Setting.reg.smtp_ip[3] = 7;
+	Email_Setting.reg.smtp_port = 25;
+	memcpy(Email_Setting.reg.email_address,"chelsea@temcocontrols.com",26);
+	memcpy(Email_Setting.reg.To1Addr,"chelsea@temcocontrols.com",26);
+	memcpy(Email_Setting.reg.password,"u6flh?lO",9);*/
+	Email_Setting.reg.secure_connection_type = 0; // no ssl
+	Email_Setting.reg.smtp_type = 1;
+	flag_sendemail = 0;
+#endif
 	for(;;)
 	{
 		task_test.count[14]++;
+#if 1//EMAIL
+		//if(Modbus.network_master == 1)
+		{
+			if(flag_sendemail == 1)
+			{
+				flag_sendemail = 0;Test[20]++;
+				smtp_client_task_nossl(send_message);
+			}
+
+		}
+#endif
+
 #if 1//DNS
 		dns_tmr();
 		update_sntp();
@@ -3811,8 +3836,7 @@ void app_main()
         ets_delay_us(500000);
     	xTaskCreate(ethernet_check_task, "ethernet_check_task", 1024, NULL, 10, NULL);
     }
-    if(Modbus.mini_type == PROJECT_MPPT)
-    	mppt_task_init();
+
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
@@ -3823,6 +3847,8 @@ void app_main()
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
 
 #endif
+    if(Modbus.mini_type == PROJECT_MPPT)
+    	mppt_task_init();
 // ok
     //if(Modbus.enable_debug == 1)
     //	xTaskCreate(udp_debug_task, "udp_debug",4096 , NULL, 5, &main_task_handle[17]);

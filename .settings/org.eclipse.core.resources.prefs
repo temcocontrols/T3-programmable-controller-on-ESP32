@@ -1,3 +1,6 @@
 eclipse.preferences.version=1
+encoding//main/mppt_task.c=UTF-8
 encoding//main/product.h=UTF-8
 encoding//main/scd4x_i2c.h=UTF-8
+encoding//main/tcp_server.c=UTF-8
+encoding//main/wifi.c=UTF-8

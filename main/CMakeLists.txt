@@ -30,7 +30,7 @@ idf_component_register(			SRCS
 							"ade7953.c"	
 							"lcd.c"						
 #							"pic.c"
-						#	"smtp_client.c"
+							"smtp_client.c"
 							"airlab.c"
 							"LightSwitch.c"
 							"LS_LED.c"

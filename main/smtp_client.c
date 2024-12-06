@@ -61,7 +61,11 @@ char mail_server[20];
 char mail_port[10];
 char sender_password[20];
 char sender_mail[60];
-char recipient_mail[60];
+char recipient_mail1[60];
+char recipient_mail2[60];
+
+U8_T flag_sendemail;
+char send_message[200];
 
 #endif
 
@@ -573,7 +577,7 @@ exit:
 
 
 #if 1
-void smtp_client_task_nossl(void)
+void smtp_client_task_nossl(char *message)
 {
 	char rx_buffer[200];
 	int addr_family;
@@ -595,7 +599,8 @@ void smtp_client_task_nossl(void)
 	snprintf(mail_server,40,"%s",Email_Setting.reg.smtp_domain);
 	snprintf(mail_port,10,"%u",Email_Setting.reg.smtp_port);
 	snprintf(sender_mail,60,"%s",Email_Setting.reg.email_address);
-	snprintf(recipient_mail,60,"%s",Email_Setting.reg.To1Addr);
+	snprintf(recipient_mail1,60,"%s",Email_Setting.reg.To1Addr);
+	snprintf(recipient_mail2,60,"%s",Email_Setting.reg.To2Addr);
 	snprintf(sender_password,60,"%s",Email_Setting.reg.password);
 
 	//snprintf(mail_server,20,"192.168.0.7");
@@ -609,7 +614,7 @@ void smtp_client_task_nossl(void)
 	debug_info(mail_server);
 	debug_info(mail_port);
 	debug_info(sender_mail);
-	debug_info(recipient_mail);
+	debug_info(recipient_mail1);
 	debug_info(sender_password);
 
 
@@ -626,11 +631,11 @@ void smtp_client_task_nossl(void)
 	if (err < 0)
 		goto exit;
 
-	len = snprintf((char *) buf, BUF_SIZE, "STARTTLS\r\n");
+/*	len = snprintf((char *) buf, BUF_SIZE, "STARTTLS\r\n");
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
-		goto exit;
+		goto exit;*/
 
 
 	len = snprintf( (char *) buf, BUF_SIZE, "AUTH LOGIN\r\n" );
@@ -696,7 +701,18 @@ void smtp_client_task_nossl(void)
 		debug_info(rx_buffer);
 	}
 
-	len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", recipient_mail);
+	len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", recipient_mail1);
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+	len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", recipient_mail2);
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
@@ -723,22 +739,22 @@ void smtp_client_task_nossl(void)
 
 	/* We do not take action if message sending is partly failed. */
 	len = snprintf((char *) buf, BUF_SIZE,
-				   "From: %s\r\nSubject: chelsea mail test3333\r\n"
-				   "To: %s\r\n"
-				   "MIME-Version: 1.0 (mime-construct 1.9)\n",
-				   "ESP32 SMTP Client", recipient_mail);
-
+				   "From: %s\r\n"
+				   "To: %s,%s\r\n"
+					"Subject: %s\r\n"
+					"\r\n%s\r\n",
+				   sender_mail, recipient_mail1,recipient_mail2,"EMAIL ALARM",message);
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
 		goto exit;
 
-	/*len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
 	if(len > 0)
 	{
 		debug_info(rx_buffer);
-	}*/
-
+	}
+#if 0
 	/* Multipart boundary */
 	len = snprintf((char *) buf, BUF_SIZE,
 				   "Content-Type: multipart/mixed;boundary=XYZabcd1234\n"
@@ -753,19 +769,14 @@ void smtp_client_task_nossl(void)
 		debug_info(rx_buffer);
 	}*/
 
-	/* Text */
+
+/* Text
 	len = snprintf((char *) buf, BUF_SIZE,
 				   "--This is a test3333 by Chelsea. \n");
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
-		goto exit;
-	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-	if(len > 0)
-	{
-		debug_info(rx_buffer);
-	}
-
+		goto exit;*/
 	/* Attachment
 	len = snprintf((char *) buf, BUF_SIZE,
 				   "Content-Type: image/png;name=esp_logo.png\n"
@@ -778,12 +789,14 @@ void smtp_client_task_nossl(void)
 	{
 		debug_info(rx_buffer);
 	}*/
+#endif
 
 	len = snprintf((char *) buf, BUF_SIZE, "\r\n.\r\n");
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
 		goto exit;
+
 
 	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
 	if(len > 0)

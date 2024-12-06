@@ -354,9 +354,9 @@ esp_err_t read_default_from_flash(void)
 
 	}
 
-/*	len = sizeof(Str_Email_point);
+	len = sizeof(Str_Email_point);
 	nvs_get_blob(my_handle, FLASH_EMAIL, &Email_Setting, &len);
-*/
+
 	len = sizeof(STR_SSID);
 	nvs_get_blob(my_handle, FLASH_SSID_INFO, &SSID_Info, &len);
 	SSID_Info.IP_Wifi_Status = 0;
@@ -1141,6 +1141,45 @@ void Initial_points(uint8_t point_type)
 				ptr.pin->digital_analog = 1;
 				ptr.pin->range = 32;
 				memcpy(ptr.pin->description,"INPUT ENERGY",strlen("INPUT ENERGY"));
+			}
+			ptr = put_io_buf(IN,4);
+			memcpy(ptr.pin->description,"OUTPUT VOLTAGE",strlen("OUTPUT VOLTAGE"));
+			memcpy(ptr.pin->label,"OUTVOLT",strlen("OUTVOLT"));
+			if(ptr.pin->range == 0)
+			{
+			    ptr.pin->digital_analog = 1;
+			    ptr.pin->range = 30;
+			    memcpy(ptr.pin->description,"OUTPUT VOLTAGE",strlen("OUTPUT VOLTAGE"));
+			}
+
+			ptr = put_io_buf(IN,5);
+			memcpy(ptr.pin->description,"OUTPUT CURRENT",strlen("OUTPUT CURRENT"));
+			memcpy(ptr.pin->label,"OUTCURNT",strlen("OUTCURNT"));
+			if(ptr.pin->range == 0)
+			{
+			    ptr.pin->digital_analog = 1;
+			    ptr.pin->range = 12;
+			    memcpy(ptr.pin->description,"OUTPUT CURRENT",strlen("OUTPUT CURRENT"));
+			}
+
+			ptr = put_io_buf(IN,6);
+			memcpy(ptr.pin->description,"OUTPUT POWER",strlen("OUTPUT POWER"));
+			memcpy(ptr.pin->label,"OUTPWR",strlen("OUTPWR"));
+			if(ptr.pin->range == 0)
+			{
+			    ptr.pin->digital_analog = 1;
+			    ptr.pin->range = 31;
+			    memcpy(ptr.pin->description,"OUTPUT POWER",strlen("OUTPUT POWER"));
+			}
+
+			ptr = put_io_buf(IN,7);
+			memcpy(ptr.pin->description,"OUTPUT ENERGY",strlen("OUTPUT ENERGY"));
+			memcpy(ptr.pin->label,"OUTENGY",strlen("OUTENGY"));
+			if(ptr.pin->range == 0)
+			{
+			    ptr.pin->digital_analog = 1;
+			    ptr.pin->range = 32;
+			    memcpy(ptr.pin->description,"OUTPUT ENERGY",strlen("OUTPUT ENERGY"));
 			}
 		}
 		if(Modbus.mini_type == PROJECT_FAN_MODULE)

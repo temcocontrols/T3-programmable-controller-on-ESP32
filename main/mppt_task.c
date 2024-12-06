@@ -9,10 +9,12 @@
 //#define MPPT_OUTPUT_ON_OFF
 #define MPPT_OUTPUT_EN	33
 #define MPPT_OUTPUT_PWM	32
+#define MPPT_OUTPUT_RELAY	GPIO_NUM_15
 
 #define MPPT_POWER_LED_SEL (1ULL<<MPPT_POWER_LED)
 #define MPPT_OUTPUT_EN_SEL	(1ULL<<MPPT_OUTPUT_EN)
 #define MPPT_OUTPUT_PWM_SEL	(1ULL<<MPPT_OUTPUT_PWM)
+#define MPPT_OUTPUT_RELAY_SEL	(1ULL<<MPPT_OUTPUT_RELAY)
 
 #define MPPT_HS_TIMER          LEDC_TIMER_0
 #define MPPT_HS_MODE           LEDC_HIGH_SPEED_MODE
@@ -20,115 +22,13 @@
 #define MPPT_HS_CH0_CHANNEL    LEDC_CHANNEL_0
 #define MPPT_CH_NUM			   1
 
+#define MANUAL_MODE 0
+#define MPPT_MODE 1
+#define CC_CV_PSU_MODE 2
+#define PID_MODE 3
+
 mppt_t gMPPT;
 extern uint16_t Test[50];
-
-AutoBuf autoBaud;
-
-/*void init_crc16(void)
-{
-	CRClo = 0xFF;
-	CRChi = 0xFF;
-}*/
-
-/*uint16_t crc16(uint8_t *p, uint8_t length)
-{
-	uint8_t uchCRCHi = 0xff;	// high byte of CRC initialized
-	uint8_t uchCRCLo = 0xff;	// low byte of CRC initialized
-	uint8_t uIndex;			// will index into CRC lookup table
-	uint8_t i = 0;
-
-	while(length--)//pass through message buffer
-	{
-		uIndex = uchCRCHi^p[i++];		// calculate the CRC
-		//uchCRCHi = uchCRCLo^auchCRCHi[uIndex];
-		//uchCRCLo = auchCRCLo[uIndex];
-	}
-	return (((uint16_t)uchCRCHi << 8) | uchCRCLo);
-}*/
-
-/**
-  * @brief  Function implementing the AUTOBAUD thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/*uint8_t checkAutoBaudData(uint16_t address)
-{
-	uint16_t crc_val;
-
-//	if(revce_count != rece_size)
-//		return 0;
-
-	if(autoBaud.buf[0] != 255 && autoBaud.buf[0] != Modbus.address && autoBaud.buf[0] != 0)
-		return 0;
-
-
-	// check that message is one of the following
-	if( (autoBaud.buf[1]!=READ_VARIABLES) && (autoBaud.buf[1]!=WRITE_VARIABLES) && (autoBaud.buf[1]!=MULTIPLE_WRITE) &&( autoBaud.buf[1]!=CHECKONLINE))
-		return 0;
-
-	crc_val = crc16(autoBaud.buf, autoBaud.length-2);
-
-	if(crc_val == (autoBaud.buf[autoBaud.length-2]<<8) + autoBaud.buf[autoBaud.length-1] )
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
- }*/
-
-/* Accumulate "dataValue" into the CRC in crcValue. */
-/* Return value is updated CRC */
-/* */
-/*  The ^ operator means exclusive OR. */
-/* Note: This function is copied directly from the BACnet standard. */
-/*uint8_t CRC_Calc_Header(
-    uint8_t dataValue,
-    uint8_t crcValue)
-{
-    uint16_t crc;
-
-    crc = crcValue ^ dataValue; // XOR C7..C0 with D7..D0
-
-    // Exclusive OR the terms in the table (top down)
-    crc = crc ^ (crc << 1) ^ (crc << 2) ^ (crc << 3)
-        ^ (crc << 4) ^ (crc << 5) ^ (crc << 6)
-        ^ (crc << 7);
-
-    // Combine bits shifted out left hand end
-    return (crc & 0xfe) ^ ((crc >> 8) & 1);
-}*/
-
-bool CheckBacnetData(uint16_t len)
-{
-	uint8_t i;
-	uint8_t crc8 = 0xFF;        /* used to calculate the crc value */
-	//uint16_t crc16 = 0xFFFF;    /* used to calculate the crc value */
-
-	if(len>= 8)
-	{
-		for(i= 0; i<len; i++)
-		{
-		 if((autoBaud.buf[i]==0x55)&&(autoBaud.buf[i+1] == 0xff))
-		 {
-			crc8 = 0xFF;
-/*			crc8 = CRC_Calc_Header(autoBaud.buf[i+2], crc8);
-			crc8 = CRC_Calc_Header(autoBaud.buf[i+3], crc8);
-			crc8 = CRC_Calc_Header(autoBaud.buf[i+4], crc8);
-			crc8 = CRC_Calc_Header(autoBaud.buf[i+5], crc8);
-			crc8 = CRC_Calc_Header(autoBaud.buf[i+6], crc8);*/
-			if(autoBaud.buf[i+7] == (uint8_t)(~crc8))
-			//if(autoBaud.buf[i+6] == crc8)
-			{
-				return true;
-			}
-		 }
-		}
-	}
-	return false;
-}
 
 void mppt_pwm_init(void)
 {
@@ -170,7 +70,7 @@ void mppt_task_init(void)
 	//set as output mode
 	io_conf.mode = GPIO_MODE_OUTPUT;
 	//bit mask of the pins that you want to set
-	io_conf.pin_bit_mask = MPPT_POWER_LED_SEL | MPPT_OUTPUT_EN_SEL ;//| MPPT_OUTPUT_PWM_SEL ;
+	io_conf.pin_bit_mask = MPPT_POWER_LED_SEL | MPPT_OUTPUT_EN_SEL | MPPT_OUTPUT_RELAY_SEL;//| MPPT_OUTPUT_PWM_SEL ;
 	//disable pull-down mode
 	io_conf.pull_down_en = 0;
 	//disable pull-up mode
@@ -197,237 +97,158 @@ void ina228_read_task(void* arg)
 	{
 		Test[47] = gMPPT.input_voltage = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
 		inputs[0].value = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[1].value = Test[48] = gMPPT.input_current = (uint16_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[2].value = Test[49] = gMPPT.input_power = (uint16_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[3].value = Test[46] = gMPPT.input_energy = (int16_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[4].value = Test[40] = gMPPT.output_voltage = (uint16_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
-		inputs[5].value = Test[41] = gMPPT.output_current = (uint16_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
-		inputs[6].value = Test[42] = gMPPT.output_power = (uint16_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
-		inputs[7].value = Test[43] = gMPPT.output_energy = (int16_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		inputs[1].value = Test[48] = gMPPT.input_current = (uint32_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		inputs[2].value = Test[49] = gMPPT.input_power = (uint32_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		inputs[3].value = Test[46] = gMPPT.input_energy = (uint32_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		inputs[4].value = Test[40] = gMPPT.output_voltage = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		inputs[5].value = Test[41] = gMPPT.output_current = (uint32_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		inputs[6].value = Test[42] = gMPPT.output_power = (uint32_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		inputs[7].value = Test[43] = gMPPT.output_energy = (uint32_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
 		//Test[45] = outputs[0].value/1000;
 
 		vTaskDelay(2000 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
 	}
 }
 
-/*void Charging_Algorithm(){
-  //if(gMPPT.ERR>0||gMPPT.chargingPause==1){//buck_Disable();
-  //}                                       //µ±³öÏÖ´íÎó»ò³äµçÔÝÍ£ÓÃÓÚÔÝÍ£¸²¸ÇÊ±¹Ø±Õ MPPT ½µÑ¹
-  //else
-	{
-//    if(gMPPT.REC==1){                                                                      // IUV RECOVERY - (½ö¶Ô³äµçÄ£Ê½ÓÐÐ§)
-//    	gMPPT.REC=0;                                                                         //ÖØÖÃ IUV »Ö¸´²¼¶û±êÊ¶·û
-//      buck_Disable();                                                                //ÔÚ PPWM ³õÊ¼»¯Ö®Ç°½ûÓÃ½µÑ¹
-      //lcd.setCursor(0,0);lcd.print("POWER SOURCE    ");                              //ÏÔÊ¾Òº¾§ÐÅÏ¢
-      //lcd.setCursor(0,1);lcd.print("DETECTED        ");                              //ÏÔÊ¾Òº¾§ÐÅÏ¢
-      //tft.fillScreen(TFT_BLACK);
-      //tft.drawString("POWER SOURCE DETECTED", 10, 40, 3);
-      //Serial.println("> Solar Panel Detected");                                      //ÏÔÊ¾´®¿ÚÐÅÏ¢
-      //Serial.print("> Computing For Predictive PWM ");                               //ÏÔÊ¾´®¿ÚÐÅÏ¢
-//      for(int i = 0; i<40; i++){delay(30);}                        //For loop "loading... Ð§¹û
-      //Serial.println("");                                                            //ÔÚ´®ÐÐÉÏÏÔÊ¾ÏÂÒ»ÐÐµÄ»»ÐÐ·û
-//      Read_Sensors();
-//      predictivePWM();
-//      gMPPT.PWM = gMPPT.PPWM;
-      //lcd.clear();
-//    }
-//    else
-		{                                                                            //NO ERROR PRESENT - ¼ÌÐøµçÔ´×ª»»
-      /////////////////////// CC-CV BUCK PSU ALGORITHM //////////////////////////////
+void Charging_Algorithm(){
+     /////////////////////// CC-CV BUCK PSU ALGORITHM //////////////////////////////
       //
-      //PSUºÍcc-cvÄ£Ê½µÄ³äµçËã·¨ÎÊÌâ£¬³äµçµçÁ÷Éè¶¨Öµ£¬Èç¹ûÉè¶¨Öµ´óÓÚÊäÈëÔ´¶î¶¨Öµ£¬»áµ¼ÖÂpwm²»¶ÏÔö¼ÓÀ­µÍÊäÈëµçÑ¹Ö±ÖÁ´ïµ½Ð¡ÓÚµç³ØµçÑ¹£¬ÖØÆô
-      //Èç¹ûÉè¶¨½ÏÐ¡Öµ£¬ÔòÎÞ·¨·¢»Ó×î´ó¹¦ÂÊ
+      // PSU and CC-CV mode charging algorithm issue, charging current setpoint, if the setpoint is greater than the input source rating, it will cause the PWM to continuously increase, lowering the input voltage until it is less than the battery voltage, and restart
+      // If a smaller value is set, the maximum power cannot be utilized
+	Str_points_ptr ptr;
+    if(gMPPT.MPPT_Mode == CC_CV_PSU_MODE){                                                              // CC-CV PSU mode
+      //if(PSUcurrentMax>=currentCharging || PSUcurrentMax==0.0000 || currentOutput<0.02){PSUcurrentMax = currentCharging;} // Initialize PSU input maximum current
 
-      if(gMPPT.MPPT_Mode==0){                                                              // CC-CV PSU Ä£Ê½
-        //if(PSUcurrentMax>=currentCharging || PSUcurrentMax==0.0000 || currentOutput<0.02){PSUcurrentMax = currentCharging;} //³õÊ¼»¯psuÊäÈë×î´óµçÁ÷
+     ptr = put_io_buf(VAR , 0);
+     gMPPT.voltageBatteryMax = ptr.pvar->value;
+     ptr = put_io_buf(VAR, 1);
+     gMPPT.currentCharging = ptr.pvar->value;
 
-        if(gMPPT.output_current >gMPPT.currentCharging)     {gMPPT.PWM--;}                             //µçÁ÷¸ßÓÚÏÞ¶¨Öµ ¡ú ½µµÍÕ¼¿Õ±È
-		    //psuÄ£Ê½ºÍpsu³äµçÄ£Ê½»¹ÊÇÒªÇø±ðÒ»ÏÂ£¬³äµçÄ£Ê½ÎªÁË³äµç¿ÉÒÔÕ¥¸ÉÊäÈëÔ´£¬psuÄ£Ê½Ôò²¢²»Ò»¶¨ÐèÒª£¬ËùÒÔÔÝÊ±¹Ø±Õ´ËÅÐ¶Ï 20220811
-        //if(currentOutput>PSUcurrentMax)       {PWM--;}                               //µçÁ÷¸ßÓÚÍâ²¿×î´óÖµ ¡ú ½µµÍÕ¼¿Õ±È
-        else if(gMPPT.output_voltage>gMPPT.voltageBatteryMax){gMPPT.PWM--;}                             //µçÑ¹¸ßÓÚ ¡ú ½µµÍÕ¼¿Õ±È
-        else if(gMPPT.output_voltage<gMPPT.voltageBatteryMax){gMPPT.PWM++;}                             //µ±Êä³öµÍÓÚ³äµçµçÑ¹Ê±Ôö¼ÓÕ¼¿Õ±È£¨½öÓÃÓÚ CC-CV Ä£Ê½£©
-        else{}                                                                       //µ±´ïµ½Éè¶¨µÄÊä³öµçÑ¹Ê±Ê²Ã´¶¼²»×ö
-        //PWM_Modulation();                                                            //½« PWM ÐÅºÅÉèÖÃÎª Buck PWM GPIO
-        gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             //	´æ´¢ÏÈÇ°¼ÇÂ¼µÄµçÑ¹
-      }
-      ///////////////////////  MPPT & CC-CV ³äµçËã·¨ ///////////////////////  mpptÄ£Ê½Ö»Òª·ÀÖ¹µçÑ¹À­µÍµ½µç³ØµçÑ¹±£»¤ÔÙ½øÐÐÖØÆôµÄ¶àÓà¶¯×÷
-      else if(gMPPT.MPPT_Mode == 1){
-        if(gMPPT.output_current>gMPPT.currentCharging){gMPPT.PWM--;}                                         //µçÁ÷¸ßÓÚ ¡ú ½µµÍÕ¼¿Õ±È
-        else if(gMPPT.output_current>gMPPT.voltageBatteryMax){gMPPT.PWM--;}                                  //µçÑ¹¸ßÓÚ ¡ú ½µµÍÕ¼¿Õ±È
-        else{                                                                             //MPPT Ëã·¨
-          if( gMPPT.output_current>0.1 && gMPPT.input_voltage>=(gMPPT.output_voltage+gMPPT.voltageDropout+1)){       //ÎÞ·´ÏòµçÁ÷£¬ÊäÈë´óÓÚµç³ØµçÑ¹µÄÌõ¼þÏÂ½øÐÐpwm´¦Àí£¬×èÖ¹¹ý·ÖÀ­µÍµçÑ¹	20220803
-            if(gMPPT.input_power>gMPPT.powerInputPrev && gMPPT.input_voltage>gMPPT.voltageInputPrev)     {gMPPT.PWM--;}   //  ¡üP ¡üV ; ¡úMPP //D-- 	¹¦ÂÊÉÏÉýÇÒµçÑ¹ÉÏÉý£¬¼ÌÐø Ì§¸ßµçÑ¹
-            else if(gMPPT.input_power>gMPPT.powerInputPrev && gMPPT.input_voltage<gMPPT.voltageInputPrev){gMPPT.PWM++;}   //  ¡üP ¡ýV ; MPP¡û //D++	¹¦ÂÊÉÏÉýÇÒµçÑ¹½µµÍ£¬¼ÌÐø À­µÍµçÑ¹
-            else if(gMPPT.input_power<gMPPT.powerInputPrev && gMPPT.input_voltage>gMPPT.voltageInputPrev){gMPPT.PWM++;}   //  ¡ýP ¡üV ; MPP¡ú //D++	¹¦ÂÊÏÂ½µ£¬µçÑ¹ÉÏÉý£¬³¢ÊÔ À­µÍµçÑ¹
-            else if(gMPPT.input_power<gMPPT.powerInputPrev && gMPPT.input_voltage<gMPPT.voltageInputPrev){gMPPT.PWM--;}   //  ¡ýP ¡ýV ; ¡ûMPP  //D--	¹¦ÂÊÏÂ½µ£¬µçÑ¹ÏÂ½µ£¬³¢ÊÔ Ì§¸ßµçÑ¹
-            else if(gMPPT.output_voltage>gMPPT.voltageBatteryMax)                           {gMPPT.PWM--;}   //  MP MV ; ´ïµ½ MPP
-            else if(gMPPT.output_voltage<gMPPT.voltageBatteryMax)                           {gMPPT.PWM++;}   //  MP MV ; ´ïµ½ MPP
-          }else{
-        	  gMPPT.PWM--;
-          }
-
-          if(gMPPT.output_current<=0){gMPPT.PWM=gMPPT.PWM+2;}  //Êä³öµçÁ÷¸ºÖµ
-          gMPPT.powerInputPrev   = gMPPT.input_power;                                               //  ´æ´¢ÒÔÇ°¼ÇÂ¼µÄ¹¦ÂÊ
-          gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             //	´æ´¢ÏÈÇ°¼ÇÂ¼µÄµçÑ¹
-        }
-//        PWM_Modulation();                                                              //½« PWM ÐÅºÅÉèÖÃÎª Buck PWM GPIO
-      }
+      if(gMPPT.output_current > gMPPT.currentCharging)     {gMPPT.PWM--;}                             // Current above limit â†’ decrease duty cycle
+      // PSU mode and PSU charging mode need to be distinguished, charging mode can squeeze the input source for charging, PSU mode does not necessarily need to, so temporarily disable this judgment 20220811
+      //if(currentOutput>PSUcurrentMax)       {PWM--;}                               // Current above external maximum value â†’ decrease duty cycle
+      else if(gMPPT.output_voltage > gMPPT.voltageBatteryMax){gMPPT.PWM--;}                             // Voltage above â†’ decrease duty cycle
+      else if(gMPPT.output_voltage < gMPPT.voltageBatteryMax){gMPPT.PWM++;}                             // Increase duty cycle when output is below charging voltage (only for CC-CV mode)
+      else{}                                                                       // Do nothing when the set output voltage is reached
+      if(gMPPT.PWM>125)
+    	  gMPPT.PWM = 125;
+      //PWM_Modulation();                                                            // Set PWM signal to Buck PWM GPIO
+      gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             // Store previously recorded voltage
     }
-  }
-}*/
+    ///////////////////////  MPPT & CC-CV charging algorithm ///////////////////////  MPPT mode only prevents voltage from dropping to battery voltage protection and restarting unnecessary actions
+    else if(gMPPT.MPPT_Mode == MPPT_MODE){
+      if(gMPPT.output_current > gMPPT.currentCharging){gMPPT.PWM--;}                                         // Current above â†’ decrease duty cycle
+      else if(gMPPT.output_current > gMPPT.voltageBatteryMax){gMPPT.PWM--;}                                  // Voltage above â†’ decrease duty cycle
+      else{                                                                             // MPPT algorithm
+        if(gMPPT.output_current > 100 && gMPPT.input_voltage >= (gMPPT.output_voltage + gMPPT.voltageDropout + 1)){       // No reverse current, process PWM when input is greater than battery voltage to prevent excessive voltage drop 20220803
+          if(gMPPT.input_power > gMPPT.powerInputPrev && gMPPT.input_voltage > gMPPT.voltageInputPrev)     {gMPPT.PWM--;}   //  â†‘P â†‘V ; â†’MPP //D--  Power up and voltage up, continue to raise voltage
+          else if(gMPPT.input_power > gMPPT.powerInputPrev && gMPPT.input_voltage < gMPPT.voltageInputPrev){gMPPT.PWM++;}   //  â†‘P â†“V ; MPPâ† //D++  Power up and voltage down, continue to lower voltage
+          else if(gMPPT.input_power < gMPPT.powerInputPrev && gMPPT.input_voltage > gMPPT.voltageInputPrev){gMPPT.PWM++;}   //  â†“P â†‘V ; MPPâ†’ //D++  Power down, voltage up, try to lower voltage
+          else if(gMPPT.input_power < gMPPT.powerInputPrev && gMPPT.input_voltage < gMPPT.voltageInputPrev){gMPPT.PWM--;}   //  â†“P â†“V ; â†MPP  //D--  Power down, voltage down, try to raise voltage
+          else if(gMPPT.output_voltage > gMPPT.voltageBatteryMax)                           {gMPPT.PWM--;}   //  MP MV ; reach MPP
+          else if(gMPPT.output_voltage < gMPPT.voltageBatteryMax)                           {gMPPT.PWM++;}   //  MP MV ; reach MPP
+        }else{
+          gMPPT.PWM--;
+        }
+
+        if(gMPPT.output_current <= 0){gMPPT.PWM = gMPPT.PWM + 2;}  // Output current negative value
+        gMPPT.powerInputPrev   = gMPPT.input_power;                                               //  Store previously recorded power
+        gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             //  Store previously recorded voltage
+      }
+      if(gMPPT.PWM>125)
+    	  gMPPT.PWM = 125;
+    }
+}
 
 void mppt_task(void* arg)
 {
 	static bool power_led_trigger=0;
+	Str_points_ptr ptr;
 
 	//mppt_pwm_init();
 	gMPPT.output_pwm = 127;
+	gMPPT.PWM = 0;
 	gpio_set_level(MPPT_OUTPUT_EN, 1);
 	//gpio_set_level(MPPT_OUTPUT_PWM, 1);
 	gpio_set_level(MPPT_POWER_LED, 1);
+
+	ptr = put_io_buf(OUT, 0);
+	memcpy(ptr.pout->description,"PER OF CHARGE",strlen("PER OF CHARGE"));
+	ptr.pout->digital_analog = 1;
+	ptr.pout->auto_manual = 1;
+	ptr.pout->range = P0_100_Open;
+
+	ptr = put_io_buf(OUT, 1);
+	memcpy(ptr.pout->description,"SWITCH OF CHARGE",strlen("SWITCH OF CHARGE"));
+	ptr.pout->digital_analog = 0;
+	ptr.pout->auto_manual = 1;
+	ptr.pout->range = OFF_ON;
+
+	ptr = put_io_buf(VAR , 0);
+	memcpy(ptr.pvar->description, "VOLTAGE SETPOINT", strlen("VOLTAGE SETPOINT"));
+	ptr.pvar->digital_analog = 1;
+	ptr.pout->auto_manual = 1;
+	ptr.pvar->range = Volts;
+
+	ptr = put_io_buf(VAR , 1);
+	memcpy(ptr.pvar->description, "CURRENT SETPOINT", strlen("CURRENT SETPOINT"));
+	ptr.pvar->digital_analog = 1;
+	ptr.pout->auto_manual = 1;
+	ptr.pvar->range = Amps;
+
+	ptr = put_io_buf(VAR , 2);
+	memcpy(ptr.pvar->description, "CHARGING MODE", strlen("CHARGING MODE"));
+	ptr.pvar->digital_analog = 1;
+	ptr.pout->auto_manual = 1;
+	ptr.pvar->range = unused;
+	ptr.pvar->value = 0;
+
+
     while (1) {
 
-    	/*if(power_led_trigger){
-    		gpio_set_level(MPPT_POWER_LED, 0);
-    		if(Test[44] == 1)
-    			gpio_set_level(MPPT_OUTPUT_EN, 1);
-    		else
-    			gpio_set_level(MPPT_OUTPUT_EN, 0);
-    		if(Test[45] == 1)
-    			gpio_set_level(MPPT_OUTPUT_PWM, 1);
-    		else
-    			gpio_set_level(MPPT_OUTPUT_PWM, 1);
-    	}
-    	else{
-    		gpio_set_level(MPPT_OUTPUT_PWM, 1);
-    		if(Test[44] == 1)
-    			gpio_set_level(MPPT_OUTPUT_EN, 1);
-    		else
-    			gpio_set_level(MPPT_OUTPUT_EN, 0);
-    		if(Test[45] == 1)
-    			gpio_set_level(MPPT_OUTPUT_PWM, 0);
-    		else
-    			gpio_set_level(MPPT_OUTPUT_PWM, 1);
-    	}
-    	power_led_trigger= !power_led_trigger;*/
+    	ptr = put_io_buf(VAR , 2);
+    	gMPPT.MPPT_Mode = ptr.pvar->value/1000;
 
 
-    	gMPPT.MPPT_Mode = Test[45];
+		if (gMPPT.MPPT_Mode == MANUAL_MODE) {
+		    // Manual mode handling code
+			ptr = put_io_buf(OUT, 0);
+			Test[44] = (ptr.pout->value/1000)*125/100;
 
-		gMPPT.output_pwm = controllers[1].value; // use pid to control output pwm.
-		if(gMPPT.input_voltage < gMPPT.output_voltage)
-			gMPPT.output_pwm++;
-		else if(gMPPT.input_voltage > gMPPT.output_voltage)
-			gMPPT.output_pwm--;
-		else
-		{
-			//gMPPT.output_pwm=gMPPT.output_pwm;
-		}
+			ptr = put_io_buf(OUT, 1);
+			if(ptr.pout->digital_analog == 0)	// For output switch
+			{
+				if(ptr.pout->value == 1){
+					gpio_set_level(MPPT_OUTPUT_RELAY, 1);
+				}
+				else
+					gpio_set_level(MPPT_OUTPUT_RELAY, 0);
+			}
 
-		//Charging_Algorithm();
-
-		//ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, gMPPT.output_pwm);
-		//ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 100);
-		//delay_ms(10);
-		//ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 50);
-		//delay_ms(10);
-		//ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 200);
-		//delay_ms(10);
-		//ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, 100);
-		//delay_ms(10);
-		//ledc_update_duty(mppt_channel[0].speed_mode, mppt_channel[0].channel);
-		//ledc_update_duty(mppt_channel[0].speed_mode, mppt_channel[0].channel);
-
-		//ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, Test[44]);//gMPPT.output_pwm);
-
-		if(gMPPT.MPPT_Mode == 0)  //PID mode or manual mode
-		{
-			Test[44] = (outputs[0].value/1000)*125/100;
 			ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, (outputs[0].value/1000)*125/100);//gMPPT.output_pwm);
 			ledc_update_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL);
+		} else if (gMPPT.MPPT_Mode == MPPT_MODE || gMPPT.MPPT_Mode == CC_CV_PSU_MODE) {
+		    // MPPT mode and PSU handling code
+			gpio_set_level(MPPT_OUTPUT_RELAY, 1);
+			Charging_Algorithm();
+			ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, gMPPT.PWM);
+			ledc_update_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL);
+		} else if (gMPPT.MPPT_Mode == PID_MODE) {
+		    // PID mode handling code
+			gpio_set_level(MPPT_OUTPUT_RELAY, 1);
+			gMPPT.output_pwm = controllers[1].value; // Use PID to control output PWM
+			if(gMPPT.input_voltage < gMPPT.output_voltage)
+			    gMPPT.output_pwm++;
+			else if(gMPPT.input_voltage > gMPPT.output_voltage)
+			    gMPPT.output_pwm--;
+			else
+			{
+			    // gMPPT.output_pwm = gMPPT.output_pwm;
+			}
 		}
-
-
-
 
         vTaskDelay(300 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
     }
 }
 
-/*
-void PWM_Modulation(){
-  if(output_Mode==0){PWM = constrain(PWM,0,pwmMaxLimited);}                          //PSU MODE PWM = PWM OVERFLOW PROTECTION£¨½«ÏÂÏÞÏÞÖÆÎª 0%£¬ÉÏÏÞÏÞÖÆÎª×î´óÔÊÐíÕ¼¿Õ±È£©
-  else{
-    predictivePWM();                                                                 //ÔËÐÐºÍ¼ÆËãÔ¤²â pwm floor
-    PWM = constrain(PWM,PPWM,pwmMaxLimited);                                         //CHARGER MODE PWM - ½«ÏÂÏÞÏÞÖÆÎª PPWM£¬ÉÏÏÞÏÞÖÆÎª×î´óÔÊÐíÕ¼¿Õ±È£©
-  }
-  ledcWrite(pwmChannel,PWM);                                                         //ÉèÖÃ PWM Õ¼¿Õ±È²¢ÔÚÆôÓÃ½µÑ¹Ê±Ð´Èë GPIO
-  buck_Enable();                                                                     //¿ªÆô MPPT ½µÑ¹ (IR2104)
-}*/
-#if 0
-
-void Charging_Algorithm(){
-  if(gMPPT.ERR>0||gMPPT.chargingPause==1){//buck_Disable();
-  }                                       //µ±³öÏÖ´íÎó»ò³äµçÔÝÍ£ÓÃÓÚÔÝÍ£¸²¸ÇÊ±¹Ø±Õ MPPT ½µÑ¹
-  else{
-    if(gMPPT.REC==1){                                                                      // IUV RECOVERY - (½ö¶Ô³äµçÄ£Ê½ÓÐÐ§)
-    	gMPPT.REC=0;                                                                         //ÖØÖÃ IUV »Ö¸´²¼¶û±êÊ¶·û
-//      buck_Disable();                                                                //ÔÚ PPWM ³õÊ¼»¯Ö®Ç°½ûÓÃ½µÑ¹
-      //lcd.setCursor(0,0);lcd.print("POWER SOURCE    ");                              //ÏÔÊ¾Òº¾§ÐÅÏ¢
-      //lcd.setCursor(0,1);lcd.print("DETECTED        ");                              //ÏÔÊ¾Òº¾§ÐÅÏ¢
-      //tft.fillScreen(TFT_BLACK);
-      //tft.drawString("POWER SOURCE DETECTED", 10, 40, 3);
-      //Serial.println("> Solar Panel Detected");                                      //ÏÔÊ¾´®¿ÚÐÅÏ¢
-      //Serial.print("> Computing For Predictive PWM ");                               //ÏÔÊ¾´®¿ÚÐÅÏ¢
-//      for(int i = 0; i<40; i++){delay(30);}                        //For loop "loading... Ð§¹û
-      //Serial.println("");                                                            //ÔÚ´®ÐÐÉÏÏÔÊ¾ÏÂÒ»ÐÐµÄ»»ÐÐ·û
-//      Read_Sensors();
-//      predictivePWM();
-      gMPPT.PWM = gMPPT.PPWM;
-      //lcd.clear();
-    }
-    else{                                                                            //NO ERROR PRESENT - ¼ÌÐøµçÔ´×ª»»
-      /////////////////////// CC-CV BUCK PSU ALGORITHM //////////////////////////////
-      /*
-      PSUºÍcc-cvÄ£Ê½µÄ³äµçËã·¨ÎÊÌâ£¬³äµçµçÁ÷Éè¶¨Öµ£¬Èç¹ûÉè¶¨Öµ´óÓÚÊäÈëÔ´¶î¶¨Öµ£¬»áµ¼ÖÂpwm²»¶ÏÔö¼ÓÀ­µÍÊäÈëµçÑ¹Ö±ÖÁ´ïµ½Ð¡ÓÚµç³ØµçÑ¹£¬ÖØÆô
-      Èç¹ûÉè¶¨½ÏÐ¡Öµ£¬ÔòÎÞ·¨·¢»Ó×î´ó¹¦ÂÊ
-      */
-      if(gMPPT.MPPT_Mode==0){                                                              // CC-CV PSU Ä£Ê½
-        //if(PSUcurrentMax>=currentCharging || PSUcurrentMax==0.0000 || currentOutput<0.02){PSUcurrentMax = currentCharging;} //³õÊ¼»¯psuÊäÈë×î´óµçÁ÷
-
-        if(gMPPT.output_current >gMPPT.currentCharging)     {gMPPT.PWM--;}                             //µçÁ÷¸ßÓÚÏÞ¶¨Öµ ¡ú ½µµÍÕ¼¿Õ±È
-		    //psuÄ£Ê½ºÍpsu³äµçÄ£Ê½»¹ÊÇÒªÇø±ðÒ»ÏÂ£¬³äµçÄ£Ê½ÎªÁË³äµç¿ÉÒÔÕ¥¸ÉÊäÈëÔ´£¬psuÄ£Ê½Ôò²¢²»Ò»¶¨ÐèÒª£¬ËùÒÔÔÝÊ±¹Ø±Õ´ËÅÐ¶Ï 20220811
-        //if(currentOutput>PSUcurrentMax)       {PWM--;}                               //µçÁ÷¸ßÓÚÍâ²¿×î´óÖµ ¡ú ½µµÍÕ¼¿Õ±È
-        else if(gMPPT.output_voltage>gMPPT.voltageBatteryMax){gMPPT.PWM--;}                             //µçÑ¹¸ßÓÚ ¡ú ½µµÍÕ¼¿Õ±È
-        else if(gMPPT.output_voltage<gMPPT.voltageBatteryMax){gMPPT.PWM++;}                             //µ±Êä³öµÍÓÚ³äµçµçÑ¹Ê±Ôö¼ÓÕ¼¿Õ±È£¨½öÓÃÓÚ CC-CV Ä£Ê½£©
-        else{}                                                                       //µ±´ïµ½Éè¶¨µÄÊä³öµçÑ¹Ê±Ê²Ã´¶¼²»×ö
-        //PWM_Modulation();                                                            //½« PWM ÐÅºÅÉèÖÃÎª Buck PWM GPIO
-        gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             //	´æ´¢ÏÈÇ°¼ÇÂ¼µÄµçÑ¹
-      }
-      ///////////////////////  MPPT & CC-CV ³äµçËã·¨ ///////////////////////  mpptÄ£Ê½Ö»Òª·ÀÖ¹µçÑ¹À­µÍµ½µç³ØµçÑ¹±£»¤ÔÙ½øÐÐÖØÆôµÄ¶àÓà¶¯×÷
-      else{
-        if(gMPPT.output_current>gMPPT.currentCharging){gMPPT.PWM--;}                                         //µçÁ÷¸ßÓÚ ¡ú ½µµÍÕ¼¿Õ±È
-        else if(gMPPT.output_current>gMPPT.voltageBatteryMax){gMPPT.PWM--;}                                  //µçÑ¹¸ßÓÚ ¡ú ½µµÍÕ¼¿Õ±È
-        else{                                                                             //MPPT Ëã·¨
-          if( gMPPT.output_current>0.1 && gMPPT.input_voltage>=(gMPPT.output_voltage+gMPPT.voltageDropout+1)){       //ÎÞ·´ÏòµçÁ÷£¬ÊäÈë´óÓÚµç³ØµçÑ¹µÄÌõ¼þÏÂ½øÐÐpwm´¦Àí£¬×èÖ¹¹ý·ÖÀ­µÍµçÑ¹	20220803
-            if(gMPPT.input_power>gMPPT.powerInputPrev && gMPPT.input_voltage>gMPPT.voltageInputPrev)     {gMPPT.PWM--;}   //  ¡üP ¡üV ; ¡úMPP //D-- 	¹¦ÂÊÉÏÉýÇÒµçÑ¹ÉÏÉý£¬¼ÌÐø Ì§¸ßµçÑ¹
-            else if(gMPPT.input_power>gMPPT.powerInputPrev && gMPPT.input_voltage<gMPPT.voltageInputPrev){gMPPT.PWM++;}   //  ¡üP ¡ýV ; MPP¡û //D++	¹¦ÂÊÉÏÉýÇÒµçÑ¹½µµÍ£¬¼ÌÐø À­µÍµçÑ¹
-            else if(gMPPT.input_power<gMPPT.powerInputPrev && gMPPT.input_voltage>gMPPT.voltageInputPrev){gMPPT.PWM++;}   //  ¡ýP ¡üV ; MPP¡ú //D++	¹¦ÂÊÏÂ½µ£¬µçÑ¹ÉÏÉý£¬³¢ÊÔ À­µÍµçÑ¹
-            else if(gMPPT.input_power<gMPPT.powerInputPrev && gMPPT.input_voltage<gMPPT.voltageInputPrev){gMPPT.PWM--;}   //  ¡ýP ¡ýV ; ¡ûMPP  //D--	¹¦ÂÊÏÂ½µ£¬µçÑ¹ÏÂ½µ£¬³¢ÊÔ Ì§¸ßµçÑ¹
-            else if(gMPPT.output_voltage>gMPPT.voltageBatteryMax)                           {gMPPT.PWM--;}   //  MP MV ; ´ïµ½ MPP
-            else if(gMPPT.output_voltage<gMPPT.voltageBatteryMax)                           {gMPPT.PWM++;}   //  MP MV ; ´ïµ½ MPP
-          }else{
-        	  gMPPT.PWM--;
-          }
-
-          if(gMPPT.output_current<=0){gMPPT.PWM=gMPPT.PWM+2;}  //Êä³öµçÁ÷¸ºÖµ
-          gMPPT.powerInputPrev   = gMPPT.input_power;                                               //  ´æ´¢ÒÔÇ°¼ÇÂ¼µÄ¹¦ÂÊ
-          gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             //	´æ´¢ÏÈÇ°¼ÇÂ¼µÄµçÑ¹
-        }
-//        PWM_Modulation();                                                              //½« PWM ÐÅºÅÉèÖÃÎª Buck PWM GPIO
-      }
-    }
-  }
-}
-#endif
 

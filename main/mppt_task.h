@@ -5,14 +5,14 @@
 #include "freertos/task.h"
 
 typedef struct {
-	int32_t input_voltage;
-	int16_t input_current;
-	uint16_t input_power;
-	uint16_t input_energy;
-	int16_t output_voltage;
-	int16_t output_current;
-	uint16_t output_power;
-	uint16_t output_energy;
+	uint32_t input_voltage;
+	uint32_t input_current;
+	uint32_t input_power;
+	uint32_t input_energy;
+	uint32_t output_voltage;
+	uint32_t output_current;
+	uint32_t output_power;
+	uint32_t output_energy;
 	uint16_t output_pwm;
 	uint8_t ERR;
 	uint8_t chargingPause;

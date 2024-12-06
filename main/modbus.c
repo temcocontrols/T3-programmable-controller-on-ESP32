@@ -72,7 +72,7 @@ extern lcdconfig display_lcd;
 
 extern uint8_t gIdentify;
 extern uint8_t count_gIdentify;
-extern uint16_t input_cal[16];
+extern uint16_t input_cal[24];
 extern U8_T lcddisplay[7];
 
 void set_output_raw(U8_T point,U16_T value);
