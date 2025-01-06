@@ -61,15 +61,10 @@
 #include "mppt_task.h"
 #include "lwip/dns.h"
 #include "sntp_app.h"
+#include "multiMeter.h"
 
 //#include "types.h"
-#define RANGE_220_00_OHM 48    // 0b0110000
-#define RANGE_2_2000K_OHM 49   // 0b0110001
-#define RANGE_22_000K_OHM 50  // 0b0110010
-#define RANGE_220_00K_OHM 51   // 0b0110011
-#define RANGE_2_2000M_OHM 52   // 0b0110100
-#define RANGE_22_000M_OHM 53   // 0b0110101
-#define RANGE_220_00M_OHM 54   // 0b0110110
+
 
 #define PORT CONFIG_EXAMPLE_PORT
 
@@ -2331,8 +2326,7 @@ void Timer_task(void)
 	uint16_t count_1s = 0;
 	timezone = 800;
 	Daylight_Saving_Time = 0;
-	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
-			&&(Modbus.mini_type != PROJECT_MULTIMETER))
+	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER))
 	{
 		PCF_hctosys();
 		PCF_systohc();
@@ -2723,9 +2717,17 @@ void Update_Led(void)
 					{// hardwar AO
 						if(ptr.pout->digital_analog == 1)
 						{
-							if(output_raw[loop] >= 512 )
+							if(output_raw[loop] >= 0 && output_raw[loop] < 50 )
 								OutputLed[loop] = 0;
-							else
+							else if(output_raw[loop] >= 50 && output_raw[loop] < 200 )
+								OutputLed[loop] = 1;
+							else if(output_raw[loop] >= 200 && output_raw[loop] < 400 )
+								OutputLed[loop] = 2;
+							else if(output_raw[loop] >= 400 && output_raw[loop] < 600 )
+								OutputLed[loop] = 3;
+							else if(output_raw[loop] >= 600 && output_raw[loop] < 800 )
+								OutputLed[loop] = 4;
+							else if(output_raw[loop] >= 800 && output_raw[loop] < 1023 )
 								OutputLed[loop] = 5;
 						}
 						else
@@ -2876,88 +2878,7 @@ void i2c_master_task(void)
 			ptr.pin->range = Humidty;
 		memcpy(ptr.pin->label,"HUM3",strlen("HUM3"));
 	}
-	if(Modbus.mini_type == PROJECT_MULTIMETER)
-	{
-		ptr = put_io_buf(VAR, 0);
-		//if(ptr.pvar->range != 0)
-		{
-			ptr.pvar->range = custom1;
-			memcpy(ptr.pvar->description,"MEASURE CHANNEL", strlen("MEASURE CHANNEL"));
-			memcpy(ptr.pvar->label,"CHANNEL",strlen("CHANNEL"));
-			if(ptr.pvar->value  < 1 || ptr.pvar->value > 8) {
-				ptr.pvar->value = 1000;
-				multiMeterChannelvalue = ptr.pvar->value;
-			}
-		}
-		ptr = put_io_buf(VAR, 1);
-		//if(ptr.pvar->range != 0)
-		{
-			ptr.pvar->range = ohms;
-			memcpy(ptr.pvar->description,"RESISTANCE VALUE", strlen("RESISTANCE VALUE"));
-			memcpy(ptr.pvar->label,"VALUE",strlen("VALUE"));
-		}
-		/*ptr = put_io_buf(IN, 0);
-		ptr.pin->range = AC_PWM+2;
-		ptr.pin->auto_manual = 1;
-		memcpy(ptr.pin->description,"MEASURE CHANNEL", strlen("MEASURE CHANNEL"));
-		memcpy(ptr.pin->label,"CHANNEL",strlen("CHANNEL"));
-		if(ptr.pin->value  < 1 || ptr.pin->value > 8) {
-			ptr.pin->value = 1000;
-			multiMeterChannelvalue = ptr.pin->value;
-		}*/
 
-		/*for (int h = 0; h <= 7; h++) {
-		    ptr = put_io_buf(IN, h);
-		    ptr.pin->range = AC_PWM + 1;
-
-		    char description[25]; // Increase buffer size to avoid truncation
-		    snprintf(description, sizeof(description), "CH%d RESISTANCE VALUE", h + 1);
-		    memcpy(ptr.pin->description, description, strlen(description) + 1); // Include null terminator
-
-		    char label[10]; // Increase buffer size to avoid truncation
-		    snprintf(label, sizeof(label), "CH%dVAL", h + 1);
-		    memcpy(ptr.pin->label, label, strlen(label) + 1); // Include null terminator
-		}*/
-		ptr = put_io_buf(IN, 0);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH1 RESISTANCE VALUE", strlen("CH1 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH1VAL", strlen("CH1VAL") + 1);
-
-		ptr = put_io_buf(IN, 1);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH2 RESISTANCE VALUE", strlen("CH2 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH2VAL", strlen("CH2VAL") + 1);
-
-		ptr = put_io_buf(IN, 2);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH3 RESISTANCE VALUE", strlen("CH3 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH3VAL", strlen("CH3VAL") + 1);
-
-		ptr = put_io_buf(IN, 3);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH4 RESISTANCE VALUE", strlen("CH4 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH4VAL", strlen("CH4VAL") + 1);
-
-		ptr = put_io_buf(IN, 4);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH5 RESISTANCE VALUE", strlen("CH5 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH5VAL", strlen("CH5VAL") + 1);
-
-		ptr = put_io_buf(IN, 5);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH6 RESISTANCE VALUE", strlen("CH6 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH6VAL", strlen("CH6VAL") + 1);
-
-		ptr = put_io_buf(IN, 6);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH7 RESISTANCE VALUE", strlen("CH7 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH7VAL", strlen("CH7VAL") + 1);
-
-		ptr = put_io_buf(IN, 7);
-		ptr.pin->range = AC_PWM + 1;
-		memcpy(ptr.pin->description, "CH8 RESISTANCE VALUE", strlen("CH8 RESISTANCE VALUE") + 1);
-		memcpy(ptr.pin->label, "CH8VAL", strlen("CH8VAL") + 1);
-	}
 	if(Modbus.mini_type == PROJECT_NG2_NEW)
 	{
 		ptr = put_io_buf(IN,24);
@@ -3057,34 +2978,13 @@ void i2c_master_task(void)
 			vTaskDelay(500 / portTICK_RATE_MS);
 		}
 		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_NG2
-				|| Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_MULTIMETER)
+				|| Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW )
 		{
 			// send
 			// led
 			if(index++ % 2 == 0)
 			{
-				if(Modbus.mini_type == PROJECT_MULTIMETER)
 				{
-					/*ptr = put_io_buf(VAR, 0);
-					//if (ptr.pvar->value != multiMeterChannelvalue) {
-					        // Value has changed, perform the operation
-					        // (Replace this comment with the actual operation)
-					// Increment ptr.pin->value by 1000, reset to 1000 if it exceeds 8000
-					ptr.pvar->value += 1000;
-					if (ptr.pvar->value > 8000) {
-					    ptr.pvar->value = 1000;
-					}
-
-					// Prepare the data to send
-					i2c_send_buf[0] = (uint8_t)(ptr.pvar->value / 1000);
-
-					// Send the data via I2C
-					stm_i2c_write(10, i2c_send_buf, 1);
-					        // Update the lastValue to the new value
-							//multiMeterChannelvalue = ptr.pvar->value;
-					    //}*/
-				}
-				else {
 					Update_Led();
 					i2c_send_buf[0] = led_buf[0];
 					i2c_send_buf[1] = Modbus.mini_type;
@@ -3210,7 +3110,7 @@ void i2c_master_task(void)
 								{
 									ptr = put_io_buf(OUT,i);
 									ptr.pout->switch_status = 1;//i2c_rcv_buf[i];
-									check_output_priority_HOA(i);
+									//check_output_priority_HOA(i);??????????????
 									flag_read_switch = 1;
 								}
 
@@ -3239,7 +3139,6 @@ void i2c_master_task(void)
 									//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
 									//uint16 temp1 = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
 									temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
-									Test[10 + i] = temp;
 									if((temp > 0) && (temp < 4200))
 									//if(temp != 0xffff)
 									{// rev42 of top is 12U8_T, older rev is 10U8_T
@@ -3421,7 +3320,6 @@ void i2c_master_task(void)
 												temp = temp * 4095 / input_cal[i];
 											temp = Filter(i,temp);
 											input_raw[i] = temp;
-
 										}
 										else
 											Test[29]++;
@@ -3502,92 +3400,7 @@ void i2c_master_task(void)
 								}
 							}
 						}
-						else if(Modbus.mini_type == PROJECT_MULTIMETER)
-						{
-			//if(Modbus.mini_type == PROJECT_MULTIMETER)
-							{
-								ptr = put_io_buf(VAR, 0);
-								//if (ptr.pvar->value != multiMeterChannelvalue) {
-										// Value has changed, perform the operation
-										// (Replace this comment with the actual operation)
-								// Increment ptr.pin->value by 1000, reset to 1000 if it exceeds 8000
-								ptr.pvar->value += 1000;
-								if (ptr.pvar->value > 8000) {
-									ptr.pvar->value = 1000;
-								}
 
-								// Prepare the data to send
-								i2c_send_buf[0] = (uint8_t)(ptr.pvar->value / 1000);
-
-								// Send the data via I2C
-								stm_i2c_write(10, i2c_send_buf, 1);
-										// Update the lastValue to the new value
-										//multiMeterChannelvalue = ptr.pvar->value;
-									//}
-							}
-							vTaskDelay(1000 / portTICK_RATE_MS);
-							stm_i2c_read(0,&i2c_rcv_buf,20);
-							ptr = put_io_buf(VAR,1);
-
-							uint32_t resistanceValue = ptr.pvar->value = ((uint32_t)i2c_rcv_buf[0] << 24) | ((uint32_t)i2c_rcv_buf[1] << 16) | ((uint32_t)i2c_rcv_buf[2] << 8) | (uint32_t)i2c_rcv_buf[3];
-
-							if(ptr.pvar->value > 22100)
-								ptr.pvar->value = 0;
-
-							if(resistanceValue > 22100)
-								resistanceValue = 0;
-
-					        switch (i2c_rcv_buf[4]) {
-								case RANGE_220_00_OHM:
-									ptr.pvar->value *= 10; // 220.00 Ohm range
-									resistanceValue *= 10;
-									break;
-								case RANGE_2_2000K_OHM:
-									ptr.pvar->value *= 100; // 2.2000K Ohm range
-									resistanceValue *= 100;
-									break;
-								case RANGE_22_000K_OHM:
-									ptr.pvar->value *= 1000; // 22.0000K Ohm range
-									resistanceValue *= 1000;
-									break;
-								case RANGE_220_00K_OHM:
-									ptr.pvar->value *= 10000; // 220.00K Ohm range
-									resistanceValue *= 10000;
-									break;
-								case RANGE_2_2000M_OHM:
-									ptr.pvar->value *= 100000; // 2.2000M Ohm range
-									resistanceValue *= 100000;
-									break;
-								case RANGE_22_000M_OHM:
-									ptr.pvar->value *= 100000; // 22.000M Ohm range
-									resistanceValue *= 100000;
-									break;
-								case RANGE_220_00M_OHM:
-									ptr.pvar->value *= 100000; // 220.00M Ohm range
-									resistanceValue *= 100000;
-									break;
-								default:
-									// Handle unknown range
-									break;
-							}
-
-					        uint8_t channel = i2c_rcv_buf[5];
-					        uint8_t sequenceNumber = i2c_rcv_buf[6];
-
-							// Verify the sequence number
-							//if (sequenceNumber == (lastSequenceNumber + 1) || (lastSequenceNumber == 0xFF && sequenceNumber == 0))
-							{
-								// Process the received data
-								//ESP_LOGI(TAG, "Channel: %d, Resistance: %u ohms, Range: %d, Sequence: %d", channel, resistanceValue, range, sequenceNumber);
-								//lastSequenceNumber = sequenceNumber;
-
-								// Directly assign the value based on the channel
-								if (channel >= 1 && channel <= 8) {
-									ptr = put_io_buf(IN, channel - 1);
-									ptr.pin->value = resistanceValue; // Use the received resistance value
-								}
-							}
-						}
 					}
 
 				}
@@ -3595,8 +3408,7 @@ void i2c_master_task(void)
 			}
 			if(Modbus.mini_type == MINI_TSTAT10)
 				vTaskDelay(50 / portTICK_RATE_MS);
-			else if(Modbus.mini_type == PROJECT_MULTIMETER)
-				vTaskDelay(1000 / portTICK_RATE_MS);
+
 			else
 				vTaskDelay(100 / portTICK_RATE_MS);
 		}
@@ -3691,7 +3503,6 @@ void Bacnet_Control(void)
 	{
 		task_test.count[14]++;
 #if 1//EMAIL
-		//if(Modbus.network_master == 1)
 		{
 			if(flag_sendemail == 1)
 			{
@@ -3860,11 +3671,15 @@ void app_main()
 	}
 #endif
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_NG2
-    		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW
-			|| Modbus.mini_type == PROJECT_MULTIMETER)
+    		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW)
     {
     	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
     }
+    // Check if modbus.mini_type is PROJECT_MULTIMETER
+    if (Modbus.mini_type == PROJECT_MULTIMETER) {
+        // Create multiMeterTask with low priority
+        xTaskCreate(multiMeterTask, "MultiMeterTask", 2048*2, NULL, tskIDLE_PRIORITY+5, NULL);
+    }	
 #if 1
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
     		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LIGHT_SWITCH))

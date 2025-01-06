@@ -27,7 +27,7 @@
 #define PIR_TRIGGERED   1
 
 #define LIGHT_DEFAULT_VREF    1100//3300        //Use adc2_vref_to_gpio() to obtain a better estimate
-#define LIGHT_NO_OF_SAMPLES   64          //Multisampling
+#define LIGHT_NO_OF_SAMPLES   100//64          //Multisampling
 
 extern uint16_t Test[50];
 extern uint8 DEGCorF;
@@ -104,11 +104,13 @@ static const adc_channel_t lightswitch_S3S4 = ADC_CHANNEL_4;  //  S4 S3
 static const adc_channel_t lightswitch_S5S6 = ADC_CHANNEL_0;  //  S5 S6
 
 uint8_t light_key[7];
+uint8_t light_key_last[7];
 
 static void Light_adc_task(void* arg);
 void lightswitch_adc_init(void)
 {
 	//Configure ADC
+	Light_Switch_IO_Init();
 
 	adc1_config_width(ADC_WIDTH_BIT_12);
 	adc1_config_channel_atten(lightswitch_Light, lightswitch_atten);
@@ -123,7 +125,7 @@ void lightswitch_adc_init(void)
 
 
 
-void LS_LED_Control(uint8_t index,uint8_t color1,uint8_t color2,uint8_t color3,uint8_t color4);
+void LS_LED_Control(uint8_t* color);
 static void Light_adc_task(void* arg)
 {
 	//uint32_t adc_reading = 0;
@@ -137,6 +139,7 @@ static void Light_adc_task(void* arg)
 	uint32_t adc_S5S6 = 0;
 	Str_points_ptr ptr;
 	uint32_t key_refresh_timer[7] = {0,0,0,0,0,0,0};
+	uint8_t key_temp[7]= {0,0,0,0,0,0,0};
 
 
 	uint32_t vol_light = 0;
@@ -150,6 +153,7 @@ static void Light_adc_task(void* arg)
     //Continuously sample ADC1//Characterize ADC
 	lightswitch_adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
 	esp_adc_cal_value_t val_type = esp_adc_cal_characterize(lightswitch_unit, lightswitch_atten, ADC_WIDTH_BIT_12, LIGHT_DEFAULT_VREF, lightswitch_adc_chars);
+
 
     while (1) {
 
@@ -192,29 +196,67 @@ static void Light_adc_task(void* arg)
         	if(xTaskGetTickCount() - key_refresh_timer[6] > 500)     	light_key[6] = 1;
         }
 
-        if(vol_S1S2 < 500)	{
-        	if(xTaskGetTickCount() - key_refresh_timer[0] > 500)     	light_key[0] = 1;
-        	if(xTaskGetTickCount() - key_refresh_timer[1] > 500)     	light_key[1] = 1;
-        }// 1/4
-        else if(vol_S1S2 < 1800)	{light_key[0] = 1;light_key[1] = 0; key_refresh_timer[1] = xTaskGetTickCount();}// 1/2
-        else if(vol_S1S2 < 2400)	{light_key[0] = 0;light_key[1] = 1; key_refresh_timer[0] = xTaskGetTickCount();}// 2/3
-        else 					{light_key[0] = 0;light_key[1] = 0; 	key_refresh_timer[0] = xTaskGetTickCount(); key_refresh_timer[1] = xTaskGetTickCount();}// 1
 
-        if(vol_S3S4 < 500)	{
-        	if(xTaskGetTickCount() - key_refresh_timer[2] > 500)     	light_key[2] = 1;
-        	if(xTaskGetTickCount() - key_refresh_timer[3] > 500)     	light_key[3] = 1;
+        if(vol_S1S2 < 500)
+        {
+        	if(xTaskGetTickCount() - key_refresh_timer[0] > 500)     	light_key[0] = 1;
+        	if(xTaskGetTickCount() - key_refresh_timer[1] > 500)     	{light_key[1] = 1;key_temp[1] = 1;}
         }// 1/4
-		else if(vol_S3S4 < 1800)	{light_key[2] = 1;light_key[3] = 0;	key_refresh_timer[3] = xTaskGetTickCount();}// 1/2
-		else if(vol_S3S4 < 2400)	{light_key[2] = 0;light_key[3] = 1;	key_refresh_timer[2] = xTaskGetTickCount();}// 2/3
-		else 					{light_key[2] = 0;light_key[3] = 0;		key_refresh_timer[2] = xTaskGetTickCount();	key_refresh_timer[3] = xTaskGetTickCount();}// 1
+        else if(vol_S1S2 < 1800)
+        {
+        	if(key_temp[1] == 1)
+        	{
+        		key_temp[1] = 0;
+        		key_refresh_timer[1] = xTaskGetTickCount();
+        	}
+			if(xTaskGetTickCount() - key_refresh_timer[1] > 20)
+			{
+				light_key[0] = 1; light_key[1] = 0; key_temp[1] = 0;
+			}
+        }// 1/2
+        else if(vol_S1S2 < 2400)	{light_key[0] = 0;light_key[1] = 1; key_temp[1] = 1; key_refresh_timer[0] = xTaskGetTickCount();}// 2/3
+        else 						{light_key[0] = 0;light_key[1] = 0; key_temp[1] = 0; key_refresh_timer[0] = xTaskGetTickCount(); key_refresh_timer[1] = xTaskGetTickCount();}// 1
+
+
+		if(vol_S3S4 < 500)	{
+			if(xTaskGetTickCount() - key_refresh_timer[2] > 500)     	light_key[2] = 1;
+			if(xTaskGetTickCount() - key_refresh_timer[3] > 500)     	{light_key[3] = 1; key_temp[3] = 1;}
+
+		}// 1/4
+		else if(vol_S3S4 < 1800)
+		{
+			if(key_temp[3] == 1)
+			{
+				key_temp[3] = 0;
+				key_refresh_timer[3] = xTaskGetTickCount();
+			}
+			if(xTaskGetTickCount() - key_refresh_timer[3] > 20)
+			{
+				light_key[2] = 1;	light_key[3] = 0;	key_temp[3] = 0;
+			}
+		}// 1/2
+		else if(vol_S3S4 < 2400)	{ light_key[2] = 0;light_key[3] = 1; key_temp[3] = 1;	key_refresh_timer[2] = xTaskGetTickCount(); }// 2/3
+		else 						{ light_key[2] = 0;light_key[3] = 0; key_temp[3] = 0;	key_refresh_timer[2] = xTaskGetTickCount();	key_refresh_timer[3] = xTaskGetTickCount();}// 1
+
 
         if(vol_S5S6 < 500)	{
         	if(xTaskGetTickCount() - key_refresh_timer[4] > 500)     	light_key[4] = 1;
-        	if(xTaskGetTickCount() - key_refresh_timer[5] > 500)     	light_key[5] = 1;
+        	if(xTaskGetTickCount() - key_refresh_timer[5] > 500)     	{light_key[5] = 1;key_temp[5] = 1;}
         }// 1/4
-		else if(vol_S5S6 < 1800)	{light_key[4] = 1;light_key[5] = 0;	key_refresh_timer[5] = xTaskGetTickCount();}// 1/2
-		else if(vol_S5S6 < 2400)	{light_key[4] = 0;light_key[5] = 1;	key_refresh_timer[4] = xTaskGetTickCount();}// 2/3
-		else 					{light_key[4] = 0;light_key[5] = 0;		key_refresh_timer[4] = xTaskGetTickCount();	key_refresh_timer[5] = xTaskGetTickCount();}// 1
+		else if(vol_S5S6 < 1800)
+		{
+			if(key_temp[5] == 1)
+			{
+				key_temp[5] = 0;
+				key_refresh_timer[5] = xTaskGetTickCount();
+			}
+			if(xTaskGetTickCount() - key_refresh_timer[5] > 20)
+			{
+				light_key[4] = 1; light_key[5] = 0; key_temp[5] = 0;
+			}
+		}// 1/2
+		else if(vol_S5S6 < 2400)	{light_key[4] = 0;light_key[5] = 1;	key_temp[5] = 1; key_refresh_timer[4] = xTaskGetTickCount();}// 2/3
+		else 						{light_key[4] = 0;light_key[5] = 0;	key_temp[5] = 0; key_refresh_timer[4] = xTaskGetTickCount();	key_refresh_timer[5] = xTaskGetTickCount();}// 1
 
 
 		Test[20] = light_key[0];
@@ -231,23 +273,26 @@ static void Light_adc_task(void* arg)
         	ptr = put_io_buf(2/*VAR*/,i);
         	ptr.pvar->range = 1/*OFF_ON*/;
         	ptr.pvar->digital_analog = 0;
-        	ptr.pvar->control = (light_key[i] == 0) ? 1 : 0;
+        	if((light_key[i] == 0) && (light_key_last[i] == 1))
+        	{
+        		Test[10 + i]++;
+        		ptr.pvar->control = ~ptr.pvar->control;
+        	}
+        	light_key_last[i] = light_key[i];
         }
 
         // control led
 #if 1
-        uint8_t temp_index = 0;
-        uint8_t temp_color = 0;
-        for(i = 0;i < 4;i++)
+        uint8_t temp_color[6] = {0,0,0,0,0,0};
+        for(i = 0;i < 6;i++)
 		{
 			ptr = put_io_buf(2/*VAR*/,i+10);
-			ptr.pvar->range = 1/*OFF_ON*/;
-			ptr.pvar->digital_analog = 0;
-			temp_index &= ~(0x01 << i);
-			if(ptr.pvar->control == 1)
-				temp_index |= (0x01 << i);
+			ptr.pvar->range = 0/*OFF_ON*/;
+			ptr.pvar->digital_analog = 1;
+			temp_color[i] = ptr.pvar->value/1000;
 		}
-        LS_LED_Control(temp_index,1,2,3,4);
+
+        LS_LED_Control(temp_color);
 #endif
 
         if(abs(vol_pir - PirSensorZero) > Pir_Sensetivity) //occupied
@@ -259,7 +304,7 @@ static void Light_adc_task(void* arg)
 			pir_trigger = PIR_NOTTRIGGERED;
 		}
 
-        vTaskDelay(50 / portTICK_RATE_MS);
+        vTaskDelay(20 / portTICK_RATE_MS);
 
     }
 }

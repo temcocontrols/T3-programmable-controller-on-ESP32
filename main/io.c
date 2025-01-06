@@ -35,7 +35,6 @@ U8_T far sub_no;
 
 
 
-U16_T far Test[50];
 //U16_T far input_raw[MAX_INS];
 extern uint8_t InputLed[32];
 extern uint8 flag_internal_temperature;

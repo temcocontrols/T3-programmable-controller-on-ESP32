@@ -22,7 +22,7 @@ static const char *TAG = "ws2812";
 //#define CONFIG_EXAMPLE_RMT_TX_GPIO 15
 //#define CONFIG_EXAMPLE_STRIP_LED_NUMBER 4
 
-
+extern uint16_t Test[50];
 
 
 #define LED_BLACK	0
@@ -39,35 +39,27 @@ static const char *TAG = "ws2812";
 
 typedef struct
 {
-	uint8_t pos[4];
-	uint8_t color[4];
+	uint8_t pos[6];
+	uint8_t color_r[6];
+	uint8_t color_g[6];
+	uint8_t color_b[6];
 }LED_STR;
 
 LED_STR led_status;
-void LS_LED_Control(uint8_t index,uint8_t color1,uint8_t color2,uint8_t color3,uint8_t color4)
+void LS_LED_Control(uint8_t* color)
 {
+	uint8_t i;
 	memset(&led_status,0,sizeof(LED_STR));
-	if(index & 0x01)
+	for(i = 0;i < 6;i++)
 	{
-		led_status.pos[0] = 1;
-		led_status.color[0] = color1;
+		if(color[i] > 0)
+		{
+			led_status.pos[i] = 1;
+			led_status.color_r[i] = color[i] & 0xc0;
+			led_status.color_g[i] = (color[i] & 0x38) << 2;
+			led_status.color_b[i] = (color[i] & 0x07) << 5;
+		}
 	}
-	if(index & 0x02)
-	{
-		led_status.pos[1] = 1;
-		led_status.color[1] = color2;
-	}
-	if(index & 0x04)
-	{
-		led_status.pos[2] = 1;
-		led_status.color[2] = color3;
-	}
-	if(index & 0x08)
-	{
-		led_status.pos[3] = 1;
-		led_status.color[3] = color4;
-	}
-
 }
 
 extern uint16_t Test[50];
@@ -98,34 +90,23 @@ void LS_led_task(void)
 	ESP_ERROR_CHECK(strip->clear(strip, 100));
 
 	while (true) {
-		//if(Test[44] != 0)
-		{
-			for(uint8_t i = 0; i < 4;i++)
-			{
-				if(led_status.pos[i] == 1)
-				{
-					if(led_status.color[i] == LED_RED)
-						strip->set_pixel(strip, i, 255, 0, 0);
-					else if(led_status.color[i] == LED_GREEN)
-						strip->set_pixel(strip, i, 0, 255, 0);
-					else if(led_status.color[i] == LED_BLUE)
-						strip->set_pixel(strip, i, 0, 0, 255);
-					else if(led_status.color[i] == LED_WHITE)
-						strip->set_pixel(strip, i, 255, 255, 255);
-					else
-						strip->set_pixel(strip, i, 0, 0, 0);
-				}
-				else
-					strip->set_pixel(strip, i, 0, 0, 0);
 
-				strip->refresh(strip, 500);
-				vTaskDelay(10 / portTICK_RATE_MS);
+		strip->clear(strip, 50);
+		vTaskDelay(10 / portTICK_RATE_MS);
+
+		for(uint8_t i = 0; i < 6;i++)
+		{
+			if(led_status.pos[i] == 1)
+			{
+				strip->set_pixel(strip, i, led_status.color_r[i], led_status.color_g[i], led_status.color_b[i]);
 			}
-			//Test[40] = 0;
+			else
+				strip->set_pixel(strip, i, 0, 0, 0);
 		}
-		vTaskDelay(1000 / portTICK_RATE_MS);
-		strip->clear(strip, 500);
-		vTaskDelay(1000 / portTICK_RATE_MS);
+
+		strip->refresh(strip, 100);
+
+		vTaskDelay(200 / portTICK_RATE_MS);
 
 	}
 

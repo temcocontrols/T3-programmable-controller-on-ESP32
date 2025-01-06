@@ -549,7 +549,7 @@ uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8
 		PCF_SetDateTime(&rtc_date);
 	}
 
-	//update_timers();
+	update_timers();
 	//PCF_systohc();
 	return time_since_1970 + system_timer / 1000;
 }

@@ -495,7 +495,7 @@ void uart0_rx_task(void)
 
 			if(Modbus.com_config[0] == MODBUS_SLAVE)
 			{
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 100 / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 20 / portTICK_RATE_MS);
 
 				if(len > 0)
 				{led_sub_rx++;
@@ -583,7 +583,7 @@ void uart2_rx_task(void)
 		task_test.count[10]++;
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 100 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 20 / portTICK_RATE_MS);
 
 			if(len>0)
 			{
