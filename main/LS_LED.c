@@ -46,7 +46,7 @@ typedef struct
 }LED_STR;
 
 LED_STR led_status;
-void LS_LED_Control(uint8_t* color)
+void LS_LED_Control(uint32_t* color)
 {
 	uint8_t i;
 	memset(&led_status,0,sizeof(LED_STR));
@@ -55,9 +55,10 @@ void LS_LED_Control(uint8_t* color)
 		if(color[i] > 0)
 		{
 			led_status.pos[i] = 1;
-			led_status.color_r[i] = color[i] & 0xc0;
-			led_status.color_g[i] = (color[i] & 0x38) << 2;
-			led_status.color_b[i] = (color[i] & 0x07) << 5;
+			led_status.color_r[i] = (uint8_t)(color[i] >> 16);
+			led_status.color_g[i] = (uint8_t)(color[i] >> 8);
+			led_status.color_b[i] = (uint8_t)color[i];
+
 		}
 	}
 }

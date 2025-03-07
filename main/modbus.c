@@ -495,7 +495,14 @@ void uart0_rx_task(void)
 
 			if(Modbus.com_config[0] == MODBUS_SLAVE)
 			{
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, 20 / portTICK_RATE_MS);
+				uint8_t block_time = 0;
+				// block time < 90ms
+				if(Modbus.baudrate[0] == 9)
+					block_time = 20;
+				else //if(Modbus.baudrate <= 6)
+					block_time = 70;
+
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_RATE_MS);
 
 				if(len > 0)
 				{led_sub_rx++;
@@ -524,7 +531,7 @@ void uart0_rx_task(void)
 				}
 
 			}
-			else if(Modbus.com_config[0] == BACNET_MASTER)
+			else if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
 			{
 				if(system_timer / 1000 > 10)
 				{
@@ -583,7 +590,7 @@ void uart2_rx_task(void)
 		task_test.count[10]++;
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 20 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_RATE_MS);
 
 			if(len>0)
 			{
@@ -610,7 +617,7 @@ void uart2_rx_task(void)
 			}
 
 		}
-		else if(Modbus.com_config[2] == BACNET_MASTER)
+		else if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
 		{
 			if(system_timer / 1000 > 10)
 			{
@@ -1016,13 +1023,13 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		}
         else if(address == MODBUS_RUN_TIME_LO)
 		{
-        	 temp1 = (system_timer / 1000) >> 8;
-        	 temp2 = (system_timer / 1000);
+        	 temp1 = (run_time / 1000) >> 8;
+        	 temp2 = (run_time / 1000);
 		}
 		else if(address == MODBUS_RUN_TIME_HI)
 		{
-			temp1 = (system_timer / 1000) >> 24;
-			temp2 = (system_timer / 1000) >> 16;
+			temp1 = (run_time / 1000) >> 24;
+			temp2 = (run_time / 1000) >> 16;
 		}
 		else if(address == MODBUS_MAX_VARS)
 		{
@@ -3290,7 +3297,8 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 
 		if((Modbus.en_sntp != ptr->reg.en_sntp) || ((Modbus.en_sntp == 5) && memcmp(sntp_server,Setting_Info.reg.sntp_server,30)))
 		{
-			Modbus.en_sntp = ptr->reg.en_sntp;
+			if( ptr->reg.en_sntp != 0)
+				Modbus.en_sntp = ptr->reg.en_sntp;
 			if(Modbus.en_sntp <= 5)
 			{
 				save_uint8_to_flash(FLASH_EN_SNTP,Modbus.en_sntp);
@@ -3346,7 +3354,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		memcpy(dyndns_password,ptr->reg.dyndns_pass,MAX_PASSWORD_SIZE);
 #endif
 
-		memcpy(Modbus.mac_addr,ptr->reg.mac_addr,6);
+		//memcpy(Modbus.mac_addr,ptr->reg.mac_addr,6);
 		if(Modbus.com_config[0] != ptr->reg.com_config[0])
 		{
 

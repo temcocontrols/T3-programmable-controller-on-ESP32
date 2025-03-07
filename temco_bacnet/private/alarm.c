@@ -5,7 +5,8 @@
 
 
 
-
+extern U8_T flag_sendemail;
+extern char send_message[200];
 //U8_T Write_ALARM_TO_SD(Alarm_point alarm,U32_T star_pos);
 
 ///**************************************************
@@ -26,7 +27,7 @@ S16_T putmessage(S8_T *mes, S16_T prg, S16_T panel, S16_T type, S8_T alarmatall,
 		ptr->alarm        = 1;
 		ptr->no           = j;
 		ptr->alarm_panel  = panel;
-		ptr->alarm_time   = swap_double(get_current_time());
+		ptr->alarm_time   = get_current_time();
 		ptr->alarm_count  = ALARM_MESSAGE_SIZE;
 		ptr->prg          = prg;
 		ptr->alarm_id     = alarm_id++;
@@ -71,6 +72,7 @@ S16_T checkforalarm(S8_T *mes, S16_T prg, S16_T panel, S16_T id, S16_T *free_ent
 		if( ptr->alarm == 1)
 		{			
 		 	if( ptr->alarm_panel == panel )
+			{
 				//if( ptr->prg == prg )
 			 	if( !id )
 			 	{	
@@ -80,14 +82,15 @@ S16_T checkforalarm(S8_T *mes, S16_T prg, S16_T panel, S16_T id, S16_T *free_ent
 					{ 	
 					 return j+1;          /* existing alarm*/
 					}
-			 }
-			 else
-			 { 
-				if( ptr->alarm_id == *((S16_T *)mes) )
-				{
-					return j+1;           /* existing alarm*/
 				}
-			 }
+				else
+				{ 
+					if( ptr->alarm_id == *((S16_T *)mes) )
+					{
+						return j+1;           /* existing alarm*/
+					}
+				}
+			}
 		}
 		else
 		{
@@ -278,11 +281,11 @@ void check_id_alarm(uint8_t type, uint8_t id, uint32_t old_sn, uint32_t new_sn)
 	memset(str,0,200);
 	if(type == 0) // confilct with master
 	{
-		sprintf(str, "ID :%u SN: %lu has conlift with T3 controller" , (uint16)id,new_sn);
+		sprintf(str, "ID :%u SN: %u has conlift with T3 controller" , (uint16)id,new_sn);
 	}
 	else //  confilct with sub
 	{
-		sprintf(str, "ID :%u SN: %lu has conlift SN: %lu", (uint16)id,new_sn,old_sn);
+		sprintf(str, "ID :%u SN: %u has conlift SN: %u", (uint16)id,new_sn,old_sn);
 	}
 	
 	if(strlen(str) > ALARM_MESSAGE_SIZE) 
@@ -328,16 +331,22 @@ void generate_common_alarm(U8_T index)
 
 void generate_program_alarm(U8_T type,U8_T prg)
 {
-	S8_T far str[20];
-	memset(str,0,20);
+	S8_T str[50];
+	memset(str,0,50);
 
 	//if(index == ALARM_PROGRAM)
 	if(type == 0) // dead cycle
-		sprintf(str, "PRG %d error : dead cycle1",(U16_T)prg);
+	{
+		sprintf(str, "PRG %u error : dead cycle1",(U16_T)prg);
+	}
 	else if(type == 1) // dead cycle
-		sprintf(str, "PRG %d error : dead cycle2",(U16_T)prg);
+	{
+		sprintf(str, "PRG %u error : dead cycle2",(U16_T)prg);
+	}
 	else if(type == 2) // run long time
+	{
 		sprintf(str, "PRG %d error : takes long time",(U16_T)prg);
+	}
 //	else
 //		return;
 		
@@ -400,6 +409,8 @@ S16_T generatealarm(S8_T *mes, S16_T prg, S16_T panel, S16_T type, S8_T alarmata
 	if(j >= 0)
 	{
 		putmessage(mes,prg,panel,type,alarmatall,indalarmpanel,alarmpanel,j);    /* alarm */
+		flag_sendemail = 1;
+		memcpy(send_message,mes,200);
 		new_alarm_flag |= 0x01;
 	}
 

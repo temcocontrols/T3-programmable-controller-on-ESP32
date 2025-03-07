@@ -640,19 +640,19 @@ void apdu_handler(
 										}
 
 									}
-#ifdef T3_CON
+
 									// add who-has
 									if (service_choice == SERVICE_UNCONFIRMED_WHO_HAS) 
 									{
 										handler_who_has(service_request,service_request_len, src,protocal);
 									}
 									else 
-#endif
+
 										if (service_choice == SERVICE_UNCONFIRMED_PRIVATE_TRANSFER) 
 									{ // add unconfirmedPrivateTransfer handler, for TEMCO private
-#if BAC_PRIVATE
+
 										handler_private_transfer(apdu,apdu_len,src,protocal);
-#endif
+
 									}
 
 							else	if (service_choice == SERVICE_UNCONFIRMED_UTC_TIME_SYNCHRONIZATION) {

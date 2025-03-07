@@ -14,6 +14,7 @@
 //#include "wifi.h"
 #include "esp_timer.h"
 
+#include <lwip/netdb.h>
 
 #include "driver/uart.h"
 extern char debug_array[100];
@@ -24,6 +25,7 @@ void debug_info(char *string);
 
 extern uint16_t current_page;
 extern char sntp_server[30];
+extern U8_T current_online[32];
 
 uint16_t 	flash_trendlog_num[MAX_MONITORS * 2];
 
@@ -87,6 +89,11 @@ uint16_t	end_day;
 extern uint8_t flag_start_scan_network;
 extern uint8_t start_scan_network_count;
 extern uint16_t scan_network_bacnet_count;
+extern uint8_t Master_Scan_Network_Count;
+
+extern uint8_t flag_start_scan_mstp;
+extern uint8_t start_scan_mstp_count;
+extern uint16_t Master_Scan_Mstp_Count;
 
 extern uint16_t collision[3];  // id collision
 extern uint16_t packet_error[3];  // bautrate not match
@@ -1010,37 +1017,27 @@ void Send_whois_to_mstp(uint32_t instance)
 extern uint8_t Master_Scan_Network_Count;
 void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,uint8_t * pdu,uint8_t pdu_len,uint8_t protocal,uint8_t temcoproduct)
 {
-
 	U8_T i;	
-
 	if(device_id == 0)
 	{
-		return;
+		return ;
 	}
+
 	if(panel == 0) 
 	{
-		if(protocal == BAC_IP || protocal == BAC_IP_CLIENT)
+		if(protocal == BAC_IP)
 		{// it is customer device or old version product of temco
 			if(temcoproduct != 1)
 				panel = src->mac[3];
 		}
 		else
-			return;
+			return ;
 	}	
 	
-//	if(panel == 255)
-//	{	
-//		if(protocal == BAC_IP && temcoproduct == 1)
-////after adding preperiatary object,default panel is 255, need get panel number from preperialtary object1 
-//			;
-//		else
-//			return;
-//	}
 	if(remote_panel_num > MAX_REMOTE_PANEL_NUMBER) 
 		return ;
 
-
-// check who is network master
+	// check who is network master
 	if(((protocal == BAC_IP) ||(protocal == BAC_IP_CLIENT))  && temcoproduct == 1) // current device is temco device, and it is not subdevice
 	{
 		if(panel == 255)
@@ -1058,17 +1055,16 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 	}
 
 
-
-	//if(Master_node)
-	{
 		for(i = 0;i < remote_panel_num;i++)
 		{
-			if(device_id == remote_panel_db[i].device_id)
+			if((device_id == remote_panel_db[i].device_id) &&
+				(protocal == remote_panel_db[i].protocal))
 			{ // already in database.
 				remote_panel_db[i].time_to_live = RMP_TIME_TO_LIVE;
 				break;							
 			}
 		}	
+
 		
 		// it is a new device
 		if(i == remote_panel_num)  // add new panel into DB
@@ -1078,14 +1074,13 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 			remote_panel_db[remote_panel_num].product_model = 8;
 			memcpy(&remote_panel_db[remote_panel_num].address,src->mac,6);
 
-
 			remote_panel_db[remote_panel_num].time_to_live = RMP_TIME_TO_LIVE;
 
 			if(pdu_len < 20)
 				memcpy(remote_panel_db[remote_panel_num].remote_iam_buf,pdu,pdu_len);	
 
 			remote_panel_db[remote_panel_num].remote_iam_buf_len = pdu_len;
-			if(protocal == BAC_IP || protocal == BAC_IP_CLIENT)
+			if(protocal == BAC_IP)
 			{
 				remote_panel_db[remote_panel_num].panel = panel;					
 				if(src->len == 1)  //  sub device,mstp device
@@ -1093,12 +1088,11 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 					remote_panel_db[remote_panel_num].sub_id = src->adr[0];
 				}
 				else if(src->len == 6)  // wifi-tstat for cusomter
-				{ // 有 netowrk number
+				{
 					remote_panel_db[remote_panel_num].sub_id = src->adr[3];//?????????
 				}
-				else {// 没有 network number
+				else  // src->len == 0
 					remote_panel_db[remote_panel_num].sub_id = panel;
-				}
 
 			}
 			else // BAC_MSTP
@@ -1108,28 +1102,26 @@ void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,ui
 				remote_panel_db[remote_panel_num].product_model = 0;
 			}
 
-
-			if(((protocal == BAC_IP) ||(protocal == BAC_IP_CLIENT))  /*&& src->len == 0*/ && temcoproduct == 1)
+			if(protocal == BAC_IP && src->len == 0 && temcoproduct == 1)
 				// current device is temco device, and it is not subdevice
 			{
 				if(panel == 255)
 				{
-					if(src->mac[3] != 0)
-					{
-						remote_panel_db[remote_panel_num].sub_id = src->mac[3];
-						remote_panel_db[remote_panel_num].panel = src->mac[3];
-					}
-				}
-				remote_panel_db[remote_panel_num].product_model = 1;  // temco product
+					remote_panel_db[remote_panel_num].sub_id = src->mac[3];
+					remote_panel_db[remote_panel_num].panel = src->mac[3];
+					remote_panel_db[remote_panel_num].product_model = 1;  // temco product
 
+				}
 
 			}
+
 			remote_panel_db[remote_panel_num].retry_reading_panel = 0;
+			//Test[31 + remote_panel_num] = remote_panel_db[remote_panel_num].sub_id;
+			//Test[21 + remote_panel_num] = remote_panel_db[remote_panel_num].device_id;
 			remote_panel_num++;
 			Test[30] = remote_panel_num;
-
 		}
-	}
+
 
 }
 
@@ -1273,8 +1265,8 @@ U8_T check_point_type(Point_Net * point)
 	STR_REMOTE_PANEL_DB *ptr;
 	
 	point_type = (point->point_type & 0x1f) + (point->network_number & 0x60);
-	
-	if(point_type == VAR + 1) // point type of T3-IO is VAR
+
+	if((point_type == VAR + 1) || (point_type == OUT + 1) || (point_type == IN + 1)) // point type of T3-IO is VAR
 	{		
 		// check whether panel is remote mstp device.
 		ptr = remote_panel_db;
@@ -1294,7 +1286,8 @@ U8_T check_point_type(Point_Net * point)
 			}
 		}		
 		
-		if(point->panel != panel_number) // network panel,bacnet point
+		if((point->panel != panel_number) &&
+			!(current_online[point->panel / 8] & (1 << (point->panel % 8)))) // network panel,bacnet point
 			return 0;
 		else 
 			return 1; // modbus point
@@ -1317,7 +1310,15 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 	// modbus points do not have instance
 
 	ret = check_point_type(point);
-	if(ret == 1) return -1;
+	if(ret == 1) // modbus points
+	{
+		if((Modbus.com_config[0] == 0 || Modbus.com_config[0] == 2/*MODBUS_SLAVE*/) && (Modbus.com_config[2] == 0 || Modbus.com_config[2] == 2/*MODBUS_SLAVE*/))
+		{
+			Modbus.com_config[0] = 7/*MODBUS_MASTER*/;
+			Modbus.com_config[2] = 7/*MODBUS_MASTER*/;
+		}
+		return -1; 
+	}
 	if(ret == 2) // specail remote mstp point
 	{
 		// check whether panel is remote mstp device.
@@ -1352,13 +1353,17 @@ S8_T get_point_info_by_instacne(Point_Net * point)
 			}
 		}
 		// if not in current database, try to scan network
-#if (ARM_MINI || ARM_CM5 )
-			flag_start_scan_network = 1;
-			start_scan_network_count = 0;
+
+		flag_start_scan_network = 1;
+		start_scan_network_count = 0;
 		
+		if(Modbus.com_config[0] == 9/*BACNET_MASTER*/ || Modbus.com_config[0] == 1/*BACNET_SLAVE*/ || Modbus.com_config[2] == 9/*BACNET_MASTER*/ || Modbus.com_config[2] == 1/*BACNET_SLAVE*/)
+		{
+
 			flag_start_scan_mstp = 1;			
 			start_scan_mstp_count = 0;
-#endif
+		}
+
 		point->panel = 0;
 	}
 	return -1;	
@@ -1563,8 +1568,8 @@ U8_T check_network_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 	{
 		if(/*(point->network_number == remote_points_list[i].point.network_number) &&*/
 		(point->panel == ptr->point.panel) &&
-		(point->sub_id == ptr->point.sub_id) &&
-		//(point->point_type == ptr->point.point_type) &&
+		//(point->sub_id == ptr->point.sub_id) &&
+		(point->point_type == ptr->point.point_type) &&
 		(point->number == ptr->point.number) )
 		{
 			if((ptr->point.sub_id == 0) || (ptr->point.sub_id == point->panel)
@@ -1585,15 +1590,32 @@ U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 	REMOTE_POINTS *ptr;
 
 	ptr = remote_points_list;
-
+	
 	for(i = 0;i < MAXREMOTEPOINTS;i++,ptr++)
 	{	
+		if(ptr->point.panel == point->sub_id && ptr->point.sub_id == 0)
+		{
+			uint8_t len;	
+			uint8_t object_type;
+			uint16_t reg1,reg2;
+			
+			reg1 = get_reg_from_list(ptr->point.point_type,ptr->point.number,&len);
+			reg2 = (U16_T)((point->point_type & 0xe0) << 3) + point->number
+									+ (U16_T)((point->network_number & 0x1f) << 11);	
+			if(reg1 == reg2)
+			{
+				*index = i;
+				return 2;
+			}			
+		}
+		
 		
 		if(/*(point->network_number == remote_points_list[i].point.network_number) &&*/ 
 		(point->panel == ptr->point.panel) &&
 		(point->sub_id == ptr->point.sub_id) &&
 		//(point->point_type == ptr->point.point_type) &&
-		(point->number == ptr->point.number) )
+		(point->number == ptr->point.number) 		
+		)
 		{
 			if(((point->point_type & 0x1f) == (ptr->point.point_type & 0x1f)) ||
 				(((point->point_type & 0x1f) == VAR + 1) && ((ptr->point.point_type & 0x1f) == MB_REG + 1)) || 
@@ -1611,96 +1633,120 @@ U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 // special -- 3: VAR OUT IN (mstp protocal)
 void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type)
 {
-	REMOTE_POINTS ptr;//	Point_Net *point;
+	REMOTE_POINTS ptr;//	Point_Net *point; 
 	U8_T index;
 	U8_T type,number_high3bit;
-	U8_T protocal;
-
+	U8_T protocal;	
+	U8_T ret;
+	
 	ptr.point.panel = panel_number;//Modbus.network_ID[2];
 	ptr.point.sub_id = id;
-
+	
 	if(specail == 3)  // VAR OUT IN
 	{
-		protocal = 1;
+		protocal = 1;		
 		type = point_type & 0x1f;
-		ptr.point.point_type = type;
+		ptr.point.point_type = type;		
 	}
 	else if(specail == 2)
 	{
 		protocal = 1;
 		type = point_type & 0x1f;
 		number_high3bit = point_type & 0xe0;
-
 		if(type == OBJECT_ANALOG_VALUE || type == BAC_AV)
-		{
+		{		
 			ptr.point.point_type = BAC_AV + 1 + number_high3bit;
 		}
 		else if(type == OBJECT_ANALOG_INPUT || type == BAC_AI)
-		{
+		{		
 			ptr.point.point_type = BAC_AI+ 1 + number_high3bit;
 		}
 		else if(type == OBJECT_ANALOG_OUTPUT || type == BAC_AO)
-		{
+		{		
 			ptr.point.point_type = BAC_AO + 1 + number_high3bit;
 		}
 		else if(type == OBJECT_BINARY_OUTPUT || type == BAC_BO)
-		{
+		{		
 			ptr.point.point_type = BAC_BO + 1 + number_high3bit;
 		}
 		else if(type == OBJECT_BINARY_VALUE || type == BAC_BV)
-		{
+		{		
 			ptr.point.point_type = BAC_BV + 1 + number_high3bit;
 		}
 		else if(type == OBJECT_BINARY_INPUT || type == BAC_BI)
-		{
+		{		
 			ptr.point.point_type = BAC_BI + 1 + number_high3bit;
 		}
-
+		else if(type == OBJECT_MULTI_STATE_VALUE || type == BAC_MSV)
+		{		
+			ptr.point.point_type = BAC_MSV + 1 + number_high3bit;
+		}
+		
 	}
 	else
 	{
 		protocal = 0;
 		type = point_type & 0x1f;
-		number_high3bit = point_type & 0xe0;
+		number_high3bit = point_type & 0xe0;				
 		if(high_5bit > 0)
 		{
 			ptr.point.network_number = 0x80 + high_5bit;//Setting_Info.reg.network_number;
 		}
 		else
-			ptr.point.network_number = 0;
+			ptr.point.network_number = 0; 
 		if(type == READ_COIL)
 			ptr.point.point_type = MB_COIL_REG + 1 + number_high3bit;
 		else if(type == READ_DIS_INPUT)
 			ptr.point.point_type = MB_DIS_REG + 1 + number_high3bit;
 		else if(type == READ_INPUT)
 			ptr.point.point_type = MB_IN_REG + 1 + number_high3bit;
-		else if(type == READ_VARIABLES)
+		else if(type == READ_VARIABLES || type == (OUT+1) || type == (IN+1) || type == (VAR+1))
 		{
-			if(specail == 1)
+			if(specail == 1) 
 			{
 				ptr.point.point_type = MB_REG + 1 + number_high3bit;
 			}
 			else   // MB_REG & REG
-			{
-				ptr.point.point_type = VAR + 1 + number_high3bit;
+			{// VAR IN OUT
+				ptr.point.point_type = type/*VAR + 1*/ + number_high3bit;	
 			}
 			if(float_type > 0)
 			{
 				ptr.point.point_type = ((BAC_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
 				ptr.point.network_number |= ((BAC_FLOAT_ABCD + float_type) & 0x60);
 			}
-		}
+		}		
 	}
-
+	
 	ptr.point.number = number;
-	ptr.auto_manual = 0;
-	if(check_remote_point_list(&ptr.point,&index,protocal))
-	{
+	ptr.auto_manual = 0; 
+	
+	ret = check_remote_point_list(&ptr.point,&index,protocal);
+	if(ret > 0)
+	{		
 		if(protocal == 0) // modbus
 		{
 			if(float_type == 0)
-				remote_points_list[index].point_value = val_ptr * 1000;
-			else
+			{
+				if(ret == 2)  // 3VARx 3INx 3OUTx
+				{
+					remote_points_list[index].point_value = val_ptr;
+					// analog value must be raw value
+					// digital value must be 1000x
+					// should check digital or analog ?????					
+					// digital on
+					if(remote_points_list[index].digital_analog == 100)
+					{
+						if(val_ptr == 1) 
+							remote_points_list[index].point_value = val_ptr * 1000;
+					}
+						
+				}
+				else
+					remote_points_list[index].point_value = val_ptr * 1000;
+				
+			}
+			else 
 			{
 				float f;
 				Byte_to_Float(&f,val_ptr,float_type);
@@ -1754,7 +1800,7 @@ void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_
 			float_type = 1;			// read input float 32bit
 			protocal = 0;			
 		}
-		else if(type == READ_VARIABLES)
+		else //if(type == READ_VARIABLES)
 		{
 			if(specail == 1) 
 				ptr.point.point_type = MB_REG + 1 + number_high3bit;
@@ -1835,14 +1881,29 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 					if(check_point_type(point) == 1)
 					{
 						point_type = (point->point_type & 0x1f) + (point->network_number & 0x60);
-						remote_points_list[i].tb.RP_modbus.id = point->sub_id;
-
-						if(point->network_number & 0x80)	// new way, modbus reg is 0-65535
-							remote_points_list[i].tb.RP_modbus.reg = (U16_T)((point->point_type & 0xe0) << 3) + point->number
-								+ (U16_T)((point->network_number & 0x1f) << 11);
+						if(point->sub_id != 0)
+							remote_points_list[i].tb.RP_modbus.id = point->sub_id; 
+						else
+							remote_points_list[i].tb.RP_modbus.id = point->panel;
+						
+						if(point->network_number & 0x80)	// new way, modbus reg is 0-65535	
+						{			
+								remote_points_list[i].tb.RP_modbus.reg = (U16_T)((point->point_type & 0xe0) << 3) + point->number
+									+ (U16_T)((point->network_number & 0x1f) << 11);	
+						}							
 						else // old way, modbus reg is 0-2047
-							remote_points_list[i].tb.RP_modbus.reg = (U16_T)((point->point_type & 0xe0) << 3) + point->number;
+						{// VAR1-128 OUT1-64 IN1-64
+							if(point_type == VAR + 1 || point_type == OUT + 1 || point_type == IN + 1 )	
+							{
+								uint8_t len;
+								remote_points_list[i].tb.RP_modbus.reg = 
+								get_reg_from_list(point->point_type & 0x1f,point->number,&len);
 
+							}
+							else
+								remote_points_list[i].tb.RP_modbus.reg = (U16_T)((point->point_type & 0xe0) << 3) + point->number;
+						}
+						
 						if(point_type == VAR + 1)
 							remote_points_list[i].tb.RP_modbus.func = READ_VARIABLES;
 						else if(point_type == MB_REG + 1)
@@ -2638,7 +2699,9 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 	if(/*( point.network_number != Setting_Info.reg.network_number) ||*/( point.panel != panel_number)
 		|| ((point.sub_id != panel_number) && (point.sub_id != 0)))
 	{
-		if(point.panel == panel_number)  // remote points
+		if( (point.panel == panel_number) || // 1.2.MB_REGx
+			(current_online[point.panel / 8] & (1 << (point.panel % 8))) // 2VARx  sub modbus device
+			) 
 		{
 			if( ( index = find_remote_point( &point ) ) < 0 )
 			{
@@ -2662,7 +2725,9 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 				if((point_type == (VAR + 1)) \
 				|| (point_type == (MB_IN_REG + 1))\
 				|| (point_type == (MB_REG + 1)) \
-				|| ((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))
+				|| ((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))\
+				|| (point_type == (OUT + 1)) \
+				|| (point_type == (IN + 1)) 
 				)
 				{
 					if(ptr->point.network_number & 0x80)
@@ -2677,8 +2742,27 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 							write_parameters_to_nodes(0x10,remote_points_list[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,4);
 						}
 						else
-						{	value = *val_ptr / 1000;
-							write_parameters_to_nodes(0x06,remote_points_list[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);
+						{	
+							if(point.panel != panel_number) // 3VAR1 3IN1 3OUT1
+							{ //  sub modbus device
+								uint16_t reg;
+								uint8_t len;
+								uint16 val[2];
+								if(ptr->digital_analog == 100) // digital on	
+								{
+									if(*val_ptr == 1000)									
+										*val_ptr = 1;
+								}
+								val[0] = htons(*val_ptr >> 16);
+								val[1] = htons(*val_ptr);
+								reg = get_reg_from_list(point.point_type,point.number,&len);				
+								write_parameters_to_nodes(0x10,point.panel,reg,(U16_T*)&val,4);					
+							}
+							else
+							{// 1.3.MB_REG
+								value = *val_ptr / 1000;
+								write_parameters_to_nodes(0x06,remote_points_list[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,1);					
+							}
 						}
 					}
 				}
@@ -3041,7 +3125,9 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag)
 	if(/*( point.network_number != Setting_Info.reg.network_number) ||*/( point.panel != panel_number)
 		|| ((point.sub_id != panel_number) && (point.sub_id != 0)))
 	{
-		if( point.panel == panel_number)  // remote points
+		if( (point.panel == panel_number) || // 1.2.MB_REGx
+			(current_online[point.panel / 8] & (1 << (point.panel % 8))) // 2VARx  sub modbus device
+			)  // remote points
 		{
 		 // remote points
 

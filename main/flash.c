@@ -284,7 +284,7 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_EN_TIME_SYNC_PC, Modbus.en_time_sync_with_pc);
 	}
 	nvs_get_u8(my_handle, FLASH_EN_SNTP, &Modbus.en_sntp);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
+	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.en_sntp == 0 || Modbus.en_sntp > 5)
 	{
 		Modbus.en_sntp = 1;
 		nvs_set_u8(my_handle, FLASH_EN_SNTP, Modbus.en_sntp);
@@ -322,7 +322,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
 
-	if(Modbus.mini_type == MINI_SMALL_ARM|| Modbus.mini_type == MINI_BIG_ARM )
+	//if(Modbus.mini_type == MINI_SMALL_ARM|| Modbus.mini_type == MINI_BIG_ARM )
 	{
 		if(count_reboot >= 6)
 		{ // reboot
@@ -334,18 +334,20 @@ esp_err_t read_default_from_flash(void)
 			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
 		}
 	}
-	else
+	/*else
 	{
-		if(count_reboot >= 3)
-		{ // reboot
-			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
-			start_fw_update();
+		if(Modbus.mini_type != PROJECT_MPPT){
+			if(count_reboot >= 3)
+			{ // reboot
+				nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
+				start_fw_update();
+			}
+			else
+			{
+				nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
+			}
 		}
-		else
-		{
-			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
-		}
-	}
+	}*/
 
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{// old ISP, REV < 26

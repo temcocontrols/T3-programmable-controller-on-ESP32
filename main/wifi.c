@@ -47,7 +47,7 @@ void debug_print(char *string,char task_index)
 
 void debug_info(char *string)
 {
-#if DEBUG_INFO_UART0
+#if 0//DEBUG_INFO_UART0
  	//uart_write_bytes(UART_NUM_0, "\r\n", 1);
  	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 

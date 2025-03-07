@@ -19,16 +19,18 @@ S32_T pop(void);
 void pushlong(unsigned long value);
 unsigned long poplong(void);
 
-extern uint8_t flag_start_scan_network;
-extern uint8_t start_scan_network_count;
+U8_T Get_Mini_Type(void);
 
+extern U8_T current_online[32];
 extern UN_Time Rtc;
 extern U16_T Test[50];
-#if (ARM_MINI || ARM_CM5 )
+
 extern uint8_t flag_start_scan_network;
 extern uint8_t start_scan_network_count;
 extern uint16_t scan_network_bacnet_count;
-#endif
+extern uint8_t flag_start_scan_mstp;
+extern uint8_t start_scan_mstp_count;
+
 extern uint32_t net_health[4];
 extern uint16_t current_page; 
 
@@ -300,7 +302,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	if(temp >= 2000) 
 	{
 // generate a alarm		
-		//generate_program_alarm(0,current_prg + 1);
+		generate_program_alarm(0,current_prg + 1);
 		return 0;
 	}
 	
@@ -468,9 +470,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			// added for remote point by chelsa
 			else if(type_var == REMOTE_POINT_PRG)
 			{  
-			flag_start_scan_network = 1;			
-			start_scan_network_count = 0;
-
+				
 				put_net_point_value(&point_net,&value,ana_dig,PROGR,0);
 			}
 			break;
@@ -586,7 +586,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 											if ( v1 < v2 )
 											{
 												//*(prog - 1) = 1;
-												//generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
+												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
 												alarm_flag = 1;
 												//alarm();
 											}
@@ -595,7 +595,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 											{
 												//*(prog - 1) = 1;
 												alarm_flag = 1;
-												//generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
+												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
 												//alarm();
 											}
 									 }
@@ -1107,6 +1107,39 @@ S32_T veval_exp(U8_T *local)
 							op1 = (float)cos(3.14159 * op1 / 180000.0) * 1000;							
 							push(op1);
 							break;
+		case RGB:
+						if(Get_Mini_Type() == 21) // only for LIGHT SWITCH
+						{
+							uint32_t r = 0;
+							uint32_t g = 0;
+							uint32_t b = 0;
+							uint32_t brightness = 0;
+
+							m = *prog++;
+							if(m == 3)
+							{
+								b = pop() / 1000;
+								g = pop() / 1000;
+								r = pop() / 1000;
+								brightness = 100;
+							}
+							else if(m == 4)
+							{
+								brightness = pop() / 1000;
+								b = pop() / 1000;
+								g = pop() / 1000;
+								r = pop() / 1000;
+							}
+							Test[32] = m;
+							Test[33] = r;
+							Test[34] = g;
+							Test[35] = b;
+							Test[36] = brightness;
+							op1 = (r * brightness  / 100) * 65536 + g * brightness / 100 * 256  + b * brightness / 100;
+							Test[37] = op1;
+							push( op1);
+						}
+							break;
 							 
 		case SQR:
 							 op1 = (float)sqrt(op1 / 1000.0) * 1000;
@@ -1194,28 +1227,36 @@ S32_T veval_exp(U8_T *local)
 //				else
 //					push(0l);
 //				break;
-//	 	case Status:
-//				 i = (int)pop()/1000L;
-//				// if(i==Station_NUM)
-//				 {
-//					//	 if( Port_parameters[0].PTP_reception_state==Station_NUM )  /*OS==Station_NUM?*/
-//						 {
-//							push(0l);
-//						 }
-//					//	 else
-//						 {
-//							push(1000L);
-//						 }
-//				 }
-//				 else
-//				 {
-//    				memcpy(&n,&panel_net_info.active_panels[0],4);
-//					if( n&(1l<<(i-1)) )
-//						push(1000L);
-//					else
-//						push(0);
-//				 }
-//				 break;
+				case Status:
+				 m = (int)pop()/1000L;
+				 if(m == Station_NUM)
+				 {		
+						push(1);
+				 }
+				 else
+				 {// whethe sub modbus device is on-line 
+					 // remote modbus device
+					 if(current_online[m / 8] & (1 << (m % 8)))
+						 push(1);
+					 else 
+						{								
+						 // check whether remote panel is online
+						 // remote mstp device  or network panel
+							for(i = 0;i < remote_panel_num;i++)
+							{
+								if((m == remote_panel_db[i].panel) || (m == remote_panel_db[i].sub_id))
+								{
+									push(1);
+									break;
+								}								
+							}	
+							if(i == remote_panel_num)
+							{
+								push(0);
+							}
+						}
+					}
+				 break;			
 	 case AVG:	 			
 				m = *prog++;
 				value = 0;
@@ -1597,9 +1638,7 @@ S32_T operand(U8_T **buf,U8_T *local)
 		}
 		else
 		{	// if exist remote point, try to scan network
-
-			flag_start_scan_network = 1;
-			start_scan_network_count = 0;
+			
 			get_net_point_value( ( (Point_Net *)(++prog) ), &value,0,0 );
 			prog += sizeof( Point_Net );
 		}	

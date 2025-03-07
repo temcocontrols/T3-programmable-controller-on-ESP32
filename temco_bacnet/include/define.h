@@ -49,6 +49,7 @@ typedef struct
 	U16_T vcc_adc; // 
 	U8_T network_master;
 	
+
 	U8_T fix_com_config;
 //	U8_T backlight;
 	U8_T LCD_time_off_delay;
@@ -71,6 +72,9 @@ typedef struct
 	
 	U8_T enable_debug;
 	U16_T mstp_network;
+
+	U8_T icon_config;
+	U8_T mstp_master;
 
 }STR_MODBUS;
 

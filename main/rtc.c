@@ -397,13 +397,14 @@ void update_timers( void )
 	}
 
 	time_since_1970 += timestart;
-
 	Get_Time_by_sec(get_current_time_with_timezone(),&Rtc,1);
 
 }
 
 U32_T get_current_time(void)  // orignal data
 {
+//	Test[20]++;
+//	memcpy(&Test[22],time_since_1970,4);
 	return time_since_1970 + system_timer / 1000;
 }
 
@@ -548,6 +549,7 @@ uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8
 		system_timer = 0;
 		PCF_SetDateTime(&rtc_date);
 	}
+	// if no rtc chip
 
 	update_timers();
 	//PCF_systohc();

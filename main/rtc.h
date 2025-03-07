@@ -86,6 +86,7 @@ extern PCF_DateTime rtc_date;
 extern int16_t  timezone;
 extern uint8_t  Daylight_Saving_Time;
 extern uint32_t  system_timer;
+extern uint32_t  run_time;
 
 int PCF_Init(uint8_t mode);
 

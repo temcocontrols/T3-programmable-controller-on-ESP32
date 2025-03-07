@@ -87,8 +87,8 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 }
 
 esp_eth_handle_t eth_handle = NULL;
-esp_err_t eth_status;
-void ethernet_init(void)
+//esp_err_t eth_status;
+esp_err_t ethernet_init(void)
 {
 	esp_err_t ret;
 	tcpip_adapter_init(); // Commented by Evan: it is recommanded to be replaced by esp_netif_init();
@@ -122,19 +122,19 @@ void ethernet_init(void)
 		}
 #endif
 	}
-	Test[3]++;
+
 
 	ret = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);
 	if(ret == ESP_OK)
 		debug_info("esp_event_handler_register(ESP_EVENT_ANY_ID) finished^^^^^^^^");
 	else
-		Test[4]++;
+		;//Test[4]++;
 
 	ret = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL);
 	if(ret == ESP_OK)
 		debug_info("esp_event_handler_register(IP_EVENT_ETH_GOT_IP) finished^^^^^^^^");
 	else
-		Test[5]++;
+		;//Test[5]++;
 
 
 	eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
@@ -151,11 +151,23 @@ void ethernet_init(void)
 
 //	esp_eth_handle_t eth_handle = NULL;
 
-	if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK)
+	if((ret = esp_eth_driver_install(&config, &eth_handle))==ESP_OK)
+	{
 		debug_info("esp_eth_driver_install finished^^^^^^^^");
-	if(esp_eth_start(eth_handle) == ESP_OK)
-		debug_info("esp_eth_start finished^^^^^^^^");
+	}
+	else{
 
+	}
+
+	if( esp_eth_start(eth_handle) == ESP_OK)
+	{
+		debug_info("esp_eth_start finished^^^^^^^^");
+	}
+	else
+	{
+		//return ret;
+	}
+#if 0
 	if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM )
 	{
 		if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK){
@@ -179,12 +191,14 @@ void ethernet_init(void)
 			//Test[48] = 2222;
 		}
 	}
+#endif
 
 #if 1//DNS
 //	dns_init();
 #endif
+	return ret;
 }
-
+#if 0
 extern uint8_t count_reboot;
 void ethernet_check_task( void *pvParameters)
 {
@@ -195,6 +209,7 @@ void ethernet_check_task( void *pvParameters)
 		vTaskDelay(1000/portTICK_RATE_MS);
 	}
 }
+#endif
 
 void eth_start(void)
 {

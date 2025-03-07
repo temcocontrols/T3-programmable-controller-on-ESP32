@@ -112,8 +112,7 @@ void npdu_handler(
                 printf("NPDU: DNET=%u.  Discarded!\n", (unsigned) dest.net);
 #endif
 							
-#if BAC_MASTER
-#if ARM
+
 					// it is a router 
 					if(protocal == BAC_IP)
 					{ 	// transfer BIP TO MSTP pdu	
@@ -123,8 +122,7 @@ void npdu_handler(
 					{ // transfer MSTP TO BIP PDU
 						Transfer_Mstp_To_Bip_pdu(src->mac[0],pdu,pdu_len);
 					}
-#endif
-#endif
+
             }
         }
     } else {

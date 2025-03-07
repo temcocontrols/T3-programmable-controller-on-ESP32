@@ -87,14 +87,14 @@ void Send_WhoIs_To_Network(
         high_limit);
 		
     pdu_len += len;
-#if BAC_MASTER
-          // added by chelsea
-					if(protocal == BAC_MSTP)
-					{
-						memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len); 
-						MSTP_Transfer_Len = pdu_len;
-					}
-#endif	
+
+// added by chelsea
+	if(protocal == BAC_MSTP)
+	{
+		memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len); 
+		MSTP_Transfer_Len = pdu_len;
+	}
+
     bytes_sent =
         datalink_send_pdu(target_address, &npdu_data,
         &Handler_Transmit_Buffer[protocal][0], pdu_len,protocal);

@@ -93,7 +93,7 @@ idf_component_register(SRCS
 				"src/whois.c"
 				"src/wp.c"
 				"src/wpm.c"
-		#		"private/alarm.c"
+				"private/alarm.c"
 				"private/decode.c"
 		#		"private/bac_point.c"
 				"private/bac_control.c"

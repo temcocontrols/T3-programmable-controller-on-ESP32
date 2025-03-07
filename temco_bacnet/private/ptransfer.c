@@ -864,13 +864,15 @@ void handler_conf_private_trans_ack(
 
 
 #if 1// (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-
+#define MODBUS_VAR_FIRST   8092
+#define MODBUS_INPUT_FIRST	7484
+#define MODBUS_OUTPUT_FIRST	7100
 uint16_t get_reg_from_list(uint8_t type,uint8_t index,uint8_t * len)
 {
 	uint16_t reg = 0;
 	switch (type)
 	{
-		/*case VAR + 1:
+		case VAR + 1:
 			reg = MODBUS_VAR_FIRST + 2 * index;
 			break;
 		case IN + 1:
@@ -878,7 +880,7 @@ uint16_t get_reg_from_list(uint8_t type,uint8_t index,uint8_t * len)
 			break;
 		case OUT + 1:
 			reg = MODBUS_OUTPUT_FIRST + 2 * index;
-			break;*/
+			break;
 		
 		default:
 		break;
@@ -1492,10 +1494,6 @@ void handler_private_transfer(
 					if(private_header.point_end_instance <= MAX_ELEMENTS)
 					ptr = (uint8_t *)(&group_data_new.old_item[private_header.point_start_instance]);
 					break;
-				case WRITEREMOTEPOINT:
-					if(private_header.point_end_instance <= MAXREMOTEPOINTS)
-					ptr = (uint8_t *)(&remote_points_list[private_header.point_start_instance]);
-					break;
 				case WRITE_JSON_SCREEN:
 					if(private_header.point_end_instance <= MAX_GRPS)
 					ptr = (uint8_t *)(&group_data_new.new_item.screen[private_header.point_start_instance]);
@@ -1503,6 +1501,10 @@ void handler_private_transfer(
 				case WRITE_JSON_ITEM:
 					if(private_header.point_end_instance <= MAX_ELEMENTS_NEW)
 					ptr = (uint8_t *)(&group_data_new.new_item.item[private_header.point_start_instance]);
+					break;
+				case WRITEREMOTEPOINT:
+					if(private_header.point_end_instance <= MAXREMOTEPOINTS)
+					ptr = (uint8_t *)(&remote_points_list[private_header.point_start_instance]);
 					break;
 				case WRITE_SETTING:	
 					ptr = (uint8_t *)(&Setting_Info.all[0]);
@@ -2011,6 +2013,15 @@ void handler_private_transfer(
 			case READGROUPELEMENTS_T3000:
 				if(private_header.point_end_instance <= MAX_ELEMENTS)
 				ptr = (uint8_t *)(&group_data_new.old_item[private_header.point_start_instance]);
+				break;
+				break;
+			case READ_JSON_SCREEN:
+				if(private_header.point_end_instance <= MAX_GRPS)				
+				ptr = (uint8_t *)(&group_data_new.new_item.screen[private_header.point_start_instance]);
+				break;
+			case READ_JSON_ITEM:
+				if(private_header.point_end_instance <= MAX_ELEMENTS_NEW)				
+				ptr = (uint8_t *)(&group_data_new.new_item.item[private_header.point_start_instance]);
 				break;
 			case READREMOTEPOINT:
 				if(private_header.point_end_instance <= MAXREMOTEPOINTS)

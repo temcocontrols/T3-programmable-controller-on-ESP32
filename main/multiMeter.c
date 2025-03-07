@@ -466,7 +466,7 @@ void multiMeterTask(void *pvParameters) {
     //if(ptr.pvar->range != 0)
     {
         ptr.pvar->range = ohms;
-        memcpy(ptr.pvar->description,"RESISTANCE VALUE", strlen("RESISTANCE VALUE"));
+        memcpy(ptr.pvar->description,"MEASURE VALUE", strlen("MEASURE VALUE"));
         memcpy(ptr.pvar->label,"VALUE",strlen("VALUE"));
     }
 

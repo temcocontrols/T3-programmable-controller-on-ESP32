@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6502
+#define SOFTREV     6503
 
 
 #define		SW_OFF 	 0
@@ -69,6 +69,7 @@ typedef struct
 	U16_T vcc_adc; // 
 	U8_T network_master;
 	
+	
 	U8_T fix_com_config;
 //	U8_T backlight;
 	U8_T LCD_time_off_delay;
@@ -93,6 +94,8 @@ typedef struct
 	U16_T mstp_network;
 
 	U8_T icon_config;
+	U8_T mstp_master;
+
 
 }STR_MODBUS;
 
@@ -170,7 +173,7 @@ typedef	enum
 #define PROJECT_TRANSDUCER 	16
 #define PROJECT_TSTAT9		17
 #define PROJECT_SAUTER		18
-#define PROJECT_NG2			19  // RMC1216
+#define PROJECT_RMC1216		19  // old NG2 = RMC1216
 #define PROJECT_MPPT		20
 #define PROJECT_LIGHT_SWITCH	21
 #define PROJECT_NG2_NEW		22

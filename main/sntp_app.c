@@ -73,9 +73,10 @@ void time_sync_notification_cb(struct timeval *tv)
 	flag_Update_Sntp = 1;
 	sntp_stop();
 
-	flag_send_udp_timesync = 1;
+	if(Modbus.network_master == 1)
+		flag_send_udp_timesync = 1;
 
-	if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
+	if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
 		Send_TimeSync_Broadcast(BAC_MSTP);
 
 }

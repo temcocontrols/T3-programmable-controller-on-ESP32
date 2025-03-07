@@ -92,6 +92,8 @@ uint32_t Instance;
 
 extern uint8_t Eth_IP_Change;
 extern uint8_t ip_change_count;
+extern uint8_t count_reboot;
+
 uint16_t crc16(uint8_t *p, uint8_t length);
 STR_Task_Test task_test;
 
@@ -1817,8 +1819,8 @@ void Inital_Bacnet_Server(void)
 			Set_Object_Name("T3-TRANS-ESP");
 		else if(Modbus.mini_type == PROJECT_POWER_METER)
 			Set_Object_Name("T3-POWER-ESP");
-		else if(Modbus.mini_type == PROJECT_NG2)
-			Set_Object_Name("T3-NG2-ESP");
+		else if(Modbus.mini_type == PROJECT_RMC1216)
+			Set_Object_Name("T3-RMC1216");
 		else if(Modbus.mini_type == PROJECT_NG2_NEW)
 			Set_Object_Name("T3-NEWNG2-ESP");
 		else
@@ -1925,6 +1927,147 @@ uint16_t dlmstp_receive(
     uint16_t max_pdu,   /* amount of space available in the PDU  */
     unsigned port);
 uint8_t flag_receive_rmbp;
+uint8_t flag_start_scan_mstp = 0;
+uint8_t start_scan_mstp_count = 0;
+uint16_t Master_Scan_Mstp_Count = 0;
+void set_mstp_master(void)
+{
+	Modbus.mstp_master = 0;
+	Master_Scan_Mstp_Count = 0;
+	Test[25]++;
+}
+
+#if 1
+void MSTP_Master_roution(uint16 count_start_task)
+{
+	int invoke = 0;
+	if(count_start_task % 12000 == 0)	// 1 min
+	{
+		//if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO)) || (Modbus.mini_type == MINI_TINY_11I))
+		{
+			//if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
+			if(Modbus.mstp_master == 1 || flag_start_scan_mstp == 1)
+			{
+				//if(upate_mstp_flag == 0)
+				{
+						Send_Whois_Flag = 1;
+						Test[27]++;
+				}
+				if((flag_start_scan_mstp++ > 2))
+				{
+					start_scan_mstp_count = 0;
+					flag_start_scan_mstp = 0;
+				}
+			}
+		}
+	}
+	else
+	{ 	 // whether exist remote mstp point
+		//if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO)) || (Modbus.mini_type == MINI_TINY_11I))
+		{
+			if(Modbus.mstp_master == 1 || flag_start_scan_mstp == 1)//if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
+			{
+				if((count_start_task % 200 == 0) /*&& (upate_mstp_flag == 0)*/) // 1.5s
+				{
+					// check whether the device is online or offline
+					if(flag_receive_rmbp == 1)
+					{
+						U8_T remote_panel_index;
+						if(Get_rmp_index_by_panel(remote_points_list[remote_bacnet_index].point.panel,
+						remote_points_list[remote_bacnet_index].point.sub_id,
+						&remote_panel_index,
+						BAC_MSTP) != -1)
+						{
+							remote_panel_db[remote_panel_index].time_to_live = RMP_TIME_TO_LIVE;
+						}
+						remote_points_list[remote_bacnet_index].lose_count = 0;
+						remote_points_list[remote_bacnet_index].decomisioned = 1;
+					}
+					else
+					{
+						remote_points_list[remote_bacnet_index].lose_count++;
+						if(remote_points_list[remote_bacnet_index].lose_count > 10)
+						{
+							remote_points_list[remote_bacnet_index].lose_count = 0;
+							remote_points_list[remote_bacnet_index].decomisioned = 0;
+						}
+					}
+
+				// read remote mstp points
+					if(remote_bacnet_index < number_of_remote_points_bacnet)
+					{
+						remote_bacnet_index++;
+					}
+					else
+					{
+						remote_bacnet_index = 0;
+					}
+
+					if(remote_bacnet_index == number_of_remote_points_bacnet)
+					{  // read private modbus from Temco product
+
+						static uint8_t j = 0;
+						uint8_t count = 0;
+						if(j < remote_panel_num)//for(j = 0;j < remote_panel_num;j++)
+						{
+							if(remote_panel_db[j].protocal == BAC_MSTP
+								&& remote_panel_db[j].sn == 0)
+							{
+								remote_panel_db[j].retry_reading_panel++;
+								flag_receive_rmbp = 0;
+								invoke = Send_private_scan(j);
+								remote_mstp_panel_index = j;
+								while((flag_receive_rmbp == 0) && count++ < 20)
+									delay_ms(200);
+							}
+							if(remote_panel_db[j].retry_reading_panel > 5)
+							{
+								remote_panel_db[j].sn = remote_panel_db[j].device_id;
+								remote_panel_db[j].retry_reading_panel = 0;
+								remote_panel_db[j].product_model = 0;
+							}
+						}
+						j++;
+
+						if(j > remote_panel_num)
+							j = 0;
+
+
+					}
+					else
+					{
+						if(number_of_remote_points_bacnet > 0)
+						{
+							// read remote bacnet point
+							//if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
+							if(Modbus.mstp_master == 1 || flag_start_scan_mstp == 1)
+							{
+								flag_receive_rmbp = 0;
+								invoke = GetRemotePoint(remote_points_list[remote_bacnet_index].tb.RP_bacnet.object,
+											remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance,
+											panel_number,/*Modbus.network_ID[2],*/
+											remote_points_list[remote_bacnet_index].tb.RP_bacnet.panel ,
+											BAC_MSTP);
+								// check whether the device is online or offline
+
+								if(invoke >= 0)
+								{
+									remote_points_list[remote_bacnet_index].invoked_id	= invoke;
+								}
+								else
+								{
+									remote_points_list[remote_bacnet_index].lose_count++;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
+#endif
 void Master0_Node_task(void)
 {
 
@@ -1932,163 +2075,73 @@ void Master0_Node_task(void)
 
 	BACNET_ADDRESS  src;
 	static uint16_t count_start_task = 0;
-	int invoke = 0;
-
-//	static u16 protocal_timer = SWITCH_TIMER;
-	//modbus.protocal_timer_enable = 0;
-//	bacnet_inital();
 
 	dlmstp_init(NULL);
-	//Recievebuf_Initialize(0);
-	//FIFO_Init(&Receive_Buffer0, &Receive_Buffer_Data0[0],
-	//		 sizeof(Receive_Buffer_Data0));
-
 
 	if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
 	{
 		Recievebuf_Initialize(0);
 		Send_I_Am_Flag = 1;
-	}
-
-	if( Modbus.com_config[0] == BACNET_MASTER)
-	{
 		Send_Whois_Flag = 1;
 	}
 	remote_bacnet_index = 0;
 	number_of_remote_points_bacnet = 0;
 	task_test.enable[8] = 1;
+
+	Modbus.mstp_master = 1;
+	Master_Scan_Mstp_Count = 0;
+
 	for (;;)
 	{
 		task_test.count[8]++;
-		if(count_start_task % 12000 == 0)	// 1 min
+
+		if(Master_Scan_Mstp_Count++ >= 12000)
+		{  // did not find master
+			// current panel is master
+			Modbus.mstp_master = 1;
+			Master_Scan_Mstp_Count = 0;
+
+		}
+
+		if(Modbus.ethernet_status == 4 || SSID_Info.IP_Wifi_Status == 2/*WIFI_NORMAL*/) // got ip
 		{
-			//if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
-			{
-				if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
-					Send_Whois_Flag = 1;
+			flag_start_scan_mstp = 1;
+		}
+		else
+			flag_start_scan_mstp = 0;
+
+		Test[28] = flag_start_scan_mstp;
+		Test[29] = Modbus.mstp_master;
+		if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
+		{
+
+//			count_send_whois++;
+			vTaskDelay(5 / portTICK_RATE_MS);
+
+			MSTP_Master_roution(count_start_task);
+			if(count_start_task < 12000) // 1min
+				count_start_task++;
+			else
 				count_start_task = 0;
+
+			//if(flag_suspend_mstp == 0)
+			{
+				pdu_len = datalink_receive(&src, &PDUBuffer[0], sizeof(PDUBuffer), 0,BAC_MSTP);
+				{
+					if(pdu_len)
+					{
+						npdu_handler(&src, &PDUBuffer[0], pdu_len,BAC_MSTP);
+					}
+				}
 			}
 		}
 		else
 		{
-			if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER
-					|| Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
-			{
-#if 1
-				//if((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
-				{
-					if(count_start_task % 200 == 0) // 1s
-					{
-						// check whether the device is online or offline
-						if(flag_receive_rmbp == 1)
-						{
-							U8_T remote_panel_index;
-							if(Get_rmp_index_by_panel(remote_points_list[remote_bacnet_index].point.panel,
-							remote_points_list[remote_bacnet_index].point.sub_id,
-							&remote_panel_index,
-							BAC_MSTP) != -1)
-							{
-								remote_panel_db[remote_panel_index].time_to_live = RMP_TIME_TO_LIVE;
-							}
-							remote_points_list[remote_bacnet_index].lose_count = 0;
-							remote_points_list[remote_bacnet_index].decomisioned = 1;
-						}
-						else
-						{
-							remote_points_list[remote_bacnet_index].lose_count++;
-							if(remote_points_list[remote_bacnet_index].lose_count > 10)
-							{
-								remote_points_list[remote_bacnet_index].lose_count = 0;
-								remote_points_list[remote_bacnet_index].decomisioned = 0;
-							}
-						}
-
-					// read remote mstp points
-						if(remote_bacnet_index < number_of_remote_points_bacnet)
-						{
-							remote_bacnet_index++;
-						}
-						else
-						{
-							remote_bacnet_index = 0;
-						}
-
-						if(remote_bacnet_index == number_of_remote_points_bacnet)
-						{  // read private modbus from Temco product
-
-							static uint8 j = 0;
-							uint8 count = 0;
-
-							if(j < remote_panel_num)//for(j = 0;j < remote_panel_num;j++)
-							{
-								if(remote_panel_db[j].protocal == BAC_MSTP
-									&& remote_panel_db[j].sn == 0)
-								{
-									remote_panel_db[j].retry_reading_panel++;
-									flag_receive_rmbp = 0;
-									invoke = Send_private_scan(j);
-									remote_mstp_panel_index = j;
-									count_start_task = 0;
-								}
-								if(remote_panel_db[j].retry_reading_panel > 5)
-								{
-									remote_panel_db[j].sn = remote_panel_db[j].device_id;
-									remote_panel_db[j].retry_reading_panel = 0;
-									remote_panel_db[j].product_model = 0;
-								}
-							}
-							j++;
-
-							if(j > remote_panel_num)
-								j = 0;
-
-						}
-						else
-						{
-							if(number_of_remote_points_bacnet > 0)
-							{
-								// read remote bacnet point
-								if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
-								{
-
-									flag_receive_rmbp = 0;
-									invoke	= GetRemotePoint(remote_points_list[remote_bacnet_index].tb.RP_bacnet.object,
-												remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance,
-												panel_number,
-												remote_points_list[remote_bacnet_index].tb.RP_bacnet.panel ,
-												BAC_MSTP);
-									// check whether the device is online or offline
-									count_start_task = 0;
-									if(invoke >= 0)
-									{
-										remote_points_list[remote_bacnet_index].invoked_id = invoke;
-									}
-									else
-									{
-										remote_points_list[remote_bacnet_index].lose_count++;
-									}
-								}
-							}
-						}
-
-					}
-				}
-
-#endif
-				pdu_len = dlmstp_receive(&src, &PDUBuffer[0], sizeof(PDUBuffer), 0);
-				if(pdu_len)
-				{
-					npdu_handler(&src, &PDUBuffer[0], pdu_len,BAC_MSTP);
-				}
-
-			}
-
+				//if(upate_mstp_flag == 0)
+			delay_ms(5000);
 		}
-		count_start_task++;
-		vTaskDelay(5 / portTICK_RATE_MS);
+
 	}
-
-
 }
 
 EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer2;
@@ -2100,132 +2153,47 @@ void Master2_Node_task(void)
 
 	uint16_t pdu_len = 0;
 	BACNET_ADDRESS  src;
-	uint16_t count_start_task = 0;
+	static uint16_t count_start_task = 0;
 
-//	FIFO_Init(&Receive_Buffer2, &Receive_Buffer_Data2[0],
-//			 sizeof(Receive_Buffer_Data2));
 	if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
 	{
 		Recievebuf_Initialize(2);
 		Send_I_Am_Flag = 1;
+		Send_Whois_Flag = 1;
 	}
 
-	if( Modbus.com_config[2] == BACNET_MASTER)
-		Send_Whois_Flag = 1;
 	task_test.enable[11] = 1;
 	for (;;)
 	{
 		task_test.count[11]++;
-		if(count_start_task++ % 12000 == 0)	// 1 min
-		{
-			if(Modbus.com_config[2] == BACNET_MASTER )
-			{
-				Send_Whois_Flag = 1;
-			}
-		}
 
 		if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
 		{
+			//
+			if((Modbus.com_config[0] != BACNET_MASTER) && (Modbus.com_config[0] != BACNET_SLAVE))
+			{
+				MSTP_Master_roution(count_start_task);
+				if(count_start_task < 12000) // 1min
+					count_start_task++;
+				else
+					count_start_task = 0;
+			}
+
+
 			uint8_t count;
 			int invoke;
-#if 0
-			if(count_start_task % 100 == 0) // 1.5s
-			{
-				// check whether the device is online or offline
-				if(flag_receive_rmbp == 1)
-				{
-					U8_T remote_panel_index;
-					if(Get_rmp_index_by_panel(remote_points_list[remote_bacnet_index].point.panel,
-					remote_points_list[remote_bacnet_index].point.sub_id,
-					&remote_panel_index,
-					BAC_MSTP) != -1)
-					{
-						remote_panel_db[remote_panel_index].time_to_live = RMP_TIME_TO_LIVE;
-					}
-					remote_points_list[remote_bacnet_index].lose_count = 0;
-					remote_points_list[remote_bacnet_index].decomisioned = 1;
-				}
-				else
-				{
-					remote_points_list[remote_bacnet_index].lose_count++;
-					if(remote_points_list[remote_bacnet_index].lose_count > 10)
-					{
-						remote_points_list[remote_bacnet_index].lose_count = 0;
-						remote_points_list[remote_bacnet_index].decomisioned = 0;
-					}
-				}
-
-				// read remote mstp points
-				if(remote_bacnet_index < number_of_remote_points_bacnet)
-				{
-					remote_bacnet_index++;
-				}
-				else
-				{
-					remote_bacnet_index = 0;
-				}
-
-				if(remote_bacnet_index == number_of_remote_points_bacnet)
-				{
-					static uint8 j = 0;
-					if(j < remote_panel_num)
-					{
-						if(remote_panel_db[j].protocal == BAC_MSTP
-							&& remote_panel_db[j].sn == 0)
-						{
-							remote_panel_db[j].retry_reading_panel++;
-							flag_receive_rmbp = 0;
-							invoke = Send_private_scan(j);
-							remote_mstp_panel_index = j;
-							count = 0;
-						}
-						if(remote_panel_db[j].retry_reading_panel > 5)
-						{
-							remote_panel_db[j].sn = remote_panel_db[j].device_id;
-							remote_panel_db[j].retry_reading_panel = 0;
-							remote_panel_db[j].product_model = 0;
-						}
-					}
-					j++;
-					if(j > remote_panel_num)
-						j = 0;
-				}
-				else
-				{
-					if(number_of_remote_points_bacnet > 0)
-					{
-						// read remote bacnet point
-						if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[0] == BACNET_MASTER)
-						{
-							flag_receive_rmbp = 0;
-							invoke	= GetRemotePoint(remote_points_list[remote_bacnet_index].tb.RP_bacnet.object,
-										remote_points_list[remote_bacnet_index].tb.RP_bacnet.instance,
-										panel_number,/*Modbus.network_ID[2],*/
-										remote_points_list[remote_bacnet_index].tb.RP_bacnet.panel ,
-										BAC_MSTP);
-							// check whether the device is online or offline
-
-							if(invoke >= 0)
-							{
-								remote_points_list[remote_bacnet_index].invoked_id	= invoke;
-							}
-							else
-							{
-								remote_points_list[remote_bacnet_index].lose_count++;
-							}
-						}
-					}
-				}
-			}
-#endif
 			pdu_len = dlmstp_receive(&src, &PDUBuffer2[0], sizeof(PDUBuffer), 2);
 			if(pdu_len)
 			{
 				npdu_handler(&src, &PDUBuffer2[0], pdu_len, BAC_MSTP);
 			}
+			vTaskDelay(5 / portTICK_RATE_MS);
+		}
+		else
+		{
+			vTaskDelay(5000 / portTICK_RATE_MS);
 		}
 
-		vTaskDelay(5 / portTICK_RATE_MS);
 	}
 
 }
@@ -2294,6 +2262,7 @@ void check_task(void)// check task
 }
 
 uint32_t system_timer = 0;
+uint32_t run_time = 0;
 
 
 uint8 led_sub_tx;
@@ -2326,7 +2295,8 @@ void Timer_task(void)
 	uint16_t count_1s = 0;
 	timezone = 800;
 	Daylight_Saving_Time = 0;
-	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER))
+	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
+			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LIGHT_SWITCH))
 	{
 		PCF_hctosys();
 		PCF_systohc();
@@ -2370,9 +2340,11 @@ void Timer_task(void)
 		// tbd:
 		miliseclast = miliseclast + TIMER_INTERVAL;
 		system_timer = system_timer + TIMER_INTERVAL;
+		run_time = run_time + TIMER_INTERVAL;
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
 		{	
-			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER))
+			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
+					 && (Modbus.mini_type != PROJECT_LIGHT_SWITCH))
 			{
 				PCF_GetDateTime(&rtc_date);
 
@@ -2456,7 +2428,7 @@ void Updata_Comm_Led(void)
 	if(flagLED_main_rx)	{ temp1 |= 0x02;	 	flagLED_main_rx = 0; }
 	if(flagLED_main_tx)	{ temp1 |= 0x01;		flagLED_main_tx = 0; }
 
-	if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_NG2 || Modbus.mini_type == PROJECT_NG2_NEW)
+	if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW)
 	{
 		if(flagLED_ether_rx)	{	temp1 |= 0x08;		flagLED_ether_rx = 0; 	}
 		if(flagLED_ether_tx)	{	temp1 |= 0x04;		flagLED_ether_tx = 0;	}
@@ -2526,7 +2498,7 @@ void Update_Led(void)
 		max_out = 12;
 		max_digout = 8;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2)
+	else if(Modbus.mini_type == PROJECT_RMC1216)
 	{
 		max_in = 16;
 		max_out = 7;
@@ -2851,7 +2823,7 @@ void i2c_master_task(void)
 			ptr.pin->range = LUX;
 		memcpy(ptr.pin->label,"LUX",strlen("LUX"));
 	}
-	if(Modbus.mini_type == PROJECT_NG2)
+	if(Modbus.mini_type == PROJECT_RMC1216)
 	{
 		ptr = put_io_buf(IN,16);
 		if(ptr.pin->range == 0)
@@ -2977,7 +2949,7 @@ void i2c_master_task(void)
 			LED_i2c_write(0x74,led_buf,4);
 			vTaskDelay(500 / portTICK_RATE_MS);
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_NG2
+		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_RMC1216
 				|| Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW )
 		{
 			// send
@@ -3014,7 +2986,7 @@ void i2c_master_task(void)
 							i2c_send_buf[72 + kk * 2 + 1] = output_raw[kk + 8];
 						}
 					}
-					else if(Modbus.mini_type == PROJECT_NG2)
+					else if(Modbus.mini_type == PROJECT_RMC1216)
 					{
 						for(uint8_t kk = 0;kk < 7;kk++)
 						{
@@ -3023,6 +2995,15 @@ void i2c_master_task(void)
 					}
 					else if(Modbus.mini_type == MINI_TSTAT10)
 					{
+					//ESP --> ARM  79bytes
+					//1 + 1 + 24 + 32 + 6 + 10 + 6
+					// 1 - communication led
+					// 1 - mini_type
+					// 24 - led of outputs status
+					// 32 - inputs status, types and led-> first 4 bit for inputs type, last 4 bits for input led status,added in new hardware with INPUT moudle
+					// 6 -> reserved
+					// 10  -> output value
+					// 5 -> reserved
 						for(uint8_t kk = 0;kk < 5;kk++)
 						{
 							i2c_send_buf[64 + kk] = output_raw[kk] > 512 ? 1 :0;
@@ -3096,7 +3077,7 @@ void i2c_master_task(void)
 
 
 						}
-						else if(Modbus.mini_type == PROJECT_NG2 || Modbus.mini_type == PROJECT_NG2_NEW)
+						else if(Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW)
 						{
 							u16 crc_check;
 							u8 read_err;
@@ -3154,7 +3135,7 @@ void i2c_master_task(void)
 										Test[29]++;
 								}
 
-								if(Modbus.mini_type == PROJECT_NG2)
+								if(Modbus.mini_type == PROJECT_RMC1216)
 								{
 									for(i = 0;i < 6;i++)	  //6  high spd counter
 									{
@@ -3273,7 +3254,14 @@ void i2c_master_task(void)
 							static uint32_t key_refresh_timer_last = 0;
 							uint32_t key_refresh_timer = 0;
 							int ret = 0;
-
+							//	ARM -> ESP 114bytes
+							//4 + 2 + 18 + 32 + 56 + 2
+							// 4 -  0x55 0xaa TOP_HARDWARE    TOP_FIRMWARE
+							// 2 - KEY
+							// 18 - reserved
+							//  32 - input AD_value
+							// 56- reserved
+							// 2 - crc
 							ret = stm_i2c_read(G_ALL_NEW,&i2c_rcv_buf,114);
 
 							if(ret != 0)
@@ -3400,7 +3388,6 @@ void i2c_master_task(void)
 								}
 							}
 						}
-
 					}
 
 				}
@@ -3457,7 +3444,7 @@ void Bacnet_Control(void)
 	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
 		max_dos = 6; max_aos = 4;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2) // RMC1216
+	else if(Modbus.mini_type == PROJECT_RMC1216) // RMC1216
 	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
 		max_dos = 7; max_aos = 0;
 	}
@@ -3496,7 +3483,7 @@ void Bacnet_Control(void)
 	memcpy(Email_Setting.reg.To1Addr,"chelsea@temcocontrols.com",26);
 	memcpy(Email_Setting.reg.password,"u6flh?lO",9);*/
 	Email_Setting.reg.secure_connection_type = 0; // no ssl
-	Email_Setting.reg.smtp_type = 1;
+//	Email_Setting.reg.smtp_type = 1;
 	flag_sendemail = 0;
 #endif
 	for(;;)
@@ -3518,7 +3505,7 @@ void Bacnet_Control(void)
 		update_sntp();
 #endif
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
-				|| (Modbus.mini_type == PROJECT_NG2) || (Modbus.mini_type == PROJECT_NG2_NEW))
+				|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
 		{
 			control_input();
 		}
@@ -3547,17 +3534,17 @@ void Bacnet_Control(void)
 		}
 
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
-				|| (Modbus.mini_type == PROJECT_NG2) || (Modbus.mini_type == PROJECT_NG2_NEW))
+				|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
 			control_output();
 
 // check whether external IO are on line
-
+		Test[31]++;
 		count_PID++;  // 1s
 		if(count_PID >= PID_SAMPLE_COUNT) // 500MS * PID_SAMPLE_COUNT == PID_SAMPLE_TIME 10S
 		{
 	   // dealwith controller roution per 1 sec
 			for(i = 0;i < MAX_CONS; i++)
-			{
+			{Test[32]++;
 				pid_controller( i );
 			}
 			count_PID = 0;
@@ -3602,12 +3589,34 @@ void Bacnet_Control(void)
 	}
 
 }
+
+
+// check whehtehr ethenet initial ok, if not , reboot and try 3 timer
+// continue if failed after try 3 timers
+void Ethernet_Initial(void)
+{
+	esp_err_t ret = 0;
+	uint8_t eth_init_count = 0;
+	do
+	{
+		ret = ethernet_init();
+		ets_delay_us(500000);
+	}while((ret != ESP_OK) && (eth_init_count++ < 5));
+	Test[10] = ret;
+	Test[11] = eth_init_count;
+	Test[12] = count_reboot;
+	if(eth_init_count >= 5 && count_reboot < 3)
+	{
+		esp_restart();
+	}
+}
+
 #define FAN 0
 void TEST_FLASH(void);
 void vStartScanTask(unsigned char uxPriority);
 void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
-extern uint8_t count_reboot;
+
 void LS_led_task(void);
 
 extern void ethernet_check_task( void *pvParameters);
@@ -3641,13 +3650,16 @@ void app_main()
     //Modbus.mini_type = MINI_TSTAT10;
 #endif
 #if 1
+    Ethernet_Initial();
+#else
     ethernet_init();
-    if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM )
+
+   /* if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM )
     {
         ets_delay_us(500000);
     	xTaskCreate(ethernet_check_task, "ethernet_check_task", 1024, NULL, 10, NULL);
-    }
-
+    }*/
+#endif
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
@@ -3657,7 +3669,7 @@ void app_main()
     xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
 
-#endif
+
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
 // ok
@@ -3670,7 +3682,7 @@ void app_main()
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
 	}
 #endif
-    if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_NG2
+    if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW)
     {
     	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
@@ -3679,7 +3691,7 @@ void app_main()
     if (Modbus.mini_type == PROJECT_MULTIMETER) {
         // Create multiMeterTask with low priority
         xTaskCreate(multiMeterTask, "MultiMeterTask", 2048*2, NULL, tskIDLE_PRIORITY+5, NULL);
-    }	
+    }
 #if 1
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
     		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LIGHT_SWITCH))
@@ -3699,7 +3711,7 @@ void app_main()
     xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
 
     if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
-    	|| (Modbus.mini_type == PROJECT_NG2) || (Modbus.mini_type == PROJECT_NG2_NEW)
+    	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW)
 		)
     {
 	   xTaskCreate(Master2_Node_task,"mstp2_task",4096, NULL, 4, &main_task_handle[11]);
@@ -3909,7 +3921,7 @@ void Scan_network_bacnet_Task(void)
 	{
 		vTaskDelay( 500 / portTICK_RATE_MS);
 		task_test.count[3]++;
-		Test[37] = Modbus.network_master + 1000;
+		//Test[37] = Modbus.network_master + 1000;
 		Master_Scan_Network_Count++;
 		if(Master_Scan_Network_Count >= 180)
 		{  	// did not find master

@@ -107,7 +107,7 @@ void Set_Input_Type(U8_T point)
 {
 	// maybe not need it
 #if 1//I2C_TASK
-	if((Modbus.mini_type == MINI_BIG_ARM) || (Modbus.mini_type == MINI_SMALL_ARM) || (Modbus.mini_type == PROJECT_NG2) || (Modbus.mini_type == PROJECT_NG2_NEW))
+	if((Modbus.mini_type == MINI_BIG_ARM) || (Modbus.mini_type == MINI_SMALL_ARM) || (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
 	{
 		InputLed[point] &= 0x0f;
 		if(input_type[point] >= 1)
@@ -142,7 +142,7 @@ U32_T conver_by_unit_5v(U32_T sample)
 	{
 		return  (5000L * sample ) >> 10;
 	}
-	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_NG2 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
 	{
 		return  (5000L * sample ) >> 10;
 	}
@@ -163,7 +163,7 @@ U32_T conver_by_unit_10v(U32_T sample)
 	{
 		return (10000l * sample) >> 10;
 	}
-	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_NG2 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
 	{
 		return (10000l * sample) >> 10;
 	}
@@ -185,7 +185,7 @@ U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 		{
 			return  ( 5000L * sample) >> 10;
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_NG2 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
 		{
 			return  ( 5000L * sample  ) >> 10;
 		}
@@ -209,7 +209,7 @@ U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 		{
 			return ( 10000l * sample) >> 10;
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == PROJECT_NG2 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
 		{
 			return (10000l * sample ) >> 10;
 		}
@@ -258,7 +258,7 @@ U8_T get_max_internal_input(void)
 	{
 	  return TSTAT10_MAX_AIS;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2 )
+	else if(Modbus.mini_type == PROJECT_RMC1216 )
 	{
 	  return NG2_MAX_AIS;
 	}
@@ -287,7 +287,7 @@ U8_T get_max_internal_output(void)
 	{
 		return TSTAT10_MAX_AOS + TSTAT10_MAX_DOS;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2)
+	else if(Modbus.mini_type == PROJECT_RMC1216)
 	{
 	  return NG2_MAX_AOS + NG2_MAX_DOS;
 	}

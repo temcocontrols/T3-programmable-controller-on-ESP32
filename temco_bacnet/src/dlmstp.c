@@ -63,6 +63,7 @@
 #if defined(BACDL_MSTP)	
 uint16_t Timer_Silence(void);
 void Timer_Silence_Reset( void);
+void set_mstp_master(void);
 //unsigned int temptoken;
 
 /* The state of the Receive State Machine */
@@ -526,12 +527,15 @@ void MSTP_Receive_Frame_FSM(
 //												INCREMENT_AND_LIMIT_UINT8(EventCount);
 //												Receive_State = MSTP_RECEIVE_STATE_IDLE;
 //										}
-#if BAC_MASTER
+
 										if(SourceAddress == Station_NUM)
 										{// ID collision
 											chech_mstp_collision();
 										}
-#endif
+										if(SourceAddress < Station_NUM)
+										{
+											set_mstp_master();
+										}
 										modbus_frame[4] = DataRegister;
 										
                     Index = 3;
@@ -639,9 +643,9 @@ void MSTP_Receive_Frame_FSM(
                 /* Timeout */
                 /* indicate that an error has occurred during the reception of a frame */
                 MSTP_Flag.ReceivedInvalidFrame = true;
-#if BAC_MASTER	
+
 								check_mstp_timeout();
-#endif
+
                 /* wait for the start of the next frame. */
                 Receive_State = MSTP_RECEIVE_STATE_IDLE;
             } 
@@ -907,9 +911,9 @@ static bool MSTP_Master_Node_FSM(
             /* In the WAIT_FOR_REPLY state, the node waits for  */
             /* a reply from another node. */
             if (Timer_Silence() >= Treply_timeout) {
-#if BAC_MASTER							
+							
 							check_mstp_timeout();
-#endif
+
                 /* ReplyTimeout */		   
                 /* assume that the request has failed */
                 FrameCount = Nmax_info_frames;

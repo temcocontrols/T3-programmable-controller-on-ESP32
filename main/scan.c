@@ -42,7 +42,7 @@ U16_T timeout[3];
 uint8_t flag_uart_reading[3];
 
 void Change_com_config(U8_T port);
-
+void read_rmp_ad(uint8_t index);
 
 typedef struct
 {
@@ -84,6 +84,8 @@ U16_T crc16(U8_T *p, U8_T length);
 U8_T far tstat_name[MAX_ID][16];
 U8_T far flag_tstat_name[MAX_ID];
 U16_T far count_read_tstat_name[MAX_ID];
+U8_T flag_rmp_ad[MAXREMOTEPOINTS];
+U8_T count_read_rmp_ad[MAXREMOTEPOINTS];
 #endif
 SCAN_DB  scan_db[MAX_ID] = {0};// _at_ 0x8000;
 SCAN_DB  current_db;
@@ -776,7 +778,11 @@ void clear_scan_db(void)
 		memset(tstat_name[i],0,16);
 		
 	}
-
+	for (i = 0;i < MAXREMOTEPOINTS;i++)
+	{
+		flag_rmp_ad[MAXREMOTEPOINTS] = 0;;
+		count_read_rmp_ad[MAXREMOTEPOINTS] = 0;
+	}
 	// clear remote point list
 	number_of_remote_points_modbus = 0;
 	memset(remote_points_list,0,MAXREMOTEPOINTS * sizeof(REMOTE_POINTS));
@@ -1059,6 +1065,21 @@ U8_T Check_Read_Len(U16_T reg,U8_T product_id,U16_T *newreg)
 			len = 32;
 		}
 	}
+	else if(product_id == 10 || product_id == 74)   // T10 or BB
+	{
+		if((reg >= MODBUS_VAR_FIRST) && (reg < MODBUS_VAR_LAST + 2))
+		{
+			len =  0x80 + 2;
+		}
+		if((reg >= MODBUS_OUTPUT_FIRST) && (reg < MODBUS_OUTPUT_LAST + 2))
+		{
+			len =  0x80 + 2;
+		}
+		if((reg >= MODBUS_INPUT_FIRST) && (reg < MODBUS_INPUT_LAST + 2))
+		{
+			len =  0x80 + 2;
+		}
+	}
 	else 
 	{
 		len = 1;
@@ -1271,7 +1292,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 					}
 				}
 				else
-				{	// ������ֽ�			
+				{	// 读多个字节
 					for(i = 0;i < buf[5] / 2;i++)
 					{
 						if(Get_product_by_id(remote_points_list[index].tb.RP_modbus.id) == 203)  // only for PM test
@@ -1299,6 +1320,17 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 							{	
 							if(remote_points_list[index].tb.RP_modbus.reg > 255)
 							{
+								if(product == 10 || product == 74) // T10 or MINIPANEL
+								{
+									add_remote_point(remote_points_list[index].tb.RP_modbus.id,
+									(remote_points_list[index].tb.RP_modbus.func & 0x1f)| (HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) << 5),
+									HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) >> 3,
+									remote_points_list[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24) + (U32_T)(subnet_response_buf[4 + i * 4] << 16) \
+									+ (U16_T)(subnet_response_buf[5 + i * 4] << 8) + subnet_response_buf[6 + i * 4],
+									0,
+									float_type);
+								}
+								else
 								add_remote_point(remote_points_list[index].tb.RP_modbus.id,
 								(remote_points_list[index].tb.RP_modbus.func & 0x1f)| (HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) << 5),
 								HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg) >> 3,
@@ -1875,7 +1907,10 @@ void ScanTask(void)
 								// current device is on line, read remote point one by one
 								if(remote_points_list[remote_modbus_index].tb.RP_modbus.id > 0)
 								{
-									get_parameters_from_nodes(remote_modbus_index,type);	// remote modubs point
+									if(flag_rmp_ad[remote_modbus_index] == 0)
+										read_rmp_ad(remote_modbus_index);
+									else
+										get_parameters_from_nodes(remote_modbus_index,type);	// remote modubs point
 								}
 								else
 								{
@@ -2297,6 +2332,107 @@ void vStartScanTask(unsigned char uxPriority)
 
 }
 
+
+// when get remote modbus points by VARX, INX, OUTX, need know a/d of the point
+void read_rmp_ad(uint8_t index)
+{
+	uint8_t num;
+//	uint8_t i;
+	REMOTE_POINTS * ptr;
+	uint16_t reg = 0;
+
+	U8_T port;
+	U8_T baut;
+	U8_T buf[8];
+	U16_T crc_check;
+	U16_T length;
+
+	ptr = &remote_points_list[index];
+	if(flag_rmp_ad[index] == 0)
+	{
+		if( (ptr->point.panel != panel_number) && (ptr->point.sub_id == 0) &&
+			(current_online[ptr->point.panel / 8] & (1 << (ptr->point.panel % 8))) // 2VARx  sub modbus device
+			)
+		{// 3VAR1 3IN1 3OUT1 should check ana_dig of remote modbus points
+			if(ptr->point.point_type == VAR + 1)
+				reg = MODBUS_VAR_AD_FIRST + ptr->point.number;
+			else if(ptr->point.point_type == OUT + 1)
+				reg = MODBUS_OUTPUT_AD_FIRST + ptr->point.number;
+			else if(ptr->point.point_type == IN + 1) // HIGH 4 BIT
+				reg = MODBUS_INPUT_RANGE_FIRST + ptr->point.number;
+
+			buf[0] = ptr->point.panel;
+			buf[1] = 0x03;
+			buf[2] = reg >> 8;
+			buf[3] = reg;
+			buf[4] = 0;
+			buf[5] = 1;
+
+			port = get_port_by_id(buf[0]);
+			baut = get_baut_by_id(port,buf[0]);
+			if(port == 0)
+			{  // wrong id
+					return;
+			}
+
+			port = port - 1;
+
+			if(Modbus.com_config[port] != MODBUS_MASTER)
+				return;
+
+			crc_check = crc16(buf, 6); // crc16
+			buf[6] = HIGH_BYTE(crc_check);
+			buf[7] = LOW_BYTE(crc_check);
+
+			set_baut_by_port(port,baut);
+			uart_send_string(buf,8,port);
+
+			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
+			flag_uart_reading[port] = 1;
+			if(port == 0 || port == 2)
+				length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+			else
+				length = 0; // tbd:
+			flag_uart_reading[port] = 0;
+
+			if(length > 0)
+			{
+				if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+						else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+				com_tx[port] += length;
+				crc_check = crc16(subnet_response_buf,5);
+				if((HIGH_BYTE(crc_check) == subnet_response_buf[5]) && (LOW_BYTE(crc_check) == subnet_response_buf[6]))
+				{
+					ptr->digital_analog = subnet_response_buf[4] + 100;
+					flag_rmp_ad[index] = 1;
+// Once find that the point is digital, check whether need to update the monitor points list
+					{
+						//monitor_init();
+					}
+				}
+			}
+			else
+			{
+				count_read_rmp_ad[index]++;
+			}
+
+			free(subnet_response_buf);
+
+			if(count_read_rmp_ad[index] >= 5)
+			{
+				flag_rmp_ad[index] = 1;
+				ptr->digital_analog = 0;
+			}
+		}
+		else
+		{// 1.2.mb_reg , dont need check ana_dig
+			flag_rmp_ad[index] = 1;
+		}
+
+	}
+
+
+}
 
 
 #if 1//TEST

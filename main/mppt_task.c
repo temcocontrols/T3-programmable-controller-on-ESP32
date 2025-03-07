@@ -6,7 +6,7 @@
 #include "modbus.h"
 
 #define MPPT_POWER_LED	27
-//#define MPPT_OUTPUT_ON_OFF
+//#define MPPT_OUTPUT_ON_OFF	GPIO_NUM_5
 #define MPPT_OUTPUT_EN	33
 #define MPPT_OUTPUT_PWM	32
 #define MPPT_OUTPUT_RELAY	GPIO_NUM_15
@@ -27,6 +27,8 @@
 #define CC_CV_PSU_MODE 2
 #define PID_MODE 3
 
+#define MAX_PWM_PULSE	250
+
 mppt_t gMPPT;
 extern uint16_t Test[50];
 
@@ -36,7 +38,7 @@ void mppt_pwm_init(void)
 
 	ledc_timer_config_t mppt_pwm_timer = {
 		.duty_resolution = LEDC_TIMER_8_BIT, // resolution of PWM duty
-		.freq_hz = 10000,                      // frequency of PWM signal
+		.freq_hz = 100000,                      // frequency of PWM signal
 		.speed_mode = MPPT_HS_MODE,           // timer mode
 		.timer_num = MPPT_HS_TIMER,            // timer index
 		.clk_cfg = LEDC_USE_APB_CLK,//LEDC_AUTO_CLK,              // Auto select the source clock
@@ -119,19 +121,20 @@ void Charging_Algorithm(){
     if(gMPPT.MPPT_Mode == CC_CV_PSU_MODE){                                                              // CC-CV PSU mode
       //if(PSUcurrentMax>=currentCharging || PSUcurrentMax==0.0000 || currentOutput<0.02){PSUcurrentMax = currentCharging;} // Initialize PSU input maximum current
 
-     ptr = put_io_buf(VAR , 0);
-     gMPPT.voltageBatteryMax = ptr.pvar->value;
-     ptr = put_io_buf(VAR, 1);
-     gMPPT.currentCharging = ptr.pvar->value;
+//     ptr = put_io_buf(VAR , 0);
+//     gMPPT.voltageBatteryMax = ptr.pvar->value;
+//     ptr = put_io_buf(VAR, 1);
+//     gMPPT.currentCharging = ptr.pvar->value;
 
       if(gMPPT.output_current > gMPPT.currentCharging)     {gMPPT.PWM--;}                             // Current above limit → decrease duty cycle
       // PSU mode and PSU charging mode need to be distinguished, charging mode can squeeze the input source for charging, PSU mode does not necessarily need to, so temporarily disable this judgment 20220811
       //if(currentOutput>PSUcurrentMax)       {PWM--;}                               // Current above external maximum value → decrease duty cycle
+      //else
       else if(gMPPT.output_voltage > gMPPT.voltageBatteryMax){gMPPT.PWM--;}                             // Voltage above → decrease duty cycle
       else if(gMPPT.output_voltage < gMPPT.voltageBatteryMax){gMPPT.PWM++;}                             // Increase duty cycle when output is below charging voltage (only for CC-CV mode)
       else{}                                                                       // Do nothing when the set output voltage is reached
-      if(gMPPT.PWM>125)
-    	  gMPPT.PWM = 125;
+      if(gMPPT.PWM>MAX_PWM_PULSE)
+    	  gMPPT.PWM = MAX_PWM_PULSE;
       //PWM_Modulation();                                                            // Set PWM signal to Buck PWM GPIO
       gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             // Store previously recorded voltage
     }
@@ -155,8 +158,8 @@ void Charging_Algorithm(){
         gMPPT.powerInputPrev   = gMPPT.input_power;                                               //  Store previously recorded power
         gMPPT.voltageInputPrev = gMPPT.input_voltage;                                             //  Store previously recorded voltage
       }
-      if(gMPPT.PWM>125)
-    	  gMPPT.PWM = 125;
+      if(gMPPT.PWM>MAX_PWM_PULSE)
+    	  gMPPT.PWM = MAX_PWM_PULSE;
     }
 }
 
@@ -208,12 +211,15 @@ void mppt_task(void* arg)
 
     	ptr = put_io_buf(VAR , 2);
     	gMPPT.MPPT_Mode = ptr.pvar->value/1000;
-
+    	ptr = put_io_buf(VAR , 1);
+    	gMPPT.currentCharging = ptr.pvar->value;
+        ptr = put_io_buf(VAR , 0);
+        gMPPT.voltageBatteryMax = ptr.pvar->value;
 
 		if (gMPPT.MPPT_Mode == MANUAL_MODE) {
 		    // Manual mode handling code
 			ptr = put_io_buf(OUT, 0);
-			Test[44] = (ptr.pout->value/1000)*125/100;
+			Test[44] = (ptr.pout->value/1000)*MAX_PWM_PULSE/100;
 
 			ptr = put_io_buf(OUT, 1);
 			if(ptr.pout->digital_analog == 0)	// For output switch
@@ -225,7 +231,12 @@ void mppt_task(void* arg)
 					gpio_set_level(MPPT_OUTPUT_RELAY, 0);
 			}
 
-			ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, (outputs[0].value/1000)*125/100);//gMPPT.output_pwm);
+			if(gMPPT.output_current > gMPPT.currentCharging)     {gMPPT.PWM--;}
+
+			else{
+				gMPPT.PWM = (outputs[0].value/1000)*MAX_PWM_PULSE/100;
+			}
+			ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, gMPPT.PWM);//gMPPT.output_pwm);
 			ledc_update_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL);
 		} else if (gMPPT.MPPT_Mode == MPPT_MODE || gMPPT.MPPT_Mode == CC_CV_PSU_MODE) {
 		    // MPPT mode and PSU handling code
@@ -247,7 +258,7 @@ void mppt_task(void* arg)
 			}
 		}
 
-        vTaskDelay(300 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
+        vTaskDelay(100 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
     }
 }
 
