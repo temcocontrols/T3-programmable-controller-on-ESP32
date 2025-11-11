@@ -95,8 +95,7 @@ void bip_set_port( uint16_t port)
 	BIP_Port = port;
 }
 
-void bip_set_broadcast_addr(
-    uint32_t net_address)
+void bip_set_broadcast_addr( uint32_t net_address)
 {       /* in network byte order */
     BIP_Broadcast_Address.s_addr = net_address;
 }

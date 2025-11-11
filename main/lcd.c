@@ -3369,8 +3369,7 @@ uint16 const degree_o[] =
 #define GPIO_LCD_RES    25  //reset
 #define GPIO_LCD_BACK	33
 
-#define GPIO_EN_SCD40   21
-#define GPIO_EN_PM25 	2
+
 
 #define GPIO_LCD_RST_SEL  (1ULL<<GPIO_LCD_RS)
 #define GPIO_LCD_CS_SEL  (1ULL<<GPIO_LCD_CS)
@@ -3379,9 +3378,6 @@ uint16 const degree_o[] =
 #define GPIO_LCD_RES_SEL  (1ULL<<GPIO_LCD_RES)
 #define GPIO_LCD_BACK_SEL  (1ULL<<GPIO_LCD_BACK)
 
-// for Sensor
-#define GPIO_EN_SCD40_SEL  (1ULL<<GPIO_EN_SCD40)
-#define GPIO_EN_PM25_SEL	(1ULL<<GPIO_EN_PM25)
 
 #define LCD_RS_LO	gpio_set_level(GPIO_LCD_RS, 0)
 #define LCD_RS_HI	gpio_set_level(GPIO_LCD_RS, 1)
@@ -3396,11 +3392,14 @@ uint16 const degree_o[] =
 #define LCD_BACK_LO	gpio_set_level(GPIO_LCD_BACK, 0)
 #define LCD_BACK_HI	gpio_set_level(GPIO_LCD_BACK, 1)
 
-// for Sensor
-#define SCD40_ENABLE gpio_set_level(GPIO_EN_SCD40, 1)
-#define PM25_ENABLE  gpio_set_level(GPIO_EN_PM25, 1)
+
+
+#define PM25_TX_DISABLE  gpio_set_level(12, 1)
+#define PM25_RX_DISABLE  gpio_set_level(15, 1)
 
 void ILI9341_Initial(void);
+
+
 
 void lcd_back_set(uint8_t status)
 {
@@ -3419,8 +3418,7 @@ void LCD_IO_Init(void)
     io_conf.mode = GPIO_MODE_OUTPUT;
     //bit mask of the pins that you want to set,e.g.GPIO18/19
 
-    io_conf.pin_bit_mask = GPIO_LCD_RST_SEL | GPIO_LCD_CS_SEL | GPIO_LCD_SDA_SEL | GPIO_LCD_SCL_SEL | GPIO_LCD_RES_SEL | GPIO_LCD_RES_SEL | GPIO_LCD_BACK_SEL
-    		| GPIO_EN_SCD40_SEL | GPIO_EN_PM25_SEL;
+    io_conf.pin_bit_mask = GPIO_LCD_RST_SEL | GPIO_LCD_CS_SEL | GPIO_LCD_SDA_SEL | GPIO_LCD_SCL_SEL | GPIO_LCD_RES_SEL | GPIO_LCD_RES_SEL | GPIO_LCD_BACK_SEL;
     //disable pull-down mode
     io_conf.pull_down_en = 0;
     //disable pull-up mode
@@ -3991,6 +3989,8 @@ void disp_null_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint
 		}
 }
 
+
+#if AL_OLD_DISPLAY
 void display_config_line123(uint8 line,uint16 disp_setpoint)
 {
 	char spbuf[7];
@@ -4144,6 +4144,7 @@ void display_config_line123(uint8 line,uint16 disp_setpoint)
 	}
 }
 
+#endif
 
 void display_pm25w(uint16 value)
 {
@@ -4253,6 +4254,7 @@ void display_dec(uint8 blink)
 		disp_null_icon(8, 8,0, SECOND_CH_POS + 48 + 4,85,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 }
 
+// T10's 第一行的大字的显示
 void Top_area_display(uint8 item, S16_T value, uint8 unit)
 {
 	int16 value_buf;
@@ -4425,104 +4427,10 @@ void Top_area_display(uint8 item, S16_T value, uint8 unit)
 	//			disp_str(FORM15X30, UNIT_POS,56,"F",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 	//		icon.unit = 0;
 	//	}
-#if 0
-	S16_T value_buf;
 
-	if(item == TOP_AREA_DISP_ITEM_NONE)
-	{
-		disp_str(FORM15X30, 6,  32,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
-		disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-		disp_ch(0,SECOND_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-		disp_ch(0,THIRD_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-		display_dec(0);
-		disp_str(FORM15X30, UNIT_POS,56," ",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-	}
-	else
-	{
-		if(value >=0)
-		{
-			value_buf = value;
-			disp_str(FORM15X30, 6,  32,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
-			if(value >= 1000)
-			{
-				value_buf /= 10;
-				if((value_buf >= 100))
-					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				else
-					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-			}
-			if(value<1000 )
-			{
-	//				disp_null_icon(30, 96, 0, THERM_METER_XPOS,THERM_METER_POS,TSTAT8_MENU_COLOR, TSTAT8_MENU_COLOR);
-				//disp_ch(0,0,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				if((value >= 100))
-					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				else
-					disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-			}
-			else if(value <100)
-			{
-				disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/1000,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%1000)/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-			}
-		}
-		else//nagtive value
-		{
-			value_buf = -value;
-
-			//disp_null_icon(0, 8, 0, THERM_METER_XPOS+2,53,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-			if(value_buf >= 100)
-			{
-				disp_ch(0,FIRST_CH_POS,THERM_METER_POS,0x30+value_buf/100,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_str(FORM15X30, 6,  32,  "-",SCH_COLOR,TSTAT8_BACK_COLOR);
-				disp_str(FORM15X30, 40,  32,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
-			}
-			else if(value_buf < 100)
-			{
-				disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				//disp_str(FORM15X30, 6,  32,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
-				disp_str(FORM15X30, 40,  32,  "-",SCH_COLOR,TSTAT8_BACK_COLOR);
-			}
-		}
-
-		if(item == TOP_AREA_DISP_ITEM_TEMPERATURE ||
-			item == TOP_AREA_DISP_ITEM_HUM )
-		{
-			if(value>1000)
-				display_dec(0);
-			else
-				display_dec(1);
-		}
-
-		if(item == TOP_AREA_DISP_ITEM_TEMPERATURE)
-		{
-			//if(icon.unit == 1)
-			{
-				if(EEP_DEGCorF == 0)
-					disp_str(FORM15X30, UNIT_POS,56,"C",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				else
-					disp_str(FORM15X30, UNIT_POS,56,"F",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-				//icon.unit = 0;
-			}
-		}
-		else if(item == TOP_AREA_DISP_ITEM_HUM)
-		{
-			disp_str(FORM15X30, UNIT_POS,56,"%",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-		}
-	}
-#endif
 }
 
-
+#if AL_OLD_DISPLAY   // 整合T10和AL之前 AL的display task
 extern g_sensor_t g_sensors;
 
 void Display_Configure(void)
@@ -4554,7 +4462,6 @@ void Display_Configure(void)
 	}
 
 }
-
 
 
 
@@ -4599,6 +4506,7 @@ void Lcd_task(void *arg)
 	{
 		SCD40_ENABLE;  // ENABLE SCD40
 		PM25_ENABLE; // ENALBLE PM25
+
 		display_config[0] = ITEM_TEMP;
 		display_config[1] = ITEM_HUM;
 		display_config[2] = ITEM_CO2;
@@ -4757,6 +4665,7 @@ void Lcd_task(void *arg)
 						Display_Configure();
 
 						ptr = put_io_buf(IN,5);
+
 						if(!ptr.pin->calibration_sign)
 							disp_pm25_weight_25 += (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 						else
@@ -4774,6 +4683,11 @@ void Lcd_task(void *arg)
 						}
 						else
 						{
+							if(flag_pm25 == 0)
+							{
+								disp_pm25_weight_25 = 0;
+								disp_pm25_number_25 = 0;
+							}
 							display_pm25w( disp_pm25_weight_25);//disp_pm25_weight_25
 							display_pm25n( disp_pm25_number_25);
 						}
@@ -4819,6 +4733,22 @@ void Lcd_task(void *arg)
 //					DealWithKey(menu_id);
 
 				// wifi icon
+
+
+				if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL)//����Ļ���Ͻ���ʾwifi��״̬
+				{
+					if(SSID_Info.rssi < -90)
+						disp_icon(26, 26, wifi_1, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+					else if(SSID_Info.rssi < -70)
+						disp_icon(26, 26, wifi_2, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+					else if(SSID_Info.rssi < -67)
+						disp_icon(26, 26, wifi_3, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+					else
+						disp_icon(26, 26, wifi_4, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+				}
+				else
+						disp_icon(26, 26, wifi_0, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+#if 0
 			if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL)
 			{
 				if(SSID_Info.rssi < 70)
@@ -4836,7 +4766,7 @@ void Lcd_task(void *arg)
 					disp_icon(26, 26, wifi_0, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 			else // if WIFI_NONE, do not show wifi flag
 				disp_icon(26, 26, wifi_none, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-
+#endif
 
 		}
 
@@ -4844,5 +4774,5 @@ void Lcd_task(void *arg)
 	}
 }
 
-
+#endif
 

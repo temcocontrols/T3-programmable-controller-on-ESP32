@@ -319,7 +319,7 @@ int PCF_systohc(){
 	rtc_date.year = tm.tm_year + 1900;
 	rtc_date.weekday = RTC_Get_Week(rtc_date.year,rtc_date.month,rtc_date.day);//tm.tm_wday;
 	ret = PCF_SetDateTime(&rtc_date);
-
+	Test[37]++;
 
 fail:
 	return ret;
@@ -521,7 +521,7 @@ void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag)
 	rtc->Clk.min = (temp % 3600) / 60;
 	rtc->Clk.sec = (temp % 3600) % 60;
 	rtc->Clk.week = RTC_Get_Week(2000 + rtc->Clk.year, rtc->Clk.mon,rtc->Clk.day);
-
+	Test[36]++;
 	if(flag == 1)
 	{
 	Local_Date.year = rtc_date.year;
@@ -548,11 +548,12 @@ uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8
 		rtc_date.day = sday;
 		system_timer = 0;
 		PCF_SetDateTime(&rtc_date);
+		Test[38]++;
 	}
 	// if no rtc chip
-
+	Test[39]++;
 	update_timers();
-	//PCF_systohc();
+
 	return time_since_1970 + system_timer / 1000;
 }
 

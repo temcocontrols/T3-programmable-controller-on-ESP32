@@ -26,7 +26,7 @@ void control_output(void)
 	
 
 	while( point < MAX_OUTS )
-	{	
+	{
 #if NEW_IO
 	if(point < max_outputs)
 		ptr.pout = new_outputs + point;
@@ -48,7 +48,7 @@ void control_output(void)
 				val = 0;
 			}
 //			else
-//			{	
+//			{
 //					if( outs->digital_analog == 1 ) //  analog
 //					{	
 //						if(point >= get_max_internal_output())  // // external ouput 					

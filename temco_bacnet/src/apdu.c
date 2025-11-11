@@ -546,10 +546,14 @@ void apdu_handler(
 							}								
 #endif				
 
-#if 0//COV							
+#if COV							
 							else if(service_choice == SERVICE_CONFIRMED_SUBSCRIBE_COV)
 							{
 								handler_cov_subscribe(service_request,service_request_len, src,&service_data,protocal);
+							}
+							else if(service_choice == SERVICE_CONFIRMED_COV_NOTIFICATION)
+							{
+								handler_ccov_notification(service_request,service_request_len, src,&service_data,protocal);
 							}
 #endif
 
@@ -616,19 +620,18 @@ void apdu_handler(
 											uint8_t len = 0;
 											int32_t far low_limit = 0;
 											int32_t far high_limit = 0;
-											Test[40]++;
+											
 											len =
 												whois_decode_service_request(service_request, service_request_len, &low_limit,
 												&high_limit);
-											Test[41] = len;
-											Test[43] = Device_Object_Instance_Number();
-											Test[44] = low_limit;
-											if((len == 0) || (Device_Object_Instance_Number() == low_limit))
-											{Test[42]++;
+
+											if((len == 0) || ((Device_Object_Instance_Number() >= low_limit && Device_Object_Instance_Number() <= high_limit)))
+											{
 												Send_I_Am(&Handler_Transmit_Buffer[1][0],protocal);
 											
 												// transfer whois command only when rs485 port is mstp master
-												Send_whois_to_mstp(0);
+												if(((low_limit = -1) && (high_limit == -1)) || (len == 0))
+													Send_whois_to_mstp(0);
 
 											}
 
@@ -661,7 +664,12 @@ void apdu_handler(
 							else	if (service_choice == SERVICE_UNCONFIRMED_TIME_SYNCHRONIZATION) {
 								handler_timesync(service_request,service_request_len, src);
 							}
-							
+#if COV
+							else if(service_choice == SERVICE_UNCONFIRMED_COV_NOTIFICATION)
+							{
+								handler_ucov_notification(service_request,service_request_len, src,protocal);
+							}
+#endif
 
 							else if (service_choice == SERVICE_UNCONFIRMED_I_AM)
 							{

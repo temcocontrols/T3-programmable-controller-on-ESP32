@@ -9,8 +9,8 @@
 #include <string.h>
 
 #include "modbus.h"
-
-
+#include "product.h"
+/*
 #define TSTAT10_MAX_AIS 13
 #define TSTAT10_MAX_DOS 5
 #define TSTAT10_MAX_AOS 4
@@ -23,7 +23,7 @@
 #define T10P_MAX_AOS 4
 #define T10P_MAX_AVS 128
 #define T10P_MAX_DIS 8
-#define T10P_MAX_SCS 8
+#define T10P_MAX_SCS 8*/
 
 EXT_RAM_ATTR U8_T far uart0_sub_addr[SUB_NO];// _at_ 0x41600;
 U8_T far sub_no;
@@ -70,8 +70,10 @@ void Comm_Tstat_Initial_Data(void)
 	else if(Modbus.mini_type == PROJECT_AIRLAB)	{	base_in = 16;		base_out = 0;}
 	else if(Modbus.mini_type == PROJECT_RMC1216) 	{	base_in = 16;		base_out = 7;}
 	else if(Modbus.mini_type == PROJECT_NG2_NEW) {	base_in = 24;		base_out = 12;}
-	else if(Modbus.mini_type == PROJECT_LIGHT_SWITCH) {base_in = 16;		base_out = 4;}
-	else /*if(Modbus.mini_type == MINI_NANO) */		{	base_in = 0;		base_out = 0;}
+	else if(Modbus.mini_type == PROJECT_LSW_BTN) {base_in = 16;		base_out = 4;}
+	else if(Modbus.mini_type == PROJECT_LSW_SENSOR) {base_in = 16;		base_out = 4;} // ?????????
+	else if(Modbus.mini_type == MINI_NANO) 		{	base_in = 0;		base_out = 0;}
+	else if(Modbus.mini_type == PROJECT_LIGHT_PWM) 		{	base_in = 0;		base_out = 4;}
 	base_var = 0;
 
 
@@ -978,6 +980,8 @@ void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start
 	else if(Modbus.mini_type == MINI_TINY_11I)	{	ptr->reg.input_end = 11;		ptr->reg.output_end = 11;		}
 	else if(Modbus.mini_type == MINI_NANO)	{	// no I/O
 		ptr->reg.input_start = 0;		ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 0;		}
+	else if(Modbus.mini_type == PROJECT_LIGHT_PWM)	{	// 4 AO
+			ptr->reg.input_start = 0;		ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 4;		}
 	else if(Modbus.mini_type == PROJECT_RMC1216) {ptr->reg.input_end = 16;		ptr->reg.output_end = 7;}
 	else if(Modbus.mini_type == PROJECT_NG2_NEW) {ptr->reg.input_end = 24;		ptr->reg.output_end = 12;}
 
@@ -1161,7 +1165,7 @@ void push_expansion_in_stack(Str_in_point* ptr)
 }
 
 
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
+#if 0//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 
 #define TSTAT_DAY_SP 		345
 #define TSTAT_NIGHT_SP 	350

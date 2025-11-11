@@ -630,7 +630,7 @@ void VOC_Initial(void) 	// SGP30
 	}
 }
 
-
+void SCD40_Reset(void);
 void Refresh_SCD40(void);
 void I2C_sensor_Init(void);
 //-------end --- for airlab, i2c sensor initial
@@ -651,13 +651,13 @@ void i2c_sensor_task(void *arg)
     int32_t sht4x_temp, sht4x_hum;
 
     I2C_sensor_Init();
-
+    SCD40_Reset();
     g_sensors.co2_start_measure = false;
 //    uint8_t sensor_data_h, sensor_data_l;
     int cnt = 0;
     g_sensors.co2_ready = false;
 
-   if( Modbus.mini_type == PROJECT_AIRLAB || (Modbus.mini_type == PROJECT_LIGHT_SWITCH))
+   if( Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_SENSOR)
     {
     	//voc_value_raw = 0;
     	VOC_Initial();
@@ -911,18 +911,37 @@ void i2c_sensor_task(void *arg)
 				ESP_LOGE(TAG, "I2C Timeout");
 				//Test[0] = 120;
 			} else if (ret == ESP_OK) {
+				int32_t value = 0;
 				hum_sensor_type = 1;
 				g_sensors.original_temperature = SHT3X_getTemperature(sht31_data);
 				g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
 				g_sensors.temperature = (uint16_t)(g_sensors.original_temperature*10);
 				g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
-				put_io_buf(IN,0);
+				Test[23] = g_sensors.temperature;
+				Test[24] = g_sensors.humidity;
+				ptr = put_io_buf(IN,0);
+
 				if(ptr.pin->range == 3)
-					ptr.pin->value = g_sensors.temperature*100;
+					value = g_sensors.temperature*100;
 				if(ptr.pin->range == 4)
-					ptr.pin->value = (g_sensors.temperature*9/5)*100+32000;
-				put_io_buf(IN,1);
-				ptr.pin->value = g_sensors.humidity*100;
+					value = (g_sensors.temperature*9/5)*100+32000;
+
+				if( !ptr.pin->calibration_sign )
+					value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				else
+					value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+
+				ptr.pin->value = value;
+
+
+				ptr = put_io_buf(IN,1);
+				value = g_sensors.humidity*100;
+				if( !ptr.pin->calibration_sign )
+					value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				else
+					value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				ptr.pin->value = value;
+
 
 			} else {
 				//ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
@@ -933,24 +952,74 @@ void i2c_sensor_task(void *arg)
 
 
         vTaskDelay(100 / portTICK_RATE_MS);
-        if(Modbus.mini_type == PROJECT_TRANSDUCER || Modbus.mini_type == PROJECT_LIGHT_SWITCH)
+        if(Modbus.mini_type == PROJECT_TRANSDUCER || Modbus.mini_type == PROJECT_LSW_SENSOR)
         {
+        	int16 temp_tmp;
+        	int16 temp_hum;
+        	uint16 temp_co2;
+        	int32_t pre_value = 0;
+
 			scd4x_start_periodic_measurement();
 			vTaskDelay(100 / portTICK_RATE_MS);
-			scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
-			ret = sht4x_measure_blocking_read(&sht4x_temp, &sht4x_hum);
+			ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
 			if(ret != ESP_OK)
 			{
-
+				Test[20]++;
 			}
 			else
 			{
+				if(temp_co2 < 100 || temp_co2 > 3000)
+				{
+
+				}
+				else
+				{Test[28]++;
+					g_sensors.co2 = temp_co2;
+					g_sensors.co2_temp = temp_tmp;
+					g_sensors.co2_humi = temp_hum;
+					Test[15] = temp_co2;
+					Test[16] = temp_tmp;
+					Test[17] = temp_hum;
+					ptr = put_io_buf(IN,2);
+					pre_value = g_sensors.co2*1000;
+					if( !ptr.pin->calibration_sign )
+						pre_value += 1000L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+					else
+						pre_value += -1000L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+
+					ptr.pin->value = pre_value;
+					//scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
+				}
+			}
+			ret = sht4x_measure_blocking_read(&sht4x_temp, &sht4x_hum);
+			if(ret != ESP_OK)
+			{
+				Test[21]++;
+			}
+			else
+			{	Test[22]++;
 				hum_sensor_type = 2;
 				g_sensors.temperature = (sht4x_temp)/100;
 				g_sensors.humidity = (sht4x_hum)/100;
-				Test[20]++;
-				Test[10] = g_sensors.temperature;
-				Test[11] = g_sensors.humidity;
+				Test[23] = g_sensors.temperature;
+				Test[24] = g_sensors.humidity;
+
+				ptr = put_io_buf(IN,0);
+				pre_value = g_sensors.temperature*100;
+				if( !ptr.pin->calibration_sign )
+					pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				else
+					pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				ptr.pin->value = pre_value;
+
+				ptr = put_io_buf(IN,1);
+				pre_value = g_sensors.humidity*100;
+				if( !ptr.pin->calibration_sign )
+					pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				else
+					pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				ptr.pin->value = pre_value;
+
 			}
         }
 #if 0
@@ -1101,9 +1170,9 @@ void i2c_sensor_task(void *arg)
 					 // printf("Invalid sample detected, skipping.\n");
 				} else {count_err = 0;
 					//CO2_get_value(co2,temperature / 100,humidity / 100);
-				Test[13] = hum_sensor_type + 10;
+
 					if((hum_sensor_type != 1) && (hum_sensor_type != 2) )
-					{Test[12]++;
+					{
 						g_sensors.temperature = temperature / 100;
 						g_sensors.humidity = humidity/ 100;
 
@@ -1118,7 +1187,10 @@ void i2c_sensor_task(void *arg)
 					ptr.pin->value = g_sensors.co2 * 1000;
 				}
 				if(count_err > 10)
+				{
+
 					co2_present = 0;
+				}
 
 			}
 

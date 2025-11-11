@@ -31,11 +31,19 @@ const uint8 Var_Description[12][21];
 const uint8 Var_label[12][9];
 
 extern uint16_t input_cal[16];
-extern uint8_t lcd_time_over_en;
-extern uint8_t lcd_time_over;
+
+extern uint16_t count_lcd_time_off_delay;
+extern uint8_t com_config_back[2];
 
 extern uint16_t current_page;
 extern char sntp_server[30];
+
+#if 1//LSW_ON_OFF
+extern uint16_t LSW_on_time;
+extern uint16_t LSW_off_time;
+#endif
+
+extern uint32_t  high_spd_counter_tempbuf[32/*HI_COMMON_CHANNEL*/];
 
 #define POINT_INFO_ADDR	0
 #define POINT_INFO_LEN 	0x10000
@@ -130,6 +138,7 @@ esp_err_t read_default_from_flash(void)
 	nvs_handle_t my_handle;
 	esp_err_t err;
 	uint8_t temp[4];
+	uint16_t temp_int[2];
 	uint32_t len;
 
 	esp_err_t ret = nvs_flash_init();
@@ -219,7 +228,7 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_INSTANCE4, temp[3]);
 	}
 	Instance = ((uint32)temp[3]<<24)+((uint32)temp[2]<<16)+((uint16)temp[1]<<8) + temp[0];
-	if(Instance >= 0x3fffff)
+	if((Instance >= 0x3fffff) || ((Instance == 1028) &&  (Modbus.serialNum[0] != 4)))
 	{
 		Instance =  Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8) + ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24);
 		nvs_set_u8(my_handle, FLASH_INSTANCE1, temp[0]);
@@ -227,6 +236,27 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_INSTANCE3, temp[2]);
 		nvs_set_u8(my_handle, FLASH_INSTANCE4, temp[3]);
 	}
+	err = nvs_get_u8(my_handle, FLASH_FIX_COM_CONFIG, &Modbus.fix_com_config);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.fix_com_config = 1;
+		nvs_set_u8(my_handle, FLASH_FIX_COM_CONFIG, Modbus.fix_com_config);
+	}
+
+	err = nvs_get_u16(my_handle, FLASH_WRITE_FLASH, &Modbus.write_flash);
+	if(err ==ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.write_flash = 0;
+		nvs_set_u16(my_handle, FLASH_WRITE_FLASH, Modbus.write_flash);
+	}
+
+	if(Modbus.write_flash != 0)
+	{
+		ChangeFlash = 2;
+		count_write_Flash = 0;
+	}
+	else
+		ChangeFlash = 0;
 
 	err = nvs_get_u8(my_handle, FLASH_UART_CONFIG, &Modbus.com_config[0]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
@@ -240,6 +270,24 @@ esp_err_t read_default_from_flash(void)
 		Modbus.com_config[2] = MODBUS_SLAVE;
 		nvs_set_u8(my_handle, FLASH_UART2_CONFIG, Modbus.com_config[2]);
 	}
+
+	// for get rid of modbus slave and master
+	if(Modbus.fix_com_config == 0)
+	{
+		if(Modbus.com_config[0] == MODBUS_MASTER)
+		{
+			Modbus.com_config[0] = MODBUS_SLAVE;
+			nvs_set_u8(my_handle, FLASH_UART_CONFIG, Modbus.com_config[0]);
+		}
+		if(Modbus.com_config[2] == MODBUS_MASTER)
+		{
+			Modbus.com_config[2] = MODBUS_SLAVE;
+			nvs_set_u8(my_handle, FLASH_UART2_CONFIG, Modbus.com_config[2]);
+		}
+	}
+	com_config_back[0] = Modbus.com_config[0];
+	com_config_back[2] = Modbus.com_config[2];
+
 	err = nvs_get_u8(my_handle, FLASH_MINI_TYPE, &Modbus.mini_type);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -322,9 +370,9 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
 
-	//if(Modbus.mini_type == MINI_SMALL_ARM|| Modbus.mini_type == MINI_BIG_ARM )
+	if(Modbus.mini_type == MINI_SMALL_ARM|| Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_CO2)
 	{
-		if(count_reboot >= 6)
+		if(count_reboot >= 10)
 		{ // reboot
 			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
 			start_fw_update();
@@ -334,7 +382,7 @@ esp_err_t read_default_from_flash(void)
 			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
 		}
 	}
-	/*else
+	else
 	{
 		if(Modbus.mini_type != PROJECT_MPPT){
 			if(count_reboot >= 3)
@@ -347,7 +395,7 @@ esp_err_t read_default_from_flash(void)
 				nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
 			}
 		}
-	}*/
+	}
 
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{// old ISP, REV < 26
@@ -355,6 +403,10 @@ esp_err_t read_default_from_flash(void)
 		//nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
 
 	}
+
+	len = sizeof(multiple_struct) * MAX_MSV * STR_MSV_MULTIPLE_COUNT;
+	err = nvs_get_blob(my_handle, FLASH_MSV, &msv_data, &len);
+
 
 	len = sizeof(Str_Email_point);
 	nvs_get_blob(my_handle, FLASH_EMAIL, &Email_Setting, &len);
@@ -374,15 +426,28 @@ esp_err_t read_default_from_flash(void)
 	len = 30;
 	err = nvs_get_blob(my_handle, FLASH_SNTP, &sntp_server, &len);
 
+	len = 4*32;
+	err = nvs_get_blob(my_handle, FLASH_SPD_CNT, &high_spd_counter_tempbuf, &len);
+
+
 	len = 7;
 	err = nvs_get_blob(my_handle, FLASH_LCD_CONFIG, &lcddisplay, &len);
 
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
 		memset(lcddisplay,0,sizeof(lcdconfig));
-		lcddisplay[0] = 1;
-		lcddisplay[2] = IN;
-		lcddisplay[1] = 9;  // IN9 is internal termperature
+		if(Modbus.mini_type == MINI_TSTAT10)
+		{
+			lcddisplay[0] = 1;
+			lcddisplay[2] = IN;
+			lcddisplay[1] = 9;  // IN9 is internal termperature
+		}
+		if(Modbus.mini_type == PROJECT_AIRLAB)
+		{
+			lcddisplay[0] = 1;
+			lcddisplay[2] = IN;
+			lcddisplay[1] = 1;  // IN9 is internal termperature
+		}
 	}
 	// read input calibrate
 	err = nvs_get_u16(my_handle, FLASH_IN1_CAL, &input_cal[0]);
@@ -398,7 +463,7 @@ esp_err_t read_default_from_flash(void)
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
 		if(Modbus.mini_type == MINI_TSTAT10)
-			input_cal[2] = 3680;
+			input_cal[1] = 3680;
 		else
 			input_cal[1] = 4095;
 		nvs_set_u16(my_handle, FLASH_IN2_CAL, input_cal[1]);
@@ -540,18 +605,19 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_ICON_CONFIG, Modbus.icon_config);
 	}
 
-	err = nvs_get_u8(my_handle, FLASH_LCD_EN_TIMEOVER, &lcd_time_over_en);
+	/*err = nvs_get_u8(my_handle, FLASH_LCD_EN_TIMEOVER, &lcd_time_over_en);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
 		lcd_time_over_en = 0;
 		nvs_set_u8(my_handle, FLASH_LCD_EN_TIMEOVER, lcd_time_over_en);
-	}
+	}*/
 
-	err = nvs_get_u8(my_handle, FLASH_LCD_TIMEOVER, &lcd_time_over);
+	err = nvs_get_u8(my_handle, FLASH_LCD_TIME_OFF_DELAY, &Modbus.LCD_time_off_delay);
+
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		lcd_time_over = 0;
-		nvs_set_u8(my_handle, FLASH_LCD_TIMEOVER, lcd_time_over);
+		Modbus.LCD_time_off_delay = 255;
+		//nvs_set_u8(my_handle, FLASH_LCD_TIME_OFF_DELAY, Modbus.LCD_time_off_delay);
 	}
 
 	err = nvs_get_u16(my_handle, FLASH_CURRENT_TLG_PAGE, &current_page);
@@ -569,16 +635,49 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u16(my_handle, FLASH_READ_POINT_TIMER, READ_POINT_TIMER_FROM_EEP);
 		READ_POINT_TIMER = READ_POINT_TIMER_FROM_EEP;
 	}
+#if LSW_ON_OFF
+	if(Modbus.mini_type == PROJECT_LSW_SENSOR)
+	{
 
+		err = nvs_get_u16(my_handle, FLASH_LSW_ONTIME, &LSW_on_time);
+		if(err == ESP_ERR_NVS_NOT_FOUND)
+		{
+			LSW_on_time = 60;  //AUTO
+			nvs_set_u16(my_handle, FLASH_LSW_ONTIME, LSW_on_time);
+		}
+		if(LSW_on_time < 10)
+			LSW_on_time = 10;
+
+		err = nvs_get_u16(my_handle, FLASH_LSW_OFFTIME, &LSW_off_time);
+		if(err == ESP_ERR_NVS_NOT_FOUND)
+		{
+			LSW_off_time = 1800;  //AUTO
+			nvs_set_u16(my_handle, FLASH_LSW_OFFTIME, LSW_off_time);
+		}
+	}
+#endif
 	// Close
 	nvs_close(my_handle);
 
 	Flash_Inital();
 
-
 	return ESP_OK;
 }
 
+
+void Save_SPD_CNT(void)
+{
+	save_block(FLASH_BLOCK_SPD);
+}
+
+
+void save_LSW_ON_OFF_TIME(uint8_t index,uint16_t time)
+{
+	if(index == 0)
+		save_uint16_to_flash(FLASH_LSW_ONTIME,time);
+	else if(index == 1)
+		save_uint16_to_flash(FLASH_LSW_OFFTIME,time);
+}
 
 void clear_currnet_page(void)
 {
@@ -605,7 +704,7 @@ void Flash_Inital(void)
 	uint8_t loop;
 	uint16_t baseAddr = 0;
 	uint16_t  len = 0;
-	ChangeFlash = 0;
+//	ChangeFlash = 0;
 	count_write_Flash = 0;
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
@@ -803,11 +902,57 @@ void Save_Email_Setting(void)
 	save_block(FLASH_BLOCK_EMAIL);
 }
 
-//void save_icon_config(uint8_t value)
-//{
-//	Modbus.icon_config = value;
-//	save_uint8_to_flash( FLASH_ICON_CONFIG, Modbus.icon_config);
-//}
+void Save_MSV(void)
+{
+	save_block(FLASH_BLOCK_MSV);
+}
+
+extern uint8_t flag_change_uart0;
+extern uint8_t count_change_uart0;
+void save_TemcoAV_AIRALB(uint16_t index, uint16_t value)
+{
+	if(index == 0)
+	{
+		Modbus.address = value;
+		Station_NUM = Modbus.address;
+		Setting_Info.reg.MSTP_ID = Station_NUM;
+		dlmstp_init(NULL);
+		save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
+	}
+	if(index == 1)
+	{
+		Modbus.baudrate[0] = value;
+		save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate[0]);
+		flag_change_uart0 = 1;
+		count_change_uart0 = 0;
+	}
+	if(index == 2)
+	{
+		Modbus.com_config[0] = value;
+		save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+		flag_change_uart0 = 1;
+		count_change_uart0 = 0;
+		Count_com_config();
+	}
+}
+
+uint16_t get_TemcoAVS_airlab(uint8_t index)
+{
+	if(index == 0)
+	{
+		return Modbus.address;
+	}
+	if(index == 1)
+	{
+		return Modbus.baudrate[0];
+	}
+	if(index == 2)
+	{
+		return Modbus.com_config[0];
+	}
+	return 0;
+}
+
 
 void Store_Instance_To_Eeprom(uint32_t Instance)
 {
@@ -849,6 +994,15 @@ esp_err_t save_block(uint8_t key)
 		break;
 	case FLASH_BLOCK_SNTP:
 		err = nvs_set_blob(my_handle, FLASH_SNTP, (const void*)(&sntp_server), sizeof(sntp_server));
+		if (err != ESP_OK) return err;
+		break;
+	case FLASH_BLOCK_SPD:
+		err = nvs_set_blob(my_handle, FLASH_SPD_CNT, (const void*)(&high_spd_counter_tempbuf), 4*32/*sizeof(high_spd_counter_tempbuf)*/);
+		if (err != ESP_OK) return err;
+		break;
+	case FLASH_BLOCK_MSV:
+		Test[10]++;
+		err = nvs_set_blob(my_handle, FLASH_MSV, (const void*)(&msv_data), sizeof(multiple_struct) * MAX_MSV * STR_MSV_MULTIPLE_COUNT);
 		if (err != ESP_OK) return err;
 		break;
 	default:
@@ -1285,8 +1439,7 @@ void Initial_points(uint8_t point_type)
 			ptr = put_io_buf(IN,0);
 			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
 			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
-			for(i = 0;i < 18;i++)
-				ptr.pin->digital_analog = 1;
+			ptr.pin->digital_analog = 1;
 			ptr.pin->range = R10K_40_120DegC;
 
 			ptr = put_io_buf(IN,1);
@@ -1365,15 +1518,127 @@ void Initial_points(uint8_t point_type)
 
 			ptr = put_io_buf(IN,16);
 			memcpy(ptr.pin->description,"OCCUPIED SENSOR",strlen("OCCUPIED SENSOR"));
-			memcpy(ptr.pin->label,"OCC",strlen("OCC"));
-			ptr.pin->range = 0;
+			memcpy(ptr.pin->label,"OCC   ",strlen("OCC   "));
+			ptr.pin->digital_analog = 0;
+			if(ptr.pin->range == 0)
+				ptr.pin->range = UNOCCUPIED_OCCUPIED;
 		}
+		if(Modbus.mini_type == PROJECT_LSW_SENSOR)
+		{
+			ptr = put_io_buf(IN,0);
+			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
+			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
+			ptr.pin->digital_analog = 1;
+			ptr.pin->range = R10K_40_120DegC;
+
+			ptr = put_io_buf(IN,1);
+			memcpy(ptr.pin->description,"HUMIDITY",strlen("HUMIDITY"));
+			memcpy(ptr.pin->label,"HUM",strlen("HUM"));
+			ptr.pin->range = Humidty;
+
+			ptr = put_io_buf(IN,2);
+			memcpy(ptr.pin->description,"CO2 ",strlen("CO2 "));
+			memcpy(ptr.pin->label,"CO2",strlen("CO2"));
+			ptr.pin->range = CO2_PPM;
+
+			ptr = put_io_buf(IN,3);
+			memcpy(ptr.pin->description,"TVOC",strlen("TVOC"));
+			memcpy(ptr.pin->label,"TVOC",strlen("TVOC"));
+			ptr.pin->range = TVOC_PPB;
+
+			ptr = put_io_buf(IN,4);
+			memcpy(ptr.pin->description,"PM1.0DEN",strlen("PM1.0DEN"));
+			memcpy(ptr.pin->label,"PM1.0DEN",strlen("PM1.0DEN"));
+			ptr.pin->range = UG_M3;
+
+			ptr = put_io_buf(IN,5);
+			memcpy(ptr.pin->description,"PM2.5DEN",strlen("PM2.5DEN"));
+			memcpy(ptr.pin->label,"PM2.5DEN",strlen("PM2.5DEN"));
+			ptr.pin->range = UG_M3;
+
+			ptr = put_io_buf(IN,6);
+			memcpy(ptr.pin->description,"PM4.0DEN",strlen("PM4.0DEN"));
+			memcpy(ptr.pin->label,"PM4.0DEN",strlen("PM1.0DEN"));
+			ptr.pin->range = UG_M3;
+
+			ptr = put_io_buf(IN,7);
+			memcpy(ptr.pin->description,"PM10DEN",strlen("PM10DEN"));
+			memcpy(ptr.pin->label,"PM10DEN",strlen("PM10DEN"));
+			ptr.pin->range = UG_M3;
+
+			ptr = put_io_buf(IN,8);
+			memcpy(ptr.pin->description,"PM0.5C",strlen("PM0.5C"));
+			memcpy(ptr.pin->label,"PM0.5C",strlen("PM0.5C"));
+			ptr.pin->range = NUM_CM3;
+
+			ptr = put_io_buf(IN,9);
+			memcpy(ptr.pin->description,"PM1.0C",strlen("PM1.0C"));
+			memcpy(ptr.pin->label,"PM1.0C",strlen("PM1.0C"));
+			ptr.pin->range = NUM_CM3;
+
+			ptr = put_io_buf(IN,10);
+			memcpy(ptr.pin->description,"PM2.5C",strlen("PM2.5C"));
+			memcpy(ptr.pin->label,"PM2.5C",strlen("PM2.5C"));
+			ptr.pin->range = NUM_CM3;
+
+			ptr = put_io_buf(IN,11);
+			memcpy(ptr.pin->description,"PM4.0C",strlen("PM4.0C"));
+			memcpy(ptr.pin->label,"PM4.0C",strlen("PM4.0C"));
+			ptr.pin->range = NUM_CM3;
+
+			ptr = put_io_buf(IN,12);
+			memcpy(ptr.pin->description,"PM10C",strlen("PM10C"));
+			memcpy(ptr.pin->label,"PM10C",strlen("PM10C"));
+			ptr.pin->range = NUM_CM3;
+
+			ptr = put_io_buf(IN,13);
+			memcpy(ptr.pin->description,"P_size",strlen("P_size"));
+			memcpy(ptr.pin->label,"P_size",strlen("P_size"));
+		}
+
+		if(Modbus.mini_type == MINI_TSTAT10)
+		{
+			ptr = put_io_buf(IN,8);
+			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
+			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
+			ptr.pin->digital_analog = 1;
+			ptr.pin->range = R10K_40_120DegC;
+
+			ptr = put_io_buf(IN,10);
+			memcpy(ptr.pin->description,"HUMIDITY",strlen("HUMIDITY"));
+			memcpy(ptr.pin->label,"HUM",strlen("HUM"));
+			ptr.pin->range = Humidty;
+
+			ptr = put_io_buf(IN,12);
+			memcpy(ptr.pin->description,"CO2 ",strlen("CO2 "));
+			memcpy(ptr.pin->label,"CO2",strlen("CO2"));
+			ptr.pin->range = CO2_PPM;
+
+			ptr = put_io_buf(IN,9);
+			memcpy(ptr.pin->description,"TVOC",strlen("TVOC"));
+			memcpy(ptr.pin->label,"TVOC",strlen("TVOC"));
+			ptr.pin->range = TVOC_PPB;
+
+
+			ptr = put_io_buf(IN,11);
+			memcpy(ptr.pin->description,"OCCUPIED SENSOR",strlen("OCCUPIED SENSOR"));
+			memcpy(ptr.pin->label,"OCC   ",strlen("OCC   "));
+			ptr.pin->digital_analog = 0;
+			if(ptr.pin->range == 0)
+				ptr.pin->range = UNOCCUPIED_OCCUPIED;
+
+			ptr = put_io_buf(IN,13);
+			if(ptr.pin->range == 0)
+				ptr.pin->range = LUX;
+			memcpy(ptr.pin->label,"LUX",strlen("LUX"));
+		}
+
 	}
 	else if(point_type == VAR)
 	{
 		if(Modbus.mini_type == PROJECT_AIRLAB)
 		{
-			for(i = 0; i < 13; i++ )
+			for(i = 0; i < 16; i++ )  // AL_BTN 增肌3个AV
 			{
 				ptr = put_io_buf(VAR,i);
 				memcpy(ptr.pvar->description,Var_Description[i],strlen((char *)Var_Description[i]));
@@ -1385,6 +1650,32 @@ void Initial_points(uint8_t point_type)
 			}
 			Get_AVS();
 		}
+		if(Modbus.mini_type == MINI_TSTAT10)
+		{
+			ptr = put_io_buf(VAR,0);
+			memcpy(ptr.pvar->label,"STP",4);
+			ptr.pvar->value = 0;
+			ptr.pvar->auto_manual = 0 ;
+			ptr.pvar->digital_analog = 1;
+			ptr.pvar->range = MAX_INPUT_RANGE;
+
+			ptr = put_io_buf(VAR,1);
+			memcpy(ptr.pvar->label,"SYS",4);
+			ptr.pvar->value = 0;
+			ptr.pvar->auto_manual = 0 ;
+			ptr.pvar->digital_analog = 1;
+			ptr.pvar->range = MAX_INPUT_RANGE;
+
+			ptr = put_io_buf(VAR,2);
+			memcpy(ptr.pvar->label,"FAN",4);
+			ptr.pvar->value = 0;
+			ptr.pvar->auto_manual = 0 ;
+			ptr.pvar->digital_analog = 1;
+			ptr.pvar->range = MAX_INPUT_RANGE;
+
+			Get_AVS();
+		}
+
 	}
 }
 
@@ -1450,8 +1741,7 @@ void read_point_info(void)
 #if !NEW_IO
 			memcpy(&outputs,tempbuf,sizeof(Str_out_point) * MAX_OUTS);
 #endif
-			if((tempbuf[0] == 0x00 && tempbuf[1] == 0x00 && tempbuf[2] == 0x00) ||
-				(tempbuf[0] == 0xff && tempbuf[1] == 0xff && tempbuf[2] == 0xff))
+			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
 			{
 				Initial_points(OUT);
 			}
@@ -1461,8 +1751,7 @@ void read_point_info(void)
 #if !NEW_IO
 			memcpy(&inputs,tempbuf,sizeof(Str_in_point) * MAX_INS);
 #endif
-			if((tempbuf[0] == 0x00 && tempbuf[1] == 0x00 && tempbuf[2] == 0x00) ||
-				(tempbuf[0] == 0xff && tempbuf[1] == 0xff && tempbuf[2] == 0xff))
+			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
 			{
 				Initial_points(IN);
 
@@ -1474,10 +1763,9 @@ void read_point_info(void)
 			memcpy(&vars,tempbuf,sizeof(Str_variable_point) * MAX_VARS);
 #endif
 			// if initial status
-			if((tempbuf[0] == 0x00 && tempbuf[1] == 0x00 && tempbuf[2] == 0x00) ||
-					(tempbuf[0] == 0xff && tempbuf[1] == 0xff && tempbuf[2] == 0xff))
+			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
 			{
-				Initial_points(VAR);
+				Initial_points(VAR);Test[23]++;
 			}
 			break;
 
@@ -1580,7 +1868,7 @@ esp_err_t save_trendlog(void)
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
-	Test[20]++;
+
 //	sprintf(debug_array,"save_trendlog current_page = %d \r",current_page);
 //	debug_info(debug_array);
 	err = esp_partition_erase_range(partition, TRENDLOG_ADDR + (current_page % MAX_TREND_PAGE) * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);

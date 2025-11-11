@@ -30,9 +30,23 @@ typedef struct
 	U8_T len;
 	U8_T flag;
 	U8_T retry;
-}STR_NP_NODE_OPERATE;
+}STR_NPM_NODE_OPERATE;
 
-extern STR_NP_NODE_OPERATE NP_node_write[STACK_LEN];
+extern STR_NPM_NODE_OPERATE NPM_node_write[STACK_LEN];
+
+#define MAX_NPB_NODE_WRITE 50
+typedef struct
+{
+	U8_T panel;
+	U8_T sub_id;
+	U8_T object_type;
+	U16_T num;
+	S32_T value;
+	U8_T time_to_live;
+	U8_T flag;
+}STR_NPB_NODE_OPERATE; // network backent points
+extern STR_NPB_NODE_OPERATE  NPB_node_write[MAX_NPB_NODE_WRITE];
+
 // ��չIOӳ��
 typedef struct
 {

@@ -20,9 +20,10 @@
 #include "controls.h"
 #include "lcd.h"
 #include "sntp_app.h"
+#include "co2.h"
 
 
-
+extern xSemaphoreHandle xSem_comport[3];
 
 #define EEPROM_VERSION	  105
 
@@ -75,7 +76,11 @@ extern uint8_t count_gIdentify;
 extern uint16_t input_cal[24];
 extern U8_T lcddisplay[7];
 
+extern uint16_t count_lcd_time_off_delay;
+
+void set_default_parameters(void);
 void set_output_raw(U8_T point,U16_T value);
+void Set_AO_raw(uint8 i,float value);
 void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS);
 void dealwith_write_setting(Str_Setting_Info * ptr);
 uint16_t read_user_data_by_block(uint16_t addr);
@@ -84,6 +89,46 @@ uint8_t flag_change_uart0 = 0;
 uint8_t flag_change_uart2 = 0;
 uint8_t count_change_uart0 = 0;
 uint8_t count_change_uart2 = 0;
+
+
+uint8_t count_modbus_slave[3];
+uint8_t com_config_back[3];
+void check_modbus_slave(void)
+{
+	if(Modbus.fix_com_config == 1)
+		return;
+	if(Modbus.com_config[0] == MODBUS_SLAVE)
+	{
+		if(count_modbus_slave[0]++ >= 10)
+		{
+// change it back to old config
+			if(com_config_back[0] == NOUSE)
+				Modbus.com_config[0] = com_config_back[0];
+			else
+				Modbus.com_config[0] = MODBUS_MASTER;
+			count_modbus_slave[0] = 0;
+			Count_com_config();
+		}
+	}
+	else
+		count_modbus_slave[0] = 0;
+
+	if(Modbus.com_config[2] == MODBUS_SLAVE)
+	{
+		if(count_modbus_slave[2]++ >= 10)
+		{
+			if(com_config_back[2] == NOUSE)
+				Modbus.com_config[2] = com_config_back[2];
+			else
+				Modbus.com_config[2] = MODBUS_MASTER;
+			Count_com_config();
+			count_modbus_slave[2] = 0;
+		}
+	}
+	else
+		count_modbus_slave[2] = 0;
+}
+
 void Check_change_uart(void)
 {
 	if(flag_change_uart0 == 1)
@@ -375,7 +420,7 @@ void uart_init(uint8_t uart)
 		baud = 115200;
 		break;
 	}
-	if((Modbus.mini_type == PROJECT_AIRLAB) && (uart == 2))
+	if((Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR) && (uart == 2))
 	{
 		baud = 115200;
 	}
@@ -406,7 +451,7 @@ void uart_init(uint8_t uart)
 			uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
 			uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
 		}
-		else if(Modbus.mini_type == PROJECT_AIRLAB)  // PM2.5
+		else if(Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR )  // PM2.5
 		{
 			uart_param_config(uart_num_main, &uart_config);
 			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, 0, UART_PIN_NO_CHANGE);
@@ -468,6 +513,23 @@ extern uint8 led_sub_tx;
 extern uint8 led_sub_rx;
 extern uint8 led_main_tx;
 extern uint8 led_main_rx;
+void check_whether_modbus_slave(uint8_t * uart_rsv, uint16_t len, uint8_t port)
+{
+	U16_T crc_val;
+	if(((len == 6) && (uart_rsv[0] == 0xff) && (uart_rsv[1] == 0x19)) \
+	|| ((len == 8) && (uart_rsv[1] == 0x03) && (uart_rsv[7] != 0))) // receive data
+	{
+		crc_val = crc16(uart_rsv, len - 2);
+		if(crc_val == (uart_rsv[len - 2] << 8) + uart_rsv[len - 1])
+		{
+			Modbus.com_config[port] = MODBUS_SLAVE;
+			count_modbus_slave[port] = 1;
+			Count_com_config();
+		}
+	}
+
+}
+
 void uart0_rx_task(void)
 {
 //	uint8_t modbus_send_buf[500];
@@ -505,13 +567,15 @@ void uart0_rx_task(void)
 				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_RATE_MS);
 
 				if(len > 0)
-				{led_sub_rx++;
+				{
+					led_sub_rx++;
 					com_rx[0] += len;
 					flagLED_sub_rx = 1;
 					//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 
 					if(checkdata(uart_rsv,len))
 					{
+						count_modbus_slave[0] = 1;
 						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
 						{
 							if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
@@ -527,6 +591,10 @@ void uart0_rx_task(void)
 								responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
 							}
 						}
+					}
+					else
+					{
+						check_whether_modbus_slave(uart_rsv,len,0);
 					}
 				}
 
@@ -544,6 +612,9 @@ void uart0_rx_task(void)
 						flagLED_sub_rx = 1;
 						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 						Timer_Silence_Reset();
+						//check_mstp_packet(uart_rsv, len , 0);
+						//Test[32]++;
+						//Test[33] = len;
 
 					}
 				}
@@ -552,21 +623,19 @@ void uart0_rx_task(void)
 			}
 			else
 			{
-				if((Modbus.com_config[0] == 0) /*|| ((Modbus.com_config[0] == MODBUS_MASTER) && (com_rx[0] == 0))*/)
+				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
 				{
 					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_RATE_MS);
 
 					if(len>0)
-					{
+					{Test[24]++;
 						led_sub_rx++;
 						com_rx[0] += len;
 						flagLED_sub_rx = 1;
 						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
-						if(checkdata(uart_rsv,len))
-						{
-							Modbus.com_config[0] = MODBUS_SLAVE;
-						}
+						check_whether_modbus_slave(uart_rsv,len,0);
 					}
+
 				}
 				else
 					vTaskDelay(50 / portTICK_RATE_MS);
@@ -600,6 +669,7 @@ void uart2_rx_task(void)
 
 				if(checkdata(uart_rsv,len))
 				{
+					count_modbus_slave[2] = 1;
 					if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
 					{
 						if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
@@ -614,10 +684,14 @@ void uart2_rx_task(void)
 						}
 					}
 				}
+				else
+				{
+					check_whether_modbus_slave(uart_rsv,len,2);
+				}
 			}
 
 		}
-		else if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
+		else if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE )
 		{
 			if(system_timer / 1000 > 10)
 			{
@@ -629,6 +703,7 @@ void uart2_rx_task(void)
 					com_rx[2] += len;
 					flagLED_main_rx = 1;
 					Timer_Silence_Reset();
+					//check_mstp_packet(uart_rsv, len , 2);
 				}
 			}
 			else
@@ -636,20 +711,16 @@ void uart2_rx_task(void)
 		}
 		else
 		{
-			if((Modbus.com_config[2] == 0)/* || ((Modbus.com_config[2] == MODBUS_MASTER) && (com_rx[2] == 0))*/)
+			if((Modbus.com_config[2] == 0)/* || (Modbus.com_config[2] == MODBUS_MASTER) */)
 			{
-				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_RATE_MS);
 
+				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_RATE_MS);
 				if(len>0)
 				{
 					led_main_rx++;
 					com_rx[2] += len;
 					flagLED_main_rx = 1;
-					if(checkdata(uart_rsv,len))
-					{
-						Modbus.com_config[2] = MODBUS_SLAVE;
-
-					}
+					check_whether_modbus_slave(uart_rsv,len,2);
 				}
 			}
 			else
@@ -657,6 +728,8 @@ void uart2_rx_task(void)
 		}
 	}
 }
+
+
 
 void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
@@ -776,11 +849,14 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
           if((address >= MODBUS_AIRLAB_REG_START) &&
                  		 (address <= MODBUS_AIRLAB_REG_START + 2000))
 		  {
-			if(Modbus.mini_type == PROJECT_AIRLAB)
+			if(Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
 			{
 				// run specail register
-				 U16_T temp;
-				 temp = read_airlab_by_block(address);
+				 U16_T temp = 0;
+				 if(Modbus.mini_type == PROJECT_AIRLAB)
+					 temp = read_airlab_by_block(address);
+				 if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+				 	temp = read_lightswitch_by_block(address);
 				 temp1 = (temp>>8) & 0xff;
 				 temp2 = temp & 0xff;
 			}
@@ -790,6 +866,12 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 				temp2 = 0;
 			}
 		  }
+          else if((address >= MODBUS_CO2_REG_START) && (address < MODBUS_CO2_REG_END))
+          {
+        	  temp = read_co2_by_block(address);
+        	  temp1 = (temp>>8) & 0xff;
+        	  temp2 = temp & 0xff;
+          }
           else
          if(address == SERIALNUMBER_LOWORD )
          {
@@ -947,10 +1029,25 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = READ_POINT_TIMER >> 8;
 			temp2 = READ_POINT_TIMER;
 		}
+		else if(address == Modbus_Fix_Com_Config)
+		{
+			temp1 = 0;
+			temp2 = Modbus.fix_com_config;
+		}
+		else if(address == MODBUS_WRITE_FLASH)
+		{
+			temp1 = Modbus.write_flash >> 8;
+			temp2 = Modbus.write_flash;
+		}
 		else if(address == IP_MODE)
 		{
 			temp1 = 0;
 			temp2 = Modbus.tcp_type;
+		}
+		else if(address == MODBUS_LCD_TIME_OFF_DELAY)
+		{
+			temp1 = 0;
+			temp2 = Modbus.LCD_time_off_delay;
 		}
 		else if(address == MODBUS_DEAD_MASTER_FOR_PLC)
 		{
@@ -1023,13 +1120,13 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		}
         else if(address == MODBUS_RUN_TIME_LO)
 		{
-        	 temp1 = (run_time / 1000) >> 8;
-        	 temp2 = (run_time / 1000);
+        	 temp1 = (run_time) >> 8;
+        	 temp2 = (run_time);
 		}
 		else if(address == MODBUS_RUN_TIME_HI)
 		{
-			temp1 = (run_time / 1000) >> 24;
-			temp2 = (run_time / 1000) >> 16;
+			temp1 = (run_time) >> 24;
+			temp2 = (run_time) >> 16;
 		}
 		else if(address == MODBUS_MAX_VARS)
 		{
@@ -1677,7 +1774,7 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
       SSID_Info.MANUEL_EN = pData[HeadLen + 5];
       save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
       //re_init_wifi = true;
-      esp_restart();
+      esp_retboot();
    }
    else if(StartAdd == MODBUS_WIFI_RESTORE)
    {
@@ -1690,7 +1787,7 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
 //      write_eeprom(WIFI_IP_AM,pData[HeadLen + 5]);
       save_wifi_info();
       		//re_init_wifi = true;
-      //esp_restart();
+      //esp_retboot();
 
    }
    else if(StartAdd == MODBUS_WIFI_BACNET_PORT)
@@ -1781,6 +1878,9 @@ uint16_t read_tstat10_data_by_block(uint16_t addr)
    uint16_t *block;
    uint8_t *block1;
    uint8_t temp;
+   Str_points_ptr ptr;
+
+
    if(addr == MODBUS_ICON_CONFIG)
    {
       return Modbus.icon_config;
@@ -1791,31 +1891,38 @@ uint16_t read_tstat10_data_by_block(uint16_t addr)
    }
    else if(addr == MODBUS_TEMPERATURE)
    {
-      return 0;//SSID_Info.IP_Wifi_Status;
+	  ptr = put_io_buf(IN,8);
+      return ptr.pin->value / 100;//SSID_Info.IP_Wifi_Status;
    }
    else if(addr == MODBUS_TVOC)
    {
-      return 0;//SSID_Info.modbus_port;
+	   ptr = put_io_buf(IN,9);
+	   return ptr.pin->value / 1000;
    }
    else if(addr == MODBUS_HUMIDY)
    {
-      return 0;//SSID_Info.bacnet_port;
+	   ptr = put_io_buf(IN,10);
+	   return ptr.pin->value / 100;
    }
    else if(addr == MODBUS_OCCUPID)
    {
-      return 0;//SSID_Info.rev;
+	   ptr = put_io_buf(IN,11);
+	   return ptr.pin->control;
    }
    else if(addr == MODBUS_CO2)
    {
-      return 0;
+	   ptr = put_io_buf(IN,12);
+	   return ptr.pin->value / 1000;
    }
    else if(addr == MODBUS_LIGHT)
 	{
-	 return 0;
+	   ptr = put_io_buf(IN,13);
+	   return ptr.pin->value / 1000;
 	}
    else if(addr == MODBUS_VOICE)
 	{
-	  return 0;
+	   ptr = put_io_buf(IN,14);
+	   return ptr.pin->value / 1000;
 	}
    else
       return 0;
@@ -1879,6 +1986,10 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
       {
     	write_airlab_by_block(temp_i,0,bufadd,0);
       }
+      if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+	   {
+		write_lightswitch_by_block(temp_i,0,bufadd,0);
+	   }
       if(temp_i >= MODBUS_WIFI_START && temp_i <= MODBUS_WIFI_END)
       {
          write_wifi_data_by_block(temp_i,0,bufadd,0);
@@ -1902,6 +2013,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
          save_uint8_to_flash(FLASH_SERIAL_NUM2,Modbus.serialNum[1]);
          save_uint8_to_flash(FLASH_SERIAL_NUM3,Modbus.serialNum[2]);
          save_uint8_to_flash(FLASH_SERIAL_NUM4,Modbus.serialNum[3]);
+         if(Instance == 1028) // default instance
+         {
+        	Instance =  Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8) + ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24);
+			save_uint8_to_flash(FLASH_INSTANCE1,Modbus.serialNum[0]);
+			save_uint8_to_flash(FLASH_INSTANCE2,Modbus.serialNum[1]);
+			save_uint8_to_flash(FLASH_INSTANCE3,Modbus.serialNum[2]);
+			save_uint8_to_flash(FLASH_INSTANCE4,Modbus.serialNum[3]);
+
+         }
        }
       else if((temp_i >= MODBUS_IO_REG_START && temp_i <= MODBUS_IO_REG_END) ||
     		  (temp_i >= MODBUS_EXIO_REG_START && temp_i <= MODBUS_EXIO_REG_END))
@@ -1914,6 +2034,14 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 	   if(Modbus.mini_type == PROJECT_AIRLAB)
 		{
 		   write_airlab_by_block(address,0,bufadd,0);
+		}
+	   if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+		{
+		   write_lightswitch_by_block(address,0,bufadd,0);
+		}
+	   if(Modbus.mini_type == PROJECT_CO2)
+		{
+		   write_co2_by_block(address,0,bufadd,0);
 		}
 
 	   if (address >= SERIALNUMBER_LOWORD && address <= SERIALNUMBER_LOWORD + 3 )
@@ -2067,6 +2195,25 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		  READ_POINT_TIMER_FROM_EEP = READ_POINT_TIMER;
 		  save_uint16_to_flash( FLASH_READ_POINT_TIMER,READ_POINT_TIMER);
 	   }
+      else if(address == Modbus_Fix_Com_Config)
+	  {
+		  Modbus.fix_com_config = *(bufadd + 5);
+		  save_uint8_to_flash( FLASH_FIX_COM_CONFIG,  Modbus.fix_com_config);
+	  }
+      else if(address == MODBUS_WRITE_FLASH)
+	  {
+    	  if(*(bufadd + 5) == 0 || *(bufadd + 5) >= 5)
+    	  {
+			  Modbus.write_flash = *(bufadd + 5) + (*(bufadd + 4)) * 256;
+			  save_uint16_to_flash( FLASH_WRITE_FLASH,  Modbus.write_flash);
+    	  }
+	  }
+      else if(address == MODBUS_LCD_TIME_OFF_DELAY)
+      {
+    	  Modbus.LCD_time_off_delay = *(bufadd + 5);
+    	  save_uint8_to_flash( FLASH_LCD_TIME_OFF_DELAY,  Modbus.LCD_time_off_delay);
+    	  count_lcd_time_off_delay = 0;
+      }
       else if(address == IP_MODE)
       {
     	  Modbus.tcp_type = *(bufadd + 5);
@@ -2083,10 +2230,16 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			  count_change_uart0 = 0;
 			  Count_com_config();
 			  if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
-				{
+			  {
 					//Send_Whois_Flag = 1;
 					Recievebuf_Initialize(0);
-				}
+
+//					count_mstp_err[0] = 0;
+//					count_show_mstp_err = 0;
+//					flag_mstp_err[0] = 1;
+					//Set_TXEN(0);// set mstp prot to RECEIVE
+			  }
+			  com_config_back[0] = Modbus.com_config[0];
 		   }
 		}
 		else if(address == MODBUS_COM2_TYPE)
@@ -2102,7 +2255,12 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			  if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
 			  {
 					Recievebuf_Initialize(2);
+
+//					count_mstp_err[2] = 0;
+//					flag_mstp_err[2] = 1;
+					//Set_TXEN(0);// set mstp prot to RECEIVE
 			  }
+			  com_config_back[2] = Modbus.com_config[2];
 		   }
 		}
 		else if(address == MODBUS_TEST_CMD)
@@ -2114,6 +2272,22 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				gIdentify = 1;
 				count_gIdentify = 0;
 			}
+			if(*(bufadd + 5) == 88) // reset to defautl
+			{
+				set_default_parameters();Test[21]++;
+			}
+			if(*(bufadd + 5) == 111)	 // reboot
+			{
+				if(system_timer / 1000 > 10)
+					esp_restart();//flag_reboot = 1;//SoftReset();
+			}
+			if(*(bufadd + 5)== 150)	 // clear db
+			{
+				clear_scan_db();
+			}
+
+
+
 		}
 		else if(address == MODBUS_MINI_TYPE)
 		{
@@ -2764,6 +2938,7 @@ void Write_IO_reg(uint16_t StartAdd,uint8_t * pData)
 				}
 
 				ptr.pout->value = Analog_Output_Present_Value(i) * 1000;
+				Set_AO_raw(i,(float)ptr.pout->value);
 
 			}
 		}
@@ -3254,7 +3429,7 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 
 	}
 }
-void set_default_parameters(void);
+
 
 
 void dealwith_write_setting(Str_Setting_Info * ptr)
@@ -3359,41 +3534,27 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		{
 
 			Modbus.com_config[0] = ptr->reg.com_config[0];
-			//if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
-			//	Recievebuf_Initialize(0);
-
+			if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
+			{
+				Send_Whois_Flag = 1;
+				Recievebuf_Initialize(0);
+				Send_I_Am_Flag = 1;
+			}
+			com_config_back[0] = Modbus.com_config[0];
 			Count_com_config();
 			save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
 		}
-		/*if(Modbus.com_config[1] != ptr->reg.com_config[1])
-		{
-			Modbus.com_config[1] = ptr->reg.com_config[1];
-			if((Modbus.com_config[1] == MODBUS_SLAVE) || (Modbus.com_config[1] == 0))
-				;//uart_serial_restart(1);
-			if(Modbus.com_config[1] == MODBUS_MASTER)
-			{
-				Count_com_config();
-				count_send_id_to_zigbee = 0;
 
-			}
-			Count_com_config();
-
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-#if (ARM_MINI || ASIX_MINI)
-			if((Modbus.mini_type == MINI_BIG_ARM) || (Modbus.mini_type == MINI_SMALL_ARM))
-			{
-				if(Modbus.com_config[1] == MODBUS_MASTER)
-					UART1_SW = 1;
-				else
-					UART1_SW = 0;
-			}
-#endif
-#endif
-			//E2prom_Write_Byte(EEP_COM1_CONFIG, Modbus.com_config[1]);
-		}*/
 		if(Modbus.com_config[2] != ptr->reg.com_config[2])
 		{
 			Modbus.com_config[2] = ptr->reg.com_config[2];
+			if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
+			{
+				Send_Whois_Flag = 1;
+				Recievebuf_Initialize(2);
+				Send_I_Am_Flag = 1;
+			}
+			com_config_back[2] = Modbus.com_config[2];
             Count_com_config();
            	save_uint8_to_flash( FLASH_UART2_CONFIG, Modbus.com_config[2]);
 		}
@@ -3552,6 +3713,12 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			count_gIdentify = 0;
 		}
 
+		if(Modbus.LCD_time_off_delay != ptr->reg.LCD_time_off_delay)
+		{
+			Modbus.LCD_time_off_delay = ptr->reg.LCD_time_off_delay;
+			save_uint8_to_flash( FLASH_LCD_TIME_OFF_DELAY,Modbus.LCD_time_off_delay);
+			count_lcd_time_off_delay = 0;
+		}
 
 		if(ptr->reg.reset_default == 111)	 // reboot
 		{
@@ -3648,6 +3815,19 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			Modbus.end_day = ptr->reg.end_day;
 			//E2prom_Write_Byte(EEP_DLS_END_DAY, ptr->reg.end_day);
 			Calculate_DSL_Time();
+		}
+		if(Modbus.write_flash != ptr->reg.write_flash)
+		{
+			if(ptr->reg.write_flash == 0 || ptr->reg.write_flash >= 5)
+			{
+			Modbus.write_flash = ptr->reg.write_flash;
+			save_uint16_to_flash( FLASH_WRITE_FLASH, Modbus.write_flash);
+			}
+		}
+		if(Modbus.fix_com_config != ptr->reg.fix_com_config)
+		{
+			Modbus.fix_com_config = ptr->reg.fix_com_config;
+			save_uint8_to_flash( FLASH_FIX_COM_CONFIG, Modbus.fix_com_config);
 		}
 #if NEW_IO
 			if(max_vars != ptr->reg.max_var)

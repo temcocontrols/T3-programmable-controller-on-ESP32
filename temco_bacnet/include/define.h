@@ -75,6 +75,7 @@ typedef struct
 
 	U8_T icon_config;
 	U8_T mstp_master;
+	U16_T write_flash;
 
 }STR_MODBUS;
 

@@ -38,6 +38,9 @@ extern uint8_t count_lcd_time_off_delay;
 extern uint8_t count_hold_on_bip_to_mstp;
 extern uint32_t net_health[4];
 void Set_broadcast_bip_address(uint32_t net_address);
+void save_TemcoAV_AIRALB(uint16_t index, uint16_t value);
+uint16_t get_TemcoAVS_airlab(uint8_t index);
+
 
 char get_current_mstp_port(void)
 {
@@ -300,11 +303,9 @@ char* get_description(uint8_t type,uint8_t num)
 		}
 		else
 		{
-			if(num == 0) return "panel number";
-			if(num == 1) return "rx of main rs485";
-			if(num == 2) return "rx of sub rs485";
-			if(num == 3) return "rx of ethernet";
-			if(num == 4) return "rx of wifi";
+			if(num == 0) return "device id";  // id
+			if(num == 1) return "baudrate";
+			if(num == 2) return "protocal";
 			else return "reserved";
 		}
 
@@ -408,11 +409,9 @@ char* get_label(uint8_t type,uint8_t num)
 		}
 		else
 		{
-			if(num == 0) return "panel number";
-			else if(num == 1) return "rx of main rs485";
-			else if(num == 2) return "rx of sub rs485";
-			else if(num == 3) return "rx of ethernet";
-			else if(num == 4) return "rx of wifi";
+			if(num == 0) return "device id";  // id
+			if(num == 1) return "baudrate";
+			if(num == 2) return "protocal";
 			else return "reserved";
 		}
 
@@ -830,20 +829,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 			}
 			else
 			{
-				switch(i)
-				{
-					case 0: value = panel_number; 	break;	
-					case 1: value = net_health[0]; 	// main rs485
-						break;
-					case 2: value = net_health[1];	// sub rs485
-						break;
-					case 3: value = net_health[2];	// network 
-						break;
-					case 4: value = net_health[3];	// wifi
-						break;
-					default:
-					break;
-				}
+				value = get_TemcoAVS_airlab(i);
 			}			
 			return value;
 		}
@@ -1535,6 +1521,11 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 					//ChangeFlash = 1;
 					save_point_info(0);
 				}
+			}
+			else
+			{
+				save_TemcoAV_AIRALB(i,  value);
+				
 			}
 			break;
 
@@ -2453,17 +2444,38 @@ bool Binary_Value_Polarity_Set(
 
 
 
-int32_t backup_AI_value[MAX_INS];
+int32_t backup_IN_value[MAX_INS];
 bool Analog_Input_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
-	Str_points_ptr ptr;
+	unsigned int err = 0;
 	object_index = AI_Instance_To_Index[object_instance];
 
-	ptr = put_io_buf(IN,object_index);
-	if(ptr.pin->value != backup_AI_value[object_index])
+	// 检查当前值与备份值的差值是否合理
+	// 如果range是温湿度或者电压电流，0.5的改变需要报告change
+	if(inputs[object_index].range <= 49 || inputs[object_index].range == 57 ) // temprature or humdity
+		err = 500; // 0.5
+	else if(inputs[object_index].range == 58) // co2
+		err = 10000;
+	else
+		err = 5000;
+	
+    if (abs(inputs[object_index].value - backup_IN_value[object_index]) > err) {
+        // 更新备份值
+        backup_IN_value[object_index] = inputs[object_index].value;
+        return true; // 值变化超过 10
+    } else {
+        return false; // 值变化未超过 10
+    }
+}
+bool Binary_Input_Change_Of_Value(uint32_t object_instance)
+{
+	unsigned object_index;
+	object_index = BI_Instance_To_Index[object_instance];
+			
+	if(inputs[object_index].control != backup_IN_value[object_index])
 	{
-		backup_AI_value[object_index] = ptr.pin->value;
+		backup_IN_value[object_index] = inputs[object_index].control;
 		return true;
 	}
 	else
@@ -2472,18 +2484,16 @@ bool Analog_Input_Change_Of_Value(unsigned int object_instance)
 	}
 }
 
-int32_t backup_AV_value[MAX_INS];
+int32_t backup_VAR_value[MAX_VARS];
 bool Analog_Value_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
-	Str_points_ptr ptr;
 	bool status = false;
 	object_index = AV_Instance_To_Index[object_instance];
 
-	ptr = put_io_buf(VAR,object_index);
-	if(ptr.pvar->value != backup_AV_value[object_index])
+	if(vars[object_index].value != backup_VAR_value[object_index])
 	{	
-		backup_AV_value[object_index] = ptr.pvar->value;
+		backup_VAR_value[object_index] = vars[object_index].value;
 		status = true;
 	}
 	else
@@ -2492,6 +2502,58 @@ bool Analog_Value_Change_Of_Value(unsigned int object_instance)
 	}
 	
 	return status;
+}
+
+bool Binary_Value_Change_Of_Value(unsigned int object_instance)
+{
+	unsigned object_index;
+	bool status = false;
+	object_index = BV_Instance_To_Index[object_instance];
+
+	if(vars[object_index].control != backup_VAR_value[object_index])
+	{	
+		backup_VAR_value[object_index] = vars[object_index].control;
+		status = true;
+	}
+	else
+	{	
+		status = false;
+	}
+	
+	return status;
+}
+
+
+int32_t backup_OUT_value[MAX_OUTS];
+bool Analog_Output_Change_Of_Value(unsigned int object_instance)
+{
+	unsigned object_index;
+	object_index = AO_Instance_To_Index[object_instance];
+			
+	if(outputs[object_index].value != backup_OUT_value[object_index])
+	{
+		backup_OUT_value[object_index] = outputs[object_index].value;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+bool Binary_Output_Change_Of_Value(unsigned int object_instance)
+{
+	unsigned object_index;
+	object_index = BO_Instance_To_Index[object_instance];
+			
+	if(outputs[object_index].control != backup_OUT_value[object_index])
+	{
+		backup_OUT_value[object_index] = outputs[object_index].control;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 

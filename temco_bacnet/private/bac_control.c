@@ -398,7 +398,7 @@ void Set_AO_raw(uint8 i,float value)
 		case P0_100_Open:
 		case P0_100_Close:
 		case P0_100:
-		case P0_100_PWM:
+		case P0_100_PWM: 
 			set_output_raw(i,value / 100);
 			break;
 		case P0_20psi:
@@ -461,6 +461,7 @@ void check_output_priority_HOA(U8_T i)
 					set_output_raw(i,1000);
 				else 
 					set_output_raw(i,0);	
+				
 			}
 			else
 			{
@@ -514,7 +515,7 @@ void check_output_priority_HOA(U8_T i)
 				if(ptr.pout->control) 
 					set_output_raw(i,1000);
 				else 
-					set_output_raw(i,0);	
+					set_output_raw(i,0);					
 			
 			}
 			else
@@ -552,7 +553,7 @@ void check_output_priority_HOA(U8_T i)
 		else if(ptr.pout->switch_status == SW_AUTO)// auto
 		{
 			output_priority[i][6] = 0xff;	
-			check_output_priority_array(i,1);
+			check_output_priority_array(i,1);			
 		}
 		else
 		{
@@ -601,6 +602,7 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 				}
 				
 				// when OUT13-OUT24 are used for DO
+				
 				if(ptr.pout->control) 
 				{
 					set_output_raw(i,1000);
@@ -609,6 +611,7 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 				{
 					set_output_raw(i,0);	
 				}
+				
 			}
 			else
 			{
@@ -658,9 +661,14 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 				}
 				
 				if(ptr.pout->control) 
+				{
 					set_output_raw(i,1000);
+				}
 				else 
+				{	
 					set_output_raw(i,0);	
+				}
+				
 			}		
 			else
 			{  // analog
@@ -717,9 +725,13 @@ void check_output_priority_array_without_AM(U8_T i)
 			}
 				
 			if(ptr.pout->control) 
+			{
 				set_output_raw(i,1000);
+			}
 			else 
-				set_output_raw(i,0);	
+			{
+				set_output_raw(i,0);
+			}
 		}		
 		else
 		{  // analog

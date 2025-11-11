@@ -71,6 +71,8 @@ extern uint16_t current_page;
 extern U8_T Send_bip_address[6];
 U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
 void udp_client_send(uint16 time);
+void clear_pulse_counter(uint8_t i);
+void CO2_check_calibration(uint8_t i);
 /** @file ptransfer.c  Encode/Decode Private Transfer data */
 /* 
 	handler roution for private transfer
@@ -80,6 +82,7 @@ uint8_t invokeid_mstp = 0;
 void check_SD_PnP(void);
 void clear_currnet_page(void);
 void Save_Email_Setting(void);
+void Save_MSV(void);
 
 #if ARM_TSTAT_WIFI 
 U16_T Test[50];
@@ -982,7 +985,21 @@ int GetRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,ui
 				invokeid_mstp = GetPrivateBacnetToModbusData(deviceid,reg,len,databuf,BAC_MSTP);
 			}
 			else  // standard object type
-				invokeid_mstp = Send_Read_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,0,protocal);
+			{
+				if(object_type == BAC_AV + 1)								object_type	= OBJECT_ANALOG_VALUE;
+				else if(object_type == BAC_AI + 1)							object_type = OBJECT_ANALOG_INPUT;
+				else if(object_type == BAC_AO + 1)							object_type = OBJECT_ANALOG_OUTPUT;
+				else if(object_type == BAC_BO + 1)							object_type = OBJECT_BINARY_OUTPUT;
+				else if(object_type == BAC_BV + 1)							object_type = OBJECT_BINARY_VALUE;
+				else if(object_type == BAC_BI + 1)							object_type = OBJECT_BINARY_INPUT;
+				else if(object_type == BAC_MSV + 1)							object_type = OBJECT_MULTI_STATE_VALUE;
+				else
+					object_type = 0xff;  // invalid
+				if(object_type < 0xff)
+				{
+					invokeid_mstp = Send_Read_Property_Request(deviceid,object_type,object_instance,PROP_PRESENT_VALUE,0,protocal);
+				}
+			}
 			return invokeid_mstp;
 		}
 
@@ -1597,6 +1614,7 @@ void handler_private_transfer(
 
 				case WRITE_MSV_COMMAND:			
 					//write_page_en[25] = 1;
+					Test[11]++;
 					ptr = (uint8_t *)&msv_data[private_header.point_start_instance];
 					break;	
 
@@ -1683,29 +1701,19 @@ void handler_private_transfer(
 						if(private_header.point_start_instance == private_header.point_end_instance)							
 						{
 							sptr = put_io_buf(IN,i);
-							push_expansion_in_stack(sptr.pin);
+							CO2_check_calibration(i);
+							push_expansion_in_stack(sptr.pin);							
 						}	
-#if 0//ARM
+
 						for(i = private_header.point_start_instance;i <= private_header.point_end_instance;i++)
-						{					
-							if(inputs[i].auto_manual == 1)  // manual
+						{		
+							sptr = put_io_buf(IN,i);
+							if(sptr.pin->auto_manual == 1)  // manual
 							{
-								if((inputs[i].range == HI_spd_count) || (inputs[i].range == N0_2_32counts)
-									|| (inputs[i].range == RPM)	)
-								{							
-									if(swap_double(inputs[i].value) == 0) 
-									{
-										high_spd_counter[i] = 0; // clear high spd count	
-#if ARM_TSTAT_WIFI
-										high_spd_counter_tempbuf[i] = 0;
-#endif
-										Input_RPM[i] = 0;
-										clear_high_spd[i] = 1;
-									}											
-								}
+								clear_pulse_counter(i);
+
 							}							
-						}	
-#endif
+						}
 
 						Count_IN_Object_Number();
 					}
@@ -1885,6 +1893,10 @@ void handler_private_transfer(
 					else if(command == WRITE_EMAIL_ALARM)
 					{
 					    Save_Email_Setting(); 	
+					}
+					else if(command == WRITE_MSV_COMMAND)
+					{
+						Save_MSV();
 					}
 
 				}

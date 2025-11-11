@@ -28,7 +28,13 @@ idf_component_register(SRCS
 				"src/bvlc.c"
 				"src/calendar.c"
 				"src/abort.c"
+				
 				"src/cov.c"
+				"src/s_cov.c"
+				"src/h_cov.c"
+				"src/h_ucov.c"
+				"src/h_ccov.c"
+				
 				"src/crc.c"
 				"src/datalink.c"
 				"src/datetime.c"

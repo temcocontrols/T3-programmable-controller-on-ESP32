@@ -228,6 +228,9 @@ typedef	union
 	U8_T max_in;
 	U8_T max_out;
 	
+	U8_T fix_com_config;
+	U8_T write_flash;
+	
 	}reg;
 }Str_Setting_Info;
 

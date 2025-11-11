@@ -23,6 +23,10 @@
 #define LITTLE_ENDIAN
 
 
+// for Sensor
+extern uint8_t flag_pm25;
+
+
 // for PM2.5
 extern uint8 AQI_area;
 extern uint8 AQI_level;
@@ -58,9 +62,22 @@ extern uint16_t co2_asc;
 extern uint16_t co2_frc;
 
 
-void Airlab_adc_init(void);
+void Airlab_init(void);
+
+extern uint8_t input_state;
+esp_err_t i2c_master_init1();
+esp_err_t pca9536_write_register(uint8_t reg_addr, uint8_t data);
+esp_err_t pca9536_read_register(uint8_t reg_addr, uint8_t *data);
+esp_err_t pca9536_init();
+esp_err_t pca9536_read_inputs(uint8_t *input_state);
+
+void display_pm25w(uint16 value);
+void display_pm25n(uint16 value);
+
 uint16_t read_airlab_by_block(uint16_t addr);
 void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t type);
+void vStartKeyTasks( unsigned char uxPriority);
+//void vStartADCTasks( unsigned char uxPriority);
 
 #define AIR_DEFAULT_VREF    1100//3300        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define AIR_NO_OF_SAMPLES   64          //Multisampling

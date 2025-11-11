@@ -22,7 +22,7 @@ extern xSemaphoreHandle CountHandle;
 #define WIFI_FAIL_BIT      BIT1
 #define EXAMPLE_ESP_MAXIMUM_RETRY	10
 
-
+void disable_wifi();
 /* FreeRTOS event group to signal when we are connected*/
 EventGroupHandle_t s_wifi_event_group;
 extern EventGroupHandle_t network_EventHandle;
@@ -212,12 +212,25 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         SSID_Info.getway[2] = ip4_addr3(&ip_info->gw);
         SSID_Info.getway[3] = ip4_addr4(&ip_info->gw);
         SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
+        if(Modbus.ethernet_status != 4)
+        multicast_addr = Get_multicast_addr(&SSID_Info.ip_addr);
         save_wifi_info();
         s_retry_num = 0;
 #if 1//DNS
-		tcpip_adapter_dns_info_t dns_info = {0};
-		IP_ADDR4(&dns_info.ip, SSID_Info.getway[0],SSID_Info.getway[1],SSID_Info.getway[2],SSID_Info.getway[3]);
-		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, 2/*TCPIP_ADAPTER_DNS_FALLBACK*/, &dns_info));
+        if((SSID_Info.getway[0] == 0) && (SSID_Info.getway[1] == 0) && (SSID_Info.getway[2] == 0) && (SSID_Info.getway[3] == 0))
+        {
+        	// error
+        }
+        else
+        {
+			tcpip_adapter_dns_info_t dns_info = {0};
+			IP_ADDR4(&dns_info.ip, SSID_Info.getway[0],SSID_Info.getway[1],SSID_Info.getway[2],SSID_Info.getway[3]);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, ESP_NETIF_DNS_MAIN, &dns_info));
+			IP_ADDR4(&dns_info.ip, 8,8,8,8);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, ESP_NETIF_DNS_BACKUP, &dns_info));
+			IP_ADDR4(&dns_info.ip, 8,8,4,4);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, ESP_NETIF_DNS_FALLBACK, &dns_info));
+        }
 #endif
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 
@@ -248,116 +261,134 @@ void wifi_init_sta()
     CountHandle = xSemaphoreCreateCounting(7,7);
 	if(s_wifi_event_group == NULL)
 	{
-		//debug_info("Create event group failed!");
+		;//debug_info("Create event group failed!");
 	}
 	else
 		;//debug_info("Create event group success!");
+
+/*	if (Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == MINI_TSTAT10)
+	{
+	 tcpip_adapter_init();
+	 ESP_ERROR_CHECK(esp_event_loop_create_default());
+	}*/
 
 	ESP_ERROR_CHECK(esp_event_loop_init(event_handler_2,NULL));
 
 
 
-    //debug_info("esp_event_loop_create_default");
+    debug_info("esp_event_loop_create_default");
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     //debug_info("app esp_wifi_init");
     ESP_LOGI(TAG, "esp_wifi_init");
 
-    //--------------Add IP Set---------------
-    if(SSID_Info.IP_Auto_Manual == 1)
-    {
 
-   	esp_netif_t *netif = esp_netif_create_default_wifi_sta();
-    assert(netif);
-    //debug_info("app ip manual");
-	esp_netif_dhcpc_stop(netif);
-	esp_netif_ip_info_t info_t = {0};
-	info_t.ip.addr = ESP_IP4TOADDR(SSID_Info.ip_addr[0],SSID_Info.ip_addr[1],SSID_Info.ip_addr[2],SSID_Info.ip_addr[3]);
-	info_t.netmask.addr = ESP_IP4TOADDR(SSID_Info.net_mask[0],SSID_Info.net_mask[1],SSID_Info.net_mask[2],SSID_Info.net_mask[3]);
-	info_t.gw.addr = ESP_IP4TOADDR(SSID_Info.getway[0], SSID_Info.getway[1], SSID_Info.getway[2], SSID_Info.getway[3]);
-	esp_netif_set_ip_info(netif,&info_t);
-#if 1//DNS
-	if(info_t.gw.addr != 0)
-	{
-		tcpip_adapter_dns_info_t dns_info = {0};
-		IP_ADDR4(&dns_info.ip, SSID_Info.getway[0],SSID_Info.getway[1],SSID_Info.getway[2],SSID_Info.getway[3]);
-		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, 2/*TCPIP_ADAPTER_DNS_FALLBACK*/, &dns_info));
-	}
-#endif
+   if(SSID_Info.MANUEL_EN != 1) // disable
+   {
+		disable_wifi();
+   }
+   else
+   {
+		//--------------Add IP Set---------------
+		if(SSID_Info.IP_Auto_Manual == 1)
+		{
 
-    }
-    //--------------Add IP Set---------------
+		esp_netif_t *netif = esp_netif_create_default_wifi_sta();
+		assert(netif);
+		//debug_info("app ip manual");
+		esp_netif_dhcpc_stop(netif);
+		esp_netif_ip_info_t info_t = {0};
+		info_t.ip.addr = ESP_IP4TOADDR(SSID_Info.ip_addr[0],SSID_Info.ip_addr[1],SSID_Info.ip_addr[2],SSID_Info.ip_addr[3]);
+		info_t.netmask.addr = ESP_IP4TOADDR(SSID_Info.net_mask[0],SSID_Info.net_mask[1],SSID_Info.net_mask[2],SSID_Info.net_mask[3]);
+		info_t.gw.addr = ESP_IP4TOADDR(SSID_Info.getway[0], SSID_Info.getway[1], SSID_Info.getway[2], SSID_Info.getway[3]);
+		esp_netif_set_ip_info(netif,&info_t);
+	#if 1//DNS
+		if(info_t.gw.addr != 0)
+		{
+			tcpip_adapter_dns_info_t dns_info = {0};
+			IP_ADDR4(&dns_info.ip, SSID_Info.getway[0],SSID_Info.getway[1],SSID_Info.getway[2],SSID_Info.getway[3]);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, ESP_NETIF_DNS_MAIN, &dns_info));
+			IP_ADDR4(&dns_info.ip, 8,8,8,8);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, ESP_NETIF_DNS_BACKUP, &dns_info));
+			IP_ADDR4(&dns_info.ip, 8,8,4,4);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_STA, ESP_NETIF_DNS_FALLBACK, &dns_info));
+		}
+	#endif
 
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+		}
+		//--------------Add IP Set---------------
 
-    wifi_config_t wifi_config = {
-        .sta = {
-            .pmf_cfg = {
-                .capable = true,
-                .required = false
-            },
-        },
-    };
-    if(SSID_Info.name[0]!=0)
-    {
-    	memcpy(wifi_config.sta.ssid, SSID_Info.name, 32);
-    	memcpy(wifi_config.sta.password, SSID_Info.password, 32);
-    }
-    else
-    {
-    	init_ssid_info();
-    }
-    //debug_info("app SSID_Info");
-    SSID_Info.rev = 4;
-    if(SSID_Info.bacnet_port == 0)
-    	SSID_Info.bacnet_port = 47808;
-    if(SSID_Info.modbus_port == 0)
-    	SSID_Info.modbus_port = 502;
+		ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
+		ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
 
-    //debug_info("app WIFI_MODE_STA");
+		wifi_config_t wifi_config = {
+			.sta = {
+				.pmf_cfg = {
+					.capable = true,
+					.required = false
+				},
+			},
+		};
+		if(SSID_Info.name[0]!=0)
+		{
+			memcpy(wifi_config.sta.ssid, SSID_Info.name, 32);
+			memcpy(wifi_config.sta.password, SSID_Info.password, 32);
+		}
+		else
+		{
+			init_ssid_info();
+		}
+		//debug_info("app SSID_Info");
+		SSID_Info.rev = 4;
+		if(SSID_Info.bacnet_port == 0)
+			SSID_Info.bacnet_port = 47808;
+		if(SSID_Info.modbus_port == 0)
+			SSID_Info.modbus_port = 502;
 
-    debug_info("app WIFI_MODE_STA");
-    //ESP_ERROR_CHECK( esp_wifi_set_protocol(WIFI_IF_STA, protocol) );
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start() );
+		//debug_info("app WIFI_MODE_STA");
 
-    //ESP_LOGI(TAG, "wifi_init_sta finished.");
-    //debug_info("wifi_init_sta finished.");
-    /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+		debug_info("app WIFI_MODE_STA");
+		//ESP_ERROR_CHECK( esp_wifi_set_protocol(WIFI_IF_STA, protocol) );
+		ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+		ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+		ESP_ERROR_CHECK(esp_wifi_start() );
 
-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-            pdFALSE,
-            pdFALSE,
-            portMAX_DELAY);
+		//ESP_LOGI(TAG, "wifi_init_sta finished.");
+		//debug_info("wifi_init_sta finished.");
+		/* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
+		 * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
 
-    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-     * happened. */
-    if (bits & WIFI_CONNECTED_BIT) {
-        //ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-        //         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-    	debug_info("wifi connected\r");
-    	//SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
-    } else if (bits & WIFI_FAIL_BIT) {
-        //ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
-        //         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-    	debug_info("wifi disconnected\r");
-    	//SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
-    } else {
-        //ESP_LOGE(TAG, "UNEXPECTED EVENT");
-    	debug_info("wifi no connect\r");
-    	//SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
-    }
+		EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+				WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+				pdFALSE,
+				pdFALSE,
+				portMAX_DELAY);
 
-    debug_info("esp_wifi_init");
+		/* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
+		 * happened. */
+		if (bits & WIFI_CONNECTED_BIT) {
+			//ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+			//         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+			debug_info("wifi connected\r");
+			//SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
+		} else if (bits & WIFI_FAIL_BIT) {
+			//ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
+			//         EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+			debug_info("wifi disconnected\r");
+			//SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+		} else {
+			//ESP_LOGE(TAG, "UNEXPECTED EVENT");
+			debug_info("wifi no connect\r");
+			//SSID_Info.IP_Wifi_Status = WIFI_NO_CONNECT;
+		}
 
-    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler));
-    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler));
+		debug_info("esp_wifi_init");
 
-    vEventGroupDelete(s_wifi_event_group);
+		ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler));
+		ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler));
+
+		vEventGroupDelete(s_wifi_event_group);
+   }
 
 }
 #endif
@@ -400,26 +431,49 @@ esp_err_t scan_event_handler(void *ctx, system_event_t *event)
 }
 */
 
-void check_rssi(void)
+void get_wifi_signal_strength(void) {
+    wifi_ap_record_t ap_info;
+
+    // 获取当前连接的 Wi-Fi 接入点信息
+    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+        // 打印信号强度（RSSI）
+    	SSID_Info.rssi = ap_info.rssi;
+        //ESP_LOGI(TAG, "SSID: %s, RSSI: %d dBm", ap_info.ssid, ap_info.rssi);
+    } else {
+        //ESP_LOGE(TAG, "Failed to get AP info. Are you connected to a Wi-Fi network?");
+    }
+}
+
+/*void check_rssi(void)
 {
 	uint8_t temp_rssi = 0;
 	esp_fill_random(&temp_rssi,1);
 	temp_rssi /= 15;
 	SSID_Info.rssi = temp_rssi - 95;
-}
+}*/
 
+void disable_wifi() {
+    // 设置 Wi-Fi 模式为 NULL
+    esp_err_t ret = esp_wifi_set_mode(WIFI_MODE_NULL);
+    if (ret == ESP_OK) {
+        printf("Wi-Fi disabled successfully.\n");
+    } else {
+        printf("Failed to disable Wi-Fi: %s\n", esp_err_to_name(ret));
+    }
+}
 
 void wifi_task(void *pvParameters)
 {
-	uint8_t temp_rssi=0;
+	uint8_t temp_rssi = 0;
 	//read_default_from_flash();
 	//modbus_init();
 	//debug_info("Finish flash init........");
 	//ESP_ERROR_CHECK(ret);
 
-	if(SSID_Info.MANUEL_EN == 1){
+	//if(SSID_Info.MANUEL_EN != 0){Test[18] = 600;
 		wifi_init_sta();
-	}
+	//}
+
 
 
     ESP_LOGI(TAG, "Finish wifi init1");
@@ -429,9 +483,10 @@ void wifi_task(void *pvParameters)
 		//if(re_init_wifi)
 		//	wifi_init_sta();
 		//esp_random();
-		esp_fill_random(&temp_rssi,1);
+		/*esp_fill_random(&temp_rssi,1);
 		temp_rssi /= 15;
-		SSID_Info.rssi = temp_rssi - 95;
+		SSID_Info.rssi = temp_rssi - 95;*/
+	get_wifi_signal_strength();
 	    //Initialize the system event handler
 		/*
 	    ESP_ERROR_CHECK(esp_event_loop_init(scan_event_handler, NULL));

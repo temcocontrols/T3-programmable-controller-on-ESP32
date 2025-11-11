@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6503
+#define SOFTREV     6601
 
 
 #define		SW_OFF 	 0
@@ -95,6 +95,7 @@ typedef struct
 
 	U8_T icon_config;
 	U8_T mstp_master;
+	U16_T write_flash;
 
 
 }STR_MODBUS;
@@ -160,26 +161,30 @@ typedef	enum
 #define MINI_TINY	 3			// ASIX CORE
 #define MINI_NEW_TINY	 4  // ARM CORE*/
 #define MINI_BIG_ARM	 	5
-#define MINI_SMALL_ARM  6
+#define MINI_SMALL_ARM  	6
 #define MINI_TINY_ARM		7
-#define MINI_NANO    8
-#define MINI_TSTAT10 9
-#define MINI_T10P	 11
-#define MINI_VAV	 10   // no used
+#define MINI_NANO   		8
+#define MINI_TSTAT10 		9
+#define MINI_T10P	 		11
+#define MINI_VAV	 		10   // no used
 #define MINI_TINY_11I		12
 #define	PROJECT_FAN_MODULE 	13
 #define	PROJECT_POWER_METER 14
 #define	PROJECT_AIRLAB   	15
 #define PROJECT_TRANSDUCER 	16
-#define PROJECT_TSTAT9		17
+#define PROJECT_TSTAT9		17 		// 基本上不用了
 #define PROJECT_SAUTER		18
-#define PROJECT_RMC1216		19  // old NG2 = RMC1216
+#define PROJECT_RMC1216		19  	// old NG2 = RMC1216
 #define PROJECT_MPPT		20
-#define PROJECT_LIGHT_SWITCH	21
+#define PROJECT_LSW_BTN		21
 #define PROJECT_NG2_NEW		22
 #define PROJECT_MULTIMETER	23
+#define PROJECT_LIGHT_PWM	24
+#define PROJECT_MULTIMETER_NEW	25
+#define PROJECT_CO2 		26
+#define PROJECT_LSW_SENSOR	27
 
-#define MAX_MINI_TYPE 		24
+#define MAX_MINI_TYPE 		28
 
 uint16 READ_POINT_TIMER;
 uint16 READ_POINT_TIMER_FROM_EEP;
@@ -206,6 +211,7 @@ extern uint8 flagLED_main_tx;
 void modbus_task0(void *arg);
 void modbus_task2(void *arg);
 void start_fw_update(void);
+void esp_retboot(void);
 void internalDeal(uint8  *bufadd,uint8 type);
 
 
@@ -216,7 +222,8 @@ extern uint8 flag_debug_rx;
 extern uint16 debug_rx_len;
 #endif
 
-
+extern uint32 multicast_addr;
+uint32 Get_multicast_addr(uint8 *ip_addr);
 void delay_ms(unsigned int t);
 
 #endif

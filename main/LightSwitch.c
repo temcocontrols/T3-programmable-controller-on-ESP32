@@ -21,6 +21,7 @@
 #include "esp_attr.h"
 #include "led_strip.h"
 #include "driver/rmt.h"
+#include "airlab.h"
 
 
 #define PIR_NOTTRIGGERED   0
@@ -484,83 +485,143 @@ static void Light_adc_task(void* arg)
 }
 
 #if 1
+#if LSW_ON_OFF
+extern uint16_t LSW_on_time;
+extern uint16_t LSW_off_time;
+void save_LSW_ON_OFF_TIME(uint8_t index,uint16_t time);
+#endif
 uint16_t read_lightswitch_by_block(uint16_t addr)
 {
 	uint8_t item;
 	uint16_t *block;
 	uint8_t *block1;
 	uint8_t temp;
-	
-	if(addr == DEGC_OR_F)
+#if LSW_ON_OFF
+	if(addr == MODBUS_LSW_ON_TIME)
+	{
+	  return LSW_on_time;
+	}
+	else if(addr == MODBUS_LSW_OFF_TIME)
+	{
+	  return LSW_off_time;
+	}
+	else
+#endif
+		if(addr == MODBUS_AIRLAB_DEGC_OR_F)
 	{
 	  return DEGCorF;
 	}
-	else if(addr == TEMPRATURE_CHIP)
+	else if(addr == MODBUS_AIRLAB_TEMPRATURE_CHIP)
 	{
 	  return g_sensors.temperature;
 	}
-	else if(addr == EXTERNAL_SENSOR1)  // CO2
+	else if(addr == MODBUS_AIRLAB_EXTERNAL_SENSOR1)  // CO2
 	{
 	  return g_sensors.co2;
 	}
-	else if(addr == EXTERNAL_SENSOR2) // HUM
+	else if(addr == MODBUS_AIRLAB_EXTERNAL_SENSOR2) // HUM
 	{
 	  return g_sensors.humidity;
 	}
-	else if(addr == CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
 	  return 0;
 	}
-	else if(addr == CO2_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
 	  return 0;
 	}
-	else if(addr == HUM_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
 	  return 0;
 	}
 	// LIGHT
-	else if(addr == LIGHT_SENSOR)
+	else if(addr == MODBUS_AIRLAB_LIGHT_SENSOR)
 	{
 	  return 0;
 	}
 	// PIR
-	else if(addr == PIR_SENSOR_VALUE)
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
 	  return pir_value;
 	}
-	else if(addr == PIR_SENSOR_ZERO) 
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  return PirSensorZero;
 	}
-	else if(addr == PIR_SPARE)
+	else if(addr == MODBUS_AIRLAB_PIR_SPARE)
 	{
 	  return pir_trigger;
 	}
-	
-// VOC	
-	else if((addr >= VOC_BASELINE1) && (addr <= VOC_BASELINE1))
+	// PM2.5
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_1_0)
 	{
-	  return g_sensors.voc_baseline[addr - VOC_BASELINE1];
+	  return pm25_weight_10;
 	}
-	else if(addr == VOC_DATA)
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_2_5)
+	{
+	  return pm25_weight_25;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_4_0)
+	{
+	  return pm25_weight_40;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_10)
+	{
+	  return pm25_weight_100;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_0_5)
+	{
+	  return pm25_number_05;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_1_0)
+	{
+	  return pm25_number_10;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_2_5)
+	{
+	  return pm25_number_25;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_4_0)
+	{
+	  return pm25_number_40;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_10)
+	{
+	  return pm25_number_100;
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_TOTAL)
+	{
+	  return disp_pm25_weight_25;
+	}
+	else if(addr == MODBUS_AIRLAB_PM10_TOTAL)
+	{
+	  return disp_pm25_number_25;
+	}
+
+// VOC	
+	else if((addr >= MODBUS_AIRLAB_VOC_BASELINE1) && (addr <= MODBUS_AIRLAB_VOC_BASELINE1))
+	{
+	  return g_sensors.voc_baseline[addr - MODBUS_AIRLAB_VOC_BASELINE1];
+	}
+	else if(addr == MODBUS_AIRLAB_VOC_DATA)
 	{
 	  return g_sensors.voc_value;
 	}	
-	else if(addr == MODBUS_PATICAL_SIZE)
+	else if(addr == MODBUS_AIRLAB_PATICAL_SIZE)
 	{
 	  return 0;
 	}
-	else if(addr == MODBUS_WBGT)
+	else if(addr == MODBUS_AIRLAB_WBGT)
 	{
 	  return 0;
 	}
 	// CO2
-	else if(addr == CO2_ASC_ENABLE)
+	else if(addr == MODBUS_AIRLAB_CO2_ASC_ENABLE)
 	{
 	  return co2_asc;
 	}
-	else if(addr == CO2_FRC_VALUE)
+	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 	  return co2_frc;
 	}
@@ -574,30 +635,46 @@ uint16_t read_lightswitch_by_block(uint16_t addr)
 
 void write_lightswitch_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t type)
 {
-	if(addr == DEGC_OR_F)
+#if LSW_ON_OFF
+	if(addr == MODBUS_LSW_ON_TIME)
+	{
+		if(pData[HeadLen + 5] + (pData[HeadLen + 4] << 8) >= 10)
+		{
+			LSW_on_time = pData[HeadLen + 5] + (pData[HeadLen + 4] << 8);
+			save_LSW_ON_OFF_TIME(0,LSW_on_time);
+		}
+	}
+	else if(addr == MODBUS_LSW_OFF_TIME)
+	{
+		LSW_off_time = pData[HeadLen + 5] + (pData[HeadLen + 4] << 8);
+		save_LSW_ON_OFF_TIME(1,LSW_off_time);
+	}
+	else
+#endif
+		if(addr == MODBUS_AIRLAB_DEGC_OR_F)
 	{
 		DEGCorF = pData[HeadLen + 5];
 	}
 	
-	else if(addr == CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
 	  
 	}
-	else if(addr == CO2_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
 	  
 	}
-	else if(addr == HUM_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
 	  
 	}
 	
 	// PIR
-	else if(addr == PIR_SENSOR_VALUE)
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
 	  
 	}
-	else if(addr == PIR_SENSOR_ZERO) 
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  PirSensorZero = pData[HeadLen + 5];
 	}
@@ -608,7 +685,7 @@ void write_lightswitch_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uin
 	
 	
 	// CO2	
-	else if(addr == CO2_FRC_VALUE)
+	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 		uint16 tmp;
 		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];	

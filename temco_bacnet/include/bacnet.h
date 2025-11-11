@@ -327,7 +327,11 @@ void write_Output_Relinguish(uint8_t type,uint8_t i,float value);
 float Get_Output_Relinguish(uint8_t type,uint8_t i);
 
 bool Analog_Input_Change_Of_Value(unsigned int instance);
+bool Binary_Input_Change_Of_Value(uint32_t object_instance);
 bool Analog_Value_Change_Of_Value(unsigned int instance);
+bool Binary_Value_Change_Of_Value(unsigned int object_instance);
+bool Analog_Output_Change_Of_Value(unsigned int object_instance);
+bool Binary_Output_Change_Of_Value(unsigned int object_instance);
 // for TIMESYNC
 #if BAC_TIMESYNC
 #include "timesync.h"
@@ -475,6 +479,10 @@ U8_T Get_current_panel(void);
 void chech_mstp_collision(void);
 void check_mstp_packet_error(void);
 void check_mstp_timeout(void);
+//extern uint8_t flag_mstp_err[3];
+//extern uint16_t count_mstp_err[3];
+//void check_mstp_traffic(void);
+//void check_mstp_packet(uint8_t * uart_rsv, uint16_t len, uint8_t port);
 
 void Send_SUB_I_Am(uint8_t index);
 void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,uint8 * pdu,uint8_t pdu_len,uint8_t protocal,uint8_t temcoproduct);

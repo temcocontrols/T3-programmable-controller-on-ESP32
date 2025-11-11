@@ -57,7 +57,9 @@ Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
 extern U16_T far Test[50];
 
-
+void initial_HSP(void);
+void Store_Pulse_Counter(uint8 flag);
+void Check_Pulse_Counter(void);
 
 // do it in own code
 extern void Set_Input_Type(uint8_t point);  
@@ -70,8 +72,8 @@ extern uint8_t get_max_input(void);
 extern uint32 conver_by_unit_5v(uint32 sample);
 extern uint32 conver_by_unit_10v(uint32 sample);
 extern uint32 conver_by_unit_custable(uint8_t point,uint32 sample);
-extern uint32 get_high_spd_counter(uint8_t point);
-extern uint32 get_rpm(uint8_t point);
+extern uint32_t get_high_spd_counter(uint8_t point);
+extern uint32_t get_rpm(uint8_t point);
 
 void map_extern_output(uint8_t point);
 extern uint8_t get_max_internal_input(void);

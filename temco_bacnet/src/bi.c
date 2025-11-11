@@ -228,6 +228,7 @@ bool Binary_Input_Out_Of_Service(
     return value;
 }
 
+#ifndef T3_CON
 bool Binary_Input_Change_Of_Value(
     uint32_t object_instance)
 {
@@ -241,6 +242,7 @@ bool Binary_Input_Change_Of_Value(
 
     return status;
 }
+#endif
 
 void Binary_Input_Change_Of_Value_Clear(
     uint32_t object_instance)

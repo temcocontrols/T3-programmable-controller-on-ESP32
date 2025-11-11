@@ -15,6 +15,8 @@ enum
 	FLASH_BLOCK_LCD_CONFIG,
 	FLASH_BLOCK_EMAIL,
 	FLASH_BLOCK_SNTP,
+	FLASH_BLOCK_SPD,
+	FLASH_BLOCK_MSV,
 }E_BLOCK;
 
 
@@ -29,6 +31,9 @@ enum
 #define FLASH_READ_POINT_TIMER "READ_POINT_TIMER"
 #define FLASH_EMAIL			"Email_Setting"
 #define FLASH_SNTP			"Email_SNTP"
+#define FLASH_SPD_CNT		"SPD_CNT"
+#define FLASH_MSV			"MSV"
+
 
 
 #define FLASH_MODBUS_ID		"MODBUS_ID"
@@ -60,7 +65,7 @@ enum
 #define FLASH_INSTANCE3		"INSTANCE3"
 #define FLASH_INSTANCE4		"INSTANCE4"
 
-#define FLASH_EN_TIME_SYNC_PC	"EN_TIME_SYNC_PC"
+#define FLASH_EN_TIME_SYNC_PC	"EN_SYNC_PC"
 #define FLASH_EN_SNTP			"EN_SNTP"
 
 #define FLASH_EN_USERNAME	"EN_USERNAME"
@@ -98,8 +103,16 @@ enum
 #define FLASH_IN14_CAL		"IN14_CAL"
 
 #define FLASH_ICON_CONFIG	"ICON_CONFIG"
-#define FLASH_LCD_EN_TIMEOVER	"LCD_EN_TIMEOVER"
-#define FLASH_LCD_TIMEOVER		"LCD_TIMEOVER"
+#define FLASH_LCD_TIME_OFF_DELAY		"LCD_TOFF"
+#define FLASH_FIX_COM_CONFIG	"COM_CONFIG"
+#define FLASH_WRITE_FLASH	"WRT_FLASH"
+
+#define FLASH_LSW_ONTIME	"LSW_ON_T"
+#define FLASH_LSW_OFFTIME	"LSW_OFF_T"
+
+
+
+
 
 #define FLASH_CURRENT_TLG_PAGE	"TLG_PAGE"
 
@@ -149,6 +162,7 @@ enum
 extern esp_err_t save_block(uint8_t key);
 extern esp_err_t read_default_from_flash(void);
 extern esp_err_t save_wifi_info(void);
+void Save_MSV(void);
 void Save_SNTP_sever(void);
 extern esp_err_t save_point_info(uint8_t point_type);
 extern esp_err_t save_uint8_to_flash(const char* key, uint8_t value);
@@ -159,6 +173,8 @@ extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t leng
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_int16_to_flash(const char* key, int16_t value);
 extern void clear_count_reboot(void);
+
+void Save_SPD_CNT(void);
 
 esp_err_t Save_Ethernet_Info(void);
 esp_err_t Save_Lcd_config(void);
