@@ -4,7 +4,7 @@
 #define	__LCD_TSTAT_H__
 
 #include "types.h"
-
+#include "Dis_color_def.h"
 
 #ifndef	TRUE
 #define TRUE	1
@@ -16,7 +16,7 @@
 
 
 //#define FORM48X120		0
-#define FORM32X64 		0
+#define FORM32X64 		    0
 #define FORM15X30			1
 
 
@@ -80,27 +80,12 @@
 
 #define TOP_AREA_DISP_UNIT_NONE			 			100
 
-
-#define TSTAT8_CH_COLOR   	0xffff //0xd6e0
-#define TSTAT8_MENU_COLOR   0x7e17//0x3bef//0x43f2//0x14a9
-
-
-#define SCH_COLOR  0xffff//0XB73F
-#define SCH_BACK_COLOR  0x3bef//0x43f2//0x14E9
-
-#define TSTAT8_BACK_COLOR1  0x3cef//0x7E19
-#define TSTAT8_BACK_COLOR   0x7E19//
-#define TSTAT8_MENU_COLOR2  0x7e17
-#define TANGLE_COLOR        0xbe9c
-
 #define FAN_OFF 	0
 #define FAN_AUTO 	4
 #define FAN_ON		1
 #define FAN_SPEED1 1
 #define FAN_SPEED2 2
 #define FAN_SPEED3 3
-
-
 
 #define FAN_COST   	0
 #define FAN_COOL1   1
@@ -199,7 +184,8 @@ void vStartMenuTask(unsigned char uxPriority);
 
 
 
-#define MAX_SCOROLL 20
+#define MAX_SCOROLL      20
+#define SCROLL_WINDOW    10     // visible window (characters shown)
 
 extern uint8 *scroll;
 extern uint8 scroll_ram[5][MAX_SCOROLL];
@@ -216,7 +202,7 @@ extern uint16 const athome[];
 extern uint16 const offhome[];
 extern uint16 const sunicon[];
 extern uint16 const moonicon[];
-extern uint16 const heaticon[]; 
+extern uint16 const heaticon[];
 extern uint16 const coolicon[];
 extern uint16 const fanspeed0a[];
 extern uint16 const fanspeed1a[];
@@ -231,8 +217,8 @@ extern uint16 const leftup[];
 extern uint16 const leftdown[];
 extern uint16 const rightdown[];
 extern uint16 const rightup[];
-extern uint16 const cmnct_send[]; 
-extern uint16 const cmnct_rcv[]; 
+extern uint16 const cmnct_send[];
+extern uint16 const cmnct_rcv[];
 extern uint16 const wifi_0[];
 extern uint16 const wifi_1[];
 extern uint16 const wifi_2[];
@@ -240,7 +226,7 @@ extern uint16 const wifi_3[];
 extern uint16 const wifi_4[];
 extern uint16 const wifi_none[];
 
-typedef struct   
+typedef struct
 {
  uint8 unit;
  uint8 setpoint;
@@ -250,13 +236,13 @@ typedef struct
  uint8 heatcool;
  uint8 fanspeed;
  uint8 cmnct_send;
- uint8 cmnct_rcv; 	
-} DISP_CHANGE; 
+ uint8 cmnct_rcv;
+} DISP_CHANGE;
 extern DISP_CHANGE icon;
 //extern uint16 const angle[];
 void draw_tangle(uint8 xpos, uint16 ypos);
 void ClearScreen(unsigned int bColor);
-void disp_ch(uint8 form, uint16 x, uint16 y,uint8 value,uint16 dcolor,uint16 bgcolor);		
+void disp_ch(uint8 form, uint16 x, uint16 y,uint8 value,uint16 dcolor,uint16 bgcolor);
 void disp_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
 void disp_null_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
 void disp_str(uint8 form, uint16 x,uint16 y,char *str,uint16 dcolor,uint16 bgcolor);

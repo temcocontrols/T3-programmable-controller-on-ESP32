@@ -6,8 +6,11 @@
 #include "user_data.h"
 #include <string.h>
 #include "rtc.h"
+#include "Dis_color_def.h"
 
 #define	NODES_POLL_PERIOD	30
+
+#define DISPLAY_VAL_LENTH   5
 
 char UI_DIS_LINE1[4]; //��Ӧ֮ǰ setpoint  fan �Լ� sys
 char UI_DIS_LINE2[4];
@@ -18,6 +21,7 @@ uint8 *scroll;
 uint8 scroll_buf[11];
 uint8 scroll_ram[5][MAX_SCOROLL];
 uint8 scroll_fan = 0;
+uint16_t scroll_index = 0;
 
 static uint8 display_around_time_ctr = NODES_POLL_PERIOD;
 static uint8 disp_index = 0;
@@ -519,8 +523,9 @@ void MenuIdle_display(void)
 		else
 			disp_icon(26, 26, wifi_1, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
-	else	if((SSID_Info.IP_Wifi_Status == WIFI_NO_CONNECT)
-		|| (SSID_Info.IP_Wifi_Status == WIFI_SSID_FAIL))
+	else	if((SSID_Info.IP_Wifi_Status == WIFI_NO_CONNECT) ||
+				(SSID_Info.IP_Wifi_Status == WIFI_SSID_FAIL) ||
+				(SSID_Info.IP_Wifi_Status == WIFI_DISCONNECTED)	)
 			disp_icon(26, 26, wifi_0, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 		// if WIFI_NONE, do not show wifi flag
 	else //if((SSID_Info.IP_Wifi_Status == WIFI_NO_WIFI)
@@ -976,92 +981,92 @@ void display_screen_value(uint8 type)
 				switch(ptr.pvar->range)
 				{
 					case OFF_ON:
-						if(show_value == 0)			memcpy(spbuf, "OFF  ", 5);
-						else							memcpy(spbuf, "ON   ", 5);
+						if(show_value == 0)			memcpy(spbuf, "OFF  ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "ON   ", DISPLAY_VAL_LENTH);
 						break;
 					case CLOSED_OPEN:
-							if(show_value == 0)			memcpy(spbuf, "CLOSE", 5);
-						else							memcpy(spbuf, "OPEN ", 5);
+						if(show_value == 0)			memcpy(spbuf, "CLOSE", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "OPEN ", DISPLAY_VAL_LENTH);
 						break;
 					case STOP_START:
-						if(show_value == 0)					memcpy(spbuf, "STOP ", 5);
-						else						memcpy(spbuf, "START", 5);
-					break;
+						if(show_value == 0)			memcpy(spbuf, "STOP ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "START", DISPLAY_VAL_LENTH);
+						break;
 					case DISABLED_ENABLED:
-						if(show_value == 0)			memcpy(spbuf, "DISAB", 5);
-						else							memcpy(spbuf, "ENABL", 5);
+						if(show_value == 0)			memcpy(spbuf, "DISAB", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "ENABL", DISPLAY_VAL_LENTH);
 						break;
 					case NORMAL_ALARM:
-						if(show_value == 0)			memcpy(spbuf, "NAORM", 5);
-						else							memcpy(spbuf, "ALARM", 5);
+						if(show_value == 0)			memcpy(spbuf, "NAORM", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "ALARM", DISPLAY_VAL_LENTH);
 						break;
 					case NORMAL_HIGH:
-							if(show_value == 0)			memcpy(spbuf, "NAORM", 5);
-						else							memcpy(spbuf, "HIGH ", 5);
+						if(show_value == 0)			memcpy(spbuf, "NAORM", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "HIGH ", DISPLAY_VAL_LENTH);
 						break;
 					case NORMAL_LOW:
-						if(show_value == 0)					memcpy(spbuf, "NAORM", 5);
-						else						memcpy(spbuf, "LOW  ", 5);
-					break;
+						if(show_value == 0)			memcpy(spbuf, "NAORM", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "LOW  ", DISPLAY_VAL_LENTH);
+						break;
 					case NO_YES:
-						if(show_value == 0)			memcpy(spbuf, "NO   ", 5);
-						else							memcpy(spbuf, "YES  ", 5);
+						if(show_value == 0)			memcpy(spbuf, "NO   ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "YES  ", DISPLAY_VAL_LENTH);
 						break;
 					case COOL_HEAT:
-						if(show_value == 0)			memcpy(spbuf, "COOL ", 5);
-						else							memcpy(spbuf, "HEAT ", 5);
+						if(show_value == 0)			memcpy(spbuf, "COOL ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "HEAT ", DISPLAY_VAL_LENTH);
 						break;
 					case UNOCCUPIED_OCCUPIED:
-							if(show_value == 0)			memcpy(spbuf, "UNOCC", 5);
-						else							memcpy(spbuf, "OCC  ", 5);
+						if(show_value == 0)			memcpy(spbuf, "UNOCC", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "OCC  ", DISPLAY_VAL_LENTH);
 						break;
 					case LOW_HIGH:
-						if(show_value == 0)					memcpy(spbuf, "LOW  ", 5);
-						else						memcpy(spbuf, "HIGH ", 5);
-					break;
+						if(show_value == 0)			memcpy(spbuf, "LOW  ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "HIGH ", DISPLAY_VAL_LENTH);
+						break;
 					case ON_OFF:
-						if(show_value == 0)			memcpy(spbuf, "ON   ", 5);
-						else							memcpy(spbuf, "OFF  ", 5);
+						if(show_value == 0)			memcpy(spbuf, "ON   ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "OFF  ", DISPLAY_VAL_LENTH);
 						break;
 					case OPEN_CLOSED:
-						if(show_value == 0)			memcpy(spbuf, "OPEN ", 5);
-						else							memcpy(spbuf, "CLOSE", 5);
+						if(show_value == 0)			memcpy(spbuf, "OPEN ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "CLOSE", DISPLAY_VAL_LENTH);
 						break;
 					case START_STOP:
-							if(show_value == 0)			memcpy(spbuf, "START", 5);
-						else							memcpy(spbuf, "STOP ", 5);
+						if(show_value == 0)			memcpy(spbuf, "START", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "STOP ", DISPLAY_VAL_LENTH);
 						break;
 					case ENABLED_DISABLED:
-						if(show_value == 0)					memcpy(spbuf, "ENABL", 5);
-						else						memcpy(spbuf, "DISAB", 5);
-					break;
+						if(show_value == 0)			memcpy(spbuf, "ENABL", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "DISAB", DISPLAY_VAL_LENTH);
+						break;
 					case ALARM_NORMAL:
-						if(show_value == 0)			memcpy(spbuf, "ALARM", 5);
-						else							memcpy(spbuf, "NORMA", 5);
+						if(show_value == 0)			memcpy(spbuf, "ALARM", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "NORMA", DISPLAY_VAL_LENTH);
 						break;
 					case HIGH_NORMAL:
-						if(show_value == 0)			memcpy(spbuf, "HIGH ", 5);
-						else							memcpy(spbuf, "NORMA", 5);
+						if(show_value == 0)			memcpy(spbuf, "HIGH ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "NORMA", DISPLAY_VAL_LENTH);
 						break;
 					case LOW_NORMAL:
-							if(show_value == 0)			memcpy(spbuf, "LOW  ", 5);
-						else							memcpy(spbuf, "NORMA", 5);
+						if(show_value == 0)			memcpy(spbuf, "LOW  ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "NORMA", DISPLAY_VAL_LENTH);
 						break;
 					case YES_NO:
-						if(show_value == 0)					memcpy(spbuf, "YES  ", 5);
-						else						memcpy(spbuf, "NO   ", 5);
-					break;
+						if(show_value == 0)			memcpy(spbuf, "YES  ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "NO   ", DISPLAY_VAL_LENTH);
+						break;
 					case HEAT_COOL:
-						if(show_value == 0)			memcpy(spbuf, "HEAT ", 5);
-						else							memcpy(spbuf, "COOL ", 5);
+						if(show_value == 0)			memcpy(spbuf, "HEAT ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "COOL ", DISPLAY_VAL_LENTH);
 						break;
 					case OCCUPIED_UNOCCUPIED:
-						if(show_value == 0)					memcpy(spbuf, "OCC  ", 5);
-						else						memcpy(spbuf, "UNOCC", 5);
-					break;
+						if(show_value == 0)			memcpy(spbuf, "OCC  ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "UNOCC", DISPLAY_VAL_LENTH);
+						break;
 					case HIGH_LOW:
-						if(show_value == 0)			memcpy(spbuf, "HIGH ", 5);
-						else							memcpy(spbuf, "LOW  ", 5);
+						if(show_value == 0)			memcpy(spbuf, "HIGH ", DISPLAY_VAL_LENTH);
+						else						memcpy(spbuf, "LOW  ", DISPLAY_VAL_LENTH);
 						break;
 					default:
 						break;
@@ -1085,6 +1090,14 @@ void display_screen_value(uint8 type)
 					{  // '-' occupies the first position
 						sprintf((char *)spbuf, "%.1f", show_value);
 					}
+				}
+				// Add padding to make width = 5
+				int len = strlen((char*)spbuf);
+				if (len < DISPLAY_VAL_LENTH)
+				{
+					// Shift text to right and fill beginning with spaces
+					memmove(spbuf + (DISPLAY_VAL_LENTH - len), spbuf, len + 1); // +1 for '\0'
+					memset(spbuf, ' ', DISPLAY_VAL_LENTH - len);
 				}
 			}
 		}
@@ -1195,59 +1208,52 @@ uint8 lcd_rotate_max;
 uint8 lcd_rotate_index;
 void Refresh_scroll(void)
 {
-	uint8 i,j;
-	uint8 mode;
-	memset(&scroll_ram[0][0],0,MAX_SCOROLL);
-	//if(lcd_rotate_max > 9)
-		lcd_rotate_max = 1;
-	//lcd_rotate_index = 0;
-	if(lcd_rotate_max > 0)
-	{
-		if(SSID_Info.IP_Wifi_Status <= 1)
-		{
-			j = 0;
-			scroll_ram[0][j++] = '2';
-			scroll_ram[0][j++] = '0';
-			scroll_ram[0][j++] =  (rtc_date.year - 2000) / 10 + '0';
-			scroll_ram[0][j++] =  (rtc_date.year - 2000) % 10 + '0';
-			scroll_ram[0][j++] = '-';
-			scroll_ram[0][j++] =  rtc_date.month / 10 + '0';
-			scroll_ram[0][j++] =  rtc_date.month % 10 + '0';
-			scroll_ram[0][j++] = '-';
-			scroll_ram[0][j++] =  rtc_date.day / 10 + '0';
-			scroll_ram[0][j++] =  rtc_date.day % 10 + '0';
-			scroll_ram[0][j++] = ' ';
-			scroll_ram[0][j++] =  rtc_date.hour / 10 + '0';
-			scroll_ram[0][j++] =  rtc_date.hour % 10 + '0';
-			scroll_ram[0][j++] = ':';
-			scroll_ram[0][j++] =  rtc_date.minute / 10 + '0';
-			scroll_ram[0][j++] =  rtc_date.minute % 10 + '0';
-			scroll_ram[0][j++] = ':';
-			scroll_ram[0][j++] =  rtc_date.second / 10 + '0';
-			scroll_ram[0][j++] =  rtc_date.second % 10 + '0';
-			scroll_ram[0][j++] = ' ';
-		}
-		else if(SSID_Info.IP_Wifi_Status == 2)
-		{// tbd::::::::::::
-			uint8 len;
-			sprintf((char*)&scroll_ram[0][0],"%d.%d.%d.%d",(uint8)SSID_Info.ip_addr[0],(uint8)SSID_Info.ip_addr[1],(uint8)SSID_Info.ip_addr[2], (uint8)SSID_Info.ip_addr[3]);
-			len = strlen(&scroll_ram[0]);
-			scroll_ram[0][len] = ' ';
-		}
-		else if(SSID_Info.IP_Wifi_Status == 3)
-		{
-			memcpy(&scroll_ram[0][0],"wifi connected     ",MAX_SCOROLL);
-		}
-		else if(SSID_Info.IP_Wifi_Status == 4)
-		{
-			memcpy(&scroll_ram[0][0],"wifi disconnct     ",MAX_SCOROLL);
-		}
-		else if(SSID_Info.IP_Wifi_Status == 5)
-		{
-			memcpy(&scroll_ram[0][0],"wifi configure     ",MAX_SCOROLL);
-		}
-	}
+    memset(&scroll_ram[0][0],0x00, MAX_SCOROLL);
 
+    if (SSID_Info.IP_Wifi_Status <= 1 || SSID_Info.IP_Wifi_Status == 3 || SSID_Info.IP_Wifi_Status == 4)
+    {
+        // Format time: YYYY-MM-DD HH:MM:SS
+        uint8_t j = 0;
+		scroll_ram[0][j++] = '2';
+		scroll_ram[0][j++] = '0';
+		scroll_ram[0][j++] = (rtc_date.year - 2000) / 10 + '0';
+		scroll_ram[0][j++] = (rtc_date.year - 2000) % 10 + '0';
+		scroll_ram[0][j++] = '-';
+		scroll_ram[0][j++] = rtc_date.month / 10 + '0';
+		scroll_ram[0][j++] = rtc_date.month % 10 + '0';
+		scroll_ram[0][j++] = '-';
+		scroll_ram[0][j++] = rtc_date.day / 10 + '0';
+		scroll_ram[0][j++] = rtc_date.day % 10 + '0';
+		scroll_ram[0][j++] = ' ';
+		scroll_ram[0][j++] = rtc_date.hour / 10 + '0';
+		scroll_ram[0][j++] = rtc_date.hour % 10 + '0';
+		scroll_ram[0][j++] = ':';
+		scroll_ram[0][j++] = rtc_date.minute / 10 + '0';
+		scroll_ram[0][j++] = rtc_date.minute % 10 + '0';
+		scroll_ram[0][j++] = ':';
+		scroll_ram[0][j++] = rtc_date.second / 10 + '0';
+		scroll_ram[0][j++] = rtc_date.second % 10 + '0';
+		scroll_ram[0][j++] = ' ';
+    }
+    else if (SSID_Info.IP_Wifi_Status == 2)
+    {
+        sprintf((char*)&scroll_ram[0][0],"%d.%d.%d.%d",
+				(uint8)SSID_Info.ip_addr[0],
+				(uint8)SSID_Info.ip_addr[1],
+				(uint8)SSID_Info.ip_addr[2],
+				(uint8)SSID_Info.ip_addr[3]);
+
+		uint8 len = strlen(&scroll_ram[0]);
+		scroll_ram[0][len] = ' ';
+    }
+	else if(SSID_Info.IP_Wifi_Status == 5)
+	{
+		memcpy(&scroll_ram[0][0],"wifi configure     ",MAX_SCOROLL);
+	}
+    // Append some trailing spaces for smooth looping
+    uint8_t len = strlen((char *)&scroll_ram[0][0]);
+    memset(&scroll_ram[0][len],' ', SCROLL_WINDOW);
+    scroll_ram[0][len] = '\0';
 }
 
 void display_scroll(void)
