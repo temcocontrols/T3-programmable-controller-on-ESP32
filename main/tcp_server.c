@@ -583,7 +583,7 @@ static void udp_scan_task(void *pvParameters)
                break;
             }
             // Data received
-            else 
+            else
             {//debug_info("udp1234 recv ok\r\n");
             	ether_rx += len;
                // Get the sender's ip address as string
@@ -2342,7 +2342,7 @@ void Timer_task(void)
 		system_timer = system_timer + TIMER_INTERVAL;
 		run_time = run_time + TIMER_INTERVAL;
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
-		{	
+		{
 			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
 					 && (Modbus.mini_type != PROJECT_LIGHT_SWITCH))
 			{
@@ -2517,7 +2517,7 @@ void Update_Led(void)
 			error_in = input_raw[loop]  - pre_in[loop];
 		else
 			error_in = pre_in[loop] - input_raw[loop];
-		
+
 		ptr = put_io_buf(IN,loop);
 
 		if(ptr.pin->range == not_used_input)
@@ -3616,6 +3616,8 @@ void TEST_FLASH(void);
 void vStartScanTask(unsigned char uxPriority);
 void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
+void LCD_IO_Init(void);
+void Display_DeviceName(void);
 
 void LS_led_task(void);
 
@@ -3628,7 +3630,6 @@ void app_main()
      * Read "Establishing Wi-Fi or Ethernet Connection" section in
      * examples/protocols/README.md for more information about this function.
      */
-
 
 	SW_REV = SOFTREV;
 	count_reboot = 0;
@@ -3649,17 +3650,13 @@ void app_main()
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
     //Modbus.mini_type = MINI_TSTAT10;
 #endif
-#if 1
-    Ethernet_Initial();
-#else
-    ethernet_init();
 
-   /* if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM )
-    {
-        ets_delay_us(500000);
-    	xTaskCreate(ethernet_check_task, "ethernet_check_task", 1024, NULL, 10, NULL);
-    }*/
-#endif
+    if(Modbus.mini_type == MINI_TSTAT10)
+	{
+		LCD_IO_Init();
+		Display_DeviceName();
+	}
+	esp_netif_init();
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
