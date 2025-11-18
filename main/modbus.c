@@ -75,6 +75,7 @@ extern uint8_t gIdentify;
 extern uint8_t count_gIdentify;
 extern uint16_t input_cal[24];
 extern U8_T lcddisplay[7];
+extern uint8_t flag_updating;
 
 extern uint16_t count_lcd_time_off_delay;
 
@@ -89,10 +90,9 @@ uint8_t flag_change_uart0 = 0;
 uint8_t flag_change_uart2 = 0;
 uint8_t count_change_uart0 = 0;
 uint8_t count_change_uart2 = 0;
-
-
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
+
 void check_modbus_slave(void)
 {
 	if(Modbus.fix_com_config == 1)
@@ -2352,6 +2352,11 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
     	 update_flash = *(bufadd + 5);
 		 if (update_flash == 0x7f)
 		 {
+			 if(Modbus.mini_type == PROJECT_CO2)
+			 {
+				 flag_updating = 1;
+				 delay_ms(2000);
+			 }
 			 start_fw_update();
 		 }
 		 else if((update_flash == 0x8E) || (update_flash == 0x8F))

@@ -507,3 +507,14 @@ void connect_wifi(void)
 	wifi_init_sta();
 	debug_info("Finish wifi init%%%%%%%%%%");
 }
+
+// 比较两个 4 字节数组是否相等
+bool compare_address(const uint8_t *addr1, const uint8_t *addr2) {
+    return memcmp(addr1, addr2, 4) == 0;
+}
+
+// 检查地址是否为 0.0.0.0
+bool is_address_zero(const uint8_t *addr) {
+    return addr[0] == 0 && addr[1] == 0 && addr[2] == 0 && addr[3] == 0;
+}
+

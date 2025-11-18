@@ -81,9 +81,9 @@ uint16_t read_co2_by_block(uint16_t addr)
 	uint16_t *block;
 	uint8_t *block1;
 	uint8_t temp;
-	uint8_t lcd_i2c_sensor_index;
+	/*uint8_t lcd_i2c_sensor_index;
 	
-	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;
+	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;*/
 
 	if(addr == MODBUS_CO2_TEMPERATURE_DEGREE_C_OR_F)
 	{
@@ -97,7 +97,7 @@ uint16_t read_co2_by_block(uint16_t addr)
 	{
 	  return co2_data.internal_temperature_f;
 	}
-	else if(addr == MODBUS_CO2_EXTERNAL_TEMPERATURE_CELSIUS)
+	/*else if(addr == MODBUS_CO2_EXTERNAL_TEMPERATURE_CELSIUS)
 	{
 	  return co2_data.I2C_Sensor[lcd_i2c_sensor_index].tem_org;
 	}
@@ -109,7 +109,7 @@ uint16_t read_co2_by_block(uint16_t addr)
 	else if(addr == MODBUS_CO2_INTERNAL)
 	{
 		return co2_data.I2C_Sensor[lcd_i2c_sensor_index].co2_org;
-	}
+	}*/
 	else if(addr == MODBUS_CO2_PREALARM_SETPOINT)
 	{
 	  return co2_data.pre_alarm_setpoint;
@@ -134,7 +134,7 @@ uint16_t read_co2_by_block(uint16_t addr)
 	{
 	  return co2_data.alarm_delay_time;
 	}
-	else if(addr == MODBUS_CO2_OUTPUT_AUTO_MANUAL)
+/*	else if(addr == MODBUS_CO2_OUTPUT_AUTO_MANUAL)
 	{
 	  return co2_data.output_auto_manual;
 	}
@@ -149,12 +149,12 @@ uint16_t read_co2_by_block(uint16_t addr)
 	else if(addr == MODBUS_CO2_OUTPUT_MANUAL_VALUE_CO2)
 	{
 	  return co2_data.output_manual_value_co2;
-	}
+	}*/
 	else if(addr == MODBUS_CO2_OUTPUT_MODE)
 	{
 	  return co2_data.output_mode;
 	}
-	else if(addr == MODBUS_CO2_OUTPUT_RANGE_MIN_TEM)
+	/*else if(addr == MODBUS_CO2_OUTPUT_RANGE_MIN_TEM)
 	{
 	  return co2_data.output_range_table[CHANNEL_TEMP].min;
 	}
@@ -177,15 +177,15 @@ uint16_t read_co2_by_block(uint16_t addr)
 	else if(addr == MODBUS_CO2_OUTPUT_RANGE_MAX_CO2)
 	{
 	  return co2_data.output_range_table[CHANNEL_CO2].max;
-	}
+	}*/
 	else if(addr == MODBUS_CO2_BACKLIGHT_KEEP_SECONDS)
 	{
 	  return co2_data.backlight_keep_seconds;
 	}
-	else if(addr == MODBUS_CO2_LCD_I2C_SENSOR_Index)
+	/*else if(addr == MODBUS_CO2_LCD_I2C_SENSOR_Index)
 	{
 	  return co2_data.lcd_i2c_sensor_index;
-	}
+	}*/
 	else if(addr == MODBUS_CO2_I2C_SENOR1_TYPE)
 	{
 	  return co2_data.i2c_sensor_type[0];
@@ -258,7 +258,7 @@ uint16_t read_co2_by_block(uint16_t addr)
 	{
 	  return co2_data.I2C_Sensor[2].hum_offset;
 	}
-	else if(addr == MODBUS_CO2_SCREEN_AREA_1)
+	/*else if(addr == MODBUS_CO2_SCREEN_AREA_1)
 	{
 	  return co2_data.screenArea1;
 	}
@@ -270,10 +270,6 @@ uint16_t read_co2_by_block(uint16_t addr)
 	{
 	  return co2_data.screenArea3;
 	}
-	/*else if(addr == MODBUS_CO2_SCREEN_MANUAL_RESET)
-	{
-	  return
-	}*/
 	else if(addr == MODBUS_CO2_ENABLE_SCROLL)
 	{
 	  return co2_data.enableScroll;
@@ -293,7 +289,7 @@ uint16_t read_co2_by_block(uint16_t addr)
 	else if(addr == MODBUS_CO2_CAL)
 	{
 	  return co2_data.flag_co2_asc[lcd_i2c_sensor_index];
-	}
+	}*/
 	else if(addr == MODBUS_OUTPUT_HUM)
 	{
 	  return co2_data.analog_output[0];
@@ -311,11 +307,11 @@ uint16_t read_co2_by_block(uint16_t addr)
 
 uint8_t check_write_co2(uint16_t addr,uint16_t value)
 {
-	uint8_t lcd_i2c_sensor_index;
+/*	uint8_t lcd_i2c_sensor_index;
 
 	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;
 	if(lcd_i2c_sensor_index == 255)
-		lcd_i2c_sensor_index = 0;
+		lcd_i2c_sensor_index = 0;*/
 
 	if(addr == MODBUS_CO2_TEMPERATURE_DEGREE_C_OR_F)
 	{
@@ -338,7 +334,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   else
 	   		   return 0;
 	}
-	else if(addr == MODBUS_CO2_EXTERNAL_TEMPERATURE_CELSIUS)
+	/*else if(addr == MODBUS_CO2_EXTERNAL_TEMPERATURE_CELSIUS)
 	{
 		 if(value == co2_data.I2C_Sensor[lcd_i2c_sensor_index].tem_org)
 			  return 1;
@@ -358,7 +354,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 			return 1;
 		else
 				   return 0;
-	}
+	}*/
 	else if(addr == MODBUS_CO2_PREALARM_SETPOINT)
 	{
 	   if(value == co2_data.pre_alarm_setpoint)
@@ -401,7 +397,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   else
 	   		   return 0;
 	}
-	else if(addr == MODBUS_CO2_OUTPUT_AUTO_MANUAL)
+	/*else if(addr == MODBUS_CO2_OUTPUT_AUTO_MANUAL)
 	{
 	   if(value == co2_data.output_auto_manual )
 		   return 1;
@@ -428,7 +424,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 		   return 1;
 	   else
 	   		   return 0;
-	}
+	}*/
 	else if(addr == MODBUS_CO2_OUTPUT_MODE)
 	{
 	   if(value == co2_data.output_mode)
@@ -436,7 +432,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   else
 	   		   return 0;
 	}
-	else if(addr == MODBUS_CO2_OUTPUT_RANGE_MIN_TEM)
+	/*else if(addr == MODBUS_CO2_OUTPUT_RANGE_MIN_TEM)
 	{
 	   if(value == co2_data.output_range_table[CHANNEL_TEMP].min)
 			return 1;
@@ -477,8 +473,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 		   return 1;
 	   else
 	   		   return 0;
-	}
-
+	}*/
 	else if(addr == MODBUS_CO2_BACKLIGHT_KEEP_SECONDS)
 	{
 	   if(value == co2_data.backlight_keep_seconds)
@@ -486,13 +481,13 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   else
 	   		   return 0;
 	}
-	else if(addr == MODBUS_CO2_LCD_I2C_SENSOR_Index)
+	/*else if(addr == MODBUS_CO2_LCD_I2C_SENSOR_Index)
 	{
 	   if(value == co2_data.lcd_i2c_sensor_index)
 			return 1;
 	   else
 	   		   return 0;
-	}
+	}*/
 	else if(addr == MODBUS_CO2_I2C_SENOR1_TYPE)
 	{
 	   if(value == co2_data.i2c_sensor_type[0])
@@ -620,7 +615,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   		   return 0;
 	}
 
-	else if(addr == MODBUS_CO2_SCREEN_AREA_1)
+	/*else if(addr == MODBUS_CO2_SCREEN_AREA_1)
 	{
 	   if(value == co2_data.screenArea1)
 			return 1;
@@ -641,10 +636,6 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   else
 	   		   return 0;
 	}
-	/*else if(addr == MODBUS_CO2_SCREEN_MANUAL_RESET)
-	{
-	  return
-	}*/
 	else if(addr == MODBUS_CO2_ENABLE_SCROLL)
 	{
 	   if(value == co2_data.enableScroll)
@@ -679,7 +670,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 			return 1;
 	   else
 		   return 0;
-	}
+	}*/
 	else
 		return 1;
 }
@@ -690,12 +681,12 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	uint16_t *block;
 	uint8_t *block1;
 	uint8_t temp;
-	uint8_t lcd_i2c_sensor_index;
+/*	uint8_t lcd_i2c_sensor_index;
 	
 
 	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;
 	if(lcd_i2c_sensor_index == 255)
-		lcd_i2c_sensor_index = 0;
+		lcd_i2c_sensor_index = 0;*/
 	if(addr == MODBUS_CO2_TEMPERATURE_DEGREE_C_OR_F)
 	{
 	  co2_data.deg_c_or_f = pData[HeadLen + 5];
@@ -708,7 +699,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	{
 	  co2_data.internal_temperature_f = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	}
-	else if(addr == MODBUS_CO2_EXTERNAL_TEMPERATURE_CELSIUS)
+	/*else if(addr == MODBUS_CO2_EXTERNAL_TEMPERATURE_CELSIUS)
 	{
 	 co2_data.I2C_Sensor[lcd_i2c_sensor_index].tem_org = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	}
@@ -719,7 +710,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	else if(addr == MODBUS_CO2_INTERNAL)
 	{
 		co2_data.I2C_Sensor[lcd_i2c_sensor_index].co2_org = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
-	}
+	}*/
 	else if(addr == MODBUS_CO2_PREALARM_SETPOINT)
 	{
 	   co2_data.pre_alarm_setpoint = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
@@ -744,7 +735,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	{
 	   co2_data.alarm_delay_time = pData[HeadLen + 5];;
 	}
-	else if(addr == MODBUS_CO2_OUTPUT_AUTO_MANUAL)
+	/*else if(addr == MODBUS_CO2_OUTPUT_AUTO_MANUAL)
 	{
 	   co2_data.output_auto_manual = pData[HeadLen + 5];
 	}
@@ -759,12 +750,12 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	else if(addr == MODBUS_CO2_OUTPUT_MANUAL_VALUE_CO2)
 	{
 	   co2_data.output_manual_value_co2 = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
-	}
+	}*/
 	else if(addr == MODBUS_CO2_OUTPUT_MODE)
 	{
 	   co2_data.output_mode = pData[HeadLen + 5];
 	}
-	else if(addr == MODBUS_CO2_OUTPUT_RANGE_MIN_TEM)
+	/*else if(addr == MODBUS_CO2_OUTPUT_RANGE_MIN_TEM)
 	{
 	   co2_data.output_range_table[CHANNEL_TEMP].min = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	}
@@ -787,16 +778,16 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	else if(addr == MODBUS_CO2_OUTPUT_RANGE_MAX_CO2)
 	{
 	   co2_data.output_range_table[CHANNEL_CO2].max = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
-	}
+	}*/
 
 	else if(addr == MODBUS_CO2_BACKLIGHT_KEEP_SECONDS)
 	{
 	   co2_data.backlight_keep_seconds = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	}
-	else if(addr == MODBUS_CO2_LCD_I2C_SENSOR_Index)
+	/*else if(addr == MODBUS_CO2_LCD_I2C_SENSOR_Index)
 	{
 	   co2_data.lcd_i2c_sensor_index = pData[HeadLen + 5];
-	}
+	}*/
 	else if(addr == MODBUS_CO2_I2C_SENOR1_TYPE)
 	{
 	   co2_data.i2c_sensor_type[0] = pData[HeadLen + 5];
@@ -846,7 +837,6 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	{
 	   co2_data.I2C_Sensor[1].hum_offset = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);;
 	}
-
 	else if(addr == MODBUS_CO2_I2C_SENOR3_TYPE)
 	{
 	   co2_data.i2c_sensor_type[2] = pData[HeadLen + 5];
@@ -872,7 +862,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	   co2_data.I2C_Sensor[2].hum_offset = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);;
 	}
 
-	else if(addr == MODBUS_CO2_SCREEN_AREA_1)
+	/*else if(addr == MODBUS_CO2_SCREEN_AREA_1)
 	{
 	   co2_data.screenArea1 = pData[HeadLen + 5];
 	}
@@ -884,10 +874,6 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	{
 	   co2_data.screenArea3 = pData[HeadLen + 5];
 	}
-	/*else if(addr == MODBUS_CO2_SCREEN_MANUAL_RESET)
-	{
-	  return
-	}*/
 	else if(addr == MODBUS_CO2_ENABLE_SCROLL)
 	{
 	   co2_data.enableScroll = pData[HeadLen + 5];
@@ -907,7 +893,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	else if(addr == MODBUS_CO2_CAL)
 	{
 	   co2_data.flag_co2_asc[lcd_i2c_sensor_index] = pData[HeadLen + 5];
-	}
+	}*/
 
 	flag_write_i2c = 1;
 	CO2_modbus_Addr = addr;
@@ -918,133 +904,73 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	return 0;
 }
 
-/*
-void Get_AVS(void)
-{
-//	Str_points_ptr ptr;
-	uint32 baud;
-	switch(Modbus.baudrate[0])
-	{
-	case UART_1200:
-		baud = 1200;
-		break;
-	case UART_2400:
-		baud = 2400;
-		break;
-	case UART_3600:
-		baud = 3600;
-		break;
-	case UART_4800:
-		baud = 4800;
-		break;
-	case UART_7200:
-		baud = 7200;
-		break;
-	case UART_9600:
-		baud = 9600;
-		break;
-	case UART_19200:
-		baud = 19200;
-		break;
-	case UART_38400:
-		baud = 38400;
-		break;
-	case UART_57600:
-		baud = 57600;
-		break;
-	case UART_76800:
-		baud = 76800;
-		break;
-	case UART_115200:
-		baud = 115200;
-		break;
-	case UART_921600:
-		baud = 921600;
-		break;
-	default:
-		baud = 115200;
-		break;
-	}
-//	ptr = put_io_buf(VAR,0);ptr.pvar->value = baud;
-//	ptr = put_io_buf(VAR,1);ptr.pvar->value = Station_NUM;
-//	ptr = put_io_buf(VAR,2);ptr.pvar->value = Modbus.com_config[0];
-//	ptr = put_io_buf(VAR,3);ptr.pvar->value = (uint32)Instance;
-//	ptr = put_io_buf(VAR,4);ptr.pvar->value = DEGCorF;
-	  
-}*/
 
 
 void CO2_check_calibration(uint8_t i)
 {
 	Str_points_ptr ptr;
+	uint16 addr = 0;
+	uint16 value = 0;
 	int16_t cal;
 	ptr = put_io_buf(IN,i);
 
 	cal = (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo) / 10;
 	if(i == 0 || i == 1 || i == 3 || i == 4 || i == 6 || i == 7)
 	{
+
 		if( ptr.pin->calibration_sign ) // 0->postive 		1->negtive
 			cal = -cal;
+		value = cal;
+	}
+	else  // co2 value
+	{
+		value = ptr.pin->value / 1000;
 	}
 
 	Test[25]++;
-	Test[26] = cal;
 
-	CO2_modbus_value = cal;
+
 	if(i == 0)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR1_TEM_OFFSET;
-		if(co2_data.I2C_Sensor[0].tem_offset != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR1_TEM_OFFSET;
 	}
 	if(i == 1)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR1_HUM_OFFSET;
-		if(co2_data.I2C_Sensor[0].hum_offset != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR1_HUM_OFFSET;
 	}
 	if(i == 2)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR1_CO2;
-		if(co2_data.I2C_Sensor[0].co2_org != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR1_CO2;
 	}
 	if(i == 3)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR2_TEM_OFFSET;
-		if(co2_data.I2C_Sensor[1].tem_offset != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR2_TEM_OFFSET;
 	}
 	if(i == 4)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR2_HUM_OFFSET;
-		if(co2_data.I2C_Sensor[1].hum_offset != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR2_HUM_OFFSET;
 	}
 	if(i == 5)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR2_CO2;
-		if(co2_data.I2C_Sensor[1].co2_org != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR2_CO2;
 	}
 	if(i == 6)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR3_TEM_OFFSET;
-		if(co2_data.I2C_Sensor[2].hum_offset != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR3_TEM_OFFSET;
 	}
 	if(i == 7)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR3_HUM_OFFSET;
-		if(co2_data.I2C_Sensor[2].hum_offset != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR3_HUM_OFFSET;
 	}
 	if(i == 8)
 	{
-		CO2_modbus_Addr = MODBUS_CO2_I2C_SENOR3_CO2;
-		if(co2_data.I2C_Sensor[2].co2_org != cal)
-			flag_write_i2c = 1;
+		addr = MODBUS_CO2_I2C_SENOR3_CO2;
 	}
-	xQueueSend(qSendCo2, &flag_write_i2c, 0);
+
+	flag_write_i2c = 1;
+	CO2_modbus_Addr = addr;
+	CO2_modbus_value = value;
+//	delay_ms(1000);
+	//xQueueSend(qSendCo2, &flag_write_i2c, 0);
 
 }

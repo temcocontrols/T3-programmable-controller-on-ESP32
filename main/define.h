@@ -6,7 +6,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6601
+#define SOFTREV     6602
 
 
 #define		SW_OFF 	 0
@@ -126,8 +126,8 @@ typedef struct
 	U8_T subnet_protocal; // 0 - modbus, 12 - bip to mstp
 
 	U8_T  command_version; //65 version number
-	  U8_T  subnet_port;  //1- MainPort      2-ZigbeePort      3-SubPort
-	  U8_T  subnet_baudrate;   //
+	U8_T  subnet_port;  //1- MainPort      2-ZigbeePort      3-SubPort
+	U8_T  subnet_baudrate;   //
 	 U8_T mini_type;
 }STR_SCAN_CMD;
 
@@ -207,6 +207,11 @@ extern uint8 flagLED_sub_tx;
 extern uint8 flagLED_main_rx;
 extern uint8 flagLED_main_tx;
 
+extern uint8 com_config_back[3];
+extern uint8 flag_change_uart0;
+extern uint8 flag_change_uart2;
+extern uint8 count_change_uart0;
+extern uint8 count_change_uart2;
 
 void modbus_task0(void *arg);
 void modbus_task2(void *arg);

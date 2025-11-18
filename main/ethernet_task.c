@@ -100,10 +100,13 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 }
 
 esp_eth_handle_t eth_handle = NULL;
-//esp_err_t eth_status;
+
+
+extern uint8_t count_reboot;
 esp_err_t ethernet_init(void)
 {
 	esp_err_t ret;
+
 	tcpip_adapter_init(); // Commented by Evan: it is recommanded to be replaced by esp_netif_init();
 	ret = esp_event_loop_create_default();
 	if(ret == ESP_OK)
@@ -166,49 +169,28 @@ esp_err_t ethernet_init(void)
 	esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
 	esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
 
-//	esp_eth_handle_t eth_handle = NULL;
 
-	if((ret = esp_eth_driver_install(&config, &eth_handle))==ESP_OK)
-	{
-		debug_info("esp_eth_driver_install finished^^^^^^^^");
-	}
-	else{
-
-	}
-
-	if( esp_eth_start(eth_handle) == ESP_OK)
-	{
-		debug_info("esp_eth_start finished^^^^^^^^");
-	}
-	else
-	{
-		//return ret;
-	}
-#if 0
-	if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM )
+	if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_CO2)
 	{
 		if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK){
-			eth_status = ESP_OK;
+			//eth_status = ESP_OK;
 			debug_info("esp_eth_driver_install finished^^^^^^^^");}
 		else
 		{
-			eth_status = ESP_ERR_NOT_FINISHED;
-			//Test[47] = 1111;
-			//Test[42] = esp_eth_driver_install(&config, &eth_handle);
-			//ets_delay_us(500000);
+			//Test[11]++;
 			//esp_eth_driver_install(&config, &eth_handle);
-			//esp_restart();
-		}
-		if(esp_eth_start(eth_handle)){
-			//Test[48] = 525;
-			debug_info("esp_eth_start finished^^^^^^^^");}
-		else{
-			//ets_delay_us(500000);
-			//esp_eth_start(eth_handle);
-			//Test[48] = 2222;
+			if(count_reboot < 5)
+				esp_restart();
 		}
 	}
-#endif
+	else
+	{
+		if((ret = esp_eth_driver_install(&config, &eth_handle))==ESP_OK)
+			debug_info("esp_eth_driver_install finished^^^^^^^^");
+	}
+	if(esp_eth_start(eth_handle))
+		debug_info("esp_eth_start finished^^^^^^^^");
+
 
 #if 1//DNS
 //	dns_init();

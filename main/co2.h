@@ -57,24 +57,24 @@ typedef struct
 	uint8_t pre_alarm_off_time;
 	uint8_t alarm_delay_time;
 
-	uint8_t output_auto_manual;
-	uint16_t output_manual_value_temp;
-	uint16_t output_manual_value_humi;
-	uint16_t output_manual_value_co2;
+//	uint8_t output_auto_manual;
+//	uint16_t output_manual_value_temp;
+//	uint16_t output_manual_value_humi;
+//	uint16_t output_manual_value_co2;
 
 	uint8_t output_mode; // 4_20ma 0-5v 0-10v
 
-	_RANGE_ output_range_table[3];
+//	_RANGE_ output_range_table[3];
 
 	uint8_t backlight_keep_seconds;
 
-	uint8_t lcd_i2c_sensor_index;
+//	uint8_t lcd_i2c_sensor_index;
 	uint8_t i2c_sensor_type[3];
 	Str_Mul_I2C I2C_Sensor[3];
 
-	uint8_t screenArea1;
-	uint8_t screenArea2;
-	uint8_t screenArea3;
+	uint8_t protcal;//screenArea1;
+	uint8_t address;//screenArea2;
+	uint8_t baud;//screenArea3;
 	uint8_t enableScroll;
 	uint8_t alarmEnable;
 
@@ -87,12 +87,17 @@ typedef struct
 
 	uint16 analog_output[3];
 
-//	uint8_t scd4x_perform_forced[3];
-//	uint8_t scd4x_enable_asc[3];
-//	uint8_t scd4x_disable_asc[3];
-//	uint8_t scd4x_read_asc[3];
+	uint8 write_ghost_system;
+	uint8 ip_mode;
+	uint8 ip_addr[4];
+	uint8 mask_addr[4];
+	uint8 gate_addr[4];
 
-
+	uint8 write_ghost_system_wifi;
+	uint8 ip_mode_wifi;
+	uint8 ip_addr_wifi[4];
+	uint8 mask_addr_wifi[4];
+	uint8 gate_addr_wifi[4];
 
 }STR_CO2_Reg;
 

@@ -64,7 +64,7 @@
 #include "multiMeter.h"
 #include "mm_spi.h"
 #include "co2.h"
-#include "lowPower.h"
+//#include "lowPower.h"
 
 //#include "types.h"
 
@@ -82,6 +82,7 @@ static const char *TCP_TASK_TAG = "TCP_TASK";
 static const char *UDP_TASK_TAG = "UDP_TASK";
 void udp_client_send(uint16 time);
 STR_SCAN_CMD Scan_Infor;
+uint8_t flag_updating;
 //uint8_t tcp_send_packet[1024];
 //uint8_t modbus_wifi_buf[500];
 //uint16_t modbus_wifi_len;
@@ -873,6 +874,11 @@ int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 			(rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
 			(rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00) )
 		{
+			if(Modbus.mini_type == PROJECT_CO2)
+			 {
+				 flag_updating = 1;
+				 delay_ms(2000);
+			 }
 			start_fw_update();
 		}
 	}
@@ -1645,7 +1651,8 @@ static void tcp_client_task(void *pvParameters)
 				}
 
 				//flag_receive_netp_modbus = 0;
-
+    			Test[9] = number_of_network_points_modbus;
+    			Test[10]++;
 				ip = network_points_list[network_point_index].point.panel;
 				sub_id = network_points_list[network_point_index].tb.NT_modbus.id;
 				func = network_points_list[network_point_index].tb.NT_modbus.func & 0x7f;
@@ -1665,7 +1672,7 @@ static void tcp_client_task(void *pvParameters)
 				check_time_to_live();
 
 				if(tcp_client[index].socket == -1)
-				{
+				{Test[11]++;
 					tcp_client[index].socket = socket(addr_family, SOCK_STREAM, ip_protocol);
 					if (tcp_client[index].socket < 0) {
 						//ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
@@ -1705,7 +1712,7 @@ static void tcp_client_task(void *pvParameters)
 								sub_id = 255;
 						Modbus_Client_Command[6] = sub_id;
 						Modbus_Client_Command[7] = func;
-
+						Test[12]++;
 						if(func == READ_VARIABLES || func == READ_COIL
 							|| func == READ_DIS_INPUT || func == READ_INPUT)  // read command
 						{// 01 03 02 04
@@ -1738,7 +1745,7 @@ static void tcp_client_task(void *pvParameters)
 						else
 							flagLED_ether_tx = 1;
 
-
+						Test[13]++;
 						err = Readable_timeo(tcp_client[index].socket, 10);
 						if(err > 0)
 						{
@@ -1759,7 +1766,7 @@ static void tcp_client_task(void *pvParameters)
 								if(len == 11 || len == 13 || len == 10)  // response read
 								{ // READ ONE is 11, read 2bytes is 13, read coil is 10
 									memcpy(&tcp_clinet_buf, rx_buffer,len);
-
+									Test[14]++;
 									//if(network_points_list[network_point_index].point.panel == (U8_T)(ip >> 24) )
 									float_type = (network_points_list[network_point_index].tb.NT_modbus.func & 0xff00) >> 8;
 									if(ip == tcp_clinet_buf[0])
@@ -1783,7 +1790,7 @@ static void tcp_client_task(void *pvParameters)
 											&& (network_points_list[network_point_index].tb.NT_modbus.id != 0)
 											&& (tcp_clinet_buf[7] == (network_points_list[network_point_index].tb.NT_modbus.func & 0x7f))
 										)
-										{
+										{Test[15]++;
 											add_network_point( network_points_list[network_point_index].point.panel,
 											network_points_list[network_point_index].point.sub_id,
 											network_points_list[network_point_index].point.point_type - 1,
@@ -2345,11 +2352,6 @@ void check_modbus_slave(void);
 
 #if  COV
 #include "bacnet.h"
-<<<<<<< .mine
-//#include "cov.h"
-=======
-
->>>>>>> .theirs
 
 BACNET_COV_DATA cov_data;
 BACNET_PROPERTY_VALUE value_list;
@@ -2714,15 +2716,6 @@ void Timer_task(void)
 			}
 #endif
 			Test[0] = flag_ethernet_initial + 10;
-			//if ((Modbus.mini_type != PROJECT_AIRLAB) && (Modbus.mini_type != MINI_TSTAT10))
-			if(Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_LSW_SENSOR)
-			{
-				if(flag_ethernet_initial != 0 && run_time > 20)
-				{// reboot
-					esp_retboot();
-				}
-			}
-
 #if COV
 			handler_cov_timer_seconds(1);
 #endif
@@ -2757,7 +2750,7 @@ void Timer_task(void)
 		}
 
 
-		if((system_timer > 20000 / TIMER_INTERVAL) && (flag_clear_count_reboot == 0))
+		if((run_time > 15) && (flag_clear_count_reboot == 0))
 		{ // 20s clear reboot count
 			flag_clear_count_reboot = 1;
 			save_uint8_to_flash(FLASH_COUNT_REBOOT,0); // clear reboot count
@@ -3399,7 +3392,11 @@ void i2c_master_task(void)
 					if(Modbus.mini_type == PROJECT_CO2 )
 					{
 						uint8_t kk;
+						static uint32_t start_write_timer = 0;
+
 						// 100 以前的寄存器，about基础信息的修改
+
+						Test[20]++;
 						for(kk = 0;kk < 4;kk++)
 						{
 							i2c_send_buf[2 + kk] = Modbus.ip_addr[kk];
@@ -3411,50 +3408,107 @@ void i2c_master_task(void)
 						}
 
 						kk = 26;
-						i2c_send_buf[kk++] = Modbus.address;
-						i2c_send_buf[kk++] = Modbus.protocal;
-						i2c_send_buf[kk++] = Modbus.baudrate[0];
+						if(Modbus.address != co2_data.address)
+							i2c_send_buf[kk++] = Modbus.address;
+						else
+							i2c_send_buf[kk++] = 0;
+
+						if(Modbus.com_config[0] == 1 || Modbus.com_config[0] == 9)
+							i2c_send_buf[kk++] = 1;//Mstp;
+						else
+							i2c_send_buf[kk++] = 0;//Modbus;
+
+						if(Modbus.baudrate[0] != co2_data.baud)
+							i2c_send_buf[kk++] = Modbus.baudrate[0];
+						else
+							i2c_send_buf[kk++] = 0;
+
+
+
 						i2c_send_buf[kk++] = SSID_Info.IP_Wifi_Status;
 						i2c_send_buf[kk++] = SSID_Info.rssi;
 
-						i2c_send_buf[kk++] = vars[0].value >> 8;
-						i2c_send_buf[kk++] = vars[0].value;
-						i2c_send_buf[kk++] = vars[1].value >> 8;
-						i2c_send_buf[kk++] = vars[1].value;
-						i2c_send_buf[kk++] = vars[2].value >> 8;
-						i2c_send_buf[kk++] = vars[2].value;
+						i2c_send_buf[kk++] = (vars[0].value / 100)>> 8;
+						i2c_send_buf[kk++] = vars[0].value / 100;
+						i2c_send_buf[kk++] = (vars[1].value / 100) >> 8;
+						i2c_send_buf[kk++] = vars[1].value / 100;
+						i2c_send_buf[kk++] = (vars[2].value / 100)>> 8;
+						i2c_send_buf[kk++] = (vars[2].value / 100);
+
 						if(vars[0].range == 0)
-							vars[0].range = R10K_40_120DegC;
+							vars[0].range = degC;
 						i2c_send_buf[kk++] = vars[0].range;
 						if(vars[1].range == 0)
-							vars[1].range = Humidty;
+							vars[1].range = RH;
 						i2c_send_buf[kk++] = vars[1].range;
-						if(vars[1].range == 0)
-							vars[2].range = CO2_PPM;
+						if(vars[2].range == 0)
+							vars[2].range = ppm;
 						i2c_send_buf[kk++] = vars[2].range;
 
+						if(co2_data.output_mode == E_4_20MA)
+						{
+							i2c_send_buf[kk++] = ((outputs[0].value) / 20) >> 8;
+							i2c_send_buf[kk++] = ((outputs[0].value) / 20);
+							i2c_send_buf[kk++] = ((outputs[1].value) / 20) >> 8;
+							i2c_send_buf[kk++] = ((outputs[1].value) / 20);
+							i2c_send_buf[kk++] = ((outputs[2].value) / 20) >> 8;
+							i2c_send_buf[kk++] = ((outputs[2].value) / 20);
+						}
+						else if(co2_data.output_mode == E_0_5V)
+						{
+							i2c_send_buf[kk++] = (outputs[0].value / 5) >> 8;
+							i2c_send_buf[kk++] = (outputs[0].value / 5);
+							i2c_send_buf[kk++] = (outputs[1].value / 5) >> 8;
+							i2c_send_buf[kk++] = (outputs[1].value / 5);
+							i2c_send_buf[kk++] = (outputs[2].value / 5) >> 8;
+							i2c_send_buf[kk++] = (outputs[2].value / 5);
+						}
+						else //if(co2_data.output_mode == E_0_10V)
+						{
+							i2c_send_buf[kk++] = (outputs[0].value / 10) >> 8;
+							i2c_send_buf[kk++] = (outputs[0].value / 10);
+							i2c_send_buf[kk++] = (outputs[1].value / 10) >> 8;
+							i2c_send_buf[kk++] = (outputs[1].value / 10);
+							i2c_send_buf[kk++] = (outputs[2].value / 10) >> 8;
+							i2c_send_buf[kk++] = (outputs[2].value / 10);
+						}
+
+						i2c_send_buf[kk++] = SSID_Info.ip_addr[0];
+						i2c_send_buf[kk++] = SSID_Info.ip_addr[1];
+						i2c_send_buf[kk++] = SSID_Info.ip_addr[2];
+						i2c_send_buf[kk++] = SSID_Info.ip_addr[3];
+						if(flag_updating == 1)
+							i2c_send_buf[kk++] = 1; // updating
+						else
+							i2c_send_buf[kk++] = 3; // normal  50
+
+
+						i2c_send_buf[kk++] = Modbus.tcp_type; // 51
+						i2c_send_buf[kk++] = SSID_Info.IP_Auto_Manual; // 52
+
 						//写 100之后 的寄存器处理，有关 sensor的操作
-						kk = 50;
+						kk = 70;
 						i2c_send_buf[kk++] = flag_write_i2c;
 						i2c_send_buf[kk++] = CO2_modbus_Addr >> 8;
 						i2c_send_buf[kk++] = CO2_modbus_Addr;
 						i2c_send_buf[kk++] = CO2_modbus_value >> 8;
 						i2c_send_buf[kk++] = CO2_modbus_value;
-
+						if(flag_write_i2c == 1)	Test[20]++;
+						if((run_time - start_write_timer >= 3) && (flag_write_i2c == 1))
+						{
+							flag_write_i2c = 0;Test[21]++;
+						}
 						if(xQueueReceive(qSendCo2, &flag_write_i2c, 5) == pdTRUE)
 						{
 							if(flag_write_i2c == 1)
 							{// check Whetehr write ok
-								Test[20]++;
-								Test[21] = CO2_modbus_Addr;
-								Test[22] = CO2_modbus_value;
+								start_write_timer = run_time;
 								if(check_write_co2(CO2_modbus_Addr,CO2_modbus_value))
-								{Test[23]++;
-									flag_write_i2c = 0;
+								{
+									flag_write_i2c = 0;Test[22]++;
 								}
 							}
 						}
-
 
 					}
 					else if(Modbus.mini_type == MINI_SMALL_ARM )
@@ -3965,7 +4019,7 @@ void i2c_master_task(void)
 								if(err++ > 10)
 								{
 									err = 0;
-									reboot_sub_chip();
+									//reboot_sub_chip();
 								}
 							}
 
@@ -4035,10 +4089,11 @@ void i2c_master_task(void)
 								err = 0;
 							else
 							{
-								if(err++ > 10)
+								if(err++ >= 5)
 								{
 									err = 0;
-									//reboot_sub_chip();
+									Test[5]++;
+									reboot_sub_chip();
 								}
 							}
 							crc_check = crc16(i2c_rcv_buf, 114 - 2);
@@ -4095,8 +4150,8 @@ void i2c_master_task(void)
 											if(co2_data.I2C_Sensor[i].hum_offset < 0)
 											{
 												ptr.pin->calibration_sign = 1;
-												ptr.pin->calibration_hi = (65535 - co2_data.I2C_Sensor[i].hum_offset) >> 8;
-												ptr.pin->calibration_lo = (65535 - co2_data.I2C_Sensor[i].hum_offset) ;
+												ptr.pin->calibration_hi = (65536 - co2_data.I2C_Sensor[i].hum_offset) >> 8;
+												ptr.pin->calibration_lo = (65536 - co2_data.I2C_Sensor[i].hum_offset) ;
 											}
 											else
 											{
@@ -4113,7 +4168,7 @@ void i2c_master_task(void)
 											if (ptr.pin->label == NULL) {
 												sprintf(str, "CO2%d", i); // 初始化为 "HUMI<j>"
 												memcpy(ptr.pin->label, str, 8);
-											}
+								   			}
 
 											ptr.pin->range = CO2_PPM;
 											ptr.pin->digital_analog = 1;
@@ -4136,10 +4191,111 @@ void i2c_master_task(void)
 									else
 										ptr.pout->range = 0;
 									ptr.pout->digital_analog = 1;
-									ptr.pout->value = co2_data.analog_output[j] * 10;
+									Test[15 + j] = co2_data.analog_output[j];
+									//ptr.pout->value = co2_data.analog_output[j] * 10;
+									}
+#if 1
+									if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
+									{
+										if(co2_data.protcal == 0/*MODBUS*/)
+										{
+											Modbus.com_config[0] = MODBUS_SLAVE;
+											save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+											com_config_back[0] = Modbus.com_config[0];
+											flag_change_uart0 = 1;
+											count_change_uart0 = 0;
+										}
+									}
+									if(Modbus.com_config[0] == MODBUS_MASTER || Modbus.com_config[0] == MODBUS_SLAVE)
+									{
+										if(co2_data.protcal == 1/*BAC_MSTP*/)
+										{
+											Modbus.com_config[0] = BACNET_SLAVE;
+											save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+											Recievebuf_Initialize(0);
+											com_config_back[0] = Modbus.com_config[0];
+											flag_change_uart0 = 1;
+											count_change_uart0 = 0;
+										}
+
+									}
+									if((Modbus.address != co2_data.address) && (co2_data.address != 0))
+									{
+										Modbus.address = co2_data.address;
+										panel_number = co2_data.address;
+										change_panel_number_in_code(Setting_Info.reg.panel_number,panel_number);
+										Setting_Info.reg.panel_number = panel_number;
+										Station_NUM = panel_number;
+										save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
+									}
+									if((Modbus.baudrate[0] != co2_data.baud) && (co2_data.baud != 0))
+									{
+										Modbus.baudrate[0] = co2_data.baud;
+										save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
+										flag_change_uart0 = 1;
+										count_change_uart0 = 0;
+									}
+									if(co2_data.write_ghost_system_wifi == 1)
+									{	//如果 co2_data 的 IP、Netmask、Gateway 不为 0 且与 ssid_info 不同，则更新 ssid_info
+										// change ip
+										uint8_t flag_wifi_change = 0;
+										 if(SSID_Info.IP_Auto_Manual != co2_data.ip_mode_wifi)
+										 {
+											 SSID_Info.IP_Auto_Manual = co2_data.ip_mode_wifi;
+											 flag_wifi_change = 1;
+										 }
+
+
+										 if (!is_address_zero(co2_data.ip_addr_wifi) && !compare_address(SSID_Info.ip_addr, co2_data.ip_addr_wifi)) {
+												memcpy(SSID_Info.ip_addr, co2_data.ip_addr_wifi, 4);
+												flag_wifi_change = 1;
+											}
+
+										 if (!is_address_zero(co2_data.mask_addr) && !compare_address(SSID_Info.net_mask, co2_data.mask_addr_wifi)) {
+												memcpy(SSID_Info.net_mask, co2_data.mask_addr_wifi, 4);
+												flag_wifi_change = 1;
+											}
+
+										 if (!is_address_zero(co2_data.gate_addr) && !compare_address(SSID_Info.getway, co2_data.gate_addr_wifi)) {
+												memcpy(SSID_Info.getway, co2_data.gate_addr_wifi, 4);
+												flag_wifi_change = 1;
+											}
+										 if(flag_wifi_change == 1)
+										 {
+											 save_wifi_info();
+											 esp_retboot();
+										 }
 									}
 
+									if(co2_data.write_ghost_system == 1)
+									{
+										if(Modbus.tcp_type != co2_data.ip_mode)
+										{
+											Modbus.tcp_type = co2_data.ip_mode;
+											save_uint8_to_flash( FLASH_TCP_TYPE, Modbus.tcp_type);
+											 Eth_IP_Change = 1;
+										}
+										 if (!is_address_zero(co2_data.ip_addr) && !compare_address(Modbus.ip_addr, co2_data.ip_addr)) {
+										        memcpy(Modbus.ip_addr, co2_data.ip_addr, 4);
+										        Eth_IP_Change = 1;
+										    }
 
+										 if (!is_address_zero(co2_data.mask_addr) && !compare_address(Modbus.subnet, co2_data.mask_addr)) {
+										 		memcpy(Modbus.subnet, co2_data.mask_addr, 4);
+										 		Eth_IP_Change = 1;
+										 	}
+
+										 if (!is_address_zero(co2_data.gate_addr) && !compare_address(Modbus.getway, co2_data.gate_addr)) {
+										 		memcpy(Modbus.getway, co2_data.gate_addr, 4);
+										 		Eth_IP_Change = 1;
+										 	}
+
+										if(Eth_IP_Change)
+											ip_change_count = 0;
+
+									}
+
+#endif
 								}
 
 							}
@@ -4392,7 +4548,6 @@ void Ethernet_Initial(void)
 #endif
 
 #endif
-	//flag_ethernet_initial = ethernet_init();
 }
 #endif
 
@@ -4410,7 +4565,7 @@ void start_dns_server(void);
 void ddns_task(void *pvParameters);
 #endif
 
-
+void phy_reset(void);
 void app_main()
 {
 
@@ -4440,14 +4595,8 @@ void app_main()
     if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
 
-   /* if ((Modbus.mini_type != PROJECT_AIRLAB) && (Modbus.mini_type != MINI_TSTAT10))
-    {
-    	Ethernet_Initial();
-    }
-    else*/
-    {
-    	flag_ethernet_initial = ethernet_init();
-    }
+    flag_ethernet_initial = ethernet_init();
+
 
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 1, &main_task_handle[1]);
 
@@ -4476,7 +4625,6 @@ void app_main()
 	{
 		lightswitch_adc_init();
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
-		xTaskCreate(light_sleep_task, "LightSleepTask", 2048, NULL, 14, NULL);
 	}
 
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216

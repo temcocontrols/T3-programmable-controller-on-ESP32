@@ -33,7 +33,7 @@ const uint8 Var_label[12][9];
 extern uint16_t input_cal[16];
 
 extern uint16_t count_lcd_time_off_delay;
-extern uint8_t com_config_back[2];
+extern uint8_t com_config_back[3];
 
 extern uint16_t current_page;
 extern char sntp_server[30];
@@ -133,6 +133,7 @@ esp_err_t read_uint16_from_falsh(const char* key, uint16_t* value)
 	return ESP_OK;
 }
 
+
 esp_err_t read_default_from_flash(void)
 {
 	nvs_handle_t my_handle;
@@ -165,6 +166,7 @@ esp_err_t read_default_from_flash(void)
 		Modbus.baudrate[0] = 9;
 		nvs_set_u8(my_handle, FLASH_BAUD_RATE, Modbus.baudrate[0]);
 	}
+
 	err = nvs_get_u8(my_handle, FLASH_BAUD_RATE2, &Modbus.baudrate[2]);
 
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
@@ -369,16 +371,17 @@ esp_err_t read_default_from_flash(void)
 
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
-
-	if(Modbus.mini_type == MINI_SMALL_ARM|| Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_CO2)
-	{
-		if(count_reboot >= 10)
+	Test[21]++;
+	if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_CO2)
+	{Test[22]++;
+		if(count_reboot > 10)
 		{ // reboot
 			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
 			start_fw_update();
 		}
 		else
-		{
+		{	Test[23]++;
+			Test[24] = count_reboot;
 			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
 		}
 	}
@@ -685,10 +688,10 @@ void clear_currnet_page(void)
 	save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE,current_page);
 }
 
-void clear_count_reboot(void)
+/*void clear_count_reboot(void)
 {
 	save_uint8_to_flash(FLASH_COUNT_REBOOT,0);
-}
+}*/
 
 typedef struct
 {
@@ -1896,6 +1899,8 @@ esp_err_t save_trendlog(void)
 	   current_page = 0;
 	   flag_flash_covered = 1;
    }*/
+   Test[22]++;
+   Test[23] = current_page;
    save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE,current_page);
 	return ESP_OK;
 }
@@ -1919,7 +1924,8 @@ esp_err_t read_trendlog(uint16_t page_total,uint8_t seg)
 	uint8_t page;
 	page = page_total % MAX_TREND_PAGE;
 
-
+	Test[20]++;
+	Test[21] = page;
 	if(seg < 10)
 		err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 400);
 	else if(seg == 10)
