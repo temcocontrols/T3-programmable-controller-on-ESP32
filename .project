@@ -2108,6 +2108,11 @@
 			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/spi_flash/esp32/spi_flash_rom_patch.c</location>
 		</link>
 		<link>
+			<name>build/ide/esp_idf_components/temco_bacnet/private/alarm.c</name>
+			<type>1</type>
+			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/private/alarm.c</location>
+		</link>
+		<link>
 			<name>build/ide/esp_idf_components/temco_bacnet/private/bac_control.c</name>
 			<type>1</type>
 			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/private/bac_control.c</location>
@@ -2298,6 +2303,16 @@
 			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/fifo.c</location>
 		</link>
 		<link>
+			<name>build/ide/esp_idf_components/temco_bacnet/src/h_ccov.c</name>
+			<type>1</type>
+			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/h_ccov.c</location>
+		</link>
+		<link>
+			<name>build/ide/esp_idf_components/temco_bacnet/src/h_cov.c</name>
+			<type>1</type>
+			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/h_cov.c</location>
+		</link>
+		<link>
 			<name>build/ide/esp_idf_components/temco_bacnet/src/h_iam.c</name>
 			<type>1</type>
 			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/h_iam.c</location>
@@ -2331,6 +2346,11 @@
 			<name>build/ide/esp_idf_components/temco_bacnet/src/h_ts.c</name>
 			<type>1</type>
 			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/h_ts.c</location>
+		</link>
+		<link>
+			<name>build/ide/esp_idf_components/temco_bacnet/src/h_ucov.c</name>
+			<type>1</type>
+			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/h_ucov.c</location>
 		</link>
 		<link>
 			<name>build/ide/esp_idf_components/temco_bacnet/src/h_whohas.c</name>
@@ -2426,6 +2446,11 @@
 			<name>build/ide/esp_idf_components/temco_bacnet/src/rpm.c</name>
 			<type>1</type>
 			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/rpm.c</location>
+		</link>
+		<link>
+			<name>build/ide/esp_idf_components/temco_bacnet/src/s_cov.c</name>
+			<type>1</type>
+			<location>D:/Espressif/frameworks/esp-idf-v4.4.4/components/temco_bacnet/src/s_cov.c</location>
 		</link>
 		<link>
 			<name>build/ide/esp_idf_components/temco_bacnet/src/s_dcc.c</name>

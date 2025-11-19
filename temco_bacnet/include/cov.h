@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include "bacapp.h"
 
+
 typedef struct BACnet_COV_Data {
     uint32_t subscriberProcessIdentifier;
     uint32_t initiatingDeviceIdentifier;

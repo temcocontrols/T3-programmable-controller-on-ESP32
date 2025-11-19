@@ -46,6 +46,12 @@ idf_component_register(			SRCS
 						#	"menuDaySet.c"
 							"sntp_app.c"
 							"multiMeter.c"
+							"mm_spi.c"
+							"hy3131_sw.c"
+							"Light_pwm.c"
+					#		"ddns.c"
+						#	"lowPower.c"
+							"co2.c"
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")

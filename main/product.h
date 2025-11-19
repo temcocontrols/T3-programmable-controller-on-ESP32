@@ -53,6 +53,12 @@
 #define TINY_MAX_DIS 0
 #define TINY_MAX_SCS 8
 
+#define NANO_MAX_DOS 0
+#define NANO_MAX_AOS 0
+
+#define LPWM_MAX_DOS 0
+#define LPWM_MAX_AOS 4
+
 #define NEW_TINY_MAX_AIS 8
 #define NEW_TINY_MAX_DOS 8
 #define NEW_TINY_MAX_AOS 6
@@ -81,6 +87,13 @@
 #define TSTAT10_MAX_AVS 128
 #define TSTAT10_MAX_DIS 8
 #define TSTAT10_MAX_SCS 8
+
+#define T10P_MAX_AIS 17
+#define T10P_MAX_DOS 5
+#define T10P_MAX_AOS 4
+#define T10P_MAX_AVS 128
+#define T10P_MAX_DIS 8
+#define T10P_MAX_SCS 8
 
 #define NG2_MAX_AIS 16 + 6
 #define NG2_MAX_DOS 7
@@ -186,7 +199,7 @@ void uart_send_string(unsigned char *p, unsigned int length,unsigned char port);
 #define USER_SYNC 0//1
 
 
-#define COV   0
+//#define COV   1
 #define SMTP  0
 #define NETWORK_MODBUS 	1
 //#define ETHERNET_DEBUG  1  //ÍøÂç¶Ë¿ÚµÄµ÷ÊÔÐÅÏ¢ Íù 192.168.0.38    ¶Ë¿Ú1115´òÓ¡Êý¾Ý;

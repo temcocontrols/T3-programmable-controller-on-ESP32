@@ -567,39 +567,66 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								
 								break;
 		case Alarm:		
-								if((p=(U8_T *)memchr(prog,LT,30)) != NULL)
-										i = LT;
-									else
-										if((p=(U8_T *)memchr(prog,GT,30)) != NULL)
-											i = GT;
-									*p = 0xFF;
-									v1 = veval_exp(local);
-									v2 = veval_exp(local);
-									value = veval_exp(local);
-									len = *prog++;
-									memcpy(message, prog, len);
-									message[len] = 0;
-									prog += len;
-
+								 if((p=(uint8_t *)memchr(prog,LT,30)) != NULL)
+									i = LT;
+								else
+									if((p=(uint8_t *)memchr(prog,GT,30)) != NULL)
+										i = GT;
+								*p = 0xFF;
+								v1 = veval_exp(local);
+								v2 = veval_exp(local);
+								value = veval_exp(local);
+								len = *prog++;
+								memcpy(message, prog, len);
+								message[len] = 0;
+								prog += len;
+								
+								if (*prog++)
 									{
-										if (i == LT)
-											if ( v1 < v2 )
+										if (i==LT)
+										{
+											if ( v1 > v2+value )
+													*(prog-1) = 0;
+											else
 											{
-												//*(prog - 1) = 1;
+												*(prog-1) = 1;
 												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
-												alarm_flag = 1;
-												//alarm();
+
 											}
-										if (i == GT)
-											if ( v1 > v2 )
+										}
+										if (i==GT)
+										{											
+											if ( v1 < v2 - value)
 											{
-												//*(prog - 1) = 1;
+													*(prog-1) = 0;
+											}
+											else
+											{
+												*(prog-1) = 1;
+												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
+										
+											}
+										}
+									}
+									else
+									{
+									if (i==LT)
+										if ( v1 < v2 )
+											 {
+												*(prog-1) = 1;
 												alarm_flag = 1;
 												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
-												//alarm();
-											}
+											 }
+									if (i==GT)
+										if ( v1 > v2 )
+											 {
+												*(prog-1) = 1;
+												alarm_flag = 1;
+												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
+											 }
 									 }
 									*p=i;
+
 									break;
 								break;
 		/*case ALARM_AT:			
@@ -987,7 +1014,7 @@ S32_T veval_exp(U8_T *local)
 							 {
 								for(i=0;i<m-1;i++)
 								 n = (n/1000L)*op1 + (n%1000L)*op1/1000L;
-               }
+							}
 							 push( n );
 							 break;
 		case MUL:
@@ -1088,14 +1115,13 @@ S32_T veval_exp(U8_T *local)
 							 push(labs(op1));
 							 break;
 		case LN:
-/*
-							 push((float)log(pop()));
-*/
+							op1 = pop();							
+							op1 = (float)log(op1 / 1000.0) * 1000;			
 							 break;
 		case LN_1:
-/*
-							 push((float)exp(pop()));
-*/
+							op1 = pop();							
+							op1 = (float)exp(op1 / 1000.0) * 1000;							
+							 push(op1);
 							 break;
 		case SIN:
 							op1 = pop();							
@@ -1142,13 +1168,15 @@ S32_T veval_exp(U8_T *local)
 							break;
 							 
 		case SQR:
+							op1 = pop();
 							 op1 = (float)sqrt(op1 / 1000.0) * 1000;
 							 push(op1);
 							 //push((float)sqrt(pop()));		
 							 break;
 		case INT:							 
-							op1 = op1 / 1000l * 1000l;
-							 push( op1);
+							op1 = pop();		
+							op1 = (int)(op1 / 1000) * 1000;
+							 push(op1);
 							 break;
 		case SENSOR_ON:
 							{
@@ -1521,7 +1549,8 @@ S32_T veval_exp(U8_T *local)
 //						}
 //						else
 //							value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;// - (S16_T)timezone * 36000;
-						value =  100000L * Rtc.Clk.hour + 1000L * Rtc.Clk.min + 10L * Rtc.Clk.sec;			
+						//value =  100000L * Rtc.Clk.hour + 1000L * Rtc.Clk.min + 10L * Rtc.Clk.sec;		
+						value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;						
 						push(value);
 						break;
 		case USER_A:	 // ethernet

@@ -227,9 +227,18 @@ void processMeasurementFunction(MultiMeter *meter, uint8_t *tempBuffer) {
 	Str_points_ptr ptr;
 	uint32_t measuredValue;
 
-    ptr = put_io_buf(VAR, 3);
-    measuredValue = ptr.pvar->value =
+
+    measuredValue =
         ((uint32_t)tempBuffer[0] << 24) | ((uint32_t)tempBuffer[1] << 16) | ((uint32_t)tempBuffer[2] << 8) | (uint32_t)tempBuffer[3];
+
+    // Add a condition to check if the combined value is greater than 22100, if so, it is considered invalid data
+    if (measuredValue > 22100) {
+        printf("Invalid data: %u\n", measuredValue);
+        return;
+    }
+
+    ptr = put_io_buf(VAR, 3);
+    ptr.pvar->value = measuredValue;
 
     // Save the measured value to the buffer for the current channel
     uint8_t channel = tempBuffer[5] - 1;
@@ -256,6 +265,8 @@ void processMeasurementFunction(MultiMeter *meter, uint8_t *tempBuffer) {
 
         if (measuredValue > 22100)
             measuredValue = 0;
+
+        ptr.pvar->range = ohms;
 
         switch (tempBuffer[4]) {
             case RANGE_220_00_OHM:
@@ -292,6 +303,8 @@ void processMeasurementFunction(MultiMeter *meter, uint8_t *tempBuffer) {
         }
 
     }else if (tempBuffer[6] == FUNCTION_VOLTAGE) {
+
+    	ptr.pvar->range = Volts;
 
         switch (tempBuffer[4]) {
             case RANGE_220_00V:
@@ -343,6 +356,9 @@ void processMeasurementFunction(MultiMeter *meter, uint8_t *tempBuffer) {
             measuredValue *= 100000000;
         }
     } else if (tempBuffer[6] == FUNCTION_FREQUENCY) {
+
+    	//ptr.pvar->range = Volts;
+
         if (tempBuffer[4] == RANGE_22_00HZ) {
             ptr.pvar->value *= 10; // 22.00Hz range
             measuredValue *= 10;
@@ -465,11 +481,17 @@ void multiMeterTask(void *pvParameters) {
     ptr = put_io_buf(VAR, 3);
     //if(ptr.pvar->range != 0)
     {
-        ptr.pvar->range = ohms;
+        //ptr.pvar->range = ohms;
         memcpy(ptr.pvar->description,"MEASURE VALUE", strlen("MEASURE VALUE"));
         memcpy(ptr.pvar->label,"VALUE",strlen("VALUE"));
     }
 
+    ptr = put_io_buf(VAR, 4);
+    //if(ptr.pvar->range != 0)
+    {
+        memcpy(ptr.pvar->description,"DC/AC SELECTION", strlen("DC/AC SELECTION"));
+        memcpy(ptr.pvar->label,"DC/AC",strlen("DC/AC"));
+    }
      // Simplified initialization of channels
     /*for (int i = 5; i <= 7; i++) {
         ptr = put_io_buf(IN, i);
@@ -505,10 +527,18 @@ void multiMeterTask(void *pvParameters) {
 
         vTaskDelay(pdMS_TO_TICKS(10));
 
+        // select DC/AC, prepare to send to slave
+        ptr = put_io_buf(VAR, 4);
+        i2c_send_buf[0] = (uint8_t)(ptr.pvar->value / 1000);
+        stm_i2c_write(12, i2c_send_buf, 1);
+
+        vTaskDelay(pdMS_TO_TICKS(10));
+
         // Measure function, prepare to send to slave
         ptr = put_io_buf(VAR, 0);
         i2c_send_buf[0] = (uint8_t)(ptr.pvar->value / 1000);
         stm_i2c_write(11, i2c_send_buf, 1);
+
 
         if (meter.mode == MEASUREMENT_MODE_AUTO) {
         	vTaskDelay(pdMS_TO_TICKS(5000)); // Delay for 5 seconds
@@ -530,7 +560,7 @@ void multiMeterTask(void *pvParameters) {
         }
 
         if (meter.mode == MEASUREMENT_MODE_AUTO) {
-        	vTaskDelay(pdMS_TO_TICKS(3000)); // Delay for 1 second
+        	vTaskDelay(pdMS_TO_TICKS(4000)); // Delay for 1 second
         } else {
         	vTaskDelay(pdMS_TO_TICKS(2000)); // Delay for 1 second
         }

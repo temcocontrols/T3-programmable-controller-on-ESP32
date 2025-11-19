@@ -23,6 +23,8 @@ xTaskHandle Handle_Scan;
 //void check_id_alarm(uint8_t type, uint8_t id, uint32_t old_sn, uint32_t new_sn);
 void add_id_online(U8_T index);
 
+void check_whether_modbus_slave(uint8_t * uart_rsv, uint16_t len, uint8_t port);
+
 U8_T subnet_rec_package_size;
 //U8_T  tmp_sendbuf[500];
 U8_T force_scan;
@@ -38,8 +40,6 @@ U32_T com_tx[3];
 U16_T collision[3];  // id collision
 U16_T packet_error[3];  // bautrate not match
 U16_T timeout[3];
-
-uint8_t flag_uart_reading[3];
 
 void Change_com_config(U8_T port);
 void read_rmp_ad(uint8_t index);
@@ -60,7 +60,9 @@ STR_NODE_OPERATE far node_write[STACK_LEN];
 typedef enum { WRITE_OK = 0,WAIT_FOR_WRITE};
 
 
-STR_NP_NODE_OPERATE NP_node_write[STACK_LEN];
+STR_NPM_NODE_OPERATE NPM_node_write[STACK_LEN];
+
+STR_NPB_NODE_OPERATE  NPB_node_write[MAX_NPB_NODE_WRITE];
 
 
 U32_T  com_rx[3];
@@ -118,7 +120,6 @@ U8_T tst_retry[MAX_ID];
 
 
 void read_name_of_tstat(U8_T index);
-
 
 void recount_sub_addr(void)
 {	
@@ -237,7 +238,6 @@ U8_T receive_scan_reply(U8_T *p, U8_T len)
 
 		current_db.sn = ((U32_T)p[6] << 24) | ((U32_T)p[5] << 16) | 
 						((U32_T)p[4] << 8) | p[3];
-
 		if((len == subnet_rec_package_size) /*&& (subnet_response_buf[2] == subnet_response_buf[3])*/)
 		{
 			return UNIQUE_ID;
@@ -248,7 +248,7 @@ U8_T receive_scan_reply(U8_T *p, U8_T len)
 		}
 	}
 	else
-	{  
+	{
 		return MULTIPLE_ID;
 	}
 }
@@ -257,8 +257,8 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 {
 	U16_T wCrc16;	
 	U8_T buf[6];
-	U16_T length;
-	U8_T ret;
+	U16_T length = 0;
+	U8_T ret = 0;
 	U16_T delay; 
 
 	
@@ -281,10 +281,12 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
 	}
 	else
-		length = 0; // tbd:
+		length = 0;
 
 	if(length > 0)
 	{
+		check_whether_modbus_slave(subnet_response_buf,length,port);
+		//check
 		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
 		com_rx[port] += length;
@@ -294,7 +296,7 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 	{
 //		auto_check_master_retry[port]++;
 		if(length > subnet_rec_package_size)
-		{	
+		{
 			ret = MULTIPLE_ID;
 		}
 		else
@@ -302,7 +304,6 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 	}
 	
 	free(subnet_response_buf);
-
 	return ret;
 }
 
@@ -342,23 +343,23 @@ U8_T assignment_id_with_sn(U8_T old_id, U8_T new_id, U32_T current_sn,U8_T port)
 
 	uart_send_string(buf, 12,port);
 	subnet_rec_package_size = 12;
+
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-	flag_uart_reading[port] = 1;
+
 	if(port == 0 || port == 2)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
 	else
-		length = 0; // tbd:
-	flag_uart_reading[port] = 0;
+		length = 0;
+
 	if(length > 0)
 	{
 		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 				else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
-		com_tx[port] += length;
+		com_rx[port] += length;
 		ret = receive_assign_id_reply(subnet_response_buf, 12);
 	}
 
 	free(subnet_response_buf);
-
 	return ret;
 }
 
@@ -536,6 +537,7 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 	U8_T scan_status;
 	if(min_id > max_id) 	return; 
 	scan_status = send_scan_cmd(max_id, min_id, port);
+
 	switch(scan_status)	// wait for response from nodes scan command
 	{
 		case UNIQUE_ID:
@@ -545,15 +547,15 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 			check_id_in_database(current_db.id, current_db.sn,port,get_baut_by_port(port + 1),0);
 			if(min_id != max_id) // to avoid the miss reply some nodes
 			{
-				bin_search(min_id, (U8_T)(((U16_T)min_id + (U16_T)max_id) / 2),port);
-				bin_search((U8_T)(((U16_T)min_id + (U16_T)max_id) / 2) + 1, max_id,port);
+				//bin_search(min_id, (U8_T)(((U16_T)min_id + (U16_T)max_id) / 2),port);
+				//bin_search((U8_T)(((U16_T)min_id + (U16_T)max_id) / 2) + 1, max_id,port);
 			}			
 			break;
-		case MULTIPLE_ID:  
+		case MULTIPLE_ID:
 			// multiple id means there is more than one id in the range.
 			// if the min_id == max_id, there is same id, set the id occupy and return
 			// if the min_id != max_id, there is multi id in the range, divide the range and do the sub scan
-		  Change_com_config(port); // after auto scan, if config or bautrate is changed, store it.
+		  	Change_com_config(port); // after auto scan, if config or bautrate is changed, store it.
 			if(min_id == max_id)
 			{
 				db_occupy[min_id / 8] |= 1 << (min_id % 8);
@@ -572,7 +574,7 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 				bin_search((U8_T)(((U16_T)min_id + (U16_T)max_id) / 2) + 1, max_id,port);
 			}
 			break;
-		case UNIQUE_ID_FROM_MULTIPLE:  
+		case UNIQUE_ID_FROM_MULTIPLE:
 			// there are multiple ids in the range, but the fisrt reply is good.
 			Change_com_config(port); // after auto scan, if config or bautrate is changed, store it.
 			if(min_id == max_id)
@@ -604,7 +606,7 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 			// none id means there is not id in the range
 			break;
 		case SCAN_BUSY:
-		default:  
+		default:
 			bin_search(min_id, max_id,port);
 			break;
 	}
@@ -1183,19 +1185,18 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 		size0 = buf[5] * 2 + 5;		
 
 	subnet_rec_package_size = size0;
-	flag_uart_reading[port] = 1;
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 	if(port == 0 || port == 2)
 		length = uart_read_bytes(port, subnet_response_buf, 100, 100 / portTICK_RATE_MS);
 	else
-		length = 0; // tbd:
-	flag_uart_reading[port] = 0;
+		length = 0;
+
 	if(length > 0)	 
 	{
+		check_whether_modbus_slave(subnet_response_buf,length,port);
 		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
-
-		com_tx[port] += length;
+		com_rx[port] += length;
 		crc_check = crc16(subnet_response_buf,length - 2);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[length - 2]) && (LOW_BYTE(crc_check) == subnet_response_buf[length - 1]))
 		{
@@ -1618,18 +1619,19 @@ void check_write_to_nodes(U8_T port)
 		uart_send_string(buf, 8,port);	
 	}
 	subnet_rec_package_size = 8;
-	flag_uart_reading[port] = 1;
+
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 	if(port == 0 || port == 2)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
 	else
-		length = 0; // tbd:
-	flag_uart_reading[port] = 0;
+		length = 0;
+
 	if(length > 0)
 	{
+		check_whether_modbus_slave(subnet_response_buf,length,port);
 		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
-		com_tx[port] += length;
+		com_rx[port] += length;
 		node_write[i].flag = WRITE_OK; // without doing checksum
 //		node_write[i].id = 0;
 //		node_write[i].reg = 0;
@@ -1679,7 +1681,6 @@ void check_write_to_nodes(U8_T port)
 	}
 	
 	free(subnet_response_buf);
-		
 
 }
 
@@ -1708,43 +1709,123 @@ U8_T far index_sub;
 void Scan_Idle(void)
 {
 
-	if(sub_no > 0)
+	static uint8_t count = 0;
+
+	//if(count++ % 5 == 0)
 	{
-		if(index_sub < sub_no - 1)
-		{ 						
-			index_sub++;
-		}
-		else
+		if(sub_no > 0)
 		{
-			index_sub = 0;
-		}
-		
-			
-		if(current_online[scan_db[index_sub].id / 8] & (1 << (scan_db[index_sub].id % 8)))  // on line
-		{
-#if 1
-			if(flag_tstat_name[index_sub] == 0)  // read name
+			if(index_sub < sub_no - 1)
 			{
-				// read name of tstat
-				read_name_of_tstat(index_sub);
+				index_sub++;
 			}
 			else
+			{
+				index_sub = 0;
+			}
+
+
+			if(current_online[scan_db[index_sub].id / 8] & (1 << (scan_db[index_sub].id % 8)))  // on line
+			{
+#if 1
+				if(flag_tstat_name[index_sub] == 0)  // read name
+				{
+					// read name of tstat
+					read_name_of_tstat(index_sub);
+				}
+				else
 #endif
+				{
+					get_parameters_from_nodes(index_sub,0);  // heartbeat
+				}
+			}
+			else
 			{
-				get_parameters_from_nodes(index_sub,0);  // heartbeat
+				if(scan_db[index_sub].product_model > CUSTOMER_PRODUCT)  // customer device
+				{
+					add_id_online(index_sub);
+				}
+				//else
+				{
+					get_parameters_from_nodes(index_sub,0); // heartbeat
+				}
 			}
 		}
-		else
+	}
+	//else
+	{ // check whether it is modbus slave
+
+		if(uart0_sub_no == 0)
 		{
-			if(scan_db[index_sub].product_model > CUSTOMER_PRODUCT)  // customer device
+			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
+			int len = uart_read_bytes(0, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+
+			if(len>0)
 			{
-				add_id_online(index_sub);
+				led_sub_rx++;
+				com_rx[0] += len;
+				flagLED_sub_rx = 1;
+				check_whether_modbus_slave(subnet_response_buf,len,0);
 			}
-			//else	
+			free(subnet_response_buf);
+
+		}
+		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
+			    	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
+		{
+			if(uart2_sub_no == 0)
 			{
-				get_parameters_from_nodes(index_sub,0); // heartbeat
+				uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
+				int len = uart_read_bytes(2, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+
+				if(len>0)
+				{
+					led_main_rx++;
+					com_rx[2] += len;
+					flagLED_main_rx = 1;
+					check_whether_modbus_slave(subnet_response_buf,len,2);
+				}
+				free(subnet_response_buf);
 			}
 		}
+
+/*		static uint8_t index;
+		if(subcom_num >= 1)
+		{
+			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
+			uint8_t port;
+			static uint8_t comindex2 = 0;
+			if(comindex2 < subcom_num - 1)
+			{
+				comindex2++;
+			}
+			else
+				comindex2 = 0;
+
+			port = subcom_seq[comindex2];
+			Test[21]++;
+			int len = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+
+			if(len>0)
+			{
+				if(port == 2)
+				{
+					led_main_rx++;
+					com_rx[2] += len;
+					flagLED_main_rx = 1;
+				}
+				if(port == 0)
+				{
+					led_sub_rx++;
+					com_rx[0] += len;
+					flagLED_sub_rx = 1;
+				}
+				check_whether_modbus_slave(subnet_response_buf,len,port);
+			}
+
+		}
+*/
+
 	}
 }
 
@@ -1819,7 +1900,7 @@ void ScanTask(void)
 		{
 			// write schedule data
 			check_whether_force_scan();
-			if(tempcount >= 10000 / READ_POINT_TIMER)	 // 10s
+			if(tempcount >= 20000 / READ_POINT_TIMER)	 // 20s
 			{
 				if(subcom_num >= 1)
 				{
@@ -1832,13 +1913,11 @@ void ScanTask(void)
 						comindex1 = 0;
 
 					scan_sub_nodes(port);		   // 19200
-
 				}
 				tempcount = 0;
 			}
 			else
 			{
-
 				Check_scan_db_time_to_live();
 
 				vTaskDelay( READ_POINT_TIMER / portTICK_RATE_MS);
@@ -1856,7 +1935,6 @@ void ScanTask(void)
 
 				if(type == 0)  // hearbeat or program
 				{
-
 					Scan_Idle();
 				}
 				else
@@ -1872,14 +1950,16 @@ void ScanTask(void)
 						else
 							comindex2 = 0;
 
-
-					check_write_to_nodes(port);  // write have high priority
+						check_write_to_nodes(port);  // write have high priority
 						// no write cmd, then read
 						if(number_of_remote_points_modbus == 0)
 						{  // no remote point, go to heartbeat
-
-							Scan_Idle();
-							vTaskDelay( 5000 / portTICK_RATE_MS);
+							uint8_t i;
+							for(i = 0;i < 5;i++)
+							{
+								Scan_Idle();
+								vTaskDelay( 1000 / portTICK_RATE_MS);
+							}
 							tempcount = tempcount + 50;
 	// only heartbeat frame, slow down
 						}
@@ -1989,7 +2069,7 @@ void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * 
 	U8_T i = 0;
 	for(i = 0;i < STACK_LEN;i++)
 	{
-		if(NP_node_write[i].flag == WRITE_OK)
+		if(NPM_node_write[i].flag == WRITE_OK)
 			break;
 	}
 	
@@ -2001,15 +2081,15 @@ void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * 
 	else
 	{
 		if(len >= 2) return ;
-		NP_node_write[i].ip = ip;
-		NP_node_write[i].func = func;
-		NP_node_write[i].id = sub_id;
-		NP_node_write[i].reg = reg;
-		NP_node_write[i].len = len;
+		NPM_node_write[i].ip = ip;
+		NPM_node_write[i].func = func;
+		NPM_node_write[i].id = sub_id;
+		NPM_node_write[i].reg = reg;
+		NPM_node_write[i].len = len;
 		
 		if(len == 1)
 		{
-			NP_node_write[i].value[0] = value[0];
+			NPM_node_write[i].value[0] = value[0];
 		}
 		else
 		{
@@ -2020,19 +2100,18 @@ void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * 
 				temp_value[j * 2] = value[j] >> 8;
 				temp_value[j * 2 + 1] = value[j];
 			}
-			memcpy(&NP_node_write[i].value[0],&temp_value,len);
+			memcpy(&NPM_node_write[i].value[0],&temp_value,len);
 
 		}
-		NP_node_write[i].len = len;
-		NP_node_write[i].flag = WAIT_FOR_WRITE;
-		NP_node_write[i].retry = 0;
+		NPM_node_write[i].len = len;
+		NPM_node_write[i].flag = WAIT_FOR_WRITE;
+		NPM_node_write[i].retry = 0;
 	}
 	//return 0;
 }
 
 
-uint8 tmp_sendbuf[250];
-uint8_t subnet_response_buf[300];
+
 void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 {
 	int length = 0;
@@ -2040,6 +2119,22 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	U16_T size0 = 0;
 	U8_T flag_expansion = 0;
 	U8_T ret = 0;
+	//uint8 tmp_sendbuf[500];
+	//uint8_t subnet_response_buf[500];
+	uint8_t *tmp_sendbuf = NULL;
+	uint8_t *subnet_response_buf = NULL;
+
+	tmp_sendbuf = malloc(512);
+	if (tmp_sendbuf == NULL) {
+		// 处理内存分配失败
+		return;
+	}
+	subnet_response_buf = malloc(512);
+	if (subnet_response_buf == NULL) {
+		// 处理内存分配失败
+		return;
+	}
+
 	flag_expansion = 0;
 
 	if(buf[1] == READ_VARIABLES || buf[1] == READ_INPUT || buf[1] == READ_COIL || buf[1] == READ_DIS_INPUT ) // read
@@ -2106,7 +2201,6 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		}
 	}
 
-//	uint8_t *tmp_sendbuf = (uint8_t*)malloc(300);
 
 	if(buf[1] == TEMCO_MODBUS)
 	{
@@ -2128,22 +2222,19 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	}
 
 #if 1
-	//uint8_t *subnet_response_buf = (uint8_t*)malloc(300);
 	
 	if(buf[1] == CHECKONLINE)  // scan command
 	{
-		flag_uart_reading[port] = 1;
 		if(port == 0 || port == 2)
 			length = uart_read_bytes(port, subnet_response_buf, 512, 20 / portTICK_RATE_MS);
 		else
 			length = 0; // tbd:
-		flag_uart_reading[port] = 0;
-
 		if(length > 0)
 		{
+			check_whether_modbus_slave(subnet_response_buf,length,port);
 			if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
-					else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
-			com_tx[port] += length;
+			else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+			com_rx[port] += length;
 			memcpy(tmp_sendbuf,header,6);
 			memcpy(&tmp_sendbuf[6],subnet_response_buf,length);			
 
@@ -2182,36 +2273,35 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	}
 	else
 	{
-		flag_uart_reading[port] = 1;
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 250, 10 / portTICK_RATE_MS);
+			length = uart_read_bytes(port, subnet_response_buf, 512, 100 / portTICK_RATE_MS);
 		else
-			length = 0; // tbd:
-		flag_uart_reading[port] = 0;
+			length = 0;
 
 #if 1
-		if(length > 0)
+		if(length > 2)
 		{
+			check_whether_modbus_slave(subnet_response_buf,length,port);
 			if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 			else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
-			com_tx[port] += length;
+			com_rx[port] += length;
 			crc_check = crc16(subnet_response_buf, length - 2);		
 			if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])
-			{ //Test[43]++;
+			{
 //			auto_check_master_retry[port] = 0;
 				memcpy(tmp_sendbuf,header,6);
+
 
 				if(buf[1] == TEMCO_MODBUS)
 				{
 					memcpy(&tmp_sendbuf[6],subnet_response_buf,length);	
-
 					memcpy(modbus_send_buf,tmp_sendbuf,size0 + 6);
 					modbus_send_len = size0 + 6;
 				}
 				else
 				{
 					memcpy(&tmp_sendbuf[6],subnet_response_buf,length - 2);
-					memcpy(&modbus_send_buf,&tmp_sendbuf,size0 + 4);
+					memcpy(modbus_send_buf,tmp_sendbuf,size0 + 4);
 					modbus_send_len = size0 + 4;
 				}
 
@@ -2278,11 +2368,11 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			}
 		}*/
 	}	
-	//free(subnet_response_buf);
-
-
-//	free(tmp_sendbuf);
 #endif
+	free(subnet_response_buf);
+
+	free(tmp_sendbuf);
+
 	return ;
 }
 
@@ -2388,18 +2478,18 @@ void read_rmp_ad(uint8_t index)
 			uart_send_string(buf,8,port);
 
 			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-			flag_uart_reading[port] = 1;
+
 			if(port == 0 || port == 2)
 				length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
 			else
-				length = 0; // tbd:
-			flag_uart_reading[port] = 0;
+				length = 0;
 
 			if(length > 0)
 			{
+				check_whether_modbus_slave(subnet_response_buf,length,port);
 				if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 						else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
-				com_tx[port] += length;
+				com_rx[port] += length;
 				crc_check = crc16(subnet_response_buf,5);
 				if((HIGH_BYTE(crc_check) == subnet_response_buf[5]) && (LOW_BYTE(crc_check) == subnet_response_buf[6]))
 				{
@@ -2417,7 +2507,6 @@ void read_rmp_ad(uint8_t index)
 			}
 
 			free(subnet_response_buf);
-
 			if(count_read_rmp_ad[index] >= 5)
 			{
 				flag_rmp_ad[index] = 1;
@@ -2471,22 +2560,22 @@ void read_name_of_tstat(U8_T index)
 	buf[7] = LOW_BYTE(crc_check);
 	
 	set_baut_by_port(port,baut);
-//	uart_init_send_com(port);
 	uart_send_string(buf,8,port);
-//	set_subnet_parameters(RECEIVE, 23,port);
-	
+
+
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-	flag_uart_reading[port] = 1;
 	if(port == 0 || port == 2)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
 	else
-		length = 0; // tbd:
-	flag_uart_reading[port] = 0;
+		length = 0;
+
+
 	if(length > 0)
 	{
+		check_whether_modbus_slave(subnet_response_buf,length,port);
 		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 				else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
-		com_tx[port] += length;
+		com_rx[port] += length;
 		crc_check = crc16(subnet_response_buf,21);
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[21]) && (LOW_BYTE(crc_check) == subnet_response_buf[22]))
 		{

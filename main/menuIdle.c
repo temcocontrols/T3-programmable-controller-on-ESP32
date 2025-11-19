@@ -7,9 +7,12 @@
 #include <string.h>
 #include "rtc.h"
 
+#include "airlab.h"
+#include "lcd.h"
+
 #define	NODES_POLL_PERIOD	30
 
-char UI_DIS_LINE1[4]; //��Ӧ֮ǰ setpoint  fan �Լ� sys
+char UI_DIS_LINE1[4];  // Corresponds to setpoint, fan, and system
 char UI_DIS_LINE2[4];
 char UI_DIS_LINE3[4];
 char UI_DIS_TOP[9];
@@ -43,7 +46,13 @@ void MenuIdle_init(void)
 	digital_top_area_type = 0;
 	digital_top_area_num = 0;
 	digital_top_area_changed = 0;
+	if(Modbus.mini_type == PROJECT_AIRLAB)
+	{
+		Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type = IN;
+		Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.number  = 1;
 
+		Modbus.disable_tstat10_display = 3;
+	}
 	digital_top_area_type = Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type;
 	digital_top_area_num = Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.number - 1;	
 						
@@ -73,26 +82,27 @@ void MenuIdle_init(void)
 
 	disp_null_icon(240, 36, 0, 0,TIME_POS,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR2);
 	
- // scroll = &scroll_ram[0][0];
-//	fanspeedbuf = fan_speed_user;
-	
-	
-	draw_tangle(102,105);
-	draw_tangle(102,148);
-	draw_tangle(102,191);
-
 	ptr = put_io_buf(VAR,0);
 	memcpy(UI_DIS_LINE1, ptr.pvar->label, 3);UI_DIS_LINE1[3] = 0;
+	if(ptr.pvar->range != 0)
+	{
+		draw_tangle(102,105);
+		disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
+	}
 	ptr = put_io_buf(VAR,1);
 	memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);UI_DIS_LINE2[3] = 0;
+	if(ptr.pvar->range != 0)
+	{
+		draw_tangle(102,148);
+		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
+	}
 	ptr = put_io_buf(VAR,2);
 	memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);UI_DIS_LINE3[3] = 0;
-	
-//	disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, str,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-	disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-	disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
-	disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
-
+	if(ptr.pvar->range != 0)
+	{
+		draw_tangle(102,191);
+		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
+	}
 	//msv_data[MAX_MSV][STR_MSV_MULTIPLE_COUNT]
 	for (i = 0;i < MAX_MSV;i++)
 		for (j = 0; j < STR_MSV_MULTIPLE_COUNT;j++)
@@ -102,11 +112,6 @@ void MenuIdle_init(void)
 				msv_data[i][j].status = 0;
 			}
 		}
-//#if ARM_UART_DEBUG
-//	uart1_init(115200);
-//	DEBUG_EN = 1;
-//	printf("IDLE init \r\n");
-//#endif	
 }
 
  
@@ -155,35 +160,54 @@ void MenuIdle_display(void)
 	static u8 count_rx = 0;
 	Str_points_ptr ptr;
 	ptr = put_io_buf(VAR,0);
-	if(memcmp(UI_DIS_LINE1,ptr.pvar->label,3))
+	if(memcmp(UI_DIS_LINE1,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
-		disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, "   ",SCH_COLOR,TSTAT8_BACK_COLOR);
+		disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		memset(UI_DIS_LINE1,'\0',4);
 		memcpy(UI_DIS_LINE1, ptr.pvar->label, 3);
+		//disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, "    ",SCH_COLOR,TSTAT8_BACK_COLOR);
 	}
-	ptr = put_io_buf(VAR,1);
-	if(memcmp(UI_DIS_LINE2,ptr.pvar->label,3))
+	if(ptr.pvar->range != 0)
 	{
-		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, "   ",SCH_COLOR,TSTAT8_BACK_COLOR);
+
+		display_screen_value( 1);draw_tangle(102,105);
+		// Display the three lines with different background colors based on disp_index
+		disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS, UI_DIS_LINE1, SCH_COLOR,(disp_index == 1) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
+	}
+
+	ptr = put_io_buf(VAR,1);
+	if(memcmp(UI_DIS_LINE2,ptr.pvar->label,3) || ptr.pvar->range == 0)
+	{
+		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		memset(UI_DIS_LINE2,'\0',4);
 		memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);
+		//disp_str(FORM15X30, SCH_XPOS, FAN_MODE_POS, "    ", SCH_COLOR, TSTAT8_BACK_COLOR);
 	}
-	ptr = put_io_buf(VAR,2);
-	if(memcmp(UI_DIS_LINE3,ptr.pvar->label,3))
+	if(ptr.pvar->range != 0)
 	{
-		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, "   ",SCH_COLOR,TSTAT8_BACK_COLOR);
+		display_screen_value( 2);draw_tangle(102,148);
+		// Display the three lines with different background colors based on disp_index
+		disp_str(FORM15X30, SCH_XPOS, FAN_MODE_POS, UI_DIS_LINE2, SCH_COLOR, (disp_index == 2) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
+	}
+
+
+	ptr = put_io_buf(VAR,2);
+	if(memcmp(UI_DIS_LINE3,ptr.pvar->label,3) || ptr.pvar->range == 0)
+	{
+		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		memset(UI_DIS_LINE3,'\0',4);
 		memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);
+		//disp_str(FORM15X30, SCH_XPOS, SYS_MODE_POS, "    ", SCH_COLOR,TSTAT8_BACK_COLOR);
 	}
-		
-    //display_input_value(inputs[0].value);
-	//display_value(inputs[0].value);
-	display_screen_value( 1); // �ֱ���var��ֵ��ʾ��ԭ�ȵ� set fan �Լ�sys �ط�
-	display_screen_value( 2);
-	display_screen_value( 3);
-	//display_SP(inputs[0].value / 1000);
-	//display_fanspeed(outputs[0].value / 1000);
-	//display_mode(vars[0].value / 1000);
+	if(ptr.pvar->range != 0)
+	{
+		display_screen_value( 3);
+		draw_tangle(102,191);
+		// Display the three lines with different background colors based on disp_index
+		disp_str(FORM15X30, SCH_XPOS, SYS_MODE_POS, UI_DIS_LINE3, SCH_COLOR,(disp_index == 3) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
+	}
+
+
 	if(Modbus.disable_tstat10_display == 0)
 	{
 		display_scroll();
@@ -206,10 +230,24 @@ void MenuIdle_display(void)
 		disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, THIRD_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
 		disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, FOURTH_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
 	}
+	else if(Modbus.disable_tstat10_display == 3)  // for AL_BTN, show PM2.5
+	{
+		if(Modbus.mini_type == PROJECT_AIRLAB)
+		{
+			if(flag_pm25 == 0)
+			{
+				disp_pm25_weight_25 = 0;
+				disp_pm25_number_25 = 0;
+			}
+			display_pm25w( disp_pm25_weight_25);//disp_pm25_weight_25
+			display_pm25n( disp_pm25_number_25);
 
+		}
+	}
 		{
 			uint8 type,num;
 			//if(Setting_Info.reg.display_lcd.lcddisplay[0] == 1) // modbus
+			if(Modbus.mini_type == MINI_TSTAT10)
 			{				
 				if(digital_top_area_type != Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type)
 				{
@@ -222,7 +260,7 @@ void MenuIdle_display(void)
 					digital_top_area_num = Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.number - 1;
 					digital_top_area_changed = 1;
 				}
-
+			}
 
 				type = digital_top_area_type;
 				num = digital_top_area_num;
@@ -440,91 +478,45 @@ void MenuIdle_display(void)
 //					}
 				}
 				// ..... tbd: add more type
-			}
+
 // 			if(Setting_Info.reg.display_lcd.lcddisplay[0] == 1) // bacnet
 //			{
 //			}
 			
 		}
-
 		if(count_left_key > 5) 
 			disp_index = 0;
 		else
 			count_left_key++;
 
-		if(disp_index == 1)
+		if (flag_digital_top_area == 1)
 		{
-			if(flag_digital_top_area == 1)
-				disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR1);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
-			disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
-		}
-		else if(disp_index == 2)
-		{
-			if(flag_digital_top_area == 1)
-				disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR1);
-			disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
-		}
-		else if(disp_index == 3)
-		{
-			if(flag_digital_top_area == 1)
-				disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
-			disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR1);
-		}
-		else if(disp_index == 4) // top area
-		{
-			if(flag_digital_top_area == 1)
-				disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR1);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
-			disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
-		}
-		else
-		{
-			if(flag_digital_top_area == 1)
-				disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
-			disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
+		    disp_str_16_24(FORM15X30, SCH_XPOS + 20, IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP, SCH_COLOR,
+		                   (disp_index == 4) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 		}
 
-        //sprintf(test_char, "%d", SSID_Info.IP_Wifi_Status); //�����ã�����Ļ���Ͻ� ��ʾ wifi״̬����ֵ;
-        //disp_str(FORM15X30, 0, 0, test_char, SCH_COLOR, TSTAT8_BACK_COLOR);
 
-//        if (SSID_Info.IP_Wifi_Status == WIFI_NORMAL) 
-//        {
-//            disp_icon(26, 26, wificonnect, 210, 0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-//        }
-//         //  
-//        else if (SSID_Info.IP_Wifi_Status == WIFI_NO_WIFI || SSID_Info.IP_Wifi_Status == WIFI_NONE)
-//        {
-//            disp_null_icon(26, 26, 0, 210, 0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-//        }
-//        else
-//            disp_icon(26, 26, wifinocnnct, 210, 0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 				
 	if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL)//����Ļ���Ͻ���ʾwifi��״̬
 	{
-		if(SSID_Info.rssi < 70)
-			disp_icon(26, 26, wifi_4, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else if(SSID_Info.rssi < 80)
-			disp_icon(26, 26, wifi_3, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else if(SSID_Info.rssi < 90)
-			disp_icon(26, 26, wifi_2, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else
+		if(SSID_Info.rssi < -80)
 			disp_icon(26, 26, wifi_1, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		else if(SSID_Info.rssi < -70)
+			disp_icon(26, 26, wifi_2, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		else if(SSID_Info.rssi < -60)
+			disp_icon(26, 26, wifi_3, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		else
+			disp_icon(26, 26, wifi_4, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+
 	}
-	else	if((SSID_Info.IP_Wifi_Status == WIFI_NO_CONNECT)
-		|| (SSID_Info.IP_Wifi_Status == WIFI_SSID_FAIL))
+	else	//if((SSID_Info.IP_Wifi_Status == WIFI_NO_CONNECT)
+		//|| (SSID_Info.IP_Wifi_Status == WIFI_SSID_FAIL))
 			disp_icon(26, 26, wifi_0, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 		// if WIFI_NONE, do not show wifi flag
-	else //if((SSID_Info.IP_Wifi_Status == WIFI_NO_WIFI)
-		disp_icon(26, 26, wifi_none, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+	//else //if((SSID_Info.IP_Wifi_Status == WIFI_NO_WIFI)
+	//	disp_icon(26, 26, wifi_none, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+
+
 
 	// show TX,RX
 
@@ -562,7 +554,7 @@ void MenuIdle_display(void)
 		flagLED_sub_tx = 0;
 	if(flagLED_sub_rx > 0)
 		flagLED_sub_rx = 0;
-				
+
 }
 
 
@@ -645,7 +637,7 @@ void MenuIdle_keycope(uint16 key_value)
 							ptr.pvar->control = 0;
 					}
 					else
-					{
+					{Test[27]++;
 						if(ptr.pvar->value < 999 * 1000)
 							ptr.pvar->value = ptr.pvar->value + 1000;
 						else
@@ -655,26 +647,36 @@ void MenuIdle_keycope(uint16 key_value)
 			}
 			else // disp_index == 4
 			{
-
-				digital_top_area_changed = 1;
 				if(digital_top_area_type == IN)
 				{
 					ptr = put_io_buf(IN,digital_top_area_num);
-					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					if(ptr.pin->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == VAR)
 				{
 					ptr = put_io_buf(VAR,digital_top_area_num);
-					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					if(ptr.pvar->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == OUT)
 				{
 					ptr = put_io_buf(OUT,digital_top_area_num);
-					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
-					if(ptr.pout->control)
-						set_output_raw(digital_top_area_num,1000);
-					else 
-						set_output_raw(digital_top_area_num,0);	
+					if(ptr.pout->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+						if(ptr.pout->control)
+							set_output_raw(digital_top_area_num,1000);
+						else
+							set_output_raw(digital_top_area_num,0);
+					}
 				}
 			}
 
@@ -728,25 +730,37 @@ void MenuIdle_keycope(uint16 key_value)
 			}
 			else // disp_index == 4
 			{
-				digital_top_area_changed = 1;
+
 				if(digital_top_area_type == IN)
 				{
 					ptr = put_io_buf(IN,digital_top_area_num);
-					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					if(ptr.pin->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == VAR)
 				{
 					ptr = put_io_buf(VAR,digital_top_area_num);
-					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					if(ptr.pvar->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == OUT)
 				{
 					ptr = put_io_buf(OUT,digital_top_area_num);
-					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
-					if(ptr.pout->control)
-						set_output_raw(digital_top_area_num,1000);
-					else 
-						set_output_raw(digital_top_area_num,0);	
+					if(ptr.pout->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+						if(ptr.pout->control)
+							set_output_raw(digital_top_area_num,1000);
+						else
+							set_output_raw(digital_top_area_num,0);
+					}
 				}
 			}
 
@@ -811,25 +825,37 @@ void MenuIdle_keycope(uint16 key_value)
 			}
 			else // disp_index == 4
 			{
-				digital_top_area_changed = 1;
+
 				if(digital_top_area_type == IN)
 				{
 					ptr = put_io_buf(IN,digital_top_area_num);
-					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					if(ptr.pin->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == VAR)
 				{
 					ptr = put_io_buf(VAR,digital_top_area_num);
-					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					if(ptr.pvar->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == OUT)
 				{
 					ptr = put_io_buf(OUT,digital_top_area_num);
-					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
-					if(ptr.pout->control)
-						set_output_raw(digital_top_area_num,1000);
-					else 
-						set_output_raw(digital_top_area_num,0);	
+					if(ptr.pout->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+						if(ptr.pout->control)
+							set_output_raw(digital_top_area_num,1000);
+						else
+							set_output_raw(digital_top_area_num,0);
+					}
 				}
 			}
 		
@@ -880,25 +906,37 @@ void MenuIdle_keycope(uint16 key_value)
 			}
 			else // disp_index == 4
 			{
-				digital_top_area_changed = 1;
+
 				if(digital_top_area_type == IN)
 				{
 					ptr = put_io_buf(IN,digital_top_area_num);
-					ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					if(ptr.pin->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pin->control = ((ptr.pin->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == VAR)
 				{
 					ptr = put_io_buf(VAR,digital_top_area_num);
-					ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					if(ptr.pvar->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					}
 				}
 				else if(digital_top_area_type == OUT)
 				{
 					ptr = put_io_buf(OUT,digital_top_area_num);
-					ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
-					if(ptr.pout->control)
-						set_output_raw(digital_top_area_num,1000);
-					else 
-						set_output_raw(digital_top_area_num,0);	
+					if(ptr.pout->digital_analog == 0)
+					{
+						digital_top_area_changed = 1;
+						ptr.pout->control = ((ptr.pout->control) == 0) ? 1 : 0;
+						if(ptr.pout->control)
+							set_output_raw(digital_top_area_num,1000);
+						else
+							set_output_raw(digital_top_area_num,0);
+					}
 				}
 			}
 		
@@ -943,7 +981,8 @@ void display_screen_value(uint8 type)
     uint8 spbuf[20];
     float show_value = 0;
     uint8 str_length = 0;
-    memset(spbuf, 0x20, 5);
+
+    memcpy(spbuf, "     ", strlen("     "));
     spbuf[5] = 0; //³õÊ¼»¯5¸ö×Ö½ÚÎª¿Õ¸ñ ±ÜÃâ µÚÒ»´ÎÏÔÊ¾12345 Öµ±äÎªABCµÄÊ±ºò   »áÏÔÊ¾ABC45
     ptr = put_io_buf(VAR,type - 1);
     if (type >= 1 && type <= 3)  // ÏÔÊ¾ÔÚLCDµÄÊý¾Ý¹Ì¶¨ÎªVAR1-VAR3
@@ -957,7 +996,7 @@ void display_screen_value(uint8 type)
 				{
 						str_length = strlen(msv_data[ptr.pvar->range - 101][i].msv_name);
 						if (str_length >= 5)
-								str_length = 5;
+							str_length = 5;
 						memcpy(spbuf, msv_data[ptr.pvar->range - 101][i].msv_name, str_length);
 						break;
 				}
@@ -1032,7 +1071,7 @@ void display_screen_value(uint8 type)
 						else							memcpy(spbuf, "STOP ", 5);
 						break;
 					case ENABLED_DISABLED:
-						if(show_value == 0)					memcpy(spbuf, "ENABL", 5);
+						if(show_value == 0)			memcpy(spbuf, "ENABL", 5);
 						else						memcpy(spbuf, "DISAB", 5);
 					break;
 					case ALARM_NORMAL:
@@ -1069,33 +1108,43 @@ void display_screen_value(uint8 type)
 			}
 			else
 			{
-				if(show_value >= 1000)
-				{
-					sprintf((char *)spbuf, "%d",(int)show_value);
-				}
-				else if(ptr.pvar->value / 1000 >= 10)
-					sprintf((char *)spbuf, "%.1f", show_value);
-				else
-				{
-					if(ptr.pvar->value > 0)
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{// 带小数点
+					if(show_value >= 1000)
 					{
-						sprintf((char *)spbuf, "%.2f", show_value);
+						sprintf((char *)spbuf, "%-5d",(int)show_value);
 					}
-					else
-					{  // '-' occupies the first position
+					else if(ptr.pvar->value / 1000 >= 10)
 						sprintf((char *)spbuf, "%.1f", show_value);
+					else
+					{
+						if(ptr.pvar->value > 0)
+						{
+							sprintf((char *)spbuf, "%.2f", show_value);
+						}
+						else
+						{  // '-' occupies the first position
+							sprintf((char *)spbuf, "%.1f", show_value);
+						}
 					}
 				}
+				else
+					sprintf((char *)spbuf, "%-5d",(int)show_value);
 			}
 		}
     }
 
+    //spbuf[5] = ' ';
 	if(type == 1)
-			disp_str(FORM15X30, SCH_XPOS + 96, SETPOINT_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR2);
+		disp_str(FORM15X30, SCH_XPOS + 96, SETPOINT_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR2);
     else if (type == 2)
-			disp_str(FORM15X30, SCH_XPOS + 96, FAN_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR2);
+    {
+    	disp_str(FORM15X30, SCH_XPOS + 96, FAN_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR2);
+    }
     else if (type == 3)
-      disp_str(FORM15X30, SCH_XPOS + 96, SYS_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR2);
+    {
+    	disp_str(FORM15X30, SCH_XPOS + 96, SYS_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR2);
+    }
 }
 
 void display_SP(int16 disp_setpoint)

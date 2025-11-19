@@ -31,7 +31,7 @@
 #include "datalink.h"
 
 
-extern EXT_RAM_ATTR  unsigned char  Handler_Transmit_Buffer[2][MAX_PDU];
+extern EXT_RAM_ATTR  unsigned char  Handler_Transmit_Buffer[3][MAX_PDU];
 
 #endif
 

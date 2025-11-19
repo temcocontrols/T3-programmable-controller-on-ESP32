@@ -45,5 +45,7 @@ extern void debug_info(char *string);
 extern void debug_print(char *string,char task_index);
 extern void wifi_task(void *pvParameters);
 extern void connect_wifi(void);
+bool compare_address(const uint8_t *addr1, const uint8_t *addr2);
+bool is_address_zero(const uint8_t *addr);
 
 #endif

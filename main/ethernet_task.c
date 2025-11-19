@@ -28,18 +28,18 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     /* we can get the ethernet driver handle from event data */
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
     switch (event_id) {
-    case ETHERNET_EVENT_CONNECTED:Test[7]++;
+    case ETHERNET_EVENT_CONNECTED:
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr);
         debug_info("Ethernet Link Up");
         //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
         Modbus.ethernet_status = ETHERNET_EVENT_CONNECTED;
         break;
-    case ETHERNET_EVENT_DISCONNECTED:Test[8]++;
+    case ETHERNET_EVENT_DISCONNECTED:
     	debug_info("Ethernet Link Down");
         Modbus.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
         break;
-    case ETHERNET_EVENT_START:Test[9]++;
+    case ETHERNET_EVENT_START:
     	debug_info("Ethernet Started");
         Modbus.ethernet_status = ETHERNET_EVENT_START;
         break;
@@ -58,7 +58,8 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
     const tcpip_adapter_ip_info_t *ip_info = &event->ip_info;
-    Test[6]++;
+
+    Test[1]++;
     debug_info( "Ethernet Got IP Address");
     debug_info( "~~~~~~~~~~~");
     Modbus.ip_addr[0] = ip4_addr1(&ip_info->ip);
@@ -78,30 +79,45 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     Modbus.ethernet_status = 4;  // GOT IP
 #if 1//DNS
-		tcpip_adapter_dns_info_t dns_info = {0};
+    if((Modbus.getway[0] == 0) && (Modbus.getway[1] == 0) && (Modbus.getway[2] == 0) && (Modbus.getway[3] == 0))
+    {
+
+    }
+    else
+    {
+   		tcpip_adapter_dns_info_t dns_info = {0};
 		IP_ADDR4(&dns_info.ip, Modbus.getway[0],Modbus.getway[1],Modbus.getway[2],Modbus.getway[3]);
-		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, 2/*TCPIP_ADAPTER_DNS_FALLBACK*/, &dns_info));
+		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, ESP_NETIF_DNS_MAIN, &dns_info));
+		IP_ADDR4(&dns_info.ip,8,8,8,8);
+		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, ESP_NETIF_DNS_BACKUP, &dns_info));
+		IP_ADDR4(&dns_info.ip,8,8,4,4);
+		ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, ESP_NETIF_DNS_FALLBACK, &dns_info));
+    }
 #endif
+    multicast_addr = Get_multicast_addr(&Modbus.ip_addr);
     Save_Ethernet_Info();
     debug_info( "~~~~~~~~~~~");
 }
 
 esp_eth_handle_t eth_handle = NULL;
-//esp_err_t eth_status;
+
+
+extern uint8_t count_reboot;
 esp_err_t ethernet_init(void)
 {
 	esp_err_t ret;
+
 	tcpip_adapter_init(); // Commented by Evan: it is recommanded to be replaced by esp_netif_init();
 	ret = esp_event_loop_create_default();
 	if(ret == ESP_OK)
 		debug_info("esp_event_loop_create_default() finished^^^^^^^^");
 	else
-		Test[0]++;
+		;//Test[0]++;
 	ret = tcpip_adapter_set_default_eth_handlers();
 	if(ret == ESP_OK)
 		debug_info("tcpip_adapter_set_default_eth_handlers() finished^^^^^^^^");
 	else
-		Test[1]++;
+		;//Test[1]++;
 	// check dhcp mode or static mode
 	if(Modbus.tcp_type == 0)  // static mode
 	{Test[2]++;
@@ -118,7 +134,11 @@ esp_err_t ethernet_init(void)
 		if(ip_info.gw.addr != 0)
 		{
 			IP_ADDR4(&dns_info.ip, Modbus.getway[0],Modbus.getway[1],Modbus.getway[2],Modbus.getway[3]);
-			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, 2/*TCPIP_ADAPTER_DNS_FALLBACK*/, &dns_info));
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, ESP_NETIF_DNS_MAIN, &dns_info));
+			IP_ADDR4(&dns_info.ip,8,8,8,8);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, ESP_NETIF_DNS_BACKUP, &dns_info));
+			IP_ADDR4(&dns_info.ip,8,8,4,4);
+			ESP_ERROR_CHECK(tcpip_adapter_set_dns_info(TCPIP_ADAPTER_IF_ETH, ESP_NETIF_DNS_FALLBACK, &dns_info));
 		}
 #endif
 	}
@@ -149,49 +169,28 @@ esp_err_t ethernet_init(void)
 	esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
 	esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
 
-//	esp_eth_handle_t eth_handle = NULL;
 
-	if((ret = esp_eth_driver_install(&config, &eth_handle))==ESP_OK)
-	{
-		debug_info("esp_eth_driver_install finished^^^^^^^^");
-	}
-	else{
-
-	}
-
-	if( esp_eth_start(eth_handle) == ESP_OK)
-	{
-		debug_info("esp_eth_start finished^^^^^^^^");
-	}
-	else
-	{
-		//return ret;
-	}
-#if 0
-	if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM )
+	if( Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_CO2)
 	{
 		if(esp_eth_driver_install(&config, &eth_handle)==ESP_OK){
-			eth_status = ESP_OK;
+			//eth_status = ESP_OK;
 			debug_info("esp_eth_driver_install finished^^^^^^^^");}
 		else
 		{
-			eth_status = ESP_ERR_NOT_FINISHED;
-			//Test[47] = 1111;
-			//Test[42] = esp_eth_driver_install(&config, &eth_handle);
-			//ets_delay_us(500000);
+			//Test[11]++;
 			//esp_eth_driver_install(&config, &eth_handle);
-			//esp_restart();
-		}
-		if(esp_eth_start(eth_handle)){
-			//Test[48] = 525;
-			debug_info("esp_eth_start finished^^^^^^^^");}
-		else{
-			//ets_delay_us(500000);
-			//esp_eth_start(eth_handle);
-			//Test[48] = 2222;
+			if(count_reboot < 5)
+				esp_restart();
 		}
 	}
-#endif
+	else
+	{
+		if((ret = esp_eth_driver_install(&config, &eth_handle))==ESP_OK)
+			debug_info("esp_eth_driver_install finished^^^^^^^^");
+	}
+	if(esp_eth_start(eth_handle))
+		debug_info("esp_eth_start finished^^^^^^^^");
+
 
 #if 1//DNS
 //	dns_init();

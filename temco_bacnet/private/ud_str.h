@@ -65,6 +65,7 @@
 
 #define MAXREMOTEPOINTS		     128
 #define MAXNETWORKPOINTS       32
+#define MAXLOCALPOINTS			32
 
 #define TABLE_BANK_LENGTH      15
 

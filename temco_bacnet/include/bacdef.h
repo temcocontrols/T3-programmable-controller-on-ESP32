@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include "bacenum.h"
 
-
+#pragma pack(1)
 #if defined(_MSC_VER)
 /* Silence the warnings about unsafe versions of library functions */
 /* as we need to keep the code portable */

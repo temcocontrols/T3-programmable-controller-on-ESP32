@@ -1,6 +1,8 @@
 #include "define.h"
 #include "menu.h"
 #include <string.h>
+#include "lcd.h"
+#include "airlab.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -129,51 +131,63 @@ void menu_init(void)
 
 void LCD_IO_Init(void);
 void lcd_back_set(uint8_t status);
-uint8_t lcd_time_over_en;
-uint8_t lcd_time_over;
+
+uint16_t count_lcd_time_off_delay;
+
+void Check_LCD_time_off(void)
+{
+//	if(Modbus.backlight == 1)
+	{
+		if((Modbus.LCD_time_off_delay != 0) && (Modbus.LCD_time_off_delay != 255))
+		{
+			count_lcd_time_off_delay++;
+			if(count_lcd_time_off_delay > Modbus.LCD_time_off_delay)
+			{
+				count_lcd_time_off_delay = 0;
+				lcd_back_set(0);
+			}
+		}
+		else if(Modbus.LCD_time_off_delay == 255)
+		{
+			count_lcd_time_off_delay = 0;
+			lcd_back_set(1);
+		}
+		else if(Modbus.LCD_time_off_delay == 0)
+		{
+			count_lcd_time_off_delay++;
+			if(count_lcd_time_off_delay > 5)
+			{
+				count_lcd_time_off_delay = 0;
+				lcd_back_set(0);
+			}
+		}
+	}
+}
+
 void MenuTask(void *pvParameters)
 {
 	static U8_T refresh_screen_timer = 0;
 	u16 temp_key = 0;
-	uint16_t lcd_time_over_count = 0;
 	portTickType xDelayPeriod = (portTickType)50 / portTICK_RATE_MS;
 //	U8_T i;
-	// LCD_IO_Init();
+	LCD_IO_Init();
+
 	menu_init();
 	delay_ms(100);
-
-	qKey = xQueueCreate(2, 2);
-
-	if(lcd_time_over_en != 1)
+	if(Modbus.mini_type == PROJECT_AIRLAB)
 	{
-		lcd_back_set(1);
+		disp_str(FORM15X30, SCH_XPOS, PM25_W_POS, "PM  :", 0xffff - aqi_background_color, aqi_background_color);
+		disp_str(FORM15X30, SCH_XPOS,  PM25_W_POS,  "PM", 0xffff - aqi_background_color, aqi_background_color);
+		disp_special_str(FORM15X30, SCH_XPOS + 24 * 2 - 1, PM25_W_POS + 12, "2.5", 0xffff - aqi_background_color, aqi_background_color);
+		disp_str(FORM15X30, SCH_XPOS + 24 * 4 - 3, PM25_W_POS , ":", 0xffff - aqi_background_color, aqi_background_color);
+		disp_str(FORM15X30, SCH_XPOS,  PM25_N_POS, "PM10:", 0xffff - aqi_background_color, aqi_background_color);
 	}
-	else  // en == 1
-	{
-		lcd_back_set(0);
-	}
+	if(qKey == NULL)
+		qKey = xQueueCreate(2, 2);
+
 	while(1)
 	{
-		if(lcd_time_over_en != 1)
-		{
-			lcd_back_set(1);
-		}
-		else  // en == 1
-		{
-			if(lcd_time_over_count++ > lcd_time_over * 60 * 20 )
-			{
-				lcd_time_over_count = 0;
-				lcd_back_set(0);
-			}
-		}
-
-
-		if(lcd_time_over_en == 1)
-		{
-			lcd_back_set(1);
-			lcd_time_over_count = 0;
-			Test[5]++;
-		}
+		Check_LCD_time_off();
 
 		if(xQueueReceive(qKey, &temp_key, 5) == pdTRUE)
 		{Test[4]++;
@@ -188,16 +202,21 @@ void MenuTask(void *pvParameters)
 			{
 				menu_refresh_timer_end = xTaskGetTickCount();
 				if((menu_refresh_timer_end - menu_refresh_timer_start) >= 1000)
-				{Test[18]++;
+				{Test[17]++;
 					menu_refresh_timer_start = xTaskGetTickCount();
 					CurrentState.DisplayPeriod();
 				}
 
 				if(CurrentState.BlockTime)
-				{
+				{Test[18]++;
 					menu_block_timer_end = xTaskGetTickCount();
+					Test[7] = menu_block_timer_end / 1000;
+					Test[8] = menu_block_timer_start / 1000;
+					Test[9] = CurrentState.BlockTime;
 					if((menu_block_timer_end - menu_block_timer_start) >= (CurrentState.BlockTime * SWTIMER_COUNT_SECOND))
+					{
 						update_menu_state(MenuIdle);
+					}
 				}
 			}
 		}
@@ -210,20 +229,6 @@ void exit_request_password(void)
 //	cursor_off();
 	menu_password = FALSE;
 }
-
-/*void Check_identify_tstat10(void)
-{
-	if(show_identify == 1)
-	{
-		if(count_show_id++ % 2 == 0)
-			BACKLIT = 1;
-		else
-			BACKLIT = 0;
-
-		if(count_show_id > 50)
-			show_identify = 0;
-	}
-}*/
 
 
 

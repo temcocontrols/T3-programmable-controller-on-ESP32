@@ -135,6 +135,14 @@ typedef void (
 bool Device_Value_List_Supported(
     BACNET_OBJECT_TYPE object_type);
 
+bool Device_COV(
+    BACNET_OBJECT_TYPE object_type,
+    uint32_t object_instance);
+	
+	void Device_COV_Clear(
+    BACNET_OBJECT_TYPE object_type,
+    uint32_t object_instance);
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

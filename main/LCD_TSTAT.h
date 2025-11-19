@@ -240,7 +240,7 @@ extern uint16 const wifi_3[];
 extern uint16 const wifi_4[];
 extern uint16 const wifi_none[];
 
-typedef struct   
+/*typedef struct
 {
  uint8 unit;
  uint8 setpoint;
@@ -252,7 +252,7 @@ typedef struct
  uint8 cmnct_send;
  uint8 cmnct_rcv; 	
 } DISP_CHANGE; 
-extern DISP_CHANGE icon;
+extern DISP_CHANGE icon;*/
 //extern uint16 const angle[];
 void draw_tangle(uint8 xpos, uint16 ypos);
 void ClearScreen(unsigned int bColor);
