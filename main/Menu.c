@@ -170,7 +170,7 @@ void MenuTask(void *pvParameters)
 	u16 temp_key = 0;
 	portTickType xDelayPeriod = (portTickType)50 / portTICK_RATE_MS;
 //	U8_T i;
-	LCD_IO_Init();
+	// LCD_IO_Init();
 
 	menu_init();
 	delay_ms(100);
