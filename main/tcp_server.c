@@ -614,7 +614,7 @@ static void udp_scan_task(void *pvParameters)
                break;
             }
             // Data received
-            else 
+            else
             {//debug_info("udp1234 recv ok\r\n");
             	ether_rx += len;
                // Get the sender's ip address as string
@@ -2928,7 +2928,7 @@ void Update_Led(void)
 			error_in = input_raw[loop]  - pre_in[loop];
 		else
 			error_in = pre_in[loop] - input_raw[loop];
-		
+
 		ptr = put_io_buf(IN,loop);
 
 		if(ptr.pin->range == not_used_input)
@@ -4556,6 +4556,8 @@ void TEST_FLASH(void);
 void vStartScanTask(unsigned char uxPriority);
 void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
+void LCD_IO_Init(void);
+void Display_DeviceName(void);
 
 void LS_led_task(void);
 
@@ -4574,7 +4576,6 @@ void app_main()
      * examples/protocols/README.md for more information about this function.
      */
 
-
 	SW_REV = SOFTREV;
 	count_reboot = 0;
 
@@ -4592,13 +4593,17 @@ void app_main()
     //Modbus.mini_type = MINI_TSTAT10;
 #endif
 
-    if (Modbus.mini_type != MINI_BIG_ARM)
+    if(Modbus.mini_type == MINI_TSTAT10)
+	{
+		LCD_IO_Init();
+		Display_DeviceName();
+	}
+	esp_netif_init();
+  if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
+   //flag_ethernet_initial = ethernet_init();
 
-    flag_ethernet_initial = ethernet_init();
-
-
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 1, &main_task_handle[1]);
+    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server

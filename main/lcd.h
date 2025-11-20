@@ -26,6 +26,7 @@ typedef struct
 
 #define FORM32X64 		0
 #define FORM15X30		1
+#define FORM16X24		2
 
 #define SCH_XPOS  10
 
@@ -34,18 +35,20 @@ typedef struct
 
 #define THERM_METER_POS										5
 #define CH_HEIGHT													36
+#define SETPOINT_POS	 108
+#define FAN_MODE_POS	 SETPOINT_POS+CH_HEIGHT+7
+#define SYS_MODE_POS	 FAN_MODE_POS+CH_HEIGHT+7
+#define PM25_W_POS 		 SYS_MODE_POS+CH_HEIGHT+7
+#define PM25_N_POS		 PM25_W_POS+CH_HEIGHT+7
 
-#define SETPOINT_POS											108
-#define FAN_MODE_POS											SETPOINT_POS+CH_HEIGHT+7
-#define SYS_MODE_POS											FAN_MODE_POS+CH_HEIGHT+7
-#define PM25_W_POS 												SYS_MODE_POS+CH_HEIGHT+7
-#define PM25_N_POS												PM25_W_POS+CH_HEIGHT+7
+#define DEVICE_NAME_POS  151
+#define DEVICE_INIT_POS  DEVICE_NAME_POS + 2*CH_HEIGHT
 
-#define ITEM_NONE 20
-#define ITEM_TEMP 0
-#define ITEM_HUM 1
-#define ITEM_CO2 2
-#define ITEM_VOC 3
+#define ITEM_NONE  20
+#define ITEM_TEMP  0
+#define ITEM_HUM   1
+#define ITEM_CO2   2
+#define ITEM_VOC   3
 #define ITEM_LIGHT 4
 
 

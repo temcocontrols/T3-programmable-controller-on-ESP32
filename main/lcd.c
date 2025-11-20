@@ -4254,7 +4254,65 @@ void display_dec(uint8 blink)
 		disp_null_icon(8, 8,0, SECOND_CH_POS + 48 + 4,85,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 }
 
-// T10's 第一行的大字的显示
+void Display_DeviceName(void)
+{
+    char *device_name;
+    uint16_t x_center;
+
+    // ==========================
+    // Select Device Name
+    // ==========================
+    if (Modbus.mini_type == MINI_BIG_ARM)
+	{
+        device_name = "Big-ARM";
+		x_center = SCH_XPOS + 40;
+	}
+    else if (Modbus.mini_type == MINI_SMALL_ARM)
+	{
+        device_name = "Small-ARM";
+		x_center = SCH_XPOS + 20;
+	}
+    else if (Modbus.mini_type == MINI_TINY_ARM)
+	{
+        device_name = "Tiny-ARM";
+		x_center = SCH_XPOS + 30;
+	}
+    else if (Modbus.mini_type == MINI_NANO)
+	{
+        device_name = "Nano";
+		x_center = SCH_XPOS + 50;
+	}
+    else if (Modbus.mini_type == MINI_TSTAT10)
+	{
+        device_name = "TSTAT-10";
+		x_center = SCH_XPOS + 25;
+	}
+    else if (Modbus.mini_type == MINI_T10P)
+	{
+        device_name = "T10-P";
+		x_center = SCH_XPOS + 45;
+	}
+    else
+	{
+        device_name = "T-Stat8";
+		x_center = SCH_XPOS + 40;
+	}
+
+    // ==========================
+    // Center Device Name
+    // ==========================
+
+    disp_str(FORM15X30, x_center, DEVICE_NAME_POS, device_name, SCH_COLOR, TSTAT8_BACK_COLOR);
+
+    // ==========================
+    // Display “Initialising…” Below
+    // ==========================
+    char *init_text = "Initialising..";
+
+    disp_str_16_24(FORM16X24, SCH_XPOS, DEVICE_INIT_POS, (unsigned char*)init_text, SCH_COLOR, TSTAT8_BACK_COLOR);
+	vTaskDelay(100);
+}
+
 void Top_area_display(uint8 item, S16_T value, uint8 unit)
 {
 	int16 value_buf;

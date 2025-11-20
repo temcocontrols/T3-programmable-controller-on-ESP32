@@ -19,7 +19,7 @@ U8_T show_identify;
 U8_T count_show_id;
 QueueHandle_t qKey = 0;
 
-uint8 text[50]; 
+uint8 text[50];
 uint8 int_text[21];
 //uint16 set_value;
 
@@ -96,7 +96,7 @@ void update_menu_state(uint8 MenuId)
 {
 
 	memcpy((void *)&CurrentState, (void *)&StateArray[MenuId], sizeof(struct _MENU_STATE_));
-	 
+
 	CurrentState.InitAction();
 }
 
@@ -170,7 +170,7 @@ void MenuTask(void *pvParameters)
 	u16 temp_key = 0;
 	portTickType xDelayPeriod = (portTickType)50 / portTICK_RATE_MS;
 //	U8_T i;
-	LCD_IO_Init();
+	// LCD_IO_Init();
 
 	menu_init();
 	delay_ms(100);
@@ -221,7 +221,7 @@ void MenuTask(void *pvParameters)
 			}
 		}
 
-	}	
+	}
 }
 
 void exit_request_password(void)
