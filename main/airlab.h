@@ -106,10 +106,6 @@ void vStartKeyTasks( unsigned char uxPriority);
 
 #define TOP_AREA_DISP_UNIT_NONE			 			100
 
-
-#define TSTAT8_CH_COLOR   	0xffff //0xd6e0
-#define TSTAT8_MENU_COLOR   0x7e17//0x3bef//0x43f2//0x14a9
-
 #define PIR_NOTTRIGGERED   0
 #define PIR_TRIGGERED   1
 
@@ -117,7 +113,6 @@ void vStartKeyTasks( unsigned char uxPriority);
 #define MIC_CARRIER_LO	1092//820 //310//1679//
 
 uint16_t read_airlab_by_block(uint16_t addr);
-
 
 extern uint8 flag_refresh_PM25;
 enum

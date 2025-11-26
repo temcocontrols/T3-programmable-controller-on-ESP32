@@ -67,19 +67,19 @@ void MenuMain_init(void)
 	clear_lines();
 	start_menu();
 }
- 
+
 uint32 get_display_value(uint8 item)
 {
 
-	if(item == 0) 		
+	if(item == 0)
         return Modbus.address;
     else if (item == 1)
         return  Setting_Info.reg.com_baudrate[0];//      Modbus.baudrate;
     else if (item == 2)
         return Modbus.protocal;
-	else	//if(item == 3)			
+	else	//if(item == 3)
 		return 0;
-	
+
 }
 
 
@@ -98,11 +98,11 @@ void show_parameter(void)
         switch (Setting_Info.reg.com_baudrate[0])
         {
             //case UART_1200:	    //Fandu  ��һ����������ʱ��������
-            //case UART_2400:	   
-            //case UART_3600:	   
-            //case UART_4800:	   
-            //case UART_7200:	   
-            //case UART_921600:	
+            //case UART_2400:
+            //case UART_3600:
+            //case UART_4800:
+            //case UART_7200:
+            //case UART_921600:
 
         case UART_9600:
         case UART_19200:
@@ -134,9 +134,9 @@ void show_parameter(void)
         //    disp_str(FORM15X30, 0, MENU_VALUE_POS, "MODBUS", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
         break;
 		/* case 3:
-        memcpy(temp_buffer, c_strSch[current_schedule], 7);						
+        memcpy(temp_buffer, c_strSch[current_schedule], 7);
         disp_str(FORM15X30, 0, MENU_VALUE_POS, temp_buffer, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-  
+
 		 break;*/
     default:
         break;
@@ -151,10 +151,10 @@ void MenuMain_display(void)
 //		sprintf(text, "%u.%u.%u.%u", (uint16)Modbus.ip_addr[0], (uint16)Modbus.ip_addr[1], (uint16)Modbus.ip_addr[2], (uint16)Modbus.ip_addr[3]);
 //		disp_str(FORM15X30, 0, SYS_MODE_POS,  text,  TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 //	}
-//	else	
-	{		
+//	else
+	{
         show_parameter();
-		//display_value(0,get_display_value(item_to_adjust), ' '); 	
+		//display_value(0,get_display_value(item_to_adjust), ' ');
 	}
 }
 
@@ -166,13 +166,13 @@ void MenuMain_keycope(uint16 key_value)
 			// do nothing
 			break;
 		case KEY_UP_MASK:
-			if(item_to_adjust < MAX_MENU_NUM - 1)	
-				item_to_adjust++; 
+			if(item_to_adjust < MAX_MENU_NUM - 1)
+				item_to_adjust++;
 			start_menu();
 			break;
 		case KEY_DOWN_MASK:
-			if(item_to_adjust > 0)	
-				item_to_adjust--; 
+			if(item_to_adjust > 0)
+				item_to_adjust--;
 			start_menu();
 			break;
 		case KEY_LEFT_MASK:
@@ -195,26 +195,26 @@ void display_menu (uint8 *item1, uint8 *item2)
 
 void draw_tangle(uint8 xpos, uint16 ypos)
 {
-		disp_icon(8, 8, leftup, 	xpos,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		disp_edge(8, 8, leftup, 	xpos,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-		disp_null_icon(113, 1, 0, xpos+6,ypos+2,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+		disp_null_icon(113, 2, 0, xpos+6,ypos+2,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-		disp_null_icon(2, 28, 0, xpos+2,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+		disp_null_icon(3, 28, 0, xpos+2,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-		disp_icon(8, 8, leftdown, 	xpos,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		disp_edge(8, 8, leftdown, 	xpos,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-		disp_null_icon(113, 1, 0, xpos+6,ypos+39,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+		disp_null_icon(113, 2, 0, xpos+6,ypos+39,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-		disp_icon(8, 8, rightdown, 	xpos+115,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		disp_edge(8, 8, rightdown, 	xpos+115,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-		disp_icon(8, 8, rightup, 	xpos+115,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		disp_edge(8, 8, rightup, 	xpos+115,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
 
-		disp_null_icon(1, 28, 0, xpos+120,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+		disp_null_icon(2, 28, 0, xpos+120,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
 		disp_null_icon(115, 2, 0, xpos+5,ypos+40,TSTAT8_CH_COLOR, TANGLE_COLOR);
-	  disp_null_icon(115, 2, 0, xpos+5,ypos,TSTAT8_CH_COLOR, TANGLE_COLOR);
-	  disp_null_icon(2, 32, 0, xpos,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
+        disp_null_icon(115, 2, 0, xpos+5,ypos,TSTAT8_CH_COLOR, TANGLE_COLOR);
+        disp_null_icon(2, 32, 0, xpos,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
 		disp_null_icon(2, 32, 0, xpos+121,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
 
 }

@@ -64,10 +64,11 @@
 #include "multiMeter.h"
 #include "mm_spi.h"
 #include "co2.h"
+#include "LcdTheme.h"
+
 //#include "lowPower.h"
 
 //#include "types.h"
-
 
 #define PORT CONFIG_EXAMPLE_PORT
 
@@ -203,6 +204,7 @@ void esp_retboot(void)
    esp_restart();
 }
 
+
 void UdpData(unsigned char type)
 {
    // header 2 bytes
@@ -279,6 +281,7 @@ uint32_t get_ip_addr(void)
 	if(Modbus.ethernet_status == 4) // wifi is disconnected
 	{
 		return ((uint32_t)Modbus.ip_addr[3] << 24) + ((uint32_t)Modbus.ip_addr[2] << 16) + ((uint16_t)Modbus.ip_addr[1] << 8) + Modbus.ip_addr[0];
+
 	}
 	else
 	{
@@ -436,8 +439,6 @@ static void bip_task(void *pvParameters)
             break;
          }
          ESP_LOGI(UDP_TASK_TAG, "Socket created");
-
-
 
          int err = bind(bip_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
          if (err < 0) {
@@ -4556,8 +4557,6 @@ void TEST_FLASH(void);
 void vStartScanTask(unsigned char uxPriority);
 void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
-void LCD_IO_Init(void);
-void Display_DeviceName(void);
 
 void LS_led_task(void);
 
@@ -4578,7 +4577,7 @@ void app_main()
 
 	SW_REV = SOFTREV;
 	count_reboot = 0;
-
+	Set_Device_Stage(DEVICE_STAGE_INIT);
 	Bacnet_Initial_Data();
 	read_default_from_flash();
 	initial_HSP();
@@ -4593,13 +4592,13 @@ void app_main()
     //Modbus.mini_type = MINI_TSTAT10;
 #endif
 
-    if(Modbus.mini_type == MINI_TSTAT10)
+    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
 	{
-		LCD_IO_Init();
-		Display_DeviceName();
+		Test_Array();
+		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
 	esp_netif_init();
-  if (Modbus.mini_type != MINI_BIG_ARM)
+  	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
    //flag_ethernet_initial = ethernet_init();
 
@@ -4676,11 +4675,7 @@ void app_main()
 	   xTaskCreate(uart2_rx_task,"uart2_rx_task",4096, NULL, 8, &main_task_handle[12]);
     }// ok
 
-    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
-	{
-		Test_Array();
-		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
-	}
+    Set_Device_Stage(DEVICE_STAGE_RUNNING);
 
 
  #if 1

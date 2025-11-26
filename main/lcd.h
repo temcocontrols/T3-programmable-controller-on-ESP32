@@ -28,13 +28,11 @@ typedef struct
 #define FORM15X30		1
 #define FORM16X24		2
 
-#define SCH_XPOS  10
+#define SCH_XPOS        10
 
-#define SCH_COLOR  0xffff//0XB73F
-#define SCH_BACK_COLOR  0x3bef//0x43f2//0x14E9
+#define THERM_METER_POS	 10
+#define CH_HEIGHT		 36
 
-#define THERM_METER_POS										5
-#define CH_HEIGHT													36
 #define SETPOINT_POS	 108
 #define FAN_MODE_POS	 SETPOINT_POS+CH_HEIGHT+7
 #define SYS_MODE_POS	 FAN_MODE_POS+CH_HEIGHT+7
@@ -51,27 +49,8 @@ typedef struct
 #define ITEM_VOC   3
 #define ITEM_LIGHT 4
 
-
-
-
-#ifdef COLOR_TEST
-#define TSTAT8_BACK_COLOR1  0x9df5//0xc67b// 0x7557 //0x2589
-extern uint32 TSTAT8_BACK_COLOR;   //
-extern uint32 TSTAT8_MENU_COLOR2;
-extern uint32 TANGLE_COLOR;
-#else
-#define TSTAT8_BACK_COLOR1  0x3cef
-#define TSTAT8_BACK_COLOR   0x7E19
-#define TSTAT8_MENU_COLOR2  0x7e17
-#define TANGLE_COLOR        0xbe9c
-#endif
-
-
-
 void disp_ch(uint8_t form, uint16_t x, uint16_t y,uint8_t value,uint16_t dcolor,uint16_t bgcolor);
-
 void disp_icon(uint16_t cp, uint16_t pp, uint16_t const *icon_name, uint16_t x,uint16_t y,uint16_t dcolor, uint16_t bgcolor);
-
 void disp_str(uint8_t form, uint16_t x,uint16_t y,char *str,uint16_t dcolor,uint16_t bgcolor);
 void disp_special_str(uint8_t form, uint16_t x, uint16_t y, char *str, uint16_t dcolor, uint16_t bgcolor);
 

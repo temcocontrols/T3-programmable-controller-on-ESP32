@@ -1,9 +1,10 @@
 
-#ifndef	__LCD_TSTAT_H__
+#ifndef    __LCD_TSTAT_H__
 
-#define	__LCD_TSTAT_H__
+#define    __LCD_TSTAT_H__
 
 #include "types.h"
+#include "LcdTheme.h"
 
 
 #ifndef	TRUE
@@ -11,98 +12,84 @@
 #endif
 
 #ifndef FALSE
-#define FALSE	0
+#define FALSE    0
 #endif
 
 
-//#define FORM48X120		0
-#define FORM32X64 		0
-#define FORM15X30			1
+//#define FORM48X120        0
+#define FORM32X64           0
+#define FORM15X30           1
+#define FORM16X24           2
 
 
-#define CH_HEIGHT													36
+#define CH_HEIGHT           36
 
-#define THERM_METER_POS										5
+#define THERM_METER_POS     5
 
-#define IDLE_LINE1_POS										0
-#define IDLE_LINE2_POS										50
+#define IDLE_LINE1_POS      0
+#define IDLE_LINE2_POS      50
 
-#define SETPOINT_POS											108
-#define FAN_MODE_POS											SETPOINT_POS+CH_HEIGHT+7
-#define SYS_MODE_POS											FAN_MODE_POS+CH_HEIGHT+7
+#define SETPOINT_POS        115
+#define FAN_MODE_POS        SETPOINT_POS+CH_HEIGHT+7
+#define SYS_MODE_POS        FAN_MODE_POS+CH_HEIGHT+7
 
-#define MENU_ITEM1      SETPOINT_POS+0
-#define MENU_ITEM2      FAN_MODE_POS+0
+#define MENU_ITEM1          SETPOINT_POS+0
+#define MENU_ITEM2          FAN_MODE_POS+0
 
-#define TIME_POS										      SYS_MODE_POS + CH_HEIGHT + 7
-#define MENU_ITEM_POS											130
-#define MENU_VALUE_POS										SYS_MODE_POS//MENU_ITEM_POS + CH_HEIGHT
-#define ICON_POS													274
-#define ICON_XPOS 												2
+#define TIME_POS            SYS_MODE_POS + CH_HEIGHT + 7
+#define MENU_ITEM_POS       130
+#define MENU_VALUE_POS      SYS_MODE_POS//MENU_ITEM_POS + CH_HEIGHT
+#define ICON_POS            274
+#define ICON_XPOS           2
 
-#define FIRST_ICON_POS									  ICON_XPOS
-#define SECOND_ICON_POS                   FIRST_ICON_POS + 60
-#define THIRD_ICON_POS                    SECOND_ICON_POS + 60
-#define FOURTH_ICON_POS                   THIRD_ICON_POS + 60
-#define FIFTH_ICON_POS                    FOURTH_ICON_POS + 40
+#define FIRST_ICON_POS      ICON_XPOS
+#define SECOND_ICON_POS     FIRST_ICON_POS + 60
+#define THIRD_ICON_POS      SECOND_ICON_POS + 60
+#define FOURTH_ICON_POS     THIRD_ICON_POS + 60
+#define FIFTH_ICON_POS      FOURTH_ICON_POS + 40
 
-#define ICON_XDOTS						55
-#define ICON_YDOTS						45
+#define ICON_XDOTS          55
+#define ICON_YDOTS          45
 
-#define FANBLADE_XDOTS						40
-#define FANBLADE_YDOTS						45
+#define FANBLADE_XDOTS      40
+#define FANBLADE_YDOTS      45
 
-#define FANSPEED_XDOTS						15
-#define FANSPEED_YDOTS						45
+#define FANSPEED_XDOTS      15
+#define FANSPEED_YDOTS      45
 
-#define THERM_METER_XPOS									39
-#define TEMP_FIRST_BLANK						      0//30  //+= blank width
-#define FIRST_CH_POS											TEMP_FIRST_BLANK + THERM_METER_XPOS
-#define SECOND_CH_POS											FIRST_CH_POS+48
-#define THIRD_CH_POS											SECOND_CH_POS+48+16
-#define UNIT_POS													THIRD_CH_POS + 48+ 15
-#define BUTTON_DARK_COLOR   							0X0BA7
-#define BTN_OFFSET												CH_HEIGHT+7
-
-
-#define TOP_AREA_DISP_ITEM_TEMPERATURE   	0
-#define TOP_AREA_DISP_ITEM_HUM					 	1
-#define TOP_AREA_DISP_ITEM_CO2				   	2
-//#define TOP_AREA_DISP_ITEM_OFFON					3
-
-#define TOP_AREA_DISP_UNIT_C   					 	0
-#define TOP_AREA_DISP_UNIT_F					 	 	1
-#define TOP_AREA_DISP_UNIT_PPM				   	2
-#define TOP_AREA_DISP_UNIT_PERCENT			 	3
-#define TOP_AREA_DISP_UNIT_Pa			 				4
-#define TOP_AREA_DISP_UNIT_kPa						5
-#define TOP_AREA_DISP_UNIT_RH							6
-
-#define TOP_AREA_DISP_UNIT_NONE			 			100
+#define THERM_METER_XPOS    39
+#define TEMP_FIRST_BLANK    0//30  //+= blank width
+#define FIRST_CH_POS        TEMP_FIRST_BLANK + THERM_METER_XPOS
+#define SECOND_CH_POS       FIRST_CH_POS+48
+#define THIRD_CH_POS        SECOND_CH_POS+48+16
+#define UNIT_POS            THIRD_CH_POS + 48+ 15
+#define BUTTON_DARK_COLOR   0X0BA7
+#define BTN_OFFSET          CH_HEIGHT+7
 
 
-#define TSTAT8_CH_COLOR   	0xffff //0xd6e0
-#define TSTAT8_MENU_COLOR   0x7e17//0x3bef//0x43f2//0x14a9
+#define TOP_AREA_DISP_ITEM_TEMPERATURE      0
+#define TOP_AREA_DISP_ITEM_HUM              1
+#define TOP_AREA_DISP_ITEM_CO2              2
+//#define TOP_AREA_DISP_ITEM_OFFON          3
 
+#define TOP_AREA_DISP_UNIT_C                0
+#define TOP_AREA_DISP_UNIT_F                1
+#define TOP_AREA_DISP_UNIT_PPM              2
+#define TOP_AREA_DISP_UNIT_PERCENT          3
+#define TOP_AREA_DISP_UNIT_Pa               4
+#define TOP_AREA_DISP_UNIT_kPa              5
+#define TOP_AREA_DISP_UNIT_RH               6
 
-#define SCH_COLOR  0xffff//0XB73F
-#define SCH_BACK_COLOR  0x3bef//0x43f2//0x14E9
+#define TOP_AREA_DISP_UNIT_NONE             100
 
-#define TSTAT8_BACK_COLOR1  0x3cef//0x7E19
-#define TSTAT8_BACK_COLOR   0x7E19//
-#define TSTAT8_MENU_COLOR2  0x7e17
-#define TANGLE_COLOR        0xbe9c
-
-#define FAN_OFF 	0
-#define FAN_AUTO 	4
-#define FAN_ON		1
+#define FAN_OFF    0
+#define FAN_AUTO   4
+#define FAN_ON     1
 #define FAN_SPEED1 1
 #define FAN_SPEED2 2
 #define FAN_SPEED3 3
 
-
-
-#define FAN_COST   	0
+#define FAN_COST    0
 #define FAN_COOL1   1
 #define FAN_COOL2   2
 #define FAN_COOL3   3
@@ -110,33 +97,33 @@
 #define FAN_HEAT2   5
 #define FAN_HEAT3   6
 
-#define SCH_XPOS  10
+#define SCH_XPOS    10
 
-#define HC_CFG_AUTO			0
-#define HC_CFG_COOL			1
-#define HC_CFG_HEAT			2
-
-
-#define	LONG_PRESS_TIMER_SPEED_100	200
-#define	LONG_PRESS_TIMER_SPEED_50	100
-#define	LONG_PRESS_TIMER_SPEED_10	30
-#define	LONG_PRESS_TIMER_SPEED_1	20
+#define HC_CFG_AUTO    0
+#define HC_CFG_COOL    1
+#define HC_CFG_HEAT    2
 
 
-#define KEY_SPEED_1			(0x0000)
-#define KEY_SPEED_10		(0x0100)
-#define KEY_SPEED_50		(0x0200)
-#define KEY_SPEED_100		(0x0300)
-#define KEY_SPEED_MASK		(0x00ff)
-#define KEY_FUNCTION_MASK	(0xff00)
+#define    LONG_PRESS_TIMER_SPEED_100  200
+#define    LONG_PRESS_TIMER_SPEED_50   100
+#define    LONG_PRESS_TIMER_SPEED_10   30
+#define    LONG_PRESS_TIMER_SPEED_1    20
 
-#define	KEY_UP_MASK			2//(1 << 1)
-#define	KEY_DOWN_MASK		4//(1 << 2)
-#define	KEY_LEFT_MASK		8//(1 << 3)
-#define	KEY_RIGHT_MASK		1//(1 << 0)
-#define	KEY_LEFT_RIGHT_MASK		9//(1 << 0)
 
-#define SMALL_SIZE_HIGH  24
+#define KEY_SPEED_1         (0x0000)
+#define KEY_SPEED_10        (0x0100)
+#define KEY_SPEED_50        (0x0200)
+#define KEY_SPEED_100       (0x0300)
+#define KEY_SPEED_MASK      (0x00ff)
+#define KEY_FUNCTION_MASK   (0xff00)
+
+#define    KEY_UP_MASK          2//(1 << 1)
+#define    KEY_DOWN_MASK        4//(1 << 2)
+#define    KEY_LEFT_MASK        8//(1 << 3)
+#define    KEY_RIGHT_MASK       1//(1 << 0)
+#define    KEY_LEFT_RIGHT_MASK  9//(1 << 0)
+
+#define SMALL_SIZE_HIGH     24
 
 #define TSTAT10_SCH_DAY_X   80
 #define TSTAT10_SCH_DAY_Y   24//0
@@ -164,31 +151,31 @@
 #define TSTAT10_SCH_OFF4_Y   (24*9)
 
 
-#define TSTAT10_SCH_ON1_TIME_X   100
-#define TSTAT10_SCH_ON1_TIME_Y   TSTAT10_SCH_ON1_Y
+#define TSTAT10_SCH_ON1_TIME_X    100
+#define TSTAT10_SCH_ON1_TIME_Y    TSTAT10_SCH_ON1_Y
 #define TSTAT10_SCH_OFF1_TIME_X   100
 #define TSTAT10_SCH_OFF1_TIME_Y   TSTAT10_SCH_OFF1_Y
 
-#define TSTAT10_SCH_ON2_TIME_X   100
-#define TSTAT10_SCH_ON2_TIME_Y   TSTAT10_SCH_ON2_Y
+#define TSTAT10_SCH_ON2_TIME_X    100
+#define TSTAT10_SCH_ON2_TIME_Y    TSTAT10_SCH_ON2_Y
 #define TSTAT10_SCH_OFF2_TIME_X   100
 #define TSTAT10_SCH_OFF2_TIME_Y   TSTAT10_SCH_OFF2_Y
 
-#define TSTAT10_SCH_ON3_TIME_X   100
-#define TSTAT10_SCH_ON3_TIME_Y   TSTAT10_SCH_ON3_Y
+#define TSTAT10_SCH_ON3_TIME_X    100
+#define TSTAT10_SCH_ON3_TIME_Y    TSTAT10_SCH_ON3_Y
 #define TSTAT10_SCH_OFF3_TIME_X   100
 #define TSTAT10_SCH_OFF3_TIME_Y   TSTAT10_SCH_OFF3_Y
 
-#define TSTAT10_SCH_ON4_TIME_X   100
-#define TSTAT10_SCH_ON4_TIME_Y   TSTAT10_SCH_ON4_Y
+#define TSTAT10_SCH_ON4_TIME_X    100
+#define TSTAT10_SCH_ON4_TIME_Y    TSTAT10_SCH_ON4_Y
 #define TSTAT10_SCH_OFF4_TIME_X   100
 #define TSTAT10_SCH_OFF4_TIME_Y   TSTAT10_SCH_OFF4_Y
 
 
 typedef struct my_point
 {
-	unsigned short x_pos;
-	unsigned short y_pos;
+    unsigned short x_pos;
+    unsigned short y_pos;
 }str_my_point;
 
 
@@ -197,9 +184,8 @@ void vStartKeyTasks( unsigned char uxPriority);
 void vStartMenuTask(unsigned char uxPriority);
 
 
-
-
-#define MAX_SCOROLL 20
+#define MAX_SCOROLL      20
+#define SCROLL_WINDOW    14     // visible window (characters shown)
 
 extern uint8 *scroll;
 extern uint8 scroll_ram[5][MAX_SCOROLL];
@@ -216,7 +202,7 @@ extern uint16 const athome[];
 extern uint16 const offhome[];
 extern uint16 const sunicon[];
 extern uint16 const moonicon[];
-extern uint16 const heaticon[]; 
+extern uint16 const heaticon[];
 extern uint16 const coolicon[];
 extern uint16 const fanspeed0a[];
 extern uint16 const fanspeed1a[];
@@ -231,8 +217,8 @@ extern uint16 const leftup[];
 extern uint16 const leftdown[];
 extern uint16 const rightdown[];
 extern uint16 const rightup[];
-extern uint16 const cmnct_send[]; 
-extern uint16 const cmnct_rcv[]; 
+extern uint16 const cmnct_send[];
+extern uint16 const cmnct_rcv[];
 extern uint16 const wifi_0[];
 extern uint16 const wifi_1[];
 extern uint16 const wifi_2[];
@@ -256,8 +242,9 @@ extern DISP_CHANGE icon;*/
 //extern uint16 const angle[];
 void draw_tangle(uint8 xpos, uint16 ypos);
 void ClearScreen(unsigned int bColor);
-void disp_ch(uint8 form, uint16 x, uint16 y,uint8 value,uint16 dcolor,uint16 bgcolor);		
+void disp_ch(uint8 form, uint16 x, uint16 y,uint8 value,uint16 dcolor,uint16 bgcolor);
 void disp_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
+void disp_edge(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
 void disp_null_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
 void disp_str(uint8 form, uint16 x,uint16 y,char *str,uint16 dcolor,uint16 bgcolor);
 void disp_str_16_24(uint8 form, uint16 x, uint16 y, uint8 *str, uint16 dcolor, uint16 bgcolor);
