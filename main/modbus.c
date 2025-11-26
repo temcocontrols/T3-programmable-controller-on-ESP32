@@ -21,6 +21,7 @@
 #include "lcd.h"
 #include "sntp_app.h"
 #include "co2.h"
+#include "LcdTheme.h"
 
 
 extern xSemaphoreHandle xSem_comport[3];
@@ -729,8 +730,6 @@ void uart2_rx_task(void)
 	}
 }
 
-
-
 void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
    uint8_t num = 0, i, temp1, temp2;
@@ -799,7 +798,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          crc16_byte(*(bufadd+i));
       }
 
-      
+
 		if(type == BAC_TO_MODBUS)
 		{
 			memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
@@ -810,7 +809,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			uart_send[7] = CRClo;
 			uart_send_string((const char *)uart_send, 8,port);
 
-		}      
+		}
 		else  // WIFI OR ETHERNET
 		{
 			 uart_sendB[0] = *bufadd;//0;         //   TransID
@@ -890,17 +889,17 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          }
          else if(address == (SERIALNUMBER_HIWORD +1))
          {
-            
+
             temp1 = 0;
             temp2 = Modbus.serialNum[3];
          }
          else if(address == VERSION_NUMBER_LO)
-         {            
+         {
             temp1 = 0;
             temp2 = SW_REV % 100;
          }
          else if(address == VERSION_NUMBER_HI)
-         {            
+         {
             temp1 = 0;
             temp2 = SW_REV / 100;
          }
@@ -979,6 +978,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0;
 			temp2 = Modbus.mini_type;
 		}
+		else if(address == MODBUS_DISPLAY_THEME)
+		{
+			temp1 = 0;
+			temp2 = Modbus.LcdTheme;
+		}
 		else if(address == MODBUS_INSTANCE_HI)
 		{
 			temp1 = (U8_T)(Instance >> 24);
@@ -1043,11 +1047,6 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		{
 			temp1 = 0;
 			temp2 = Modbus.tcp_type;
-		}
-		else if(address == MODBUS_LCD_TIME_OFF_DELAY)
-		{
-			temp1 = 0;
-			temp2 = Modbus.LCD_time_off_delay;
 		}
 		else if(address == MODBUS_DEAD_MASTER_FOR_PLC)
 		{
@@ -1238,7 +1237,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0 ;
 			temp2 = 0;
 		}
-		 
+
          if(type == SERIAL || type == BAC_TO_MODBUS)
          {
 			uart_send[send_cout++] = temp1 ;
@@ -1259,7 +1258,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             uart_sendB[5] = (uint8_t)(3 + num * 2) ;
          }
       }
-   
+
 	   temp1 = CRChi ;
 	   temp2 = CRClo;
 	   if(type == BAC_TO_MODBUS)
@@ -1290,17 +1289,17 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_send[send_cout++] = Modbus.serialNum[2];
          uart_send[send_cout++] = Modbus.serialNum[3];
          for(i=0;i<send_cout;i++)
-            crc16_byte(uart_send[i]);      	  
-	  
+            crc16_byte(uart_send[i]);
+
 		   temp1 = CRChi ;
 		   temp2 = CRClo;
-		   
+
 		   uart_send[send_cout++] = temp1 ;
 		   uart_send[send_cout++] = temp2 ;
 		   uart_send_string((const char *)uart_send, send_cout,port);
 	  }
    }
-   
+
 
    if(type == WIFI)
    {
@@ -1317,23 +1316,23 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
 
-   if(type == WIFI)
-   {
-      reg_num = pData[4]*256 + pData[5];
-      responseModbusData(pData,WIFI, len,resData,modbus_send_len,port);
-      internalDeal(pData,WIFI);
-   }
-   else if(type == BAC_TO_MODBUS)
-   {
-   	   responseModbusData(pData,BAC_TO_MODBUS,len,resData,modbus_send_len,port);
-       internalDeal(pData,BAC_TO_MODBUS);
-   }
-   else  // MODBUS/RS485
-   {
-      reg_num = pData[4]*256 + pData[5];
-      responseModbusData(pData,SERIAL,len,resData,modbus_send_len,port);
-      internalDeal(pData,SERIAL);
-   }
+	if(type == WIFI)
+	{
+		reg_num = pData[4]*256 + pData[5];
+		responseModbusData(pData,WIFI, len,resData,modbus_send_len,port);
+		internalDeal(pData,WIFI);
+	}
+	else if(type == BAC_TO_MODBUS)
+	{
+		responseModbusData(pData,BAC_TO_MODBUS,len,resData,modbus_send_len,port);
+		internalDeal(pData,BAC_TO_MODBUS);
+	}
+	else  // MODBUS/RS485
+	{
+		reg_num = pData[4]*256 + pData[5];
+		responseModbusData(pData,SERIAL,len,resData,modbus_send_len,port);
+		internalDeal(pData,SERIAL);
+	}
 }
 
 
@@ -2297,6 +2296,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
 			}
 		}
+		else if(address == MODBUS_DISPLAY_THEME)
+		{
+			if(*(bufadd + 5) < 10 && *(bufadd + 5) >= 0)
+			{
+				Modbus.LcdTheme = *(bufadd + 5);
+				LcdThemeMarkForUpdate();
+				save_uint8_to_flash( FLASH_THEME_TYPE, Modbus.LcdTheme);
+			}
+		}
 		else if(address == MODBUS_PANEL_NUMBER)
 		{
 			if(*(bufadd + 5) != 0 && *(bufadd + 5) != 255)
@@ -3201,7 +3209,7 @@ void Write_IO_reg(uint16_t StartAdd,uint8_t * pData)
 	}
 	else if(StartAdd >= MODBUS_WR_AM_FIRST && StartAdd <= MODBUS_WR_AM_LAST)
 	{
-		i = (StartAdd - MODBUS_WR_AM_FIRST);		
+		i = (StartAdd - MODBUS_WR_AM_FIRST);
 		weekly_routines[i].auto_manual = pData[5];
 		ChangeFlash = 1;
 	}
@@ -3298,7 +3306,7 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 			ptr = put_io_buf(OUT,i);
 			tempval = pData[10] + (U16_T)(pData[9] << 8) \
 				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
-			
+
 			ptr.pout->value = tempval;
 
 			if(ptr.pout->digital_analog == 0)  // digital
@@ -3354,9 +3362,9 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 			ptr = put_io_buf(IN,i);
 			tempval = pData[10] + (U16_T)(pData[9] << 8) \
 				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
-				
-			
-			
+
+
+
 			if(ptr.pin->digital_analog == 0)  // digital
 			{
 				if(( ptr.pin->range >= ON_OFF && ptr.pin->range <= HIGH_LOW )
@@ -3405,7 +3413,7 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 			tempval = pData[10] + (U16_T)(pData[9] << 8) \
 				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
 
-			
+
 			if(ptr.pvar->digital_analog == 0)  // digital
 			{
 				if(( ptr.pvar->range >= ON_OFF && ptr.pvar->range <= HIGH_LOW )

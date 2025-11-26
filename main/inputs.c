@@ -410,9 +410,9 @@ void control_input(void)
 		shift = 4;
 	else
 		shift = 1;
-
+	
 	while( point < MAX_INS )
-	{
+	{	
 		ptr = put_io_buf(IN,point);
 
 		if(change_value_by_range(point))
@@ -483,7 +483,7 @@ void control_input(void)
 
 				
 				if(ptr.pin->auto_manual == 0)  // auto			 
-				{
+				{ 			
 					 // raw value			
 					if(ptr.pin->range != not_used_input)
 					{				
@@ -516,7 +516,7 @@ void control_input(void)
 						}
 						else if(ptr.pin->digital_analog == 1)	// analog
 						{						
-
+							
 							temp = ptr.pin->decom;
 							temp &= 0xf0;
 							temp |= IN_NORMAL;
@@ -549,7 +549,7 @@ void control_input(void)
 									temp |= IN_SHORT;
 									ptr.pin->decom = temp;
 								}				
-
+								
 								sample = get_input_value_by_range( ptr.pin->range, sample );
 								break;
 							case PT1000_200_300DegC:

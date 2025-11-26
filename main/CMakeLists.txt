@@ -1,4 +1,4 @@
-idf_component_register(			SRCS 
+idf_component_register(			SRCS
 							"tcp_server.c"
 							"modbus.c"
 #							"deviceparams.c"
@@ -19,16 +19,16 @@ idf_component_register(			SRCS
 							"outputs.c"
 							"io.c"
 							"mlx90632.c"
-							"mlx90632_extended_meas.c"	
+							"mlx90632_extended_meas.c"
 							"rtc.c"
 							"timegm.c"
 							"sht4x.c"
 							"sht3x.c"
-							"scd4x_i2c.c"													
+							"scd4x_i2c.c"
 							"scan.c"
 							"commsub.c"
-							"ade7953.c"	
-							"lcd.c"						
+							"ade7953.c"
+							"lcd.c"
 #							"pic.c"
 							"smtp_client.c"
 							"airlab.c"
@@ -42,7 +42,7 @@ idf_component_register(			SRCS
 							"menuIdle.c"
 							"menuMain.c"
 						#	"Constcode.c"
-							"menuSet.c"							
+							"menuSet.c"
 						#	"menuDaySet.c"
 							"sntp_app.c"
 							"multiMeter.c"
@@ -52,6 +52,7 @@ idf_component_register(			SRCS
 					#		"ddns.c"
 						#	"lowPower.c"
 							"co2.c"
+							"LcdTheme.c"
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")

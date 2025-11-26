@@ -296,7 +296,12 @@ esp_err_t read_default_from_flash(void)
 		Modbus.mini_type = MINI_NANO;
 		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
 	}
-
+	err = nvs_get_u8(my_handle, FLASH_THEME_TYPE, &Modbus.LcdTheme);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.LcdTheme = 0;
+		nvs_set_u8(my_handle, FLASH_THEME_TYPE, Modbus.LcdTheme);
+	}
 	err = nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
 
 	if((Modbus.network_number == 0) || (err == ESP_ERR_NVS_NOT_FOUND))
@@ -1271,7 +1276,7 @@ void Initial_points(uint8_t point_type)
 				ptr.pin->range = 30;
 				memcpy(ptr.pin->description,"INPUT VOLTAGE",strlen("INPUT VOLTAGE"));
 			}
-			
+
 			ptr = put_io_buf(IN,1);
 			memcpy(ptr.pin->description,"INPUT CURRENT",strlen("INPUT CURRENT"));
 			memcpy(ptr.pin->label,"INCURNT",strlen("INCURNT"));
@@ -1281,7 +1286,7 @@ void Initial_points(uint8_t point_type)
 				ptr.pin->range = 12;
 				memcpy(ptr.pin->description,"INPUT CURRENT",strlen("INPUT CURRENT"));
 			}
-			
+
 			ptr = put_io_buf(IN,2);
 			memcpy(ptr.pin->description,"INPUT POWER",strlen("INPUT POWER"));
 			memcpy(ptr.pin->label,"INPWR",strlen("INPWR"));
@@ -1291,7 +1296,7 @@ void Initial_points(uint8_t point_type)
 				ptr.pin->range = 31;
 				memcpy(ptr.pin->description,"INPUT POWER",strlen("INPUT POWER"));
 			}
-			
+
 			ptr = put_io_buf(IN,3);
 			memcpy(ptr.pin->description,"INPUT ENERGY",strlen("INPUT ENERGY"));
 			memcpy(ptr.pin->label,"INENGY",strlen("INENGY"));
