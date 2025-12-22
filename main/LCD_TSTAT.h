@@ -1,6 +1,5 @@
 
 #ifndef    __LCD_TSTAT_H__
-
 #define    __LCD_TSTAT_H__
 
 #include "types.h"
@@ -194,25 +193,10 @@ extern uint8 display_flag;
 extern uint8 schedule_hour_minute; //indicate current display item is "hour" or "minute"
 extern uint8 blink_parameter;
 extern uint8 clock_blink_flag;
-void LCD_Intial(void);
-extern uint8 const chlib[];
-extern uint8 const chlibsmall[];
-extern uint8 const char_16_24[];
-extern uint16 const athome[];
-extern uint16 const offhome[];
-extern uint16 const sunicon[];
-extern uint16 const moonicon[];
-extern uint16 const heaticon[];
-extern uint16 const coolicon[];
-extern uint16 const fanspeed0a[];
-extern uint16 const fanspeed1a[];
-extern uint16 const fanspeed2a[];
-extern uint16 const fanspeed3a[];
-extern uint16 const fanbladeA[];
-extern uint16 const fanbladeB[];
 
-extern uint16 const degree_o[];
-//extern uint16 const therm_meter[];
+/*      Display Symbols       */
+/* Declaration in DisSymbol.c */
+
 extern uint16 const leftup[];
 extern uint16 const leftdown[];
 extern uint16 const rightdown[];
@@ -225,21 +209,36 @@ extern uint16 const wifi_2[];
 extern uint16 const wifi_3[];
 extern uint16 const wifi_4[];
 extern uint16 const wifi_none[];
+extern uint16 const athome[];
+extern uint16 const offhome[];
+extern uint16 const outsideSymbol[];
+extern uint16 const indoorTemp[];
+extern uint16 const fanspeed0a[];
+extern uint16 const fanspeed1a[];
+extern uint16 const fanspeed2a[];
+extern uint16 const fanspeed3a[];
+extern uint16 const fanbladeA[];
+extern uint16 const fanbladeB[];
+extern uint16 const sunicon[];
+extern uint16 const moonicon[];
+extern uint16 const coolicon[];
+extern uint16 const heaticon[];
+extern uint16 const degree_o[];
+extern uint16 const outsideSymbol[];
+extern uint16 const indoorTemp[];
 
-/*typedef struct
-{
- uint8 unit;
- uint8 setpoint;
- uint8 fan;
- uint8 sysmode;
- uint8 occ_unocc;
- uint8 heatcool;
- uint8 fanspeed;
- uint8 cmnct_send;
- uint8 cmnct_rcv; 	
-} DISP_CHANGE; 
-extern DISP_CHANGE icon;*/
-//extern uint16 const angle[];
+/*      Display Fonts         */
+/* Declaration in DisFonts.c  */
+extern uint8 const char_16_24[];
+extern uint8 const chlibsmall[];
+extern uint8 const chlib[];
+extern uint8 const chlib_48x64[];
+extern uint8 const ArialBlack_18x26[];
+extern uint8 const ch_ArialBlack_16x24[];
+
+/*      Function Declaration   */
+
+void LCD_Intial(void);
 void draw_tangle(uint8 xpos, uint16 ypos);
 void ClearScreen(unsigned int bColor);
 void disp_ch(uint8 form, uint16 x, uint16 y,uint8 value,uint16 dcolor,uint16 bgcolor);
@@ -248,6 +247,7 @@ void disp_edge(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,
 void disp_null_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
 void disp_str(uint8 form, uint16 x,uint16 y,char *str,uint16 dcolor,uint16 bgcolor);
 void disp_str_16_24(uint8 form, uint16 x, uint16 y, uint8 *str, uint16 dcolor, uint16 bgcolor);
+void disp_ch_16_24(uint8 form, uint16 x, uint16 y, uint8 value, uint16 dcolor, uint16 bgcolor);
 void display_SP(S16_T setpoint);
 void display_screen_value(uint8 type);
 void display_fanspeed(S16_T speed);
@@ -267,6 +267,4 @@ void display_schedule_time(S8_T schedule_time_sel, uint8 hour_minute);
 void Top_area_display(uint8 item, S16_T value, uint8 unit);
 
 
-
-#endif
-
+#endif /* __LCD_TSTAT_H__ */

@@ -283,6 +283,20 @@ U16_T LcdThemeUpdateColors( U16_T inColour )
         case DIS_COLOR_ERROR:
             outColour = CurrentTheme.errorColor;
             break;
+        case COLOR_YELLOW:
+            if(CurrentTheme.backgroundColor == COLOR_YELLOW)
+            {
+                outColour = COLOR_WHITE;
+            }
+            if(CurrentTheme.backgroundColor == COLOR_GREEN )
+            {
+                outColour = COLOR_ORANGE;
+            }
+            else if(CurrentTheme.borderColor == COLOR_YELLOW)
+            {
+                outColour = COLOR_SKY_BLUE;
+            }
+            break;
         default:
             // No change
             break;

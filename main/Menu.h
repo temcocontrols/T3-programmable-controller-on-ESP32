@@ -8,6 +8,7 @@
 #include "menuMain.h"
 #include "menuSet.h"
 #include "menuDaySet.h"
+#include <stdbool.h>
 
 #define MENU_BLOCK_SECONDS_DEFAULT	    60 //
 #define BACKLIGHT_KEEP_SECONDS_DEFAULT	30
@@ -87,6 +88,7 @@ void exit_request_password(void);
 void vStartMenuTask(unsigned char uxPriority);
 void start_menu(void);
 void menu_init(void);
+void DisplayHomeScreen( bool isHomeScreen );
 //void vStartScrollingTask(unsigned char uxPriority);
 void print(char *p);
 

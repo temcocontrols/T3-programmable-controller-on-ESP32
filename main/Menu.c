@@ -202,7 +202,7 @@ void MenuTask(void *pvParameters)
 			{
 				// Initialize Menu
 				menu_init();
-				delay_ms(100);
+				// delay_ms(100);
 				if(Modbus.mini_type == PROJECT_AIRLAB)
 				{
 					// disp_str(FORM15X30, SCH_XPOS, PM25_W_POS, "PM  :", 0xffff - aqi_background_color, aqi_background_color);
@@ -240,7 +240,6 @@ void LcdMenuRunning(void)
 
 	if(xQueueReceive(qKey, &temp_key, 5) == pdTRUE)
 	{
-		uart_write_bytes(UART_NUM_0, "key Received\r\n", strlen("key Send\r\n"));
 		Test[4]++;
 		CurrentState.KeyCope(temp_key);
 		if(CurrentState.BlockTime)

@@ -53,6 +53,9 @@ idf_component_register(			SRCS
 						#	"lowPower.c"
 							"co2.c"
 							"LcdTheme.c"
+							"DisHomeScreen.c"
+							"DisFonts.c"
+							"DisSymbol.c"
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")

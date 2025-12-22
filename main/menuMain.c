@@ -195,27 +195,26 @@ void display_menu (uint8 *item1, uint8 *item2)
 
 void draw_tangle(uint8 xpos, uint16 ypos)
 {
-		disp_edge(8, 8, leftup, 	xpos,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+    disp_edge(8, 8, leftup, 	xpos,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-		disp_null_icon(113, 2, 0, xpos+6,ypos+2,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+    disp_null_icon(113, 2, 0, xpos+6,ypos+2,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-		disp_null_icon(3, 28, 0, xpos+2,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+    disp_null_icon(3, 28, 0, xpos+2,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-		disp_edge(8, 8, leftdown, 	xpos,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+    disp_edge(8, 8, leftdown, 	xpos,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-		disp_null_icon(113, 2, 0, xpos+6,ypos+39,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+    disp_null_icon(113, 2, 0, xpos+6,ypos+39,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-		disp_edge(8, 8, rightdown, 	xpos+115,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+    disp_edge(8, 8, rightdown, 	xpos+115,	ypos+34, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-		disp_edge(8, 8, rightup, 	xpos+115,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+    disp_edge(8, 8, rightup, 	xpos+115,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
 
-		disp_null_icon(2, 28, 0, xpos+120,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+    disp_null_icon(2, 28, 0, xpos+120,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-		disp_null_icon(115, 2, 0, xpos+5,ypos+40,TSTAT8_CH_COLOR, TANGLE_COLOR);
-        disp_null_icon(115, 2, 0, xpos+5,ypos,TSTAT8_CH_COLOR, TANGLE_COLOR);
-        disp_null_icon(2, 32, 0, xpos,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
-		disp_null_icon(2, 32, 0, xpos+121,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
-
+    disp_null_icon(115, 2, 0, xpos+5,ypos+40,TSTAT8_CH_COLOR, TANGLE_COLOR);
+    disp_null_icon(115, 2, 0, xpos+5,ypos,TSTAT8_CH_COLOR, TANGLE_COLOR);
+    disp_null_icon(2, 32, 0, xpos,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
+    disp_null_icon(2, 32, 0, xpos+121,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
 }
 

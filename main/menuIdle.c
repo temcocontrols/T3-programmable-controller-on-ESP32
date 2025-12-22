@@ -39,6 +39,8 @@ uint8 digital_top_area_changed = 0;
 void set_output_raw(uint8_t point,uint16_t value);
 extern uint16_t count_suspend_mstp;
 extern uint8_t ChangeFlash;
+static bool IsHomeScreen = false;
+
 void MenuIdle_init(void)
 {
 	uint8 i,j;
@@ -62,49 +64,59 @@ void MenuIdle_init(void)
 	memset(UI_DIS_TOP,0,9);
 	digital_top_area_changed = 0;
 
-	disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
-	disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "            ",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-	disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
-	disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT * 2 - 7, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
+	IsHomeScreen = false;
 
-	if(digital_top_area_type == IN)
+	if(IsHomeScreen == false)
 	{
-		ptr = put_io_buf(IN,digital_top_area_num);
-		memcpy(UI_DIS_TOP, ptr.pin->label, 9);
+		DisplayHomeScreen(IsHomeScreen);
+		IsHomeScreen = true;
 	}
-	else if(digital_top_area_type == OUT)
+	else
 	{
-		ptr = put_io_buf(OUT,digital_top_area_num);
-		memcpy(UI_DIS_TOP, ptr.pout->label, 9);
-	}
-	else if(digital_top_area_type == VAR)
-	{
-		ptr = put_io_buf(VAR,digital_top_area_num);
-		memcpy(UI_DIS_TOP, ptr.pvar->label, 9);
-	}
+		disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
+		disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "            ",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
+		disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
+		disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT * 2 - 7, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
 
-	disp_null_icon(240, 29, 0, 0,TIME_POS,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+		if(digital_top_area_type == IN)
+		{
+			ptr = put_io_buf(IN,digital_top_area_num);
+			memcpy(UI_DIS_TOP, ptr.pin->label, 9);
+		}
+		else if(digital_top_area_type == OUT)
+		{
+			ptr = put_io_buf(OUT,digital_top_area_num);
+			memcpy(UI_DIS_TOP, ptr.pout->label, 9);
+		}
+		else if(digital_top_area_type == VAR)
+		{
+			ptr = put_io_buf(VAR,digital_top_area_num);
+			memcpy(UI_DIS_TOP, ptr.pvar->label, 9);
+		}
 
-	ptr = put_io_buf(VAR,0);
-	memcpy(UI_DIS_LINE1, ptr.pvar->label, 3);UI_DIS_LINE1[3] = 0;
-	if(ptr.pvar->range != 0)
-	{
-		draw_tangle(102,112);
-		disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
-	}
-	ptr = put_io_buf(VAR,1);
-	memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);UI_DIS_LINE2[3] = 0;
-	if(ptr.pvar->range != 0)
-	{
-		draw_tangle(102,155);
-		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
-	}
-	ptr = put_io_buf(VAR,2);
-	memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);UI_DIS_LINE3[3] = 0;
-	if(ptr.pvar->range != 0)
-	{
-		draw_tangle(102,198);
-		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
+		disp_null_icon(240, 29, 0, 0,TIME_POS,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+
+		ptr = put_io_buf(VAR,0);
+		memcpy(UI_DIS_LINE1, ptr.pvar->label, 3);UI_DIS_LINE1[3] = 0;
+		if(ptr.pvar->range != 0)
+		{
+			draw_tangle(102,112);
+			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
+		}
+		ptr = put_io_buf(VAR,1);
+		memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);UI_DIS_LINE2[3] = 0;
+		if(ptr.pvar->range != 0)
+		{
+			draw_tangle(102,155);
+			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
+		}
+		ptr = put_io_buf(VAR,2);
+		memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);UI_DIS_LINE3[3] = 0;
+		if(ptr.pvar->range != 0)
+		{
+			draw_tangle(102,198);
+			disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, UI_DIS_LINE3,SCH_COLOR,TSTAT8_BACK_COLOR);
+		}
 	}
 	//msv_data[MAX_MSV][STR_MSV_MULTIPLE_COUNT]
 	for (i = 0;i < MAX_MSV;i++)
@@ -157,7 +169,7 @@ void get_data_format(u8 loc,float num,char *s)
 	}
 }
 
-void MenuIdle_display(void)
+void DisplayMenuScreen(void)
 {
    	static u8 count_tx = 0;
 	static u8 count_rx = 0;
@@ -173,7 +185,8 @@ void MenuIdle_display(void)
 	if(ptr.pvar->range != 0)
 	{
 
-		display_screen_value( 1);draw_tangle(102,112);
+		display_screen_value( 1);
+		draw_tangle(102,112);
 		// Display the three lines with different background colors based on disp_index
 		disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS, UI_DIS_LINE1, SCH_COLOR,(disp_index == 1) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
@@ -188,7 +201,8 @@ void MenuIdle_display(void)
 	}
 	if(ptr.pvar->range != 0)
 	{
-		display_screen_value( 2);draw_tangle(102,155);
+		display_screen_value( 2);
+		draw_tangle(102,155);
 		// Display the three lines with different background colors based on disp_index
 		disp_str(FORM15X30, SCH_XPOS, FAN_MODE_POS, UI_DIS_LINE2, SCH_COLOR, (disp_index == 2) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
@@ -560,8 +574,27 @@ void MenuIdle_display(void)
 
 }
 
+void MenuIdle_display(void)
+{
+	if(disp_index)
+	{
+		if(IsHomeScreen)
+		{
+			ClearScreen(TSTAT8_BACK_COLOR);
+			IsHomeScreen = false;
+		}
+		DisplayMenuScreen();
+	}
+	else
+	{
+		DisplayHomeScreen(IsHomeScreen);
+		if(!IsHomeScreen)
+		{
+			IsHomeScreen = true;
+		}
+	}
+}
 
-extern uint8_t item_to_adjust;
 uint8_t check_msv_data_len(uint8_t index)
 {
 	uint8_t j;
@@ -948,7 +981,6 @@ void MenuIdle_keycope(uint16 key_value)
 
 		case KEY_LEFT_MASK:
 			// change SETP, FAN , SYS
-			uart_write_bytes(UART_NUM_0, "key Executed\r\n", strlen("key Executed\r\n"));
 			if(flag_digital_top_area == 1)
 			{
 				if(disp_index < 4) disp_index++;

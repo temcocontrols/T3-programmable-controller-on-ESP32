@@ -27,6 +27,8 @@ typedef struct
 #define FORM32X64 		0
 #define FORM15X30		1
 #define FORM16X24		2
+#define FORM32X53       3
+#define FORM48X64       4
 
 #define SCH_XPOS        10
 
