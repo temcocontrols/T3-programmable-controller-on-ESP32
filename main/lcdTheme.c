@@ -190,7 +190,7 @@ const sLcdTheme_t ThemeList[TOTAL_THEMES] =
 };
 
 /* Internal current theme */
-static sLcdTheme_t CurrentTheme = ThemeList[0];
+static sLcdTheme_t CurrentTheme = ThemeList[1];
 static eDeviceStage_t DeviceStage = DEVICE_STAGE_POWERON;
 static bool LcdThemeUpdateRequired = false;
 
