@@ -23,53 +23,62 @@
 #include "controls.h"
 #include "ud_str.h"
 
+#define TEST_USE_SAME_VALUE_FOR_AMBIENT 0
+
 #define START_XPOS          8
-#define START_YPOS          10 + 25
+#define START_YPOS          18
 
-#define BOX_HEIGHT          152 - 13
+#define BOX_HEIGHT          150
 
-#define WEATHER_STR_XPOS    70
-#define WEATHER_STR_YPOS    6
+// #define WEATHER_STR_XPOS    70
+// #define WEATHER_STR_YPOS    6
 
 #define START_XPOS_2        START_XPOS
 #define START_YPOS_2        START_YPOS + BOX_HEIGHT + 3
 
-#define TEMP_INDOOR_XPOS    40
-#define TEMP_INDOOR_YPOS    START_YPOS + 40
-
-#define TEMP_OUTDOOR_XPOS   TEMP_INDOOR_XPOS
-#define TEMP_OUTDOOR_YPOS   START_YPOS_2 + 40
-
+// Icon Menu position
 #define MENU_DOT_XSIZE      6
 #define MENU_DOT_YSIZE      6
 #define MENU_DOT_XPOS       10
 #define MENU_DOT_XPOS_1     MENU_DOT_XPOS
 #define MENU_DOT_XPOS_2     MENU_DOT_XPOS + 10
 #define MENU_DOT_XPOS_3     MENU_DOT_XPOS + 20
-#define MENU_DOT_YPOS       15
+#define MENU_DOT_YPOS       8
 
-#define HUMIDITY_INDOOR_XPOS  30
-#define HUMIDITY_INDOOR_YPOS  START_YPOS + BOX_HEIGHT - 32
+#define HUMIDITY_STR        "HUM"
+#define HUMIDITY_STR_LEN     4
 
-#define HUMIDITY_OUTDOOR_XPOS  HUMIDITY_INDOOR_XPOS
-#define HUMIDITY_OUTDOOR_YPOS  START_YPOS_2 + BOX_HEIGHT - 32
+#define OUTDOOR_BOX_YPOS  START_YPOS
+#define INDOOR_BOX_YPOS   START_YPOS_2
 
-#define HUMIDITY_VALUE_XPOS   HUMIDITY_INDOOR_XPOS + (HUMIDITY_STR_LEN * 14) + 10
+// Outdoor temperature position
+#define TEMP_OUTDOOR_XPOS   40
+#define TEMP_OUTDOOR_YPOS   OUTDOOR_BOX_YPOS + 48
 
-#define INDOOR_STR_XPOS  90
-#define INDOOR_STR_YPOS  START_YPOS + 2
+#define HUMIDITY_OUTDOOR_XPOS  30
+#define HUMIDITY_OUTDOOR_YPOS  OUTDOOR_BOX_YPOS + BOX_HEIGHT - 40
 
-#define OUTDOOR_STR_XPOS  INDOOR_STR_XPOS
-#define OUTDOOR_STR_YPOS  START_YPOS_2 + 2
+#define OUTDOOR_STR_XPOS  120
+#define OUTDOOR_STR_YPOS  OUTDOOR_BOX_YPOS + 5
 
-#define OUT_ICON_XPOS     START_XPOS_2 + 2
-#define OUT_ICON_YPOS     START_YPOS_2 + 2
+#define OUT_ICON_XPOS     START_XPOS + 2
+#define OUT_ICON_YPOS     OUTDOOR_BOX_YPOS + 2
+
+// Indoor temperature position
+#define TEMP_INDOOR_XPOS    TEMP_OUTDOOR_XPOS
+#define TEMP_INDOOR_YPOS    INDOOR_BOX_YPOS + 45
+
+#define HUMIDITY_INDOOR_XPOS  HUMIDITY_OUTDOOR_XPOS
+#define HUMIDITY_INDOOR_YPOS  INDOOR_BOX_YPOS + BOX_HEIGHT - 40
+
+#define INDOOR_STR_XPOS  OUTDOOR_STR_XPOS
+#define INDOOR_STR_YPOS  INDOOR_BOX_YPOS + 5
 
 #define INDOOR_ICON_XPOS  START_XPOS + 4
-#define INDOOR_ICON_YPOS  START_YPOS + 2
+#define INDOOR_ICON_YPOS  INDOOR_BOX_YPOS + 2
 
-#define HUMIDITY_STR     "Humidity"
-#define HUMIDITY_STR_LEN  8
+// Humidity value X position
+#define HUMIDITY_VALUE_XPOS   HUMIDITY_INDOOR_XPOS + (HUMIDITY_STR_LEN * 12) + 4
 
 static void DisplayDrawFormat( void );
 void DisplayTemperature( uint8_t index , S16_T value, uint8 unit);
@@ -183,9 +192,9 @@ void DisDraw_Square(uint16 xPos , uint16 yPos )
 static void DisplayDrawFormat( void )
 {
 
-    disp_str_16_24(FORM15X30, WEATHER_STR_XPOS,  WEATHER_STR_YPOS,  (uint8 *)"Weather",SCH_COLOR,TSTAT8_BACK_COLOR);
+    // disp_str_16_24(FORM15X30, WEATHER_STR_XPOS,  WEATHER_STR_YPOS,  (uint8 *)"Weather",SCH_COLOR,TSTAT8_BACK_COLOR);
     DisDraw_Square( START_XPOS , START_YPOS );
-    disp_str_16_24(FORM15X30, INDOOR_STR_XPOS,  INDOOR_STR_YPOS,  (uint8 *)"Ambiant",SCH_COLOR,TSTAT8_BACK_COLOR);
+    disp_str_16_24(FORM15X30, INDOOR_STR_XPOS,  INDOOR_STR_YPOS,  (uint8 *)"Inside",SCH_COLOR,TSTAT8_BACK_COLOR);
 
     disp_edge(ICON_XDOTS, ICON_YDOTS, outsideSymbol, OUT_ICON_XPOS,	OUT_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
@@ -226,19 +235,19 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
     }
 
     xSymPos = xPos - 27;
-    ySymPos = yPos + 15;
+    ySymPos = yPos ;
 
     if(unit == TOP_AREA_DISP_UNIT_C || unit == TOP_AREA_DISP_UNIT_F)
     {
         value_buf = value;
         if(value >=0)
         {
-            disp_str(FORM15X30, xSymPos,  ySymPos,  " ",SCH_COLOR,TSTAT8_BACK_COLOR);
+            disp_ch(FORM48X64, xSymPos,  ySymPos, ' ',SCH_COLOR,TSTAT8_BACK_COLOR);
         }
         else
         {
             value_buf = -value;
-            disp_str(FORM15X30, xSymPos,  ySymPos,  "-",SCH_COLOR,TSTAT8_BACK_COLOR);
+            disp_ch(FORM48X64, xSymPos,  ySymPos, '-',SCH_COLOR,TSTAT8_BACK_COLOR);
         }
         if(value >= 1000)
         {
@@ -254,7 +263,7 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
         }
         xPos = xPos + 46;  // Second position
         disp_ch(FORM48X64,xPos,  yPos,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-        xDecPos = xPos + 42 + 5; // Decimal position
+        xDecPos = xPos + 42 + 6; // Decimal position
         yDecPos = yPos + 75 - 22;
         xPos = xPos + 46 + 10; // Third position
         disp_ch(FORM48X64,xPos , yPos,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);

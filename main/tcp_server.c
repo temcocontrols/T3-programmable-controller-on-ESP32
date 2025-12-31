@@ -4597,10 +4597,10 @@ void app_main()
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
-	esp_netif_init();
+	// esp_netif_init();
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
-   //flag_ethernet_initial = ethernet_init();
+   flag_ethernet_initial = ethernet_init();
 
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 

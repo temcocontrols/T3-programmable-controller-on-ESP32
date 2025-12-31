@@ -646,16 +646,22 @@ void disp_str_16_24(uint8 form, uint16 x, uint16 y, uint8 *str, uint16 dcolor, u
 		disp_ch_16_24(form, x1, y1, *str, dcolor, bgcolor);
 		if (form == FORM32X64) //big form
 			x1 += 24;
+		else if(form == FORM16X24)
+		{
+			x1 += 16;
+		}
 		else
 		{
-			if(*str == 'i' || *str == 'l' || *str == 'I' || *str == 'j')
-				x1 += 10;
-			else if(*str == 't' )
-				x1 += 14;
+			if(*str == 'i')
+				x1 += 9;
+			else if(*str == 't' || *str == 'l' || *str == 'I' || *str == 'j')
+				x1 += 12;
 			else if(*str == 'W' || *str == 'M')
-				x1 += 18;
-			else
 				x1 += 16;
+			else if( *str == 'U' || *str == 'O')
+				x1 += 15;
+			else
+				x1 += 14;
 		}
 		str++;
 	}

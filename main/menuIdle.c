@@ -1365,7 +1365,7 @@ void display_scroll(void)
 		scroll++;
 
 	scroll_buf[SCROLL_WINDOW] = '\0';
-	disp_str_16_24(FORM15X30, 10,TIME_POS,(unsigned char *)scroll_buf,TSTAT8_CH_COLOR,TSTAT8_MENU_COLOR);
+	disp_str_16_24(FORM16X24, 10,TIME_POS,(unsigned char *)scroll_buf,TSTAT8_CH_COLOR,TSTAT8_MENU_COLOR);
 
 }
 
