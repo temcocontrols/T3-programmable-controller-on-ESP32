@@ -52,6 +52,7 @@ idf_component_register(			SRCS
 					#		"ddns.c"
 						#	"lowPower.c"
 							"co2.c"
+							"snmp_interface.c"
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")

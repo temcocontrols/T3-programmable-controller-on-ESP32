@@ -68,6 +68,7 @@
 
 //#include "types.h"
 
+#include "snmp_interface.h"
 
 #define PORT CONFIG_EXAMPLE_PORT
 
@@ -4695,6 +4696,11 @@ void app_main()
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
 
+	// Add some delay to allow other tasks to initialize.
+	vTaskDelay(10000 / portTICK_RATE_MS);
+
+	/* Start SNMP Agent */
+	snmp_agent_init();
 }
 
 // for bacnet lib
