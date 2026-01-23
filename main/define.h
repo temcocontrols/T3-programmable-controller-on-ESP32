@@ -29,7 +29,7 @@ extern STR_Task_Test task_test;
 typedef struct
 {
 	U8_T serialNum[4];
-	U8_T address; 	
+	U8_T address;
 	U8_T protocal;
 	U8_T product_model;
 	U8_T hardRev;
@@ -48,6 +48,7 @@ typedef struct
 	U8_T  ethernet_status;
 	U16_T tcp_port;
 	U8_T  mini_type;
+	U8_T  LcdTheme;
 	U8_T  sub_port;
 //	U8_T zigbee_or_gsm;
 	U8_T point_sequence;
@@ -63,18 +64,18 @@ typedef struct
 
 	U8_T usb_mode;
 	U8_T en_dyndns;
-	U8_T en_sntp;	
-	
+	U8_T en_sntp;
+
 	U16_T Bip_port;
-	U16_T vcc_adc; // 
+	U16_T vcc_adc; //
 	U8_T network_master;
-	
-	
+
+
 	U8_T fix_com_config;
 //	U8_T backlight;
 	U8_T LCD_time_off_delay;
 	U8_T en_time_sync_with_pc;
-	
+
 	U8_T uart_parity[3];
 	U8_T uart_stopbit[3];
 //	U8_T network_ID[3]; // 3 RS485 port
@@ -146,7 +147,6 @@ typedef	enum
 	BACNET_MASTER,
 	MAX_COM_TYPE
 }E_UART_TYPE;
-
 
 #define SERIAL  0
 #define TCP		1

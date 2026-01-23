@@ -8,10 +8,11 @@
 #include "menuMain.h"
 #include "menuSet.h"
 #include "menuDaySet.h"
+#include <stdbool.h>
 
 #define MENU_BLOCK_SECONDS_DEFAULT	    60 //
 #define BACKLIGHT_KEEP_SECONDS_DEFAULT	30
-#define SWTIMER_COUNT_SECOND	 configTICK_RATE_HZ   
+#define SWTIMER_COUNT_SECOND	 configTICK_RATE_HZ
 
 
 
@@ -29,7 +30,7 @@ typedef struct
 struct _MENU_STATE_
 {
 	uint8 Index;
-	void (*KeyCope)(U16_T);								
+	void (*KeyCope)(U16_T);
 	void (*InitAction)(void);
 	void (*DisplayPeriod)(void);
 	uint8 BlockTime;
@@ -66,7 +67,7 @@ extern MENUNAME const menu[MAX_MENU_NUM];
 
 
 extern uint8 menu_block_seconds;
-extern uint8 backlight_keep_seconds; 
+extern uint8 backlight_keep_seconds;
 //extern xQueueHandle xMutex,IicMutex;
 extern uint8 blink_count;
  enum
@@ -86,6 +87,8 @@ void update_menu_state(uint8 MenuId);
 void exit_request_password(void);
 void vStartMenuTask(unsigned char uxPriority);
 void start_menu(void);
+void menu_init(void);
+void DisplayHomeScreen( bool isHomeScreen );
 //void vStartScrollingTask(unsigned char uxPriority);
 void print(char *p);
 
