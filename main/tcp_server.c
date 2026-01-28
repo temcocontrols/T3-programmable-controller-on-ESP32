@@ -28,6 +28,7 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include <store.h>
+#include "driver/i2c.h"
 
 
 #include "define.h"
@@ -65,6 +66,7 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "LCD_Driver/lcd_drv.h"
 
 //#include "lowPower.h"
 
@@ -4557,6 +4559,7 @@ void TEST_FLASH(void);
 void vStartScanTask(unsigned char uxPriority);
 void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
+void Lcd_Task(void *pvParameters);
 
 void LS_led_task(void);
 
@@ -4580,6 +4583,7 @@ void app_main()
 	Set_Device_Stage(DEVICE_STAGE_INIT);
 	Bacnet_Initial_Data();
 	read_default_from_flash();
+	Modbus.mini_type = MINI_TSTAT10;
 	initial_HSP();
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
@@ -4589,17 +4593,23 @@ void app_main()
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    //Modbus.mini_type = MINI_TSTAT10;
+    Modbus.mini_type = PROJECT_TSTAT11;
 #endif
 
-    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
+	if(Modbus.mini_type == PROJECT_TSTAT11)
+	{
+		LCD_Init();
+		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+	}
+    else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
 	{
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
-	// esp_netif_init();
+
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
+#if 0   // Bhavik - do not use any wifi task with lvgl for now.
    flag_ethernet_initial = ethernet_init();
 
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
@@ -4611,9 +4621,12 @@ void app_main()
     xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
     xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
+
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
+
+#endif //wifi
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
     if(Modbus.mini_type == PROJECT_MULTIMETER_NEW)
@@ -4631,6 +4644,7 @@ void app_main()
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
 	}
 
+	// TODO: Need to update i2c communication with display and other i2c sensor
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
     {
@@ -4744,7 +4758,7 @@ U8_T Get_Mini_Type(void)
 
 void I2C_sensor_Init(void)
 {
-	i2c_master_init();
+	// i2c_master_init();
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 	{
 		holding_reg_params.fan_module_pwm2 = 0;

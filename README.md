@@ -10,17 +10,17 @@ This application establishes a TCP connection between Ethernet and WIFI, and an 
 ### ESP32 code
 Please download the ESP idf integrated development environment from Espressif to compile the code, the version is **4.4.4**.
 > #### 1.	Install the ESP-IDF tool installer
-> Go to the 
+> Go to the
 > <https://dl.espressif.cn/dl/idf-installer/espressif-ide-setup-2.8.1-with-esp-idf-4.4.4.exe>
 > page where you can download the esp - idf - tools - setup.  The IDE should be installed in a path that does not contain spaces in the name.
 > #### 2.  Run espressif-ide-setup-2.8.1-with-esp-idf-4.4.4.exe
 > You can change the default ESP IDF installation path, which will be used later.
 > #### 3.  Once installed, you should get an ESP-IDF Eclipse, which is the compiler we used to compile ESP32 code.
-> #### 4.  Move the three folders, driver, temco_bacnet and temco_IO_control, from the code download on Github to the components directory in esp-idf, replacing the original driver folder. This is the change we made to the IDF.
+> #### 4.  Move the four folders, driver, temco_bacnet, temco_IO_control and lvgl, from the code download on Github to the components directory in esp-idf, replacing the original driver folder. This is the change we made to the IDF.
 > #### 5.  Open the ESP-IDF Eclipse program, File ->Import, Espressif ->Existing IDF Project, select the project directory downloaded from github, and click Finish to load the project into the compiler.
 > #### 6.  Right click the project name and select Build Project to compile. This will take a while the first time.
 > #### 7.  Once the compile is complete, you will see the 'temco_app.bin' file in the 'build' directory within your imported project.
-> #### 6.  You can get more help from 
+> #### 6.  You can get more help from
 > <https://esp32.com/index.php><br>
 > <https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.html>
 
@@ -41,12 +41,12 @@ Select the device you want to update and click *Tools->Load firmware for a singl
 
 ## Load the bootloader firmware to T3-nano
 > #### 1.   Software tools and firmware
-> -	ESP32 download firmware tool and ESP32 firmware 
+> -	ESP32 download firmware tool and ESP32 firmware
 > <https://temcocontrols.com/ftp/file/flash_download_tool_v3.8.5.zip>
 > <https://temcocontrols.com/ftp/file/BootloaderT3NanoRev27.zip>
-> - CH340SerSetup  for  USB-to-TTL debug board  
+> - CH340SerSetup  for  USB-to-TTL debug board
 > <https://temcocontrols.com/ftp/file/CH340SerSetup.zip>
-> - UartAssist.exe  print debug messages via USB-to-TTL board  
+> - UartAssist.exe  print debug messages via USB-to-TTL board
 > <https://temcocontrols.com/ftp/file/UartAssist.zip>
 > #### 2.	Print Debugging Information
 > - Plug USB-to-TTL debug board to your PC , Download and install CH341 driver , you will find a new USB-SERIAL CH340(COMXX) under device manager->Ports .
@@ -61,7 +61,7 @@ Select the device you want to update and click *Tools->Load firmware for a singl
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/a60356b1-6843-4d7d-aa69-0e7f4aacd3a7)
 > - Set ESP32 firmware download tool configurations.
 > Run flash_download_tool_3.8.5.exe , Tools -> Developer Mode -> ESP32 Download Tool,
-Set some options as shown .  
+Set some options as shown .
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/2aa8f1dc-f473-4498-927c-82357f223b45)<br>
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/70dfe252-9187-4045-881f-ad3d6964674e)<br>
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/2d929262-56f1-4480-ac61-6af4511a1dcc)<br>
@@ -69,7 +69,7 @@ Set some options as shown .
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/de20fa72-f5bd-45fb-a4f4-dc92149bb7c3)<br>
 > ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/0b1a1d3d-ad20-4f99-938c-8b1571960f26)<br>
 > - Click the Start button to download the latest firmware .
-When it show Finish , please remove jumper on J5 & J6 and power on again, 
+When it show Finish , please remove jumper on J5 & J6 and power on again,
 If UartAssist.exe is running  , you can see debugging messages .
 
 

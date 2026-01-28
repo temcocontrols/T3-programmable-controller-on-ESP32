@@ -185,6 +185,7 @@ typedef	enum
 #define PROJECT_LSW_SENSOR	27
 
 #define MAX_MINI_TYPE 		28
+#define PROJECT_TSTAT11     29
 
 uint16 READ_POINT_TIMER;
 uint16 READ_POINT_TIMER_FROM_EEP;

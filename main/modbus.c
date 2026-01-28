@@ -448,7 +448,7 @@ void uart_init(uint8_t uart)
 		if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		{
 			uart_param_config(uart_num_main, &uart_config);
-			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
+			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, 0, UART_PIN_NO_CHANGE);
 			uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
 			uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
 		}
@@ -462,7 +462,7 @@ void uart_init(uint8_t uart)
 		else
 		{
 			uart_param_config(uart_num_main, &uart_config);
-			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
+			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, 0, UART_PIN_NO_CHANGE);
 			uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
 			uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
 		}

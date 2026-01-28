@@ -56,9 +56,34 @@ idf_component_register(			SRCS
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
+							"LCD_Driver/lcd_drv.c"
+							"LCD_Driver/image1.c"
+							"LCD_Driver/image2lcd.c"
+							"LCD_Driver/lcd_task.c"
+							"LCD_Driver/touch_drv.c"
+							"LCD_Driver/lv_UserPeram.c"
+							"TemcoScreen/ui.c"
+							"TemcoScreen/ui_helpers.c"
+							"TemcoScreen/ui_HomeScreen.c"
+							"TemcoScreen/ui_StartUpScreen.c"
+							"TemcoScreen/ui_comp_hook.c"
+							"TemcoScreen/ui_img_wifisym_png.c"
+							"TemcoScreen/ui_img_round_manage_accounts_black_36pt_1x_png.c"
+							"TemcoScreen/ui_img_round_arrow_back_black_36_png.c"
+							"TemcoScreen/ui_font_Arial80.c"
+							"TemcoScreen/ui_MainMenu.c"
+							"TemcoScreen/ui_Keypad.c"
+							"TemcoScreen/ui_events.c"
+							"TemcoScreen/ui_ChangeConfig.c"
+
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
-                    		INCLUDE_DIRS ".")
+			INCLUDE_DIRS "."
+							"LCD_Driver"
+							"TemcoScreen"
+			EMBED_FILES    "LCD_Driver/image.jpg"
+
+							)
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
