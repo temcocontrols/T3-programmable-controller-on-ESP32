@@ -1,9 +1,41 @@
-@ -1,89 +1,9 @@
+# TEMCO ESP32 Main Application CODE
 
-# TEMCO ESP32 main App CODE
+This project implements the core firmware used in TEMCO programmable HVAC and building automation controllers.
 
-This application establishes a TCP connection between Ethernet and WIFI, and an RS485 connection. The device can be accessed through the standard modbus protocol, so that the value of the sensor on the device can be obtained. A more intuitive way is to scan and read the device through the T3000 software of TEMCO CONTROLS.
+It provides Ethernet, WiFi, and RS485 connectivity, and exposes sensors, I/O, and control logic through standard Modbus and Bacnet protocols. Devices running this firmware can be accessed by third-party systems via Modbus, or automatically scanned, configured, and monitored using TEMCO’s T3000 software.
 
+The same codebase is shared across multiple TEMCO products to provide a consistent, fully programmable building automation platform.
+
+## Products Using This Project
+
+### T3 Series Programmable Bacnet & Modbus Controller
+The T3 controller is a general-purpose programmable HVAC and building automation controller.
+
+This project provides its core communication, networking, and protocol handling, enabling multi-protocol operation (Modbus RTU/IP and Bacnet MSTP/IP) over Ethernet, WiFi, and RS485, with support for expandable I/O and advanced control logic via T3000.
+
+#### Highlights
+- Programmable HVAC and building automation controller
+- Ethernet, WiFi, RS485 connectivity supported by this firmware
+- Modbus RTU / IP and Bacnet MSTP / IP protocol support
+- Expandable I/O architecture for scalable systems
+- Discovered, configured, and maintained using T3000 software
+- No licenses or recurring cloud fees
+<img width="300" height="300" alt="image" src="https://github.com/user-attachments/assets/02d0c008-cab8-4b8d-affa-06749dae8a4f" />
+
+### TSTAT10 Fully Programmable Thermostat
+TSTAT10 is a programmable thermostat and room controller with a local color LCD display and universal I/O.
+
+This project enables its ESP32 networking stack, RS485 communication, and protocol integration, allowing the device to operate as part of a larger building automation system while remaining configurable through T3000 or direct register access.
+
+#### Highlights
+
+- Fully programmable thermostat and room controller
+- Universal I/O configurable by software
+- RS485 communication with Modbus and Bacnet support
+- Local color LCD display with real-time data visualization
+- Well-documented register map for esay integration
+- Seamless integration with T3000 software
+<img width="251" height="302" alt="image" src="https://github.com/user-attachments/assets/71783a7f-a768-449a-9d47-e842e204bb5c" />
 
 ## Compiling
 
