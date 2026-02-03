@@ -56,6 +56,8 @@ idf_component_register(			SRCS
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
+							"snmp_interface.c"
+							"t3_snmp_bacnet_mapping.c"
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")
