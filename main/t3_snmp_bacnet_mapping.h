@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 /* Constants */
-#define T3_MAX_INSTANCES              5
+#define T3_MAX_INSTANCES              64
 #define T3_DESCRIPTION_LENGTH         20
 #define T3_SHORT_NAME_LENGTH          20
 #define T3_MAX_STRING_LENGTH          64

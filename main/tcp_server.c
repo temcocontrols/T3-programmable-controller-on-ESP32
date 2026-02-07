@@ -4591,7 +4591,7 @@ void app_main()
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    //Modbus.mini_type = MINI_TSTAT10;
+    Modbus.mini_type = MINI_TSTAT10;
 #endif
 
     if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
@@ -4599,10 +4599,10 @@ void app_main()
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
-	// esp_netif_init();
+	esp_netif_init();
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
-   flag_ethernet_initial = ethernet_init();
+    //flag_ethernet_initial = ethernet_init();
 
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 

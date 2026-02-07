@@ -91,7 +91,7 @@ static void snmp_agent_task(void *pvParameters)
 
     app_log(TAG, "Initializing of MIB tree completed. heap: %d", esp_get_free_heap_size());
 
-    // // Send SNMP cold start trap
+    // Send SNMP cold start trap
     // const char* my_ip = "10.123.89.105"; // Use esp_netif_get_ip_info to get this dynamically
     // const char* manager_ip = "10.123.89.104";
     // send_snmp_trap_cold_start(my_ip, manager_ip);
@@ -125,7 +125,7 @@ void initMibTree()
     // Initialize standard MIBs
     init_standard_mibs();
 
-    check_heap_fragmentation();
+    //check_heap_fragmentation();
 
     // Initialize private MIBs
     init_private_mibs();
@@ -195,7 +195,7 @@ static void init_private_mibs(void)
             u32 = idx;
             mibsetvalue(thismib, &u32, 0);
             mibsetcallback(thismib, t3_read_input, NULL);
-            app_log(TAG, "Added MIB for Input index %d: OID=%s", idx, oid_buffer);
+            //app_log(TAG, "Added MIB for Input index %d: OID=%s", idx, oid_buffer);
         }
 
         /* cfgType (INTEGER, RD_ONLY) */
@@ -206,7 +206,7 @@ static void init_private_mibs(void)
             u32 = T3_CFGTYPE_BI; // Default to binary input
             mibsetvalue(thismib, &u32, 0);
             mibsetcallback(thismib, t3_read_input, NULL);
-            app_log(TAG, "Added MIB for Input cfgType %d: OID=%s", idx, oid_buffer);
+            //app_log(TAG, "Added MIB for Input cfgType %d: OID=%s", idx, oid_buffer);
         }
 
         /* analogVal (REAL, RD_ONLY) */
@@ -215,7 +215,7 @@ static void init_private_mibs(void)
         if (thismib)
         {
             mibsetcallback(thismib, t3_read_input, NULL);
-            app_log(TAG, "Added MIB for Input analogVal %d: OID=%s", idx, oid_buffer);
+            //app_log(TAG, "Added MIB for Input analogVal %d: OID=%s", idx, oid_buffer);
         }
 
         /* binaryVal (INTEGER, RD_ONLY) */
@@ -224,7 +224,7 @@ static void init_private_mibs(void)
         if (thismib)
         {
             mibsetcallback(thismib, t3_read_input, NULL);
-            app_log(TAG, "Added MIB for Input binaryVal %d: OID=%s", idx, oid_buffer);
+            //app_log(TAG, "Added MIB for Input binaryVal %d: OID=%s", idx, oid_buffer);
         }
 
         /* desc (OCTET_STRING, RD_ONLY) */
@@ -234,7 +234,7 @@ static void init_private_mibs(void)
         {
             mibsetvalue(thismib, "", 0);
             mibsetcallback(thismib, t3_read_input, NULL);
-            app_log(TAG, "Added MIB for Input desc %d: OID=%s", idx, oid_buffer);
+            //app_log(TAG, "Added MIB for Input desc %d: OID=%s", idx, oid_buffer);
         }
 
         /* units (INTEGER, RD_ONLY) */
@@ -245,11 +245,11 @@ static void init_private_mibs(void)
             u32 = T3_UNITS_NONE;
             mibsetvalue(thismib, &u32, 0);
             mibsetcallback(thismib, t3_read_input, NULL);
-            app_log(TAG, "Added MIB for Input units %d: OID=%s", idx, oid_buffer);
+            //app_log(TAG, "Added MIB for Input units %d: OID=%s", idx, oid_buffer);
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // small delay to avoid watchdog reset
     }
-    app_log(TAG, "Input Init done. heap: %d", esp_get_free_heap_size());
+    //app_log(TAG, "Input Init done. heap: %d", esp_get_free_heap_size());
     check_heap_fragmentation();
     vTaskDelay(pdMS_TO_TICKS(1000));
 

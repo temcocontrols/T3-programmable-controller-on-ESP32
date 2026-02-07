@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <string.h>
 #include "mibutil.h"
+#include "esp_heap_caps.h"
 
 #define BUF_SIZE 256
 
@@ -153,14 +154,15 @@ int miblistread(LIST *miblist, char *fn)
 			mib.u.octetstring = octetdata;     // reset u
 			if (mibscan(&mib, buf) == SUCCESS) {
 				if ((thismib=miblistgooid(miblist, &mib.oid))==NULL) {
-					thismib = malloc(sizeof(MIB));
+					//thismib = malloc(sizeof(MIB));
+					thismib = heap_caps_malloc(sizeof(MIB), MALLOC_CAP_SPIRAM);
 					*thismib = mib;
 					if (thismib->dataType==OBJECT_IDENTIFIER || thismib->dataType==OCTET_STRING ||
               thismib->dataType==IP_ADDRESS) {
 						if (mib.dataLen < MIB_DATA_SIZE)
-							thismib->u.octetstring = malloc(MIB_DATA_SIZE);
+							thismib->u.octetstring = heap_caps_malloc(MIB_DATA_SIZE, MALLOC_CAP_SPIRAM);
 						else
-							thismib->u.octetstring = malloc(mib.dataLen);
+							thismib->u.octetstring = heap_caps_malloc(mib.dataLen, MALLOC_CAP_SPIRAM);
 					}
           thismib->get = NULL;
 					thismib->set = NULL;
