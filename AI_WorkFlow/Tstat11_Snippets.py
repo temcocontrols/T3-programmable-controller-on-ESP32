@@ -2,42 +2,45 @@ from IPython.display import display, HTML
 
 def main_ui():
     html_code = """
-    <div id="tstat-container" style="width:480px; height:320px; background:black; border:12px solid #333; border-radius:15px; position:relative; overflow:hidden; font-family:sans-serif; user-select:none;">
+    <div id="tstat-frame" style="width:480px; height:320px; background:#000; border:10px solid #333; border-radius:15px; position:relative; overflow:hidden; font-family:sans-serif; color:white;">
         
-        <div style="position:absolute; top:12px; left:15px; font-size:28px; cursor:pointer; z-index:100;" onclick="showScreen('settings')">⚙️</div>
-        <div style="position:absolute; top:12px; right:15px; font-size:28px; cursor:pointer; z-index:100;" onclick="showScreen('schedule')">📅</div>
-        <div style="position:absolute; bottom:12px; left:15px; font-size:28px; cursor:pointer; z-index:100;" onclick="showScreen('home')">🏠</div>
-
-        <div id="screen-home" class="screen" style="text-align:center; margin-top:100px;">
-            <div style="font-size:72px; font-weight:bold; color:white;">72.5°F</div>
-            <div style="color:#00A4FF; font-size:16px; font-weight:bold; margin-top:5px;">COOLING • AUTO</div>
+        <div style="position:absolute; left:0; top:0; width:60px; height:100%; background:#1a1a1a; display:flex; flex-direction:column; align-items:center; justify-content:space-around; z-index:10; border-right:1px solid #333;">
+            <div style="font-size:24px; cursor:pointer; padding:10px;" onclick="switchTstat('home')">🏠</div>
+            <div style="font-size:24px; cursor:pointer; padding:10px;" onclick="switchTstat('sched')">📅</div>
+            <div style="font-size:24px; cursor:pointer; padding:10px;" onclick="switchTstat('set')">⚙️</div>
         </div>
 
-        <div id="screen-settings" class="screen" style="display:none; padding:40px; color:white;">
-            <h3 style="margin-top:0; color:#00A4FF;">Service Menu</h3>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                <div style="background:#222; padding:10px; border-radius:5px;">Network: BACnet/IP</div>
-                <div style="background:#222; padding:10px; border-radius:5px;">Instance: 1001</div>
-                <div style="background:#00A4FF; padding:10px; border-radius:5px; text-align:center; cursor:pointer;" onclick="alert('Searching for Aqara...')">Pair Matter Device</div>
+        <div style="margin-left:60px; height:100%; position:relative;">
+            
+            <div id="t-home" class="t-screen" style="display:block; text-align:center; padding-top:80px;">
+                <div style="font-size:80px; font-weight:bold;">72°</div>
+                <div style="color:#00A4FF; font-weight:bold; letter-spacing:2px;">COOLING</div>
+            </div>
+
+            <div id="t-sched" class="t-screen" style="display:none; padding:20px;">
+                <h2 style="color:#00A4FF; margin-top:0;">Schedule</h2>
+                <div style="background:#222; padding:10px; border-radius:5px; margin-bottom:5px;">Work: 68°F (08:00)</div>
+                <div style="background:#222; padding:10px; border-radius:5px;">Sleep: 70°F (22:00)</div>
+            </div>
+
+            <div id="t-set" class="t-screen" style="display:none; padding:20px;">
+                <h2 style="color:#00A4FF; margin-top:0;">Settings</h2>
+                <p>IP: 192.168.1.104</p>
+                <p>BACnet ID: 12201</p>
+                <button style="background:#00A4FF; border:none; color:white; padding:10px; border-radius:5px; width:100%;" onclick="alert('Relay Test Initiated')">Test Relays</button>
             </div>
         </div>
-
-        <div id="screen-schedule" class="screen" style="display:none; padding:40px; color:white;">
-            <h3 style="margin-top:0; color:#00A4FF;">Weekly Schedule</h3>
-            <div style="font-size:14px;">
-                <p>MON-FRI: 68°F (8am) | 72°F (5pm)</p>
-                <p>SAT-SUN: 70°F (All Day)</p>
-            </div>
-        </div>
-
     </div>
 
     <script>
-        function showScreen(screenId) {
+        function switchTstat(screen) {
             // Hide all screens
-            document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-            // Show the selected one
-            document.getElementById('screen-' + screenId).style.display = 'block';
+            const screens = document.getElementsByClassName('t-screen');
+            for (let i = 0; i < screens.length; i++) {
+                screens[i].style.display = 'none';
+            }
+            // Show target
+            document.getElementById('t-' + screen).style.display = 'block';
         }
     </script>
     """
