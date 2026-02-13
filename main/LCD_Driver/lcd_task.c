@@ -8,7 +8,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
-#include "image2lcd.h"
 #include "Menu.h"
 #include "lvgl.h"
 #include "esp_heap_caps.h"
@@ -178,6 +177,11 @@ void print_all_ram_usage(void)
     memset(debugbuf,0,sizeof(debugbuf));
     sprintf(debugbuf,"Flash size: %u bytes\r\n", flash_size);
     uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
+
+    uint32_t taskMemory = uxTaskGetStackHighWaterMark(NULL);
+    memset(debugbuf,0,sizeof(debugbuf));
+    sprintf(debugbuf,"Task free stack: %u bytes\r\n", taskMemory);
+    uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
 }
 
 
@@ -271,11 +275,12 @@ void Lcd_Task(void *pvParameters)
     while (1)
     {
         lv_timer_handler();
-        // TODO: Add Display application code here
+#if 0  // For debugging memory usage, print every 5 seconds
         if ((delayCounter % 5000) == 0)
         {
             print_all_ram_usage();
         }
+#endif
         if(delayCounter % 1000 == 0)
         {
             Lcd_UpdateData();
@@ -283,7 +288,7 @@ void Lcd_Task(void *pvParameters)
 
         delayCounter += LCD_TASK_DELAY_MS;
 
-        vTaskDelay(pdMS_TO_TICKS(LCD_TASK_DELAY_MS));  // 5–10 ms
+        vTaskDelay(pdMS_TO_TICKS(LCD_TASK_DELAY_MS));
     }
 }
 

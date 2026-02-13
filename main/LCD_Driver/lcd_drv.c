@@ -7,8 +7,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
-#include "font.h"
-#include "image2lcd.h"
 #include "driver/i2c.h"
 #include "i2c_task.h"
 #include "touch_drv.h"
@@ -17,8 +15,6 @@ char debugbuf[100];
 u16 POINT_COLOR = 0x0000;
 u16 BACK_COLOR  = BLACK;
 u8 DFT_SCAN_DIR;
-
-extern const unsigned char gImage_logo;
 
 #define PIN_MOSI   LCD_PIN_MOSI
 #define PIN_MISO   LCD_PIN_MISO
@@ -77,7 +73,7 @@ void LCD_WR_CMD(const uint8_t *cmd, size_t cmd_len)
 	ret = Spi_SendBuffer(cmd, cmd_len);
 	CS_HIGH();
 	if (ret != ESP_OK) {
-		// ESP_LOGE(TAG, "LCD_WR_CMD failed: %s", esp_err_to_name(ret));
+
 		memset(debugbuf,0,sizeof(debugbuf));
 		sprintf(debugbuf,"LCD_WR_CMD failed: %s", esp_err_to_name(ret));
 		uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
@@ -117,7 +113,7 @@ void LCD_WR_DATA_BUF(const uint8_t *data, size_t data_len)
 
 	CS_HIGH();
 	if (ret != ESP_OK) {
-		// ESP_LOGE(TAG, "LCD_WR_DATA_BUF failed: %s", esp_err_to_name(ret));
+
 		memset(debugbuf,0,sizeof(debugbuf));
 		sprintf(debugbuf,"LCD_WR_DATA_BUF failed: %s", esp_err_to_name(ret));
 		uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
@@ -475,7 +471,7 @@ esp_err_t Spi_lcd_init(void)
 
     ret = gpio_config(&io_cfg);
     if (ret != ESP_OK) {
-        // ESP_LOGE(TAG, "gpio_config failed: %s", esp_err_to_name(ret));
+
 		memset(debugbuf,0,sizeof(debugbuf));
 		sprintf(debugbuf,"gpio_config failed: %s", esp_err_to_name(ret));
 		uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
@@ -726,6 +722,7 @@ void Draw_Circle(u16 x0,u16 y0,u8 r,u16 color)
 	}
 }
 
+#if 0 // Not used in current implementation, can be enabled if needed
 /* =============================================================
    Display a character at (x,y)
    x,y: starting coordinates
@@ -801,81 +798,6 @@ void LCD_ShowChar(uint16_t x, uint16_t y, char chr, uint8_t size, uint8_t mode, 
         }
     }
 }
-
-/* =============================================================
-   Display a character in various formats at (x,y)
-   form: character format (FORM32X64, FORM48X64, FORM16X24)
-   x,y: starting coordinates
-   value: character to display
-   dcolor: text color
-   bgcolor: background color
-*/
-// void LCD_ShowCharEx(uint16_t x,
-//                     uint16_t y,
-//                     char value,
-//                     font_t font,
-//                     uint16_t fg,
-//                     uint16_t bg)
-// {
-//     const uint8_t *font_ptr;
-//     uint16_t w, h;
-//     uint32_t bytes;
-
-//     switch (font)
-//     {
-//         case FONT_32X64:
-//             font_ptr = chlib;
-//             w = 48; h = 96;
-//             if (value == '-') font_ptr += 10 * 576;
-//             else if (value == ' ') font_ptr += 11 * 576;
-//             else font_ptr += (value - '0') * 576;
-//             break;
-
-//         case FONT_48X64:
-//             font_ptr = chlib_48x64;
-//             w = 48; h = 64;
-//             if (value == '-') font_ptr += 10 * 384;
-//             else if (value == ' ') font_ptr += 11 * 384;
-//             else font_ptr += (value - '0') * 384;
-//             break;
-
-//         default:    // FONT_24X36
-//             font_ptr = chlibsmall;
-//             w = 24; h = 36;
-//             font_ptr += (value - 32) * 108;
-//             break;
-//     }
-
-//     bytes = (w * h) / 8;
-
-//     /* Set drawing window */
-//     LCD_Set_Window(x, y, w, h);
-//     LCD_WriteRAM_Prepare();
-
-//     // DC_DATA();
-//     // LCD_CS_LO;
-
-//     for (uint32_t j = 0; j < bytes; j++)
-//     {
-//         uint8_t data = *font_ptr++;
-
-//         for (uint8_t i = 0; i < 8; i++)
-//         {
-//             if (data & 0x01)
-//             {
-//                 LCD_WriteRAM(fg);
-//             }
-//             else
-//             {
-//                 LCD_WriteRAM(bg);
-//             }
-//             data >>= 1;
-//         }
-//     }
-
-//     // LCD_CS_HI;
-// }
-
 
 /* =============================================================
    Calculate m to the power of n
@@ -967,7 +889,7 @@ void LCD_ShowString(u16 x,u16 y,u16 width,u16 height,u8 size,u8 *p,u16 color)
         p++;
     }
 }
-
+#endif
 /* =============================================================
    Set the drawing window
    (sx,sy): starting coordinates
@@ -1006,9 +928,27 @@ void LCD_Init(void)
     vTaskDelay(pdMS_TO_TICKS(120));
     uart_write_bytes(UART_NUM_0, "spi Clear Display", strlen("spi Clear Display"));
     LCD_Display_Dir(LCD_ORIENT_LANDSCAPE);  // 1: horizontal 0: vertical
-	vTaskDelay(pdMS_TO_TICKS(50));
+	vTaskDelay(pdMS_TO_TICKS(500));
     LCD_Clear(LIGHTBLUE);
     Touch_Drv_Init();
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
+/* =============================================================
+   Deinitialize the LCD and free resources
+*/
+
+void LCD_Deinit(void)
+{
+    if (spi_dev) {
+        spi_bus_remove_device(spi_dev);
+        spi_dev = NULL;
+    }
+    spi_bus_free(HSPI_HOST);
+    gpio_set_level(LCD_PIN_BCKL, 0); // Turn off backlight
+}
+
+// Additional functions for drawing shapes, text, etc. can be added here
+
+
+// End of lcd_drv.c

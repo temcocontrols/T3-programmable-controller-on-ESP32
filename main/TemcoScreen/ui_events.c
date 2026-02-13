@@ -24,3 +24,108 @@ void KeyPressFunc(lv_event_t * e)
 {
 	// Your code here
 }
+
+void FanSetAutoMode(lv_event_t * e)
+{
+	// Your code here
+}
+
+void CirculateBtnClicked(lv_event_t * e)
+{
+	// Your code here
+}
+
+void StartFanBtn(lv_event_t * e)
+{
+	// Your code here
+}
+
+void SysModeHeatFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void AutoModeBtnFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ModeOffBtnEventFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void SysModeCoolFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void UpdateWifiConfig(lv_event_t * e)
+{
+	// Your code here
+}
+
+void WifiKeyboardPressFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void NetworkConfigKeyPressFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ScheduleTimeSelectedFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ScheduleTimeUpdateCallback(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ChangeTemperatureTypeCallBack(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ParamInputShowCallBackFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ParamOutputShowCallBackFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ParamVariableShowCallBackFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void SSIDShowEventFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void ip_auto_next(lv_event_t * e)
+{
+	// Your code here
+}
+
+void UpdateParameterTableFunc(lv_event_t * e)
+{
+	// Your code here
+}
+
+void SysTimeUpdateCallback(lv_event_t * e)
+{
+	// Your code here
+}
+
+void CalenderValueChangeCallback(lv_event_t * e)
+{
+	// Your code here
+}

@@ -10,8 +10,6 @@
  *
  */
 
-
-
  #include "lv_UserPeram.h"
  #include "stdio.h"
  #include "string.h"
@@ -93,3 +91,5 @@ void ui_set_wifi_visible(bool visible)
                          visible ? 255 : 0,
                          LV_PART_MAIN | LV_STATE_DEFAULT);
 }
+
+// End of file..

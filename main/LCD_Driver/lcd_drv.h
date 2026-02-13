@@ -190,8 +190,6 @@ void LCD_WriteRAM_Prepare(void);
 void LCD_WriteRAM(u16 RGB_Code);
 void LCD_Scan_Dir(u8 dir);
 void LCD_Display_Dir(u8 dir);
-void TIM2_PWM_Init(u16 arr,u16 psc);
-void SendPWMval(u16 value);
 
 #endif
 
