@@ -13,6 +13,7 @@
 #include "user_data.h"
 #include "bacenum.h"
 #include "proprietary.h"
+#include "app_log.h"
 
 //=================================== Defines ===================================
 
@@ -21,7 +22,7 @@
 // Log tag
 static const char *TAG = "snmp_bacnet";
 
-const char enterprise_oid_str[] = "64991.1";
+const char enterprise_oid_str[] = OFFICIAL_IANA_PAN".1";
 
 /* Configuration Type Names */
 static const char* cfgtype_names[] =
@@ -148,18 +149,18 @@ bool t3_map_snmp_oid_to_bacnet(const char* snmp_oid, t3_snmp_bacnet_mapping_t *m
     memset(mapping, 0, sizeof(t3_snmp_bacnet_mapping_t));
     
     // Parse OID to extract group, field, and instance
-    // Expected format: 1.3.6.1.4.1.64991.1.<group>.<field>.<instance>
+    // Expected format: 1.3.6.1.4.1.<OFFICIAL_IANA_PAN>.1.<group>.<field>.<instance>
     
     const char* temco_pos = strstr(snmp_oid, enterprise_oid_str);
     if (!temco_pos) {
-        ESP_LOGE(TAG, "OID missing %s prefix: %s", enterprise_oid_str, snmp_oid);
+        app_log(TAG, "OID missing %s prefix: %s", enterprise_oid_str, snmp_oid);
         return false;
     }
     
-    // Skip "64991.1." to get to group
+    // Skip "OFFICIAL_IANA_PAN.1." to get to group
     const char* group_pos = temco_pos + strlen(enterprise_oid_str);
     if (strlen(group_pos) < 5) { // At least ".<group>"
-        ESP_LOGE(TAG, "OID too short after %s.1: %s", enterprise_oid_str, snmp_oid);
+        app_log(TAG, "OID too short after %s.1: %s", enterprise_oid_str, snmp_oid);
         return false;
     }
     
@@ -169,13 +170,13 @@ bool t3_map_snmp_oid_to_bacnet(const char* snmp_oid, t3_snmp_bacnet_mapping_t *m
     // Find field and instance
     const char* field_pos = strchr(group_pos + 1, '.');
     if (!field_pos) {
-        ESP_LOGE(TAG, "OID missing field: %s", snmp_oid);
+        app_log(TAG, "OID missing field: %s", snmp_oid);
         return false;
     }
     
     const char* instance_pos = strchr(field_pos + 1, '.');
     if (!instance_pos) {
-        ESP_LOGE(TAG, "OID missing instance: %s", snmp_oid);
+        app_log(TAG, "OID missing instance: %s", snmp_oid);
         return false;
     }
     
@@ -184,7 +185,7 @@ bool t3_map_snmp_oid_to_bacnet(const char* snmp_oid, t3_snmp_bacnet_mapping_t *m
     
     // Validate ranges
     if (!t3_is_valid_instance(instance)) {
-        ESP_LOGE(TAG, "Invalid instance %u (max %d)", instance, T3_MAX_INSTANCES);
+        app_log(TAG, "Invalid instance %u (max %d)", instance, T3_MAX_INSTANCES);
         return false;
     }
 
@@ -208,12 +209,12 @@ bool t3_map_snmp_oid_to_bacnet(const char* snmp_oid, t3_snmp_bacnet_mapping_t *m
             mapping->bacnet_type = t3_cfgtype_to_bacnet_object(T3_CFGTYPE_VAR_INT); // Default to Integer
             break;
         default:
-            ESP_LOGE(TAG, "Invalid group %u", group);
+            app_log(TAG, "Invalid group %u", group);
             mapping->is_valid = false;
             return false;
     }
 
-    //ESP_LOGI(TAG, "Mapped SNMP OID to BACnet: group=%u, field=%u, instance=%u, bacnet_type=%u", group, field, instance, mapping->bacnet_type);
+    //app_log(TAG, "Mapped SNMP OID to BACnet: group=%u, field=%u, instance=%u, bacnet_type=%u", group, field, instance, mapping->bacnet_type);
     
     return true;
 }
@@ -237,7 +238,7 @@ int t3_read_input_value(uint32_t instance, uint32_t field, t3_data_value_t *valu
         {
             value->int_value = (int32_t)instance;
             value->is_integer = true;
-            //ESP_LOGI(TAG, "Read input %u index: %d", instance, value->int_value);
+            //app_log(TAG, "Read input %u index: %d", instance, value->int_value);
         }
         break;
        
@@ -245,7 +246,7 @@ int t3_read_input_value(uint32_t instance, uint32_t field, t3_data_value_t *valu
         {
             value->int_value = fetch_config_type(T3_OBJECT_INPUT, ptr.pin->digital_analog, ptr.pin->range);
             value->is_integer = true;
-            //ESP_LOGI(TAG, "Read input %u cfgType: %d", instance, value->int_value);
+            //app_log(TAG, "Read input %u cfgType: %d", instance, value->int_value);
         }
         break;
         
@@ -256,7 +257,7 @@ int t3_read_input_value(uint32_t instance, uint32_t field, t3_data_value_t *valu
             value->float_value = analog_val;
             value->is_analog = true;
             value->is_float = true;
-            //ESP_LOGI(TAG, "Read input %u analog value: %.2f", instance, analog_val);
+            //app_log(TAG, "Read input %u analog value: %.2f", instance, analog_val);
         }
         break;
         
@@ -265,15 +266,19 @@ int t3_read_input_value(uint32_t instance, uint32_t field, t3_data_value_t *valu
             int32_t binary_val = ptr.pin->value;
             value->binary_value = binary_val;
             value->is_binary = true;
-            //ESP_LOGI(TAG, "Read input %u binary value: %d %d", instance, binary_val, ptr.pin->value);
+            //app_log(TAG, "Read input %u binary value: %d %d", instance, binary_val, ptr.pin->value);
         }
         break;
         
         case T3_FIELD_DESC:
         {
-            memcpy(value->string_value, ptr.pin->label, strlen((const char *)ptr.pin->label));
-            value->is_string = true;
-            //ESP_LOGI(TAG, "Read input %u string value: %s", instance, value->string_value);
+            {
+                size_t len = strnlen((const char *)ptr.pin->label, sizeof(value->string_value) - 1);
+                memcpy(value->string_value, ptr.pin->label, len);
+                value->string_value[len] = '\0';
+                value->is_string = true;
+            }
+            //app_log(TAG, "Read input %u string value: %s", instance, value->string_value);
         }
         break;
         
@@ -281,13 +286,13 @@ int t3_read_input_value(uint32_t instance, uint32_t field, t3_data_value_t *valu
         {
             value->int_value = fetch_units_type(T3_OBJECT_INPUT, ptr.pin->digital_analog, ptr.pin->range);
             value->is_integer = true;
-            //ESP_LOGI(TAG, "Read input %u unit value: %d", instance, value->int_value);
+            //app_log(TAG, "Read input %u unit value: %d", instance, value->int_value);
         }
         break;
 
         default:
         {
-            ESP_LOGW(TAG, "Invalid field %u for input instance %u", field, instance);
+            app_log(TAG, "Invalid field %u for input instance %u", field, instance);
             return T3_ERROR_INVALID_FIELD;
         }
     }
@@ -328,7 +333,7 @@ int t3_read_output_value(uint32_t instance, uint32_t field, t3_data_value_t *val
             float analog_val = ptr.pout->value;
             value->analog_value = analog_val;
             value->is_analog = true;
-            //ESP_LOGI(TAG, "Read output %u analog value: %.2f", instance, analog_val);
+            //app_log(TAG, "Read output %u analog value: %.2f", instance, analog_val);
         }
         break;
 
@@ -337,15 +342,19 @@ int t3_read_output_value(uint32_t instance, uint32_t field, t3_data_value_t *val
             int32_t binary_val = ptr.pout->value;
             value->binary_value = binary_val;
             value->is_binary = true;
-            //ESP_LOGI(TAG, "Read output %u binary value: %d", instance, binary_val);
+            //app_log(TAG, "Read output %u binary value: %d", instance, binary_val);
         }
         break;
 
         case T3_FIELD_DESC:
         {
-            memcpy(value->string_value, ptr.pout->label, strlen((const char *)ptr.pout->label));
-            value->is_string = true;
-            //ESP_LOGI(TAG, "Read output %u string value: %s", instance, value->string_value);
+            {
+                size_t len = strnlen((const char *)ptr.pout->label, sizeof(value->string_value) - 1);
+                memcpy(value->string_value, ptr.pout->label, len);
+                value->string_value[len] = '\0';
+                value->is_string = true;
+            }
+            //app_log(TAG, "Read output %u string value: %s", instance, value->string_value);
         }
         break;
         
@@ -353,7 +362,7 @@ int t3_read_output_value(uint32_t instance, uint32_t field, t3_data_value_t *val
         {
             value->int_value = fetch_units_type(T3_OBJECT_OUTPUT, ptr.pout->digital_analog, ptr.pout->range);
             value->is_integer = true;
-            //ESP_LOGI(TAG, "Read input %u unit value: %d", instance, value->int_value);
+            //app_log(TAG, "Read input %u unit value: %d", instance, value->int_value);
         }
         break;
 
@@ -410,9 +419,13 @@ int t3_read_variable_value(uint32_t instance, uint32_t field, t3_data_value_t *v
 
         case T3_FIELD_DESC:
         {
-            memcpy(value->string_value, ptr.pvar->label, strlen((const char *)ptr.pvar->label));
-            value->is_string = true;
-            ESP_LOGI(TAG, "Read variable %u string value: %s", instance, value->string_value);
+            {
+                size_t len = strnlen((const char *)ptr.pvar->label, sizeof(value->string_value) - 1);
+                memcpy(value->string_value, ptr.pvar->label, len);
+                value->string_value[len] = '\0';
+                value->is_string = true;
+                //app_log(TAG, "Read variable %u string value: %s", instance, value->string_value);
+            }
         }
         break;
         
@@ -420,7 +433,7 @@ int t3_read_variable_value(uint32_t instance, uint32_t field, t3_data_value_t *v
         {
             value->int_value = fetch_units_type(T3_OBJECT_VARIABLE, ptr.pvar->digital_analog, ptr.pvar->range);
             value->is_integer = true;
-            ESP_LOGI(TAG, "Read variable %u unit value: %d", instance, value->int_value);
+            //app_log(TAG, "Read variable %u unit value: %d", instance, value->int_value);
         }
         break;
         
@@ -454,7 +467,7 @@ int t3_write_output_value(uint32_t instance, uint32_t field, const t3_data_value
         {
             if (value->is_analog)
             {
-                ESP_LOGI(TAG, "Write output %u analog value: %.2f", instance, value->analog_value);
+                //app_log(TAG, "Write output %u analog value: %.2f", instance, value->analog_value);
                 ptr.pout->value = value->analog_value;
                 return T3_SUCCESS;
             }
@@ -465,7 +478,7 @@ int t3_write_output_value(uint32_t instance, uint32_t field, const t3_data_value
         {
             if (value->is_binary)
             {
-                ESP_LOGI(TAG, "Write output %u binary value: %d", instance, value->binary_value);
+                //app_log(TAG, "Write output %u binary value: %d", instance, value->binary_value);
                 ptr.pout->value = value->binary_value;
                 return T3_SUCCESS;
             }
@@ -476,7 +489,7 @@ int t3_write_output_value(uint32_t instance, uint32_t field, const t3_data_value
         {
             if (value->is_string)
             {
-                ESP_LOGI(TAG, "Write output %u description: %s", instance, value->string_value);
+                //app_log(TAG, "Write output %u description: %s", instance, value->string_value);
                 memset(ptr.pout->label, 0, sizeof(ptr.pout->label));
                 memcpy(ptr.pout->label, value->string_value, strlen((const char *)value->string_value));
                 return T3_SUCCESS;
@@ -511,7 +524,7 @@ int t3_write_variable_value(uint32_t instance, uint32_t field, const t3_data_val
         case T3_FIELD_INTIGER:
         {
             if (value->is_integer) {
-                ESP_LOGI(TAG, "Write variable %u int value: %d", instance, value->int_value);
+                //app_log(TAG, "Write variable %u int value: %d", instance, value->int_value);
                 if (!TemcoVars_Present_Value_Set(instance, (float)value->int_value, priority))
                 {
                     return T3_ERROR_WRITE_ONLY;
@@ -525,7 +538,7 @@ int t3_write_variable_value(uint32_t instance, uint32_t field, const t3_data_val
         {
             if (value->is_float)
             {
-                ESP_LOGI(TAG, "Write variable %u float value: %.2f", instance, value->float_value);
+                //app_log(TAG, "Write variable %u float value: %.2f", instance, value->float_value);
                 if (!TemcoVars_Present_Value_Set(instance, value->float_value, priority))
                 {
                     return T3_ERROR_WRITE_ONLY;
@@ -539,7 +552,7 @@ int t3_write_variable_value(uint32_t instance, uint32_t field, const t3_data_val
         {
             if (value->is_string)
             {
-                ESP_LOGI(TAG, "Write variable %u description: %s", instance, value->string_value);
+                //app_log(TAG, "Write variable %u description: %s", instance, value->string_value);
                 memset(ptr.pvar->label, 0, sizeof(ptr.pvar->label));
                 memcpy(ptr.pvar->label, value->string_value, strlen((const char *)value->string_value));
                 return T3_SUCCESS;

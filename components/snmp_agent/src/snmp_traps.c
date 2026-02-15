@@ -11,6 +11,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_system.h>
+#include "esp_heap_caps.h"
 
 #include "snmp_traps.h"
 
@@ -24,13 +25,6 @@ static const char *TAG = "SNMP_TRAP";
 #define ASN_TIMETICKS 0x43
 #define PDU_INFORM    0xA6
 #define PDU_TRAP      0xA7
-
-typedef struct
-{
-    uint32_t* oid;
-    int oid_len;
-    char* value;
-} ExtraVarbind;
 
 // --- BER Encoding Helpers ---
 
@@ -77,6 +71,55 @@ int build_tlv(uint8_t type, int p_len, uint8_t *p_data, uint8_t *out)
     int l_bytes = encode_length(out + 1, p_len);
     memcpy(out + 1 + l_bytes, p_data, p_len);
     return 1 + l_bytes + p_len;
+}
+
+// Helper function to encode a 32-bit integer value
+int encode_integer(int32_t value, uint8_t *buf)
+{
+    if (value < 0)
+    {
+        // Negative number encoding (two's complement)
+        if (value >= -128)
+        {
+            buf[0] = (uint8_t)value;
+            return 1;
+        }
+        else if (value >= -32768)
+        {
+            buf[0] = (uint8_t)(value >> 8);
+            buf[1] = (uint8_t)value;
+            return 2;
+        }
+        else
+        {
+            buf[0] = (uint8_t)(value >> 16);
+            buf[1] = (uint8_t)(value >> 8);
+            buf[2] = (uint8_t)value;
+            return 3;
+        }
+    }
+    else
+    {
+        // Positive number encoding
+        if (value < 128)
+        {
+            buf[0] = (uint8_t)value;
+            return 1;
+        }
+        else if (value < 32768)
+        {
+            buf[0] = (uint8_t)(value >> 8);
+            buf[1] = (uint8_t)value;
+            return 2;
+        }
+        else
+        {
+            buf[0] = (uint8_t)(value >> 16);
+            buf[1] = (uint8_t)(value >> 8);
+            buf[2] = (uint8_t)value;
+            return 3;
+        }
+    }
 }
 
 // --- Core Sender Function ---
@@ -203,4 +246,133 @@ void snmp_trap_enterprise(const char* l_ip, const char* d_ip, const char* msg)
     uint32_t msg_oid[] = {1,3,6,1,4,1,999,1,1};
     ExtraVarbind ex = { .oid = msg_oid, .oid_len = 9, .value = (char*)msg };
     snmp_send_v2(l_ip, d_ip, ent_oid, 8, &ex, 1, 1);
+}
+
+// --- Extended SNMP v2 Sending with Flexible Varbinds ---
+void snmp_send_v2_flexible(const char* local_ip, const char* dst_ip, uint32_t* trap_oid, int trap_oid_len, 
+                          FlexibleVarbind* extras, int extra_count, int is_inform)
+{    
+    // Allocate buffers on heap to avoid stack overflow
+    uint8_t *vblist_raw = (uint8_t*)heap_caps_malloc(1024, MALLOC_CAP_SPIRAM);
+    uint8_t *temp_oid = (uint8_t*)heap_caps_malloc(64, MALLOC_CAP_SPIRAM);
+    uint8_t *temp_inner = (uint8_t*)heap_caps_malloc(512, MALLOC_CAP_SPIRAM);
+    uint8_t *vbl_wrapped = (uint8_t*)heap_caps_malloc(1100, MALLOC_CAP_SPIRAM);
+    uint8_t *pdu_body = (uint8_t*)heap_caps_malloc(1200, MALLOC_CAP_SPIRAM);
+    uint8_t *pdu_final = (uint8_t*)heap_caps_malloc(1300, MALLOC_CAP_SPIRAM);
+    uint8_t *msg_body = (uint8_t*)heap_caps_malloc(1400, MALLOC_CAP_SPIRAM);
+    uint8_t *packet = (uint8_t*)heap_caps_malloc(1500, MALLOC_CAP_SPIRAM);
+    
+    // Check allocation success
+    if (!vblist_raw || !temp_oid || !temp_inner || !vbl_wrapped || !pdu_body || 
+        !pdu_final || !msg_body || !packet) {
+        ESP_LOGE(TAG, "Failed to allocate memory for Master Trap");
+        goto cleanup;
+    }
+    
+    int vbl_pos = 0;
+    memset(temp_oid, 0, 64);
+    memset(temp_inner, 0, 512);
+
+    // 1. Varbind: sysUpTime.0 (.1.3.6.1.2.1.1.3.0)
+    uint32_t uptime_oid[] = {1,3,6,1,2,1,1,3,0};
+    int l = encode_oid(uptime_oid, 9, temp_oid);
+    int inner = build_tlv(ASN_OID, l, temp_oid, temp_inner);
+    uint32_t ticks_val = xTaskGetTickCount() * portTICK_PERIOD_MS / 10;
+    uint8_t ticks[4] = { (ticks_val >> 24) & 0xFF, (ticks_val >> 16) & 0xFF, (ticks_val >> 8) & 0xFF, ticks_val & 0xFF };
+    inner += build_tlv(ASN_TIMETICKS, 4, ticks, temp_inner + inner);
+    vbl_pos += build_tlv(ASN_SEQUENCE, inner, temp_inner, vblist_raw + vbl_pos);
+
+    // 2. Varbind: snmpTrapOID.0 (.1.3.6.1.6.3.1.1.4.1.0)
+    uint32_t snmp_trap_p[] = {1,3,6,1,6,3,1,1,4,1,0};
+    l = encode_oid(snmp_trap_p, 11, temp_oid);
+    inner = build_tlv(ASN_OID, l, temp_oid, temp_inner);
+    l = encode_oid(trap_oid, trap_oid_len, temp_oid);
+    inner += build_tlv(ASN_OID, l, temp_oid, temp_inner + inner);
+    vbl_pos += build_tlv(ASN_SEQUENCE, inner, temp_inner, vblist_raw + vbl_pos);
+
+    // 3. Extra Varbinds with flexible data types
+    for(int i = 0; i < extra_count; i++) {
+        l = encode_oid(extras[i].oid, extras[i].oid_len, temp_oid);
+        inner = build_tlv(ASN_OID, l, temp_oid, temp_inner);
+        
+        if (extras[i].data_type == VARBIND_TYPE_OCTET_STRING) {
+            inner += build_tlv(ASN_OCTET_STR, extras[i].value_len, (uint8_t*)extras[i].value, temp_inner + inner);
+        }
+        else if (extras[i].data_type == VARBIND_TYPE_INTEGER) {
+            uint8_t int_buf[4];
+            int int_len = encode_integer(*(int32_t*)extras[i].value, int_buf);
+            inner += build_tlv(ASN_INTEGER, int_len, int_buf, temp_inner + inner);
+        }
+        else if (extras[i].data_type == VARBIND_TYPE_OID) {
+            l = encode_oid((uint32_t*)extras[i].value, extras[i].value_len, temp_oid);
+            inner += build_tlv(ASN_OID, l, temp_oid, temp_inner + inner);
+        }
+        
+        vbl_pos += build_tlv(ASN_SEQUENCE, inner, temp_inner, vblist_raw + vbl_pos);
+    }
+
+    // Wrap List -> PDU -> Message
+    int vbl_len = build_tlv(ASN_SEQUENCE, vbl_pos, vblist_raw, vbl_wrapped);
+    
+    uint8_t pdu_hdr[] = {0x02, 0x01, 0x01, 0x02, 0x01, 0x00, 0x02, 0x01, 0x00}; // ReqID 1
+    memcpy(pdu_body, pdu_hdr, 9);
+    memcpy(pdu_body + 9, vbl_wrapped, vbl_len);
+    int pdu_len = build_tlv(is_inform ? PDU_INFORM : PDU_TRAP, 9 + vbl_len, pdu_body, pdu_final);
+
+    uint8_t msg_hdr[] = {0x02, 0x01, 0x01, 0x04, 0x06, 'p', 'u', 'b', 'l', 'i', 'c'};
+    memcpy(msg_body, msg_hdr, 11);
+    memcpy(msg_body + 11, pdu_final, pdu_len);
+    int packet_len = build_tlv(ASN_SEQUENCE, 11 + pdu_len, msg_body, packet);
+
+    // --- Networking Layer ---
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = inet_addr(dst_ip);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(162);
+
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (sock < 0) {
+        ESP_LOGE(TAG, "Failed to create socket for Master Trap");
+        goto cleanup;
+    }
+
+    // Set source identity (Local IP)
+    struct sockaddr_in src_addr;
+    src_addr.sin_family = AF_INET;
+    src_addr.sin_port = htons(0); // Auto-assign port
+    src_addr.sin_addr.s_addr = inet_addr(local_ip);
+    if (bind(sock, (struct sockaddr *)&src_addr, sizeof(src_addr)) < 0) {
+        ESP_LOGE(TAG, "Failed to bind socket for Master Trap");
+        close(sock);
+        goto cleanup;
+    }
+
+    // Set receive timeout for Informs
+    struct timeval tv = { .tv_sec = 2, .tv_usec = 0 };
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+    if (sendto(sock, packet, packet_len, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0) {
+        ESP_LOGE(TAG, "Failed to send Master Trap to %s", dst_ip);
+    } else {
+        ESP_LOGI(TAG, "Master Trap (t3AlarmNotification) sent to %s", dst_ip);
+    }
+
+    if (is_inform) {
+        uint8_t rx_buf[128];
+        int len = recv(sock, rx_buf, sizeof(rx_buf), 0);
+        if (len > 0) ESP_LOGI(TAG, "INFORM ACK received");
+        else ESP_LOGW(TAG, "INFORM Timeout");
+    }
+    close(sock);
+
+cleanup:
+    // Free allocated buffers
+    if (vblist_raw) heap_caps_free(vblist_raw);
+    if (temp_oid) heap_caps_free(temp_oid);
+    if (temp_inner) heap_caps_free(temp_inner);
+    if (vbl_wrapped) heap_caps_free(vbl_wrapped);
+    if (pdu_body) heap_caps_free(pdu_body);
+    if (pdu_final) heap_caps_free(pdu_final);
+    if (msg_body) heap_caps_free(msg_body);
+    if (packet) heap_caps_free(packet);
 }

@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "snmp_interface.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,10 +30,10 @@ extern "C" {
 
 /* Enterprise OID Structure per T3 Specification */
 /* P denotes Private-Enterprises - 1.3.6.1.4.1   */
-#define T3_ENTERPRISE_OID            "P.64991.1"
-#define T3_INPUTS_OID_BASE           "P.64991.1.1"
-#define T3_OUTPUTS_OID_BASE          "P.64991.1.2"
-#define T3_VARIABLES_OID_BASE        "P.64991.1.3"
+#define T3_ENTERPRISE_OID            ENTERPRISE_OID
+#define T3_INPUTS_OID_BASE           T3_ENTERPRISE_OID".1"
+#define T3_OUTPUTS_OID_BASE          T3_ENTERPRISE_OID".2"
+#define T3_VARIABLES_OID_BASE        T3_ENTERPRISE_OID".3"
 
 /* Field OID Patterns per specification */
 #define T3_INPUT_INDEX_OID           ".0"
@@ -82,6 +83,8 @@ typedef enum {
     T3_CFGTYPE_VAR_INT      = 11,  // Variable Integer
     T3_CFGTYPE_VAR_FLOAT    = 12,  // Variable Float
     T3_CFGTYPE_VAR_STRING   = 13,  // Variable String
+    T3_CFGTYPE_PWM_OUTPUT   = 14,  // PWM Output
+    T3_CFGTYPE_FREQ_OUTPUT  = 15,  // Frequency Output
     T3_CFGTYPE_RESERVED     = 14   // Reserved
 } t3_cfgtype_t;
 

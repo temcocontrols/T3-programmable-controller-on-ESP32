@@ -20,12 +20,12 @@ set COMMUNITY=public
 REM ----------------------------
 REM OID base definitions
 REM ----------------------------
-set OID_INDEX=1.3.6.1.4.1.64991.1.3.0
-set OID_CFGTYPE=1.3.6.1.4.1.64991.1.3.1
-set OID_ANALOG=1.3.6.1.4.1.64991.1.3.2
-set OID_BINARY=1.3.6.1.4.1.64991.1.3.3
-set OID_DESC=1.3.6.1.4.1.64991.1.3.4
-set OID_UNIT=1.3.6.1.4.1.64991.1.3.5
+set OID_INDEX=1.3.6.1.4.1.50523.1.3.0
+set OID_CFGTYPE=1.3.6.1.4.1.50523.1.3.1
+set OID_ANALOG=1.3.6.1.4.1.50523.1.3.2
+set OID_BINARY=1.3.6.1.4.1.50523.1.3.3
+set OID_DESC=1.3.6.1.4.1.50523.1.3.4
+set OID_UNIT=1.3.6.1.4.1.50523.1.3.5
 
 REM ----------------------------
 REM Decide range

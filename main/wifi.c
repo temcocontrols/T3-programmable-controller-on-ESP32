@@ -17,7 +17,6 @@
 
 #include "app_log.h"
 #include "snmp_interface.h"
-static bool snmp_started = false;
 
 static const char *TAG = "WIFI";
 extern xSemaphoreHandle CountHandle;
@@ -221,11 +220,8 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         if(Modbus.ethernet_status != 4)
         multicast_addr = Get_multicast_addr(&SSID_Info.ip_addr);
         save_wifi_info();
-        app_log(TAG, "wifi got ip : %d.%d.%d.%d",SSID_Info.ip_addr[0],SSID_Info.ip_addr[1],SSID_Info.ip_addr[2],SSID_Info.ip_addr[3]);
-        if (!snmp_started) {
-            snmp_started = true;
-            snmp_app_init();
-        }
+        /* Start SNMP agent */
+        snmp_app_init();
         s_retry_num = 0;
 #if 1//DNS
         if((SSID_Info.getway[0] == 0) && (SSID_Info.getway[1] == 0) && (SSID_Info.getway[2] == 0) && (SSID_Info.getway[3] == 0))

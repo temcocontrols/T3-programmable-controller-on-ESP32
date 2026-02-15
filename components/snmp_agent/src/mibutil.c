@@ -154,7 +154,6 @@ int miblistread(LIST *miblist, char *fn)
 			mib.u.octetstring = octetdata;     // reset u
 			if (mibscan(&mib, buf) == SUCCESS) {
 				if ((thismib=miblistgooid(miblist, &mib.oid))==NULL) {
-					//thismib = malloc(sizeof(MIB));
 					thismib = heap_caps_malloc(sizeof(MIB), MALLOC_CAP_SPIRAM);
 					*thismib = mib;
 					if (thismib->dataType==OBJECT_IDENTIFIER || thismib->dataType==OCTET_STRING ||

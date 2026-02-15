@@ -13,6 +13,7 @@
 #include "t3_snmp_bacnet_mapping.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "wifi.h"
 
 //=================================== Defines ===================================
 // SNMP agent configuration.
@@ -25,11 +26,12 @@
 static const char *TAG = "snmp_agent";
 
 // System MIB entries
-char sysDescr[]    = "TEMCO-ESP32";
-char sysContact[]  = "www.temcocontrols.com";
-char sysName[]     = "TSTAT10";
-char sysLocation[] = "Temco Controls Ltd";
-char sysIpAddress[] = "192.168.1.17";
+char sysDescr[64]     = "TEMCO-ESP32";
+char sysContact[32]   = "PLC Group";
+char sysName[32]      = "T3 Programmable Controller";
+char sysLocation[32]  = "Temco Controls Ltd";
+char sysVersion[32]   = "1.0";
+char sysIpAddress[16] = "192.168.1.17";
 
 char description[21] = "";
 
@@ -37,14 +39,15 @@ char description[21] = "";
 unsigned char entOIDBer[MIB_DATA_SIZE];
 
 // SNMP trap destination
-char trapDstAddr[] = TRAP_DST_ADDR;
-char dInIndex[] = "P.38644.30.1.1.2.10";
+char trapDstAddr[16] = TRAP_DST_ADDR;
 
 // MIB tree
 MIB *thismib = NULL;
 
 // Temporary variables
 uint32_t u32;
+
+static bool snmp_started = false;
 
 //================================= Functions ================================
 void initMibTree();
@@ -64,6 +67,7 @@ int t3_write_output(MIB *thismib, void *ptr, int len);
 int t3_write_variable(MIB *thismib, void *ptr, int len);
 
 void snmp_agent_init(void);
+void update_system_ip_address(void);
 
 //============================= Function Definitions ===========================
 
@@ -72,7 +76,13 @@ void snmp_agent_init(void);
 //---------------------------------------------------
 void snmp_app_init(void)
 {
-    app_log(TAG, "Initializing SNMP agent. heap: %d", esp_get_free_heap_size());
+    update_system_ip_address();
+    if(snmp_started)
+    {
+        app_log(TAG, "SNMP agent already running.");
+        return;
+    }
+    app_log(TAG, "Initializing SNMP agent.");
     snmp_agent_init();
 }
 
@@ -87,17 +97,20 @@ static void snmp_agent_task(void *pvParameters)
     initSnmpAgent(SNMP_PORT, ENTERPRISE_OID, RO_COMMUNITY, RW_COMMUNITY);
 
     // Initialize MIB tree
+    app_log(TAG, "Initializing MIB tree...");
     initMibTree();
-
-    app_log(TAG, "Initializing of MIB tree completed. heap: %d", esp_get_free_heap_size());
+    app_log(TAG, "SNMP agent ready...");
 
     // Send SNMP cold start trap
-    // const char* my_ip = "10.123.89.105"; // Use esp_netif_get_ip_info to get this dynamically
-    // const char* manager_ip = "10.123.89.104";
-    // send_snmp_trap_cold_start(my_ip, manager_ip);
+    app_log(TAG, "Sending SNMP cold start trap to %s", trapDstAddr);
+    send_snmp_trap_cold_start(sysIpAddress, trapDstAddr);
 
-    // // Send custom trap
-    // snmp_trap_enterprise(my_ip, manager_ip, "this is custom trap!!!");
+    // Send autonomous trap after startup
+    app_log(TAG, "Sending SNMP autonomous notification trap to %s", trapDstAddr);
+    send_master_trap_autonomous_notification(sysIpAddress, trapDstAddr, sysLocation, 1, 1, "System Cold Start", 0);
+
+    // Send custom trap
+    // snmp_trap_enterprise(sysIpAddress, trapDstAddr, "this is custom trap!!!");
 
     // Process SNMP requests
     for (;;)
@@ -115,7 +128,6 @@ static void snmp_agent_task(void *pvParameters)
 //---------------------------------------------------
 void snmp_agent_init(void)
 {
-    app_log(TAG, "T3 SNMP agent initialized");
     xTaskCreate(snmp_agent_task, "snmp_agent_task", 4096 + 4096, NULL, 5, NULL);
 }
 
@@ -155,10 +167,7 @@ static void init_standard_mibs(void)
     thismib = miblistadd(mibTree, "B.1.4.0", OCTET_STRING, RD_WR, sysContact, strlen(sysContact));
 
     // sysIpAddrTable
-    u32 = 0;
-    thismib = miblistadd(mibTree, "B.1.4.20", IP_ADDRESS, RD_ONLY, NULL, 0);
-    mibsetvalue(thismib, &u32, 0);
-    mibsetcallback(thismib, get_ipaddress, NULL);
+    thismib = miblistadd(mibTree, "B.1.4.20", IP_ADDRESS, RD_ONLY, sysIpAddress, strlen(sysIpAddress));
 
     // sysName Entry
     thismib = miblistadd(mibTree, "B.1.5.0", OCTET_STRING, RD_WR, sysName, strlen(sysName));
@@ -249,8 +258,8 @@ static void init_private_mibs(void)
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // small delay to avoid watchdog reset
     }
-    //app_log(TAG, "Input Init done. heap: %d", esp_get_free_heap_size());
-    check_heap_fragmentation();
+    //app_log(TAG, "Input Init done. heap: ");
+    //check_heap_fragmentation();
     vTaskDelay(pdMS_TO_TICKS(1000));
 
     /* --- T3 Output Objects (Read-Write) --- */
@@ -372,8 +381,7 @@ static void init_private_mibs(void)
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // small delay to avoid watchdog reset
     }
-
-	app_log(TAG, "init private Mib tree complete. heap: %d", esp_get_free_heap_size());
+	app_log(TAG, "init private Mib tree complete.");
 }
 
 char* miboid_to_string(OID *oid, char *buffer, size_t buflen)
@@ -420,7 +428,7 @@ int t3_read_input(MIB *thismib)
 	char oid_buffer[128] = {0};
 	t3_snmp_bacnet_mapping_t mapping;
     char* snmp_oid = miboid_to_string(&thismib->oid, oid_buffer, sizeof(oid_buffer));
-	app_log(TAG, "Read input for OID: %s", snmp_oid);
+	//app_log(TAG, "Read input for OID: %s", snmp_oid);
 
     // Get mapping
     if (!t3_map_snmp_oid_to_bacnet(snmp_oid, &mapping))
@@ -477,7 +485,7 @@ int t3_read_output(MIB *thismib)
 {
     char oid_buffer[128] = {0};
     char* snmp_oid = miboid_to_string(&thismib->oid, oid_buffer, sizeof(oid_buffer));
-    app_log(TAG, "Read output for OID: %s", snmp_oid);
+    //app_log(TAG, "Read output for OID: %s", snmp_oid);
 
     // Get mapping
     t3_snmp_bacnet_mapping_t mapping;
@@ -533,7 +541,7 @@ int t3_read_variable(MIB *thismib)
 {
     char oid_buffer[128] = {0};
     char* snmp_oid = miboid_to_string(&thismib->oid, oid_buffer, sizeof(oid_buffer));
-    app_log(TAG, "Read variable for OID: %s", snmp_oid);
+    //app_log(TAG, "Read variable for OID: %s", snmp_oid);
 
     // Get mapping
     t3_snmp_bacnet_mapping_t mapping;
@@ -592,7 +600,7 @@ int t3_write_output(MIB *thismib, void *ptr, int len)
     }
     char oid_buffer[128] = {0};
     char* snmp_oid = miboid_to_string(&thismib->oid, oid_buffer, sizeof(oid_buffer));
-    app_log(TAG, "Write output for OID: %s value %d", snmp_oid, thismib->u.intval);
+    //app_log(TAG, "Write output for OID: %s value %d", snmp_oid, thismib->u.intval);
 
     // Get mapping
     t3_snmp_bacnet_mapping_t mapping;
@@ -606,12 +614,12 @@ int t3_write_output(MIB *thismib, void *ptr, int len)
     uint32_t instance = mapping.instance;
     uint32_t field = mapping.field;
     memset(&value, 0, sizeof(t3_data_value_t));
-    app_log(TAG, "Write Output : instance [%d], field [%d]", instance, field);
+    //app_log(TAG, "Write Output : instance [%d], field [%d]", instance, field);
     // Prepare value based on data type
     if (field == T3_FIELD_ANALOG && thismib->dataType == INTEGER)
     {
         int32_t intval = *(int32_t *)ptr;
-        app_log(TAG, "Write output %u analog value: %d", instance, intval);
+        //app_log(TAG, "Write output %u analog value: %d", instance, intval);
         value.analog_value = intval;
         value.float_value = intval;
         value.is_analog = true;
@@ -620,13 +628,13 @@ int t3_write_output(MIB *thismib, void *ptr, int len)
     else if (field == T3_FIELD_BINARY  && thismib->dataType == INTEGER)
     {
         uint32_t intval = *(uint32_t *)ptr;
-        app_log(TAG, "Write output %u binary value: %d", instance, intval);
+        //app_log(TAG, "Write output %u binary value: %d", instance, intval);
         value.binary_value = intval;
         value.is_binary = true;
     }
     else if (field == T3_FIELD_DESC && thismib->dataType == OCTET_STRING)
     {
-        app_log(TAG, "Write output %u string value: %s", instance, thismib->u.octetstring);
+        //app_log(TAG, "Write output %u string value: %s", instance, thismib->u.octetstring);
         memset(value.string_value, 0, sizeof(value.string_value));
         memcpy(value.string_value, ptr, len);
         value.is_string = true;
@@ -649,7 +657,7 @@ int t3_write_variable(MIB *thismib, void *ptr, int len)
     }
     char oid_buffer[128] = {0};
     char* snmp_oid = miboid_to_string(&thismib->oid, oid_buffer, sizeof(oid_buffer));
-    app_log(TAG, "Write variable for OID: %s", snmp_oid);
+    //app_log(TAG, "Write variable for OID: %s", snmp_oid);
 
     t3_snmp_bacnet_mapping_t mapping;
     if (!t3_map_snmp_oid_to_bacnet(snmp_oid, &mapping))
@@ -701,4 +709,143 @@ int get_ipaddress(MIB *thismib)
     thismib->u.octetstring = (unsigned char *)sysIpAddress;
     thismib->dataLen = strlen(sysIpAddress);
     return SUCCESS;
+}
+
+void update_system_ip_address(void)
+{
+    memset(sysIpAddress, 0, sizeof(sysIpAddress));
+    snprintf(sysIpAddress, sizeof(sysIpAddress),  "%d.%d.%d.%d", SSID_Info.ip_addr[0],SSID_Info.ip_addr[1],SSID_Info.ip_addr[2],SSID_Info.ip_addr[3]);
+    sysIpAddress[sizeof(sysIpAddress) - 1] = '\0'; // Ensure null-termination
+    app_log(TAG, "Updated SNMP system IP address: %s", sysIpAddress);
+}
+
+void update_system_location(const char* location)
+{
+    if (location)
+    {
+        strncpy(sysLocation, location, sizeof(sysLocation) - 1);
+        sysLocation[sizeof(sysLocation) - 1] = '\0'; // Ensure null-termination
+        app_log(TAG, "Updated SNMP system location: %s", sysLocation);
+    }
+}
+
+void update_system_name(const char* name)
+{
+    if (name)
+    {
+        strncpy(sysName, name, sizeof(sysName) - 1);
+        sysName[sizeof(sysName) - 1] = '\0'; // Ensure null-termination
+        app_log(TAG, "Updated SNMP system name: %s", sysName);
+    }
+}
+
+void update_system_description(const char* description)
+{
+    if (description)
+    {
+        strncpy(sysDescr, description, sizeof(description) - 1);
+        sysDescr[sizeof(description) - 1] = '\0'; // Ensure null-termination
+        app_log(TAG, "Updated SNMP system description: %s", sysDescr);
+    }
+}
+
+void update_system_contact(const char* contact)
+{
+    if (contact)
+    {
+        strncpy(sysContact, contact, sizeof(sysContact) - 1);
+        sysContact[sizeof(sysContact) - 1] = '\0'; // Ensure null-termination
+        app_log(TAG, "Updated SNMP system contact: %s", sysContact);
+    }
+}
+
+void update_system_version(const char* version)
+{
+    if (version)
+    {
+        strncpy(sysVersion, version, sizeof(sysVersion) - 1);
+        sysVersion[sizeof(sysVersion) - 1] = '\0'; // Ensure null-termination
+        app_log(TAG, "Updated SNMP system version: %s", sysVersion);
+    }
+}
+
+void update_trap_destination(const char* dest_ip)
+{
+    if (dest_ip)
+    {
+        strncpy(trapDstAddr, dest_ip, sizeof(trapDstAddr) - 1);
+        trapDstAddr[sizeof(trapDstAddr) - 1] = '\0'; // Ensure null-termination
+        app_log(TAG, "Updated SNMP trap destination: %s", trapDstAddr);
+    }
+}
+
+// --- Master Trap Implementation ---
+void send_master_trap_autonomous_notification(const char* local_ip, const char* dst_ip,
+                                              const char* site_location,
+                                              uint32_t event_id,
+                                              uint8_t event_set,
+                                              const char* alarm_type,
+                                              int32_t alarm_value)
+{
+    // Master Trap OID: 1.3.6.1.4.1.<OFFICIAL_IANA_PAN>.1.0.1 (t3AlarmNotification)
+    uint32_t trap_oid[] = {1, 3, 6, 1, 4, 1, OFFICIAL_IANA_PAN, 1, 0, 1};
+    
+    // Create persistent storage for integer values (must survive function call)
+    int32_t int_values[3];
+    int_values[0] = (int32_t)event_id;      // eventID
+    int_values[1] = (int32_t)event_set;     // eventSet
+    int_values[2] = (int32_t)alarm_value;   // alarmValue
+    
+    // Prepare varbinds for the trap payload
+    FlexibleVarbind varbinds[5];
+    int varbind_count = 0;
+    
+    // 1. sysLocation (1.3.6.1.2.1.1.6.0)
+    static uint32_t oid_sysLocation[] = {1, 3, 6, 1, 2, 1, 1, 6, 0};
+    varbinds[varbind_count].oid = oid_sysLocation;
+    varbinds[varbind_count].oid_len = 9;
+    varbinds[varbind_count].data_type = VARBIND_TYPE_OCTET_STRING;
+    varbinds[varbind_count].value = (void*)site_location;
+    varbinds[varbind_count].value_len = strlen(site_location);
+    varbind_count++;
+    
+    // 2. eventID (1.3.6.1.4.1.<OFFICIAL_IANA_PAN>.1.4.1)
+    static uint32_t oid_eventID[] = {1, 3, 6, 1, 4, 1, OFFICIAL_IANA_PAN, 1, 4, 1};
+    varbinds[varbind_count].oid = oid_eventID;
+    varbinds[varbind_count].oid_len = 10;
+    varbinds[varbind_count].data_type = VARBIND_TYPE_INTEGER;
+    varbinds[varbind_count].value = (void*)&int_values[0];
+    varbinds[varbind_count].value_len = 0;
+    varbind_count++;
+    
+    // 3. eventSet (1.3.6.1.4.1.<OFFICIAL_IANA_PAN>.1.4.2): 1 = Active, 0 = Cleared
+    static uint32_t oid_eventSet[] = {1, 3, 6, 1, 4, 1, OFFICIAL_IANA_PAN, 1, 4, 2};
+    varbinds[varbind_count].oid = oid_eventSet;
+    varbinds[varbind_count].oid_len = 10;
+    varbinds[varbind_count].data_type = VARBIND_TYPE_INTEGER;
+    varbinds[varbind_count].value = (void*)&int_values[1];
+    varbinds[varbind_count].value_len = 0;
+    varbind_count++;
+    
+    // 4. alarmType (1.3.6.1.4.1.<OFFICIAL_IANA_PAN>.1.4.3): Contextual string
+    static uint32_t oid_alarmType[] = {1, 3, 6, 1, 4, 1, OFFICIAL_IANA_PAN, 1, 4, 3};
+    varbinds[varbind_count].oid = oid_alarmType;
+    varbinds[varbind_count].oid_len = 10;
+    varbinds[varbind_count].data_type = VARBIND_TYPE_OCTET_STRING;
+    varbinds[varbind_count].value = (void*)alarm_type;
+    varbinds[varbind_count].value_len = strlen(alarm_type);
+    varbind_count++;
+    
+    // 5. alarmValue (1.3.6.1.4.1.<OFFICIAL_IANA_PAN>.1.4.4): Numeric value
+    static uint32_t oid_alarmValue[] = {1, 3, 6, 1, 4, 1, OFFICIAL_IANA_PAN, 1, 4, 4};
+    varbinds[varbind_count].oid = oid_alarmValue;
+    varbinds[varbind_count].oid_len = 10;
+    varbinds[varbind_count].data_type = VARBIND_TYPE_INTEGER;
+    varbinds[varbind_count].value = (void*)&int_values[2];
+    varbinds[varbind_count].value_len = 0;
+    varbind_count++;
+    
+    // Send the master trap
+    // Note: sysUpTime and sysTime are automatically included by snmp_send_v2_flexible
+    snmp_send_v2_flexible(local_ip, dst_ip, trap_oid, 10, varbinds, varbind_count, 0);
 }

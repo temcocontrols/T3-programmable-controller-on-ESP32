@@ -2,6 +2,8 @@
  * Implements a key-value-pair list.
  */
 
+/* A keylist data file contains key-value pairs in the format <key>=<value>. */
+
 #ifndef _KEYLIST_H
 #define _KEYLIST_H
 

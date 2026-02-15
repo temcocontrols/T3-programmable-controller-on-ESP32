@@ -41,7 +41,6 @@ LIST *listnew(int datasize, int max)
 {
 	LIST *l;
 
-	//if ((l=(LIST *)malloc(sizeof(LIST)))) {
 	if ((l=(LIST *)heap_caps_malloc(sizeof(LIST), MALLOC_CAP_SPIRAM))) {
 		l->datasize = datasize;
 		l->head = l->curr = l->prev = NULL;
@@ -98,7 +97,6 @@ void *listputnode(LIST *l, void *data, int mode)
 
 	if ((l->limit == 0 || l->size < l->limit) &&
 		(n=(NODE *)heap_caps_malloc(sizeof(NODE), MALLOC_CAP_SPIRAM))) {
-		//(n=(NODE *)malloc(sizeof(NODE)))) {
 		n->data = data;
 		if (l->head == NULL) {	/* empty list */
 			l->head = l->curr = n;

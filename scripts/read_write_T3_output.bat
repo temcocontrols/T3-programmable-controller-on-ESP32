@@ -28,8 +28,8 @@ set RW_COMM=private
 REM ----------------------------
 REM OID base
 REM ----------------------------
-set OID_INT_BASE=1.3.6.1.4.1.2026.1.2.3
-set OID_STR_BASE=1.3.6.1.4.1.2026.1.2.4
+set OID_INT_BASE=1.3.6.1.4.1.50523.1.2.3
+set OID_STR_BASE=1.3.6.1.4.1.50523.1.2.4
 
 set OID_INT=%OID_INT_BASE%.%INDEX%
 set OID_STR=%OID_STR_BASE%.%INDEX%

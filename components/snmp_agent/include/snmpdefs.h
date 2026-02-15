@@ -6,7 +6,7 @@
 #define SNMPDEFS_H
 
 /* Local ports to listen on */
-#define SNMP_PORT         161 		 
+#define SNMP_PORT         161
 #define TRAP_DST_PORT     162
 #define SNMP_V1           0
 #define SNMP_V2C          1
@@ -16,18 +16,17 @@
 #define GET_NEXT_REQUEST  0xa1
 #define GET_RESPONSE      0xa2
 #define SET_REQUEST       0xa3
-#define TRAP_PACKET_V1    0xa4
-#define GET_BULK_REQUEST  0xa5
+#define TRAP_PACKET       0xa4
+/* SNMPv2 PDUs */
+#define GET_BULK          0xa5
 #define INFORM_REQUEST    0xa6
-#define TRAP_PACKET_V2C   0xa7
+#define SNMPV2_TRAP       0xa7
 
 #define VALID_REQUEST(x)  ((x == GET_REQUEST) || \
                           (x == GET_NEXT_REQUEST) || \
                           (x == SET_REQUEST) || \
-                          (x == TRAP_PACKET_V1) || \
-                          (x == GET_BULK_REQUEST) || \
-                          (x == INFORM_REQUEST) || \
-                          (x == TRAP_PACKET_V2C))
+                          (x == GET_BULK) || \
+                          (x == INFORM_REQUEST))
 
 #define INTEGER           0x02
 #define OCTET_STRING      0x04

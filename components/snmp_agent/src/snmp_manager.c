@@ -321,7 +321,7 @@ int parseTrap(struct messageStruct *resp, char *comm_str, OID *entoid,
 		comm_str[tlv.len] = 0;
 	}
 	if (parseTLV(resp->buffer, tlv.nstart, &tlv) != SUCCESS ||
-		resp->buffer[tlv.start] != TRAP_PACKET_V1)
+		resp->buffer[tlv.start] != TRAP_PACKET)
 		return FAIL;
 	/* Enterprise OID */
 	if (parseTLV(resp->buffer, tlv.nstart, &tlv) !=SUCCESS ||

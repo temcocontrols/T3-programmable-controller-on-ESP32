@@ -204,10 +204,10 @@ int parseTLV(unsigned char *msg, int index, tlvStructType *tlv)
 		case GET_NEXT_REQUEST:
 		case SET_REQUEST:
 		case GET_RESPONSE:
-		case TRAP_PACKET_V1:
-		case TRAP_PACKET_V2C:
-		case GET_BULK_REQUEST:
+		case TRAP_PACKET:
+		case GET_BULK:
 		case INFORM_REQUEST:
+		case SNMPV2_TRAP:
 			tlv->nstart = tlv->vstart;
 			break;
 		case NULL_ITEM:

@@ -16,12 +16,14 @@
 #include <netdb.h>
 #include <unistd.h>
 
-#include "esp_log.h"
 #include "snmp_agent.h"
+#include "mibutil.h"
+#include "endian.h"
+
+#include "esp_log.h"
 #include "app_log.h"
 #include "mbedtls/asn1.h"
 #include "mbedtls/asn1write.h"
-#include "mibutil.h"
 
 static const char *TAG = "SnmpAgent";
 
@@ -120,7 +122,6 @@ int snmpSet(MIB *thismib, unsigned char dataType, void *val, int vlen)
 					return error_code;
 			}
 			else {
-				ESP_LOGI(TAG, "intValue: %d", intval);
 				thismib->dataLen = INT_SIZE;
 				thismib->u.intval = intval;
 			}
@@ -159,7 +160,7 @@ int parseVarBind ( int reqType, struct messageStruct *request, struct messageStr
 	 */
 	ber2oid(request->buffer+name.vstart, name.len, &oid);
 	thismib = miblistgooid(mibTree, &oid);
-	if (reqType == GET_REQUEST || reqType == TRAP_PACKET_V1 || reqType == SET_REQUEST) {
+	if (reqType == GET_REQUEST || reqType == TRAP_PACKET || reqType == SET_REQUEST || reqType == SNMPV2_TRAP) {
 		seglen = name.nstart - name.start;
 		COPY_SEGMENT(name);
 	} else
@@ -186,7 +187,7 @@ int parseVarBind ( int reqType, struct messageStruct *request, struct messageStr
 
 	/* Parse the value TLV, and process accordingly */
 	parseTLV(request->buffer, request->index, &value);
-	if (reqType == TRAP_PACKET_V1 && request->buffer[value.start] != NULL_ITEM) {
+	if ((reqType == TRAP_PACKET || reqType == SNMPV2_TRAP) && request->buffer[value.start] != NULL_ITEM) {
 		seglen = value.nstart - value.start;  /* Retained */
 		COPY_SEGMENT(value);
 	}
@@ -209,7 +210,7 @@ int parseVarBind ( int reqType, struct messageStruct *request, struct messageStr
 				if (request->buffer[value.start] != NULL_ITEM)
 					 { errorStatus = BAD_VALUE; return INVALID_DATA_TYPE; }
 				else
-					if (reqType == GET_REQUEST || reqType == TRAP_PACKET_V1 || reqType == GET_NEXT_REQUEST) {
+					if (reqType == GET_REQUEST || reqType == TRAP_PACKET || reqType == GET_NEXT_REQUEST || reqType == SNMPV2_TRAP) {
 						switch (snmpGet(thismib, response, &len)) {
 							case SUCCESS: break;
 							case BUFFER_FULL:
@@ -307,6 +308,7 @@ static int parseRequest ( char *commstr )
 {
 	int ret, seglen, size = 0, reqType, reqLoc, reqLen, errStatusLoc, errIndexLoc;
 	tlvStructType tlv;
+	int nonRepeaters = 0, maxRepetitions = 0;
 
 	if (request.index >= request.len) return ILLEGAL_LENGTH;
 	if ( (ret=parseTLV(request.buffer, request.index, &tlv)) != SUCCESS) return ret;
@@ -319,6 +321,7 @@ static int parseRequest ( char *commstr )
 	reqLoc = tlv.start; reqLen = seglen + tlv.len;  /* Holds the Request-PDU */
 	COPY_SEGMENT(tlv);
 
+	/* Response PDU type */
 	response.buffer[reqLoc] = GET_RESPONSE;
 
 	/* Parse Request ID */
@@ -328,25 +331,172 @@ static int parseRequest ( char *commstr )
 	size += seglen;
 	COPY_SEGMENT(tlv);
 
-	/* Parse Error Status */
-	if (parseTLV(request.buffer, request.index, &tlv) != SUCCESS ||
-		request.buffer[tlv.start]!=INTEGER || tlv.len!=1 ||
-		request.buffer[tlv.vstart]!='\0') return ILLEGAL_ERR_STATUS;
-	errStatusLoc = tlv.vstart;
-	seglen = tlv.nstart - tlv.start;
-	size += seglen;
-	COPY_SEGMENT(tlv);
+	/* Handle GET_BULK which has different header fields: non-repeaters and max-repetitions */
+	if (reqType == GET_BULK) {
+		/* Parse non-repeaters */
+		if (parseTLV(request.buffer, request.index, &tlv) != SUCCESS ||
+			request.buffer[tlv.start] != INTEGER) return ILLEGAL_DATA;
+		nonRepeaters = (int) getValue(request.buffer + tlv.vstart, tlv.len, INTEGER);
+		request.index += (tlv.nstart - tlv.start); /* skip in request */
 
-	/* Parse Error Index */
-	if (parseTLV(request.buffer, request.index, &tlv) != SUCCESS ||
-		request.buffer[tlv.start]!=INTEGER || tlv.len!=1 ||
-		request.buffer[tlv.vstart]!='\0') return ILLEGAL_ERR_INDEX;
-	errIndexLoc = tlv.vstart;
-	seglen = tlv.nstart - tlv.start;
-	size += seglen;
-	COPY_SEGMENT(tlv);
+		/* Parse max-repetitions */
+		if (parseTLV(request.buffer, request.index, &tlv) != SUCCESS ||
+			request.buffer[tlv.start] != INTEGER) return ILLEGAL_DATA;
+		maxRepetitions = (int) getValue(request.buffer + tlv.vstart, tlv.len, INTEGER);
+		request.index += (tlv.nstart - tlv.start); /* skip in request */
 
-	ret = parseSequenceOf(reqType, &request, &response);
+		/* Insert Error Status = 0 and Error Index = 0 into response */
+		/* Error Status */
+		response.buffer[response.index++] = INTEGER;
+		response.buffer[response.index++] = 1;
+		response.buffer[response.index++] = 0;
+		errStatusLoc = response.index - 1;
+		/* Error Index */
+		response.buffer[response.index++] = INTEGER;
+		response.buffer[response.index++] = 1;
+		response.buffer[response.index++] = 0;
+		errIndexLoc = response.index - 1;
+		size += 6; /* two small INTEGER TLVs */
+	}
+	else {
+		/* Parse Error Status */
+		if (parseTLV(request.buffer, request.index, &tlv) != SUCCESS ||
+			request.buffer[tlv.start]!=INTEGER || tlv.len!=1 ||
+			request.buffer[tlv.vstart]!='\0') return ILLEGAL_ERR_STATUS;
+		errStatusLoc = tlv.vstart;
+		seglen = tlv.nstart - tlv.start;
+		size += seglen;
+		COPY_SEGMENT(tlv);
+
+		/* Parse Error Index */
+		if (parseTLV(request.buffer, request.index, &tlv) != SUCCESS ||
+			request.buffer[tlv.start]!=INTEGER || tlv.len!=1 ||
+			request.buffer[tlv.vstart]!='\0') return ILLEGAL_ERR_INDEX;
+		errIndexLoc = tlv.vstart;
+		seglen = tlv.nstart - tlv.start;
+		size += seglen;
+		COPY_SEGMENT(tlv);
+	}
+
+	if (reqType == GET_BULK) {
+		/* Full GETBULK: build a varbind list using vblistAdd. For each
+		   requested OID, perform GET_NEXT semantics. Non-repeaters are
+		   returned once; repeaters are returned up to maxRepetitions. */
+		tlvStructType seq;
+		int idx, vcount = 0, i, rep;
+		OID oidarray[32]; /* support up to 32 varbinds in request */
+
+		if (parseTLV(request.buffer, request.index, &seq) != SUCCESS ||
+			request.buffer[seq.start] != SEQUENCE_OF) return ILLEGAL_DATA;
+		idx = seq.vstart;
+		while (idx < request.len && vcount < 32) {
+			tlvStructType vb, name;
+			if (parseTLV(request.buffer, idx, &vb) != SUCCESS ||
+				request.buffer[vb.start] != SEQUENCE) break;
+			/* name TLV */
+			if (parseTLV(request.buffer, vb.vstart, &name) != SUCCESS ||
+				request.buffer[name.start] != OBJECT_IDENTIFIER) break;
+			ber2oid(request.buffer + name.vstart, name.len, &oidarray[vcount]);
+			vcount++;
+			idx = vb.nstart; /* move to next varbind */
+		}
+
+		/* Prepare a temporary varbind list */
+		struct messageStruct vblist;
+		static unsigned char vbBuffer[VB_BUFFER_SIZE];
+		vblist.buffer = vbBuffer; vblist.size = VB_BUFFER_SIZE;
+		vblistReset(&vblist);
+
+		/* current pointers per requested OID */
+		MIB *current[32];
+		char nameStr[MIB_DATA_SIZE];
+		char valOidStr[MIB_DATA_SIZE];
+		char valBerStr[MIB_DATA_SIZE];
+		for (i = 0; i < vcount; i++) {
+			MIB *m = miblistgooid(mibTree, &oidarray[i]);
+			if (m != NULL) current[i] = miblistgonext(mibTree);
+			else current[i] = miblistgetthis(mibTree);
+		}
+
+		/* Non-repeaters: one GET_NEXT each */
+		for (i = 0; i < vcount && i < nonRepeaters; i++) {
+			if (current[i] == NULL) {
+				/* per RFC, return value as NULL for end-of-mib */
+				oid2str(&oidarray[i], nameStr);
+				vblistAdd(&vblist, nameStr, NULL_ITEM, NULL, 0);
+				continue;
+			}
+			oid2str(&current[i]->oid, nameStr);
+			switch (current[i]->dataType) {
+				case OBJECT_IDENTIFIER:
+					ber2str(current[i]->u.octetstring, current[i]->dataLen, valBerStr);
+					vblistAdd(&vblist, nameStr, OBJECT_IDENTIFIER, valBerStr, 0);
+					break;
+				case OCTET_STRING:
+				case IP_ADDRESS:
+					vblistAdd(&vblist, nameStr, current[i]->dataType, current[i]->u.octetstring, current[i]->dataLen);
+					break;
+				case INTEGER:
+				case TIMETICKS:
+				case COUNTER:
+				case GAUGE: {
+					uint32_t tmp = (uint32_t) current[i]->u.intval;
+					vblistAdd(&vblist, nameStr, current[i]->dataType, &tmp, INT_SIZE);
+					break; }
+				default:
+					vblistAdd(&vblist, nameStr, NULL_ITEM, NULL, 0);
+			}
+			/* advance current pointer for repeaters later */
+			if (current[i] != NULL) {
+				OID tmpoid = current[i]->oid;
+				miblistgooid(mibTree, &tmpoid);
+				current[i] = miblistgonext(mibTree);
+			}
+		}
+
+		/* Repeaters: up to maxRepetitions rows */
+		for (rep = 0; rep < maxRepetitions; rep++) {
+			for (i = nonRepeaters; i < vcount; i++) {
+				if (current[i] == NULL) continue;
+				oid2str(&current[i]->oid, nameStr);
+				switch (current[i]->dataType) {
+					case OBJECT_IDENTIFIER:
+						ber2str(current[i]->u.octetstring, current[i]->dataLen, valBerStr);
+						vblistAdd(&vblist, nameStr, OBJECT_IDENTIFIER, valBerStr, 0);
+						break;
+					case OCTET_STRING:
+					case IP_ADDRESS:
+						vblistAdd(&vblist, nameStr, current[i]->dataType, current[i]->u.octetstring, current[i]->dataLen);
+						break;
+					case INTEGER:
+					case TIMETICKS:
+					case COUNTER:
+					case GAUGE: {
+						uint32_t tmp = (uint32_t) current[i]->u.intval;
+						vblistAdd(&vblist, nameStr, current[i]->dataType, &tmp, INT_SIZE);
+						break; }
+					default:
+						vblistAdd(&vblist, nameStr, NULL_ITEM, NULL, 0);
+				}
+				/* advance to next instance for this column */
+				if (current[i] != NULL) {
+					OID tmpoid = current[i]->oid;
+					miblistgooid(mibTree, &tmpoid);
+					current[i] = miblistgonext(mibTree);
+				}
+			}
+		}
+
+		/* Append built varbind list into response */
+		if ((response.index + vblist.len) >= RESPONSE_BUFFER_SIZE) {
+			return BUFFER_FULL;
+		}
+		memcopy(response.buffer + response.index, vblist.buffer, vblist.len);
+		response.index += vblist.len;
+		ret = response.index;
+	} else {
+		ret = parseSequenceOf(reqType, &request, &response);
+	}
 	if (ret < 0) {
 		if ( errorIndex!=0 ) {
 			/* In the event of a parsing error, the Request-PDU is restored
@@ -389,20 +539,15 @@ static int parseVersion ( )
 {
 	int seglen, size;
 	tlvStructType tlv;
-	if (request.index >= request.len) {
-		return ILLEGAL_LENGTH;
-	}
-	if ( parseTLV(request.buffer, request.index, &tlv) != SUCCESS || request.buffer[tlv.start] != INTEGER || (request.buffer[tlv.vstart] != SNMP_V1 && request.buffer[tlv.vstart] != SNMP_V2C) ) {
-		return ILLEGAL_DATA;
-	}
+
+	if (request.index >= request.len) return ILLEGAL_LENGTH;
+	if (parseTLV(request.buffer, request.index, &tlv) != SUCCESS ||
+		request.buffer[tlv.start] != INTEGER ||
+		(request.buffer[tlv.vstart] != SNMP_V1 && request.buffer[tlv.vstart] != SNMP_V2C)) return ILLEGAL_DATA;
 	seglen = tlv.nstart - tlv.start;
 	COPY_SEGMENT(tlv);
 	size = parseCommunity();
-	if (size >= 0) {
-		return (size + seglen);
-	} else {
-		return size;
-	}
+	if (size >= 0) return (size + seglen); else return size;
 }
 
 int parseSNMPMessage ( )
@@ -410,24 +555,15 @@ int parseSNMPMessage ( )
 	int  seglen, size, respLoc;
 	tlvStructType tlv;
 
-	if (request.index >= request.len) {
-		return ILLEGAL_LENGTH;
-	}
-	if ((size=parseTLV(request.buffer, request.index, &tlv)) != SUCCESS) {
-		return size;
-	}
-	if (request.buffer[tlv.start] != SEQUENCE_OF) {
-		return ILLEGAL_DATA;
-	}
+	if (request.index >= request.len) return ILLEGAL_LENGTH;
+	if ((size=parseTLV(request.buffer, request.index, &tlv)) != SUCCESS) return size;
+	if (request.buffer[tlv.start] != SEQUENCE_OF) return ILLEGAL_DATA;
 	seglen = tlv.vstart - tlv.start;
 	respLoc = tlv.start;
 	COPY_SEGMENT(tlv);
 	size = parseVersion();
-	if (size >= 0) {
-		return (size + insertRespLen(&request, tlv.start, &response, respLoc, size) + 1);
-	} else {
-		return size;
-	}
+	if (size >= 0) return (size + insertRespLen(&request, tlv.start, &response, respLoc, size) + 1);
+		else return size;
 }
 
 void setCheckCommunity ( Boolean (*func)(char *commstr, int reqtype) )
@@ -567,7 +703,7 @@ int vblistParse(int reqType, struct messageStruct *vblist)
 int snmp_v1_trap_build(struct messageStruct *trap, char *entoid, char *agentaddr, int gen, int spec, struct messageStruct *vblist)
 {
 	/* PDU header */
-	trap->buffer[0] = TRAP_PACKET_V1;
+	trap->buffer[0] = TRAP_PACKET;
 	trap->buffer[1] = '\0';  /* Set length field to zero first */
 
 	/* Enterprise OID */
