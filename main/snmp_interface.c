@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "wifi.h"
+#include "types.h"
 
 //=================================== Defines ===================================
 // SNMP agent configuration.
@@ -45,7 +46,7 @@ char trapDstAddr[16] = TRAP_DST_ADDR;
 MIB *thismib = NULL;
 
 // Temporary variables
-uint32_t u32;
+uint32_t u32_value;
 
 static bool snmp_started = false;
 
@@ -68,6 +69,10 @@ int t3_write_variable(MIB *thismib, void *ptr, int len);
 
 void snmp_agent_init(void);
 void update_system_ip_address(void);
+
+int get_max_input_instance();
+int get_max_output_instance();
+int get_max_variable_instance();
 
 //============================= Function Definitions ===========================
 
@@ -154,13 +159,13 @@ static void init_standard_mibs(void)
 
     // sysObjectID Entry
     thismib = miblistadd(mibTree, "B.1.2.0", OBJECT_IDENTIFIER, RD_ONLY,  entOIDBer, 0); // set length to 0 first
-    u32 = str2ber(enterpriseOID, entOIDBer);
-    mibsetvalue(thismib, (void *)entOIDBer, (int)u32); // proper length set
+    u32_value = str2ber(enterpriseOID, entOIDBer);
+    mibsetvalue(thismib, (void *)entOIDBer, (int)u32_value); // proper length set
 
     // sysUptime Entry
-    u32 = 0;
+    u32_value = 0;
     thismib = miblistadd(mibTree, "B.1.3.0", TIMETICKS, RD_ONLY, NULL, 0);
-    mibsetvalue(thismib, &u32, 0);
+    mibsetvalue(thismib, &u32_value, 0);
     mibsetcallback(thismib, get_uptime, NULL);
 
     // sysContact Entry
@@ -177,8 +182,8 @@ static void init_standard_mibs(void)
 
     // sysServices Entry
     thismib = miblistadd(mibTree, "B.1.7.0", INTEGER, RD_ONLY, NULL, 0);
-    u32 = 5;
-    mibsetvalue(thismib, &u32, 0);
+    u32_value = 5;
+    mibsetvalue(thismib, &u32_value, 0);
 }
 
 static void init_private_mibs(void)
@@ -191,18 +196,22 @@ static void init_private_mibs(void)
     /* categories through SNMP                         */
     /*-------------------------------------------------*/
 
-    app_log(TAG, "Initializing T3 SNMP MIB tree (instances=%d)", T3_MAX_INSTANCES);
+    int max_input_instance = get_max_input_instance();
+    int max_output_instance = get_max_output_instance();
+    int max_variable_instance = get_max_variable_instance();
+
+    app_log(TAG, "Initializing T3 SNMP MIB tree (instances input=%d, output=%d, variable=%d)", max_input_instance, max_output_instance, max_variable_instance);
 
     /* --- T3 Input Objects (Read-Only) --- */
-    for (int idx = 0; idx < T3_MAX_INSTANCES; ++idx)
+    for (int idx = 0; idx < max_input_instance; ++idx)
     {
         /* index (INTEGER, RD_ONLY) */
         snprintf(oid_buffer, sizeof(oid_buffer), "%s%s.%u", T3_INPUTS_OID_BASE, T3_INPUT_INDEX_OID, idx);
         thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
         if (thismib)
         {
-            u32 = idx;
-            mibsetvalue(thismib, &u32, 0);
+            u32_value = idx;
+            mibsetvalue(thismib, &u32_value, 0);
             mibsetcallback(thismib, t3_read_input, NULL);
             //app_log(TAG, "Added MIB for Input index %d: OID=%s", idx, oid_buffer);
         }
@@ -212,8 +221,8 @@ static void init_private_mibs(void)
         thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
         if (thismib)
         {
-            u32 = T3_CFGTYPE_BI; // Default to binary input
-            mibsetvalue(thismib, &u32, 0);
+            u32_value = T3_CFGTYPE_BI; // Default to binary input
+            mibsetvalue(thismib, &u32_value, 0);
             mibsetcallback(thismib, t3_read_input, NULL);
             //app_log(TAG, "Added MIB for Input cfgType %d: OID=%s", idx, oid_buffer);
         }
@@ -251,8 +260,8 @@ static void init_private_mibs(void)
         thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
         if (thismib)
         {
-            u32 = T3_UNITS_NONE;
-            mibsetvalue(thismib, &u32, 0);
+            u32_value = T3_UNITS_NONE;
+            mibsetvalue(thismib, &u32_value, 0);
             mibsetcallback(thismib, t3_read_input, NULL);
             //app_log(TAG, "Added MIB for Input units %d: OID=%s", idx, oid_buffer);
         }
@@ -263,26 +272,26 @@ static void init_private_mibs(void)
     vTaskDelay(pdMS_TO_TICKS(1000));
 
     /* --- T3 Output Objects (Read-Write) --- */
-    for (int idx = 0; idx < T3_MAX_INSTANCES; ++idx)
+    for (int idx = 0; idx < max_output_instance; ++idx)
     {
         /* index (INTEGER, RD_ONLY) */
         snprintf(oid_buffer, sizeof(oid_buffer), "%s%s.%u", T3_OUTPUTS_OID_BASE, T3_OUTPUT_INDEX_OID, idx);
         thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
         if (thismib)
         {
-            u32 = idx;
-            mibsetvalue(thismib, &u32, 0);
+            u32_value = idx;
+            mibsetvalue(thismib, &u32_value, 0);
             mibsetcallback(thismib, t3_read_output, NULL);
         }
 
         /* cfgType (INTEGER, RD_ONLY) */
         snprintf(oid_buffer, sizeof(oid_buffer), "%s%s.%u", T3_OUTPUTS_OID_BASE, T3_OUTPUT_CFGTYPE_OID, idx);
-        thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
+        thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_WR, NULL, 0);
         if (thismib)
         {
-            u32 = T3_CFGTYPE_BO; // Default to binary output
-            mibsetvalue(thismib, &u32, 0);
-            mibsetcallback(thismib, t3_read_output, NULL);
+            u32_value = T3_CFGTYPE_BO; // Default to binary output
+            mibsetvalue(thismib, &u32_value, 0);
+            mibsetcallback(thismib, t3_read_output, t3_write_output);
         }
 
         /* analogVal (INTEGER, RD_WR) */
@@ -315,34 +324,34 @@ static void init_private_mibs(void)
         thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
         if (thismib)
         {
-            u32 = T3_UNITS_NONE;
-            mibsetvalue(thismib, &u32, 0);
+            u32_value = T3_UNITS_NONE;
+            mibsetvalue(thismib, &u32_value, 0);
             mibsetcallback(thismib, t3_read_output, NULL);
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // small delay to avoid watchdog reset
     }
 
     /* --- T3 Variable Objects (Read-Write) --- */
-    for (int idx = 0; idx < T3_MAX_INSTANCES; ++idx)
+    for (int idx = 0; idx < max_variable_instance; ++idx)
     {
         /* index (INTEGER, RD_ONLY) */
         snprintf(oid_buffer, sizeof(oid_buffer), "%s%s.%u", T3_VARIABLES_OID_BASE, T3_VARIABLE_INDEX_OID, idx);
         thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
         if (thismib)
         {
-            u32 = idx;
-            mibsetvalue(thismib, &u32, 0);
+            u32_value = idx;
+            mibsetvalue(thismib, &u32_value, 0);
             mibsetcallback(thismib, t3_read_variable, NULL);
         }
 
         /* cfgType (INTEGER, RD_ONLY) */
         snprintf(oid_buffer, sizeof(oid_buffer), "%s%s.%u", T3_VARIABLES_OID_BASE, T3_VARIABLE_CFGTYPE_OID, idx);
-        thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
+        thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_WR, NULL, 0);
         if (thismib)
         {
-            u32 = T3_CFGTYPE_VAR_FLOAT; // Default to float variable
-            mibsetvalue(thismib, &u32, 0);
-            mibsetcallback(thismib, t3_read_variable, NULL);
+            u32_value = T3_CFGTYPE_VAR_FLOAT; // Default to float variable
+            mibsetvalue(thismib, &u32_value, 0);
+            mibsetcallback(thismib, t3_read_variable, t3_write_variable);
         }
 
         /* intVal (INTEGER, RD_WR) */
@@ -375,8 +384,8 @@ static void init_private_mibs(void)
         thismib = miblistadd(mibTree, oid_buffer, INTEGER, RD_ONLY, NULL, 0);
         if (thismib)
         {
-            u32 = T3_UNITS_NONE;
-            mibsetvalue(thismib, &u32, 0);
+            u32_value = T3_UNITS_NONE;
+            mibsetvalue(thismib, &u32_value, 0);
             mibsetcallback(thismib, t3_read_variable, NULL);
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // small delay to avoid watchdog reset
@@ -639,6 +648,13 @@ int t3_write_output(MIB *thismib, void *ptr, int len)
         memcpy(value.string_value, ptr, len);
         value.is_string = true;
     }
+    else if (field == T3_FIELD_CFGTYPE && thismib->dataType == INTEGER)
+    {
+        int32_t intval = *(int32_t *)ptr;
+        //app_log(TAG, "Write output %u cfgType value: %d", instance, intval);
+        value.int_value = intval;
+        value.is_integer = true;
+    }
     else
     {
         return BAD_VALUE;
@@ -682,6 +698,12 @@ int t3_write_variable(MIB *thismib, void *ptr, int len)
         int32_t intval = *(int32_t *)ptr;
         value.float_value = intval;
         value.is_float = true;
+    }
+    else if (field == T3_FIELD_CFGTYPE  && thismib->dataType == INTEGER)
+    {
+        uint32_t intval = *(uint32_t *)ptr;
+        value.int_value = intval;
+        value.is_integer = true;
     }
     else if (field == T3_FIELD_DESC && thismib->dataType == OCTET_STRING)
     {
@@ -848,4 +870,22 @@ void send_master_trap_autonomous_notification(const char* local_ip, const char* 
     // Send the master trap
     // Note: sysUpTime and sysTime are automatically included by snmp_send_v2_flexible
     snmp_send_v2_flexible(local_ip, dst_ip, trap_oid, 10, varbinds, varbind_count, 0);
+}
+
+int get_max_input_instance()
+{
+    extern U8_T base_in;
+    return (base_in > T3_MAX_INSTANCES) ? T3_MAX_INSTANCES : base_in;
+}
+
+int get_max_output_instance()
+{
+    extern U8_T base_out;
+    return (base_out > T3_MAX_INSTANCES) ? T3_MAX_INSTANCES : base_out;
+}
+
+int get_max_variable_instance()
+{
+    extern U8_T base_var;
+    return (base_var > T3_MAX_INSTANCES) ? T3_MAX_INSTANCES : base_var;
 }

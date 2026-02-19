@@ -70,7 +70,6 @@
 
 //#include "types.h"
 
-#include "app_log.h"
 
 #define PORT CONFIG_EXAMPLE_PORT
 

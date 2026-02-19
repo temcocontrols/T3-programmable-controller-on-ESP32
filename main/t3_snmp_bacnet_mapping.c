@@ -17,6 +17,10 @@
 
 //=================================== Defines ===================================
 
+bool set_config_type(t3_object_type_t type, uint32_t instance, uint32_t cfg_type);
+int fetch_config_type(t3_object_type_t type, int digital_analog, int range);
+int fetch_units_type(t3_object_type_t type, int digital_analog, int range);
+
 //=================================== Variables =================================
 
 // Log tag
@@ -496,7 +500,22 @@ int t3_write_output_value(uint32_t instance, uint32_t field, const t3_data_value
             }
         }
         break;
-        
+
+        case T3_FIELD_CFGTYPE:
+        {
+            if (value->is_integer)
+            {
+                bool result = set_config_type(T3_OBJECT_OUTPUT, instance, value->int_value);
+                if (!result)
+                {
+                    return T3_ERROR_INVALID_DATA;
+                }
+                return T3_SUCCESS;
+            }
+            return T3_ERROR_INVALID_CFGTYPE;
+        }
+        break;
+
         default:
         {
             return T3_ERROR_INVALID_FIELD;
@@ -559,7 +578,21 @@ int t3_write_variable_value(uint32_t instance, uint32_t field, const t3_data_val
             }
         }
         break;
-        
+
+        case T3_FIELD_CFGTYPE:
+        {
+            if (value->is_integer)
+            {
+                bool result = set_config_type(T3_OBJECT_VARIABLE, instance, value->int_value);
+                if (!result)
+                {
+                    return T3_ERROR_INVALID_DATA;
+                }
+                return T3_SUCCESS;
+            }
+        }
+        break;
+
         default:
         {
             return T3_ERROR_INVALID_FIELD;
@@ -730,4 +763,122 @@ int fetch_units_type(t3_object_type_t type, int digital_analog, int range)
         }
     }
     return T3_UNITS_NONE;
+}
+
+bool set_config_type(t3_object_type_t type, uint32_t instance, uint32_t cfg_type)
+{
+    if(!t3_is_valid_instance(instance) || !t3_is_valid_cfgtype(cfg_type))
+    {
+        return false;
+    }
+    
+    Str_points_ptr ptr;
+    int8_t* range;
+    int8_t* digital_analog;
+
+    if(type == T3_OBJECT_OUTPUT)
+    {
+        if(instance >= MAX_OUTS) return false;
+        ptr = put_io_buf(OUT, instance);
+        range = (int8_t*)&ptr.pout->range;
+        digital_analog = (int8_t*) &ptr.pout->digital_analog;
+    }
+    else if(type == T3_OBJECT_VARIABLE)
+    {
+        if(instance >= MAX_VARS) return false;
+        ptr = put_io_buf(VAR, instance);
+        range = (int8_t*) &ptr.pvar->range;
+        digital_analog = (int8_t*) &ptr.pvar->digital_analog;
+    }
+    else
+    {
+        return false;
+    }
+
+    if(cfg_type == T3_CFGTYPE_BI || cfg_type == T3_CFGTYPE_BO)
+    {
+        *range = 1;
+        *digital_analog = DIGITAL_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AI_0_5V)
+    {
+        *range = V0_5;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AI_0_10V)
+    {
+        *range = V0_10_IN;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AI_4_20MA)
+    {
+        *range = I0_20ma;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AI_NEG10_10V)
+    {
+        *range = V0_10_IN; // is it correct ? specs 4.1 says nothing about range for this cfg type
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AI_0_100)
+    {
+        *range = I0_100Amps;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AO_0_10V)
+    {
+        *range = V0_10;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AO_4_20MA)
+    {
+        *range = I_0_20ma;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_AO_0_100)
+    {
+        *range = P0_100;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_VAR_INT)
+    {
+        *range = 127; // TBD: do we need to set range for variable ? specs 4.1 says nothing
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_VAR_FLOAT)
+    {
+        *range = 127; // TBD: do we need to set range for variable ? specs 4.1 says nothing
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_VAR_STRING)
+    {
+        *range = 127; // TBD: do we need to set range for variable ? specs 4.1 says nothing
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_FREQ_OUTPUT)
+    {
+        *range = 127; // TBD: do we need to set range for frequency output ? specs 4.1 says nothing
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+    else if(cfg_type == T3_CFGTYPE_PWM_OUTPUT)
+    {
+        *range = P0_100_PWM;
+        *digital_analog = ANALOG_VALUE;
+        return true;
+    }
+
+    return false;
 }
