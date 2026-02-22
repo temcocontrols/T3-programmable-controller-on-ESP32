@@ -85,7 +85,7 @@ typedef enum {
     T3_CFGTYPE_VAR_STRING   = 13,  // Variable String
     T3_CFGTYPE_PWM_OUTPUT   = 14,  // PWM Output
     T3_CFGTYPE_FREQ_OUTPUT  = 15,  // Frequency Output
-    T3_CFGTYPE_RESERVED     = 14   // Reserved
+    T3_CFGTYPE_RESERVED     = 16   // Reserved
 } t3_cfgtype_t;
 
 /* Engineering Units Enumeration per specification */

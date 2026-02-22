@@ -426,6 +426,10 @@ static int parseRequest ( char *commstr )
 				vblistAdd(&vblist, nameStr, NULL_ITEM, NULL, 0);
 				continue;
 			}
+			/* Invoke GET callback to populate current data */
+			if (current[i]->get != NULL) {
+				current[i]->get(current[i]);
+			}
 			oid2str(&current[i]->oid, nameStr);
 			switch (current[i]->dataType) {
 				case OBJECT_IDENTIFIER:
@@ -458,6 +462,10 @@ static int parseRequest ( char *commstr )
 		for (rep = 0; rep < maxRepetitions; rep++) {
 			for (i = nonRepeaters; i < vcount; i++) {
 				if (current[i] == NULL) continue;
+				/* Invoke GET callback to populate current data */
+				if (current[i]->get != NULL) {
+					current[i]->get(current[i]);
+				}
 				oid2str(&current[i]->oid, nameStr);
 				switch (current[i]->dataType) {
 					case OBJECT_IDENTIFIER:
