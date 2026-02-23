@@ -27,12 +27,12 @@ extern lv_obj_t * ui_Label68;
 extern void ui_event_ChangeDateBtn(lv_event_t * e);
 extern lv_obj_t * ui_ChangeDateBtn;
 extern lv_obj_t * ui_Label70;
+extern void ui_event_RefreshBtn(lv_event_t * e);
 extern lv_obj_t * ui_RefreshBtn;
 extern lv_obj_t * ui_Label17;
+extern void ui_event_SyncWithPcBtn(lv_event_t * e);
 extern lv_obj_t * ui_SyncWithPcBtn;
 extern lv_obj_t * ui_Label18;
-extern lv_obj_t * ui_UpdateLastServerSyncBtn2;
-extern lv_obj_t * ui_Label24;
 extern lv_obj_t * ui_SyncLocalPcCheckbox2;
 extern lv_obj_t * ui_Panel3;
 extern lv_obj_t * ui_Dropdown5;
@@ -41,6 +41,7 @@ extern lv_obj_t * ui_Label20;
 extern lv_obj_t * ui_Label21;
 extern lv_obj_t * ui_Label19;
 extern lv_obj_t * ui_Dropdown4;
+extern void ui_event_UpdateLastServerSyncBtn(lv_event_t * e);
 extern lv_obj_t * ui_UpdateLastServerSyncBtn;
 extern lv_obj_t * ui_Label23;
 extern lv_obj_t * ui_TimeSettingPopUp;
@@ -53,6 +54,9 @@ extern lv_obj_t * ui_Label67;
 extern lv_obj_t * ui_Dropdown8;
 extern void ui_event_Calendar3(lv_event_t * e);
 extern lv_obj_t * ui_Calendar3;
+extern void ui_event_TimeSyncSetupUpdateBtn(lv_event_t * e);
+extern lv_obj_t * ui_TimeSyncSetupUpdateBtn;
+extern lv_obj_t * ui_Label72;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

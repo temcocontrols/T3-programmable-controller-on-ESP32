@@ -26,7 +26,6 @@ extern void ui_event_WifiEnSw(lv_event_t * e);
 extern lv_obj_t * ui_WifiEnSw;
 extern lv_obj_t * ui_WifiSsidPanel;
 extern lv_obj_t * ui_SSIDStr;
-extern void ui_event_SSIDText(lv_event_t * e);
 extern lv_obj_t * ui_SSIDText;
 extern void ui_event_Dropdown2(lv_event_t * e);
 extern lv_obj_t * ui_Dropdown2;

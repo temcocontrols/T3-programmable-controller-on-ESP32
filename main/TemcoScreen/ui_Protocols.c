@@ -86,7 +86,7 @@ void ui_event_WifiUpdateButton3(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        UpdateWifiConfig(e);
+        UpdateProtocolFunc(e);
         _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 1000, 100, &ui_MainMenu_screen_init);
     }
 }
@@ -290,7 +290,7 @@ void ui_Protocols_screen_init(void)
     ui_WifiUpdateButton3 = lv_button_create(ui_ProtocolContainer);
     lv_obj_set_width(ui_WifiUpdateButton3, 100);
     lv_obj_set_height(ui_WifiUpdateButton3, 30);
-    lv_obj_set_x(ui_WifiUpdateButton3, 180);
+    lv_obj_set_x(ui_WifiUpdateButton3, 181);
     lv_obj_set_y(ui_WifiUpdateButton3, 120);
     lv_obj_set_align(ui_WifiUpdateButton3, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_WifiUpdateButton3, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags

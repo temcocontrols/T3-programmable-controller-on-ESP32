@@ -1,0 +1,29 @@
+{
+    "idf.espIdfPathWin": "D:/Espressif/frameworks/esp-idf-v4.4.4/",
+    "idf.toolsPathWin": "D:\\Espressif",
+    "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.8.7\\python.exe",
+    "files.associations": {
+        "bacnet.h": "c",
+        "datetime.h": "c",
+        "i2c_task.h": "c",
+        "gpio.h": "c",
+        "airlab.h": "c",
+        "define.h": "c",
+        "wifi.h": "c",
+        "user_data.h": "c",
+        "lcd_tstat.h": "c",
+        "modbus.h": "c",
+        "menu.h": "c",
+        "types.h": "c",
+        "lcdtheme.h": "c",
+        "lcd.h": "c",
+        "menumain.h": "c",
+        "menuidle.h": "c",
+        "menuset.h": "c",
+        "uart.h": "c",
+        "sensirion_common.h": "c",
+        "controls.h": "c"
+    },
+    "idf.flashType": "UART",
+    "idf.currentSetup": "D:/Espressif/frameworks/esp-idf-v4.4.4/"
+}

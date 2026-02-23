@@ -23,12 +23,6 @@
 #define LCD_TASK_DELAY_MS 10
 
 char debugbuf[100];
-Str_points_ptr Temperature_IndorrDataPt;
-Str_points_ptr Humidity_IutdorrDataPt;
-Str_points_ptr Temperature_SetpointDataPt;
-
-static int8_t last_hour   = -1;
-static int8_t last_minute = -1;
 
 void my_disp_flush(lv_display_t  *disp,
                    const lv_area_t *area,
@@ -184,69 +178,6 @@ void print_all_ram_usage(void)
     uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
 }
 
-
-int32_t Temperature_InVal     = 0;
-int32_t Humidity_InVal        = 0;
-int32_t Temperature_SetpointVal= 0;
-
-void ui_update_time_from_rtc_if_changed(const PCF_DateTime *rtc)
-{
-    if(rtc == NULL)
-        return;
-
-    /* Check change */
-    if(rtc->hour == last_hour &&
-       rtc->minute == last_minute)
-    {
-        return;
-    }
-
-    /* Update cache */
-    last_hour   = rtc->hour;
-    last_minute = rtc->minute;
-
-    char time_buf[13];
-    if(last_hour >= 12)
-    {
-        sprintf(time_buf, "%02d:%02d PM",
-                 (last_hour == 12) ? 12 : (last_hour - 12),
-                 last_minute);
-    }
-    else
-    {
-        sprintf(time_buf, "%02d:%02d AM",
-                 last_hour,
-                 last_minute);
-    }
-
-    /* Call existing UI API */
-    ui_update_time(time_buf);
-}
-
-void Lcd_UpdateData(void)
-{
-    if(Temperature_InVal != Temperature_IndorrDataPt.pin->value)
-    {
-        Temperature_InVal = Temperature_IndorrDataPt.pin->value;
-        ui_update_temperature(Temperature_IndorrDataPt.pin->value / 1000);
-        if(Temperature_IndorrDataPt.pin->range == 4 ) /* R10K_40_250DegF*/
-            ui_set_temperature_unit(1);
-        else
-            ui_set_temperature_unit(0);
-    }
-    if(Humidity_InVal != Humidity_IutdorrDataPt.pin->value)
-    {
-        Humidity_InVal = Humidity_IutdorrDataPt.pin->value;
-        ui_update_humidity(Humidity_IutdorrDataPt.pin->value );
-    }
-    if(Temperature_SetpointVal != Temperature_SetpointDataPt.pvar->value)
-    {
-        Temperature_SetpointVal = Temperature_SetpointDataPt.pvar->value;
-        ui_update_setpoint_arc(Temperature_SetpointDataPt.pvar->value / 1000);
-    }
-    ui_update_time_from_rtc_if_changed(&rtc_date);
-}
-
 void Lcd_Task(void *pvParameters)
 {
     // Initialize the LCD
@@ -266,27 +197,13 @@ void Lcd_Task(void *pvParameters)
 
     ui_init();
 
-    uint32_t delayCounter = 0;
-    Temperature_IndorrDataPt = put_io_buf(IN, 8); // VAR9 is for room temperature
-    Humidity_IutdorrDataPt = put_io_buf(IN, 10); // VAR11 is for room humidity
-    Temperature_SetpointDataPt = put_io_buf(VAR,0);
+    lv_Init_UserParameters();
 
     uart_write_bytes(UART_NUM_0, "LVGL Loop Start..\r\n", strlen("LVGL Loop Start..\r\n"));
     while (1)
     {
         lv_timer_handler();
-#if 0  // For debugging memory usage, print every 5 seconds
-        if ((delayCounter % 5000) == 0)
-        {
-            print_all_ram_usage();
-        }
-#endif
-        if(delayCounter % 1000 == 0)
-        {
-            Lcd_UpdateData();
-        }
-
-        delayCounter += LCD_TASK_DELAY_MS;
+        lv_Lcd_UpdateData();
 
         vTaskDelay(pdMS_TO_TICKS(LCD_TASK_DELAY_MS));
     }

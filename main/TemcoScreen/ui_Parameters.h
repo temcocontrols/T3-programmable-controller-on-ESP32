@@ -21,11 +21,9 @@ extern void ui_event_GotoMenuButton8(lv_event_t * e);
 extern lv_obj_t * ui_GotoMenuButton8;
 extern lv_obj_t * ui_Container1;
 extern lv_obj_t * ui_Panel4;
+extern void ui_event_ParameterUpdateBtn(lv_event_t * e);
+extern lv_obj_t * ui_ParameterUpdateBtn;
 extern lv_obj_t * ui_Label15;
-extern lv_obj_t * ui_Label11;
-extern lv_obj_t * ui_Label42;
-extern lv_obj_t * ui_Label43;
-extern lv_obj_t * ui_Label44;
 // CUSTOM VARIABLES
 extern lv_obj_t * uic_Parameters;
 

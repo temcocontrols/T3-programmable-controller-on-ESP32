@@ -13,7 +13,7 @@ lv_obj_t * ui_Dropdown9 = NULL;
 lv_obj_t * ui_Container3 = NULL;
 lv_obj_t * ui_SchedulePanelMain1 = NULL;
 lv_obj_t * ui_Panel8 = NULL;
-lv_obj_t * ui_SchedulePanel7 = NULL;
+lv_obj_t * ui_ScheduleEditPanel = NULL;
 lv_obj_t * ui_StateStr = NULL;
 lv_obj_t * ui_StateStr1 = NULL;
 lv_obj_t * ui_StateStr2 = NULL;
@@ -23,8 +23,7 @@ lv_obj_t * ui_StateStr5 = NULL;
 lv_obj_t * ui_StateStr6 = NULL;
 lv_obj_t * ui_StateStr7 = NULL;
 lv_obj_t * ui_ScheduleEditPanel1 = NULL;
-lv_obj_t * ui_StateStr9 = NULL;
-lv_obj_t * ui_Switch7 = NULL;
+lv_obj_t * ui_SchState1 = NULL;
 lv_obj_t * ui_ScheduleText1 = NULL;
 lv_obj_t * ui_ScheduleText2 = NULL;
 lv_obj_t * ui_ScheduleText3 = NULL;
@@ -33,8 +32,7 @@ lv_obj_t * ui_ScheduleText5 = NULL;
 lv_obj_t * ui_ScheduleText6 = NULL;
 lv_obj_t * ui_ScheduleText7 = NULL;
 lv_obj_t * ui_ScheduleEditPanel2 = NULL;
-lv_obj_t * ui_StateStr8 = NULL;
-lv_obj_t * ui_Switch8 = NULL;
+lv_obj_t * ui_SchState2 = NULL;
 lv_obj_t * ui_ScheduleText8 = NULL;
 lv_obj_t * ui_ScheduleText9 = NULL;
 lv_obj_t * ui_ScheduleText10 = NULL;
@@ -43,8 +41,7 @@ lv_obj_t * ui_ScheduleText12 = NULL;
 lv_obj_t * ui_ScheduleText13 = NULL;
 lv_obj_t * ui_ScheduleText14 = NULL;
 lv_obj_t * ui_ScheduleEditPanel3 = NULL;
-lv_obj_t * ui_StateStr10 = NULL;
-lv_obj_t * ui_Switch9 = NULL;
+lv_obj_t * ui_SchState3 = NULL;
 lv_obj_t * ui_ScheduleText15 = NULL;
 lv_obj_t * ui_ScheduleText16 = NULL;
 lv_obj_t * ui_ScheduleText17 = NULL;
@@ -53,8 +50,7 @@ lv_obj_t * ui_ScheduleText19 = NULL;
 lv_obj_t * ui_ScheduleText20 = NULL;
 lv_obj_t * ui_ScheduleText21 = NULL;
 lv_obj_t * ui_ScheduleEditPanel4 = NULL;
-lv_obj_t * ui_StateStr11 = NULL;
-lv_obj_t * ui_Switch10 = NULL;
+lv_obj_t * ui_SchState4 = NULL;
 lv_obj_t * ui_ScheduleText22 = NULL;
 lv_obj_t * ui_ScheduleText23 = NULL;
 lv_obj_t * ui_ScheduleText24 = NULL;
@@ -63,8 +59,7 @@ lv_obj_t * ui_ScheduleText26 = NULL;
 lv_obj_t * ui_ScheduleText27 = NULL;
 lv_obj_t * ui_ScheduleText28 = NULL;
 lv_obj_t * ui_ScheduleEditPanel5 = NULL;
-lv_obj_t * ui_StateStr12 = NULL;
-lv_obj_t * ui_Switch11 = NULL;
+lv_obj_t * ui_SchState5 = NULL;
 lv_obj_t * ui_ScheduleText29 = NULL;
 lv_obj_t * ui_ScheduleText30 = NULL;
 lv_obj_t * ui_ScheduleText31 = NULL;
@@ -73,8 +68,7 @@ lv_obj_t * ui_ScheduleText33 = NULL;
 lv_obj_t * ui_ScheduleText34 = NULL;
 lv_obj_t * ui_ScheduleText35 = NULL;
 lv_obj_t * ui_ScheduleEditPanel6 = NULL;
-lv_obj_t * ui_StateStr13 = NULL;
-lv_obj_t * ui_Switch12 = NULL;
+lv_obj_t * ui_SchState6 = NULL;
 lv_obj_t * ui_ScheduleText36 = NULL;
 lv_obj_t * ui_ScheduleText37 = NULL;
 lv_obj_t * ui_ScheduleText38 = NULL;
@@ -83,8 +77,7 @@ lv_obj_t * ui_ScheduleText40 = NULL;
 lv_obj_t * ui_ScheduleText41 = NULL;
 lv_obj_t * ui_ScheduleText42 = NULL;
 lv_obj_t * ui_ScheduleEditPanel7 = NULL;
-lv_obj_t * ui_StateStr14 = NULL;
-lv_obj_t * ui_Switch13 = NULL;
+lv_obj_t * ui_SchState7 = NULL;
 lv_obj_t * ui_ScheduleText43 = NULL;
 lv_obj_t * ui_ScheduleText44 = NULL;
 lv_obj_t * ui_ScheduleText45 = NULL;
@@ -93,8 +86,7 @@ lv_obj_t * ui_ScheduleText47 = NULL;
 lv_obj_t * ui_ScheduleText48 = NULL;
 lv_obj_t * ui_ScheduleText49 = NULL;
 lv_obj_t * ui_ScheduleEditPanel8 = NULL;
-lv_obj_t * ui_StateStr15 = NULL;
-lv_obj_t * ui_Switch14 = NULL;
+lv_obj_t * ui_SchState8 = NULL;
 lv_obj_t * ui_ScheduleText50 = NULL;
 lv_obj_t * ui_ScheduleText51 = NULL;
 lv_obj_t * ui_ScheduleText52 = NULL;
@@ -109,10 +101,12 @@ lv_obj_t * ui_TimePanel = NULL;
 lv_obj_t * ui_Dropdown6 = NULL;
 lv_obj_t * ui_Label66 = NULL;
 lv_obj_t * ui_Dropdown7 = NULL;
-lv_obj_t * ui_Button21 = NULL;
+lv_obj_t * ui_SchEditSaveBtn = NULL;
 lv_obj_t * ui_Label84 = NULL;
-lv_obj_t * ui_Button14 = NULL;
+lv_obj_t * ui_SchClearAllBtn = NULL;
 lv_obj_t * ui_Label65 = NULL;
+lv_obj_t * ui_SchCopyAllBtn = NULL;
+lv_obj_t * ui_Label11 = NULL;
 // event funtions
 void ui_event_GotoMenuButton3(lv_event_t * e)
 {
@@ -693,6 +687,34 @@ void ui_event_Button20(lv_event_t * e)
     }
 }
 
+void ui_event_SchEditSaveBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        SchSaveBtnFunc(e);
+        _ui_screen_change(&ui_ScheduleScreen, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 500, &ui_ScheduleScreen_screen_init);
+    }
+}
+
+void ui_event_SchClearAllBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        SchClearAllFunc(e);
+    }
+}
+
+void ui_event_SchCopyAllBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        SchCopyAllFunc(e);
+    }
+}
+
 // build funtions
 
 void ui_ScheduleEditScreen_screen_init(void)
@@ -729,7 +751,8 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_GotoMenuButton3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Dropdown9 = lv_dropdown_create(ui_ChangeConfigTitle8);
-    lv_dropdown_set_options(ui_Dropdown9, "Schedule 1\nSchedule 2\nSchedule 3\nSchedule 4\nSchedule 5\nSchedule 6");
+    lv_dropdown_set_options(ui_Dropdown9,
+                            "Schedule 1\nSchedule 2\nSchedule 3\nSchedule 4\nSchedule 5\nSchedule 6\nSchedule 7\nSchedule 8");
     lv_obj_set_width(ui_Dropdown9, 140);
     lv_obj_set_height(ui_Dropdown9, 25);
     lv_obj_set_x(ui_Dropdown9, 280);
@@ -769,7 +792,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_SchedulePanelMain1, 255, LV_PART_SCROLLBAR | LV_STATE_CHECKED);
 
     ui_Panel8 = lv_obj_create(ui_SchedulePanelMain1);
-    lv_obj_set_width(ui_Panel8, 820);
+    lv_obj_set_width(ui_Panel8, 790);
     lv_obj_set_height(ui_Panel8, 300);
     lv_obj_set_x(ui_Panel8, 160);
     lv_obj_set_y(ui_Panel8, 20);
@@ -779,35 +802,39 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_remove_flag(ui_Panel8, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_color(ui_Panel8, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Panel8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_Panel8, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_Panel8, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_Panel8, 15, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_Panel8, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_SchedulePanel7 = lv_obj_create(ui_Panel8);
-    lv_obj_set_height(ui_SchedulePanel7, 30);
-    lv_obj_set_width(ui_SchedulePanel7, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_align(ui_SchedulePanel7, LV_ALIGN_CENTER);
-    lv_obj_set_flex_flow(ui_SchedulePanel7, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ui_SchedulePanel7, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_remove_flag(ui_SchedulePanel7, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_radius(ui_SchedulePanel7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_SchedulePanel7, lv_color_hex(0x313031), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_SchedulePanel7, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_SchedulePanel7, LV_BORDER_SIDE_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_SchedulePanel7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_SchedulePanel7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_SchedulePanel7, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_SchedulePanel7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_ScheduleEditPanel = lv_obj_create(ui_Panel8);
+    lv_obj_set_height(ui_ScheduleEditPanel, 30);
+    lv_obj_set_width(ui_ScheduleEditPanel, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_align(ui_ScheduleEditPanel, LV_ALIGN_CENTER);
+    lv_obj_set_flex_flow(ui_ScheduleEditPanel, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui_ScheduleEditPanel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_remove_flag(ui_ScheduleEditPanel, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_radius(ui_ScheduleEditPanel, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_ScheduleEditPanel, lv_color_hex(0x313031), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_ScheduleEditPanel, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_side(ui_ScheduleEditPanel, LV_BORDER_SIDE_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_ScheduleEditPanel, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_ScheduleEditPanel, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_ScheduleEditPanel, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_ScheduleEditPanel, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr = lv_label_create(ui_SchedulePanel7);
-    lv_obj_set_width(ui_StateStr, 90);
+    ui_StateStr = lv_label_create(ui_ScheduleEditPanel);
+    lv_obj_set_width(ui_StateStr, 60);
     lv_obj_set_height(ui_StateStr, 20);
     lv_obj_set_align(ui_StateStr, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr, "State");
+    lv_label_set_text(ui_StateStr, "");
     lv_obj_set_style_text_align(ui_StateStr, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_color(ui_StateStr, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_opa(ui_StateStr, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_width(ui_StateStr, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_StateStr, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr1 = lv_label_create(ui_SchedulePanel7);
+    ui_StateStr1 = lv_label_create(ui_ScheduleEditPanel);
     lv_obj_set_width(ui_StateStr1, 90);
     lv_obj_set_height(ui_StateStr1, 20);
     lv_obj_set_align(ui_StateStr1, LV_ALIGN_CENTER);
@@ -818,7 +845,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_outline_width(ui_StateStr1, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_StateStr1, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr2 = lv_label_create(ui_SchedulePanel7);
+    ui_StateStr2 = lv_label_create(ui_ScheduleEditPanel);
     lv_obj_set_width(ui_StateStr2, 90);
     lv_obj_set_height(ui_StateStr2, 20);
     lv_obj_set_align(ui_StateStr2, LV_ALIGN_CENTER);
@@ -829,7 +856,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_outline_width(ui_StateStr2, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_StateStr2, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr3 = lv_label_create(ui_SchedulePanel7);
+    ui_StateStr3 = lv_label_create(ui_ScheduleEditPanel);
     lv_obj_set_width(ui_StateStr3, 90);
     lv_obj_set_height(ui_StateStr3, 20);
     lv_obj_set_align(ui_StateStr3, LV_ALIGN_CENTER);
@@ -840,7 +867,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_outline_width(ui_StateStr3, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_StateStr3, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr4 = lv_label_create(ui_SchedulePanel7);
+    ui_StateStr4 = lv_label_create(ui_ScheduleEditPanel);
     lv_obj_set_width(ui_StateStr4, 90);
     lv_obj_set_height(ui_StateStr4, 20);
     lv_obj_set_align(ui_StateStr4, LV_ALIGN_CENTER);
@@ -851,7 +878,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_outline_width(ui_StateStr4, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_StateStr4, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr5 = lv_label_create(ui_SchedulePanel7);
+    ui_StateStr5 = lv_label_create(ui_ScheduleEditPanel);
     lv_obj_set_width(ui_StateStr5, 90);
     lv_obj_set_height(ui_StateStr5, 20);
     lv_obj_set_align(ui_StateStr5, LV_ALIGN_CENTER);
@@ -862,7 +889,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_outline_width(ui_StateStr5, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_StateStr5, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr6 = lv_label_create(ui_SchedulePanel7);
+    ui_StateStr6 = lv_label_create(ui_ScheduleEditPanel);
     lv_obj_set_width(ui_StateStr6, 90);
     lv_obj_set_height(ui_StateStr6, 20);
     lv_obj_set_align(ui_StateStr6, LV_ALIGN_CENTER);
@@ -873,7 +900,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_outline_width(ui_StateStr6, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_StateStr6, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_StateStr7 = lv_label_create(ui_SchedulePanel7);
+    ui_StateStr7 = lv_label_create(ui_ScheduleEditPanel);
     lv_obj_set_width(ui_StateStr7, 90);
     lv_obj_set_height(ui_StateStr7, 20);
     lv_obj_set_align(ui_StateStr7, LV_ALIGN_CENTER);
@@ -905,41 +932,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel1, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel1, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr9 = lv_label_create(ui_ScheduleEditPanel1);
-    lv_obj_set_width(ui_StateStr9, 90);
-    lv_obj_set_height(ui_StateStr9, 30);
-    lv_obj_set_align(ui_StateStr9, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr9, "");
-    lv_obj_set_style_text_align(ui_StateStr9, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr9, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr9, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr9, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr9, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr9, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr9, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr9, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr9, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch7 = lv_switch_create(ui_StateStr9);
-    lv_obj_set_width(ui_Switch7, 50);
-    lv_obj_set_height(ui_Switch7, 18);
-    lv_obj_set_align(ui_Switch7, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch7, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch7, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch7, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch7, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch7, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch7, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch7, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch7, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch7, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch7, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch7, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch7, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch7, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch7, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState1 = lv_label_create(ui_ScheduleEditPanel1);
+    lv_obj_set_width(ui_SchState1, 60);
+    lv_obj_set_height(ui_SchState1, 30);
+    lv_obj_set_align(ui_SchState1, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState1, "ON");
+    lv_obj_set_style_text_align(ui_SchState1, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState1, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState1, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState1, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState1, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState1, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState1, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText1 = lv_textarea_create(ui_ScheduleEditPanel1);
     lv_obj_set_width(ui_ScheduleText1, 90);
@@ -1081,41 +1087,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel2, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel2, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr8 = lv_label_create(ui_ScheduleEditPanel2);
-    lv_obj_set_width(ui_StateStr8, 90);
-    lv_obj_set_height(ui_StateStr8, 30);
-    lv_obj_set_align(ui_StateStr8, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr8, "");
-    lv_obj_set_style_text_align(ui_StateStr8, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr8, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr8, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr8, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr8, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr8, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr8, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch8 = lv_switch_create(ui_StateStr8);
-    lv_obj_set_width(ui_Switch8, 50);
-    lv_obj_set_height(ui_Switch8, 18);
-    lv_obj_set_align(ui_Switch8, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch8, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch8, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch8, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch8, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch8, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch8, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch8, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch8, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch8, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch8, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch8, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch8, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch8, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState2 = lv_label_create(ui_ScheduleEditPanel2);
+    lv_obj_set_width(ui_SchState2, 60);
+    lv_obj_set_height(ui_SchState2, 30);
+    lv_obj_set_align(ui_SchState2, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState2, "OFF");
+    lv_obj_set_style_text_align(ui_SchState2, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState2, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState2, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState2, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState2, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState2, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState2, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState2, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState2, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText8 = lv_textarea_create(ui_ScheduleEditPanel2);
     lv_obj_set_width(ui_ScheduleText8, 90);
@@ -1257,41 +1242,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel3, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel3, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr10 = lv_label_create(ui_ScheduleEditPanel3);
-    lv_obj_set_width(ui_StateStr10, 90);
-    lv_obj_set_height(ui_StateStr10, 30);
-    lv_obj_set_align(ui_StateStr10, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr10, "");
-    lv_obj_set_style_text_align(ui_StateStr10, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr10, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr10, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr10, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr10, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr10, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr10, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr10, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr10, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch9 = lv_switch_create(ui_StateStr10);
-    lv_obj_set_width(ui_Switch9, 50);
-    lv_obj_set_height(ui_Switch9, 18);
-    lv_obj_set_align(ui_Switch9, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch9, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch9, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch9, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch9, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch9, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch9, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch9, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch9, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch9, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch9, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch9, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch9, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch9, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch9, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState3 = lv_label_create(ui_ScheduleEditPanel3);
+    lv_obj_set_width(ui_SchState3, 60);
+    lv_obj_set_height(ui_SchState3, 30);
+    lv_obj_set_align(ui_SchState3, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState3, "ON");
+    lv_obj_set_style_text_align(ui_SchState3, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState3, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState3, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState3, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState3, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState3, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState3, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState3, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState3, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText15 = lv_textarea_create(ui_ScheduleEditPanel3);
     lv_obj_set_width(ui_ScheduleText15, 90);
@@ -1433,41 +1397,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel4, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel4, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr11 = lv_label_create(ui_ScheduleEditPanel4);
-    lv_obj_set_width(ui_StateStr11, 90);
-    lv_obj_set_height(ui_StateStr11, 30);
-    lv_obj_set_align(ui_StateStr11, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr11, "");
-    lv_obj_set_style_text_align(ui_StateStr11, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr11, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr11, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr11, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr11, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr11, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr11, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr11, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr11, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch10 = lv_switch_create(ui_StateStr11);
-    lv_obj_set_width(ui_Switch10, 50);
-    lv_obj_set_height(ui_Switch10, 18);
-    lv_obj_set_align(ui_Switch10, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch10, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch10, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch10, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch10, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch10, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch10, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch10, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch10, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch10, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch10, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch10, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch10, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch10, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch10, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState4 = lv_label_create(ui_ScheduleEditPanel4);
+    lv_obj_set_width(ui_SchState4, 60);
+    lv_obj_set_height(ui_SchState4, 30);
+    lv_obj_set_align(ui_SchState4, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState4, "OFF");
+    lv_obj_set_style_text_align(ui_SchState4, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState4, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState4, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState4, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState4, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState4, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState4, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState4, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState4, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText22 = lv_textarea_create(ui_ScheduleEditPanel4);
     lv_obj_set_width(ui_ScheduleText22, 90);
@@ -1609,41 +1552,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel5, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel5, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr12 = lv_label_create(ui_ScheduleEditPanel5);
-    lv_obj_set_width(ui_StateStr12, 90);
-    lv_obj_set_height(ui_StateStr12, 30);
-    lv_obj_set_align(ui_StateStr12, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr12, "");
-    lv_obj_set_style_text_align(ui_StateStr12, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr12, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr12, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr12, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr12, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr12, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr12, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr12, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr12, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch11 = lv_switch_create(ui_StateStr12);
-    lv_obj_set_width(ui_Switch11, 50);
-    lv_obj_set_height(ui_Switch11, 18);
-    lv_obj_set_align(ui_Switch11, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch11, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch11, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch11, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch11, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch11, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch11, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch11, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch11, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch11, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch11, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch11, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch11, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch11, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch11, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState5 = lv_label_create(ui_ScheduleEditPanel5);
+    lv_obj_set_width(ui_SchState5, 60);
+    lv_obj_set_height(ui_SchState5, 30);
+    lv_obj_set_align(ui_SchState5, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState5, "ON");
+    lv_obj_set_style_text_align(ui_SchState5, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState5, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState5, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState5, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState5, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState5, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState5, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState5, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState5, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText29 = lv_textarea_create(ui_ScheduleEditPanel5);
     lv_obj_set_width(ui_ScheduleText29, 90);
@@ -1785,41 +1707,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel6, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel6, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr13 = lv_label_create(ui_ScheduleEditPanel6);
-    lv_obj_set_width(ui_StateStr13, 90);
-    lv_obj_set_height(ui_StateStr13, 30);
-    lv_obj_set_align(ui_StateStr13, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr13, "");
-    lv_obj_set_style_text_align(ui_StateStr13, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr13, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr13, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr13, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr13, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr13, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr13, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr13, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr13, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch12 = lv_switch_create(ui_StateStr13);
-    lv_obj_set_width(ui_Switch12, 50);
-    lv_obj_set_height(ui_Switch12, 18);
-    lv_obj_set_align(ui_Switch12, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch12, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch12, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch12, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch12, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch12, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch12, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch12, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch12, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch12, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch12, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch12, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch12, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch12, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch12, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState6 = lv_label_create(ui_ScheduleEditPanel6);
+    lv_obj_set_width(ui_SchState6, 60);
+    lv_obj_set_height(ui_SchState6, 30);
+    lv_obj_set_align(ui_SchState6, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState6, "OFF");
+    lv_obj_set_style_text_align(ui_SchState6, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState6, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState6, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState6, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState6, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState6, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState6, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState6, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState6, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText36 = lv_textarea_create(ui_ScheduleEditPanel6);
     lv_obj_set_width(ui_ScheduleText36, 90);
@@ -1961,41 +1862,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel7, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel7, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr14 = lv_label_create(ui_ScheduleEditPanel7);
-    lv_obj_set_width(ui_StateStr14, 90);
-    lv_obj_set_height(ui_StateStr14, 30);
-    lv_obj_set_align(ui_StateStr14, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr14, "");
-    lv_obj_set_style_text_align(ui_StateStr14, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr14, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr14, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr14, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr14, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr14, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr14, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr14, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr14, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch13 = lv_switch_create(ui_StateStr14);
-    lv_obj_set_width(ui_Switch13, 50);
-    lv_obj_set_height(ui_Switch13, 18);
-    lv_obj_set_align(ui_Switch13, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch13, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch13, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch13, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch13, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch13, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch13, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch13, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch13, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch13, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch13, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch13, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch13, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch13, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch13, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState7 = lv_label_create(ui_ScheduleEditPanel7);
+    lv_obj_set_width(ui_SchState7, 60);
+    lv_obj_set_height(ui_SchState7, 30);
+    lv_obj_set_align(ui_SchState7, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState7, "ON");
+    lv_obj_set_style_text_align(ui_SchState7, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState7, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState7, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState7, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState7, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState7, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState7, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText43 = lv_textarea_create(ui_ScheduleEditPanel7);
     lv_obj_set_width(ui_ScheduleText43, 90);
@@ -2137,41 +2017,20 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_ScheduleEditPanel8, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ScheduleEditPanel8, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
-    ui_StateStr15 = lv_label_create(ui_ScheduleEditPanel8);
-    lv_obj_set_width(ui_StateStr15, 90);
-    lv_obj_set_height(ui_StateStr15, 30);
-    lv_obj_set_align(ui_StateStr15, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_StateStr15, "");
-    lv_obj_set_style_text_align(ui_StateStr15, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_StateStr15, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_StateStr15, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_StateStr15, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_StateStr15, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_left(ui_StateStr15, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_StateStr15, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_StateStr15, -5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_StateStr15, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Switch14 = lv_switch_create(ui_StateStr15);
-    lv_obj_set_width(ui_Switch14, 50);
-    lv_obj_set_height(ui_Switch14, 18);
-    lv_obj_set_align(ui_Switch14, LV_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(ui_Switch14, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch14, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_Switch14, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_Switch14, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_Switch14, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_Switch14, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_color(ui_Switch14, lv_color_hex(0x4A745F), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_opa(ui_Switch14, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_Switch14, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_Switch14, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_bg_color(ui_Switch14, lv_color_hex(0x00FF7D), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_opa(ui_Switch14, 255, LV_PART_INDICATOR | LV_STATE_CHECKED);
-
-    lv_obj_set_style_bg_color(ui_Switch14, lv_color_hex(0xB0CB79), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Switch14, 255, LV_PART_KNOB | LV_STATE_DEFAULT);
+    ui_SchState8 = lv_label_create(ui_ScheduleEditPanel8);
+    lv_obj_set_width(ui_SchState8, 60);
+    lv_obj_set_height(ui_SchState8, 30);
+    lv_obj_set_align(ui_SchState8, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_SchState8, "OFF");
+    lv_obj_set_style_text_align(ui_SchState8, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_color(ui_SchState8, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_opa(ui_SchState8, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SchState8, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SchState8, 7, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_SchState8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_SchState8, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_SchState8, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_SchState8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ScheduleText50 = lv_textarea_create(ui_ScheduleEditPanel8);
     lv_obj_set_width(ui_ScheduleText50, 90);
@@ -2296,6 +2155,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_width(ui_ScheduleSettingPopup, 150);
     lv_obj_set_height(ui_ScheduleSettingPopup, 100);
     lv_obj_set_align(ui_ScheduleSettingPopup, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN);     /// Flags
     lv_obj_remove_flag(ui_ScheduleSettingPopup, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_radius(ui_ScheduleSettingPopup, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_ScheduleSettingPopup, lv_color_hex(0x302F3A), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -2392,43 +2252,62 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_pad_top(ui_Dropdown7, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_bottom(ui_Dropdown7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Button21 = lv_button_create(ui_Container3);
-    lv_obj_set_width(ui_Button21, 140);
-    lv_obj_set_height(ui_Button21, 30);
-    lv_obj_set_x(ui_Button21, -30);
-    lv_obj_set_y(ui_Button21, -10);
-    lv_obj_set_align(ui_Button21, LV_ALIGN_BOTTOM_RIGHT);
-    lv_obj_add_flag(ui_Button21, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_remove_flag(ui_Button21, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_radius(ui_Button21, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_Button21, lv_color_hex(0x414041), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Button21, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_SchEditSaveBtn = lv_button_create(ui_Container3);
+    lv_obj_set_width(ui_SchEditSaveBtn, 120);
+    lv_obj_set_height(ui_SchEditSaveBtn, 30);
+    lv_obj_set_x(ui_SchEditSaveBtn, -30);
+    lv_obj_set_y(ui_SchEditSaveBtn, -10);
+    lv_obj_set_align(ui_SchEditSaveBtn, LV_ALIGN_BOTTOM_RIGHT);
+    lv_obj_add_flag(ui_SchEditSaveBtn, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_remove_flag(ui_SchEditSaveBtn, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_radius(ui_SchEditSaveBtn, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchEditSaveBtn, lv_color_hex(0x2971A4), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_SchEditSaveBtn, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label84 = lv_label_create(ui_Button21);
+    ui_Label84 = lv_label_create(ui_SchEditSaveBtn);
     lv_obj_set_width(ui_Label84, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Label84, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Label84, LV_ALIGN_CENTER);
     lv_label_set_text(ui_Label84, "Save");
     lv_obj_set_style_text_font(ui_Label84, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Button14 = lv_button_create(ui_Container3);
-    lv_obj_set_width(ui_Button14, 140);
-    lv_obj_set_height(ui_Button14, 30);
-    lv_obj_set_x(ui_Button14, 30);
-    lv_obj_set_y(ui_Button14, -10);
-    lv_obj_set_align(ui_Button14, LV_ALIGN_BOTTOM_LEFT);
-    lv_obj_add_flag(ui_Button14, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_remove_flag(ui_Button14, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_radius(ui_Button14, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_Button14, lv_color_hex(0x414041), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_Button14, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_SchClearAllBtn = lv_button_create(ui_Container3);
+    lv_obj_set_width(ui_SchClearAllBtn, 120);
+    lv_obj_set_height(ui_SchClearAllBtn, 30);
+    lv_obj_set_x(ui_SchClearAllBtn, 0);
+    lv_obj_set_y(ui_SchClearAllBtn, -10);
+    lv_obj_set_align(ui_SchClearAllBtn, LV_ALIGN_BOTTOM_MID);
+    lv_obj_add_flag(ui_SchClearAllBtn, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_remove_flag(ui_SchClearAllBtn, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_radius(ui_SchClearAllBtn, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchClearAllBtn, lv_color_hex(0x2971A4), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_SchClearAllBtn, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label65 = lv_label_create(ui_Button14);
+    ui_Label65 = lv_label_create(ui_SchClearAllBtn);
     lv_obj_set_width(ui_Label65, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Label65, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Label65, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label65, "Delete");
+    lv_label_set_text(ui_Label65, "Clear All");
     lv_obj_set_style_text_font(ui_Label65, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_SchCopyAllBtn = lv_button_create(ui_Container3);
+    lv_obj_set_width(ui_SchCopyAllBtn, 120);
+    lv_obj_set_height(ui_SchCopyAllBtn, 30);
+    lv_obj_set_x(ui_SchCopyAllBtn, 20);
+    lv_obj_set_y(ui_SchCopyAllBtn, -10);
+    lv_obj_set_align(ui_SchCopyAllBtn, LV_ALIGN_BOTTOM_LEFT);
+    lv_obj_add_flag(ui_SchCopyAllBtn, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_remove_flag(ui_SchCopyAllBtn, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_radius(ui_SchCopyAllBtn, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchCopyAllBtn, lv_color_hex(0x2971A4), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_SchCopyAllBtn, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Label11 = lv_label_create(ui_SchCopyAllBtn);
+    lv_obj_set_width(ui_Label11, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Label11, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_align(ui_Label11, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_Label11, "Copy All");
+    lv_obj_set_style_text_font(ui_Label11, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_GotoMenuButton3, ui_event_GotoMenuButton3, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ScheduleText1, ui_event_ScheduleText1, LV_EVENT_ALL, NULL);
@@ -2488,6 +2367,9 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_add_event_cb(ui_ScheduleText55, ui_event_ScheduleText55, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ScheduleText56, ui_event_ScheduleText56, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button20, ui_event_Button20, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchEditSaveBtn, ui_event_SchEditSaveBtn, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchClearAllBtn, ui_event_SchClearAllBtn, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchCopyAllBtn, ui_event_SchCopyAllBtn, LV_EVENT_ALL, NULL);
 
 }
 
@@ -2504,7 +2386,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_Container3 = NULL;
     ui_SchedulePanelMain1 = NULL;
     ui_Panel8 = NULL;
-    ui_SchedulePanel7 = NULL;
+    ui_ScheduleEditPanel = NULL;
     ui_StateStr = NULL;
     ui_StateStr1 = NULL;
     ui_StateStr2 = NULL;
@@ -2514,8 +2396,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_StateStr6 = NULL;
     ui_StateStr7 = NULL;
     ui_ScheduleEditPanel1 = NULL;
-    ui_StateStr9 = NULL;
-    ui_Switch7 = NULL;
+    ui_SchState1 = NULL;
     ui_ScheduleText1 = NULL;
     ui_ScheduleText2 = NULL;
     ui_ScheduleText3 = NULL;
@@ -2524,8 +2405,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_ScheduleText6 = NULL;
     ui_ScheduleText7 = NULL;
     ui_ScheduleEditPanel2 = NULL;
-    ui_StateStr8 = NULL;
-    ui_Switch8 = NULL;
+    ui_SchState2 = NULL;
     ui_ScheduleText8 = NULL;
     ui_ScheduleText9 = NULL;
     ui_ScheduleText10 = NULL;
@@ -2534,8 +2414,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_ScheduleText13 = NULL;
     ui_ScheduleText14 = NULL;
     ui_ScheduleEditPanel3 = NULL;
-    ui_StateStr10 = NULL;
-    ui_Switch9 = NULL;
+    ui_SchState3 = NULL;
     ui_ScheduleText15 = NULL;
     ui_ScheduleText16 = NULL;
     ui_ScheduleText17 = NULL;
@@ -2544,8 +2423,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_ScheduleText20 = NULL;
     ui_ScheduleText21 = NULL;
     ui_ScheduleEditPanel4 = NULL;
-    ui_StateStr11 = NULL;
-    ui_Switch10 = NULL;
+    ui_SchState4 = NULL;
     ui_ScheduleText22 = NULL;
     ui_ScheduleText23 = NULL;
     ui_ScheduleText24 = NULL;
@@ -2554,8 +2432,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_ScheduleText27 = NULL;
     ui_ScheduleText28 = NULL;
     ui_ScheduleEditPanel5 = NULL;
-    ui_StateStr12 = NULL;
-    ui_Switch11 = NULL;
+    ui_SchState5 = NULL;
     ui_ScheduleText29 = NULL;
     ui_ScheduleText30 = NULL;
     ui_ScheduleText31 = NULL;
@@ -2564,8 +2441,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_ScheduleText34 = NULL;
     ui_ScheduleText35 = NULL;
     ui_ScheduleEditPanel6 = NULL;
-    ui_StateStr13 = NULL;
-    ui_Switch12 = NULL;
+    ui_SchState6 = NULL;
     ui_ScheduleText36 = NULL;
     ui_ScheduleText37 = NULL;
     ui_ScheduleText38 = NULL;
@@ -2574,8 +2450,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_ScheduleText41 = NULL;
     ui_ScheduleText42 = NULL;
     ui_ScheduleEditPanel7 = NULL;
-    ui_StateStr14 = NULL;
-    ui_Switch13 = NULL;
+    ui_SchState7 = NULL;
     ui_ScheduleText43 = NULL;
     ui_ScheduleText44 = NULL;
     ui_ScheduleText45 = NULL;
@@ -2584,8 +2459,7 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_ScheduleText48 = NULL;
     ui_ScheduleText49 = NULL;
     ui_ScheduleEditPanel8 = NULL;
-    ui_StateStr15 = NULL;
-    ui_Switch14 = NULL;
+    ui_SchState8 = NULL;
     ui_ScheduleText50 = NULL;
     ui_ScheduleText51 = NULL;
     ui_ScheduleText52 = NULL;
@@ -2600,9 +2474,11 @@ void ui_ScheduleEditScreen_screen_destroy(void)
     ui_Dropdown6 = NULL;
     ui_Label66 = NULL;
     ui_Dropdown7 = NULL;
-    ui_Button21 = NULL;
+    ui_SchEditSaveBtn = NULL;
     ui_Label84 = NULL;
-    ui_Button14 = NULL;
+    ui_SchClearAllBtn = NULL;
     ui_Label65 = NULL;
+    ui_SchCopyAllBtn = NULL;
+    ui_Label11 = NULL;
 
 }

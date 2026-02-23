@@ -26,13 +26,27 @@ void WifiEnEvent(lv_event_t * e);
 void SSIDShowEventFunc(lv_event_t * e);
 void UpdateWifiConfig(lv_event_t * e);
 void WifiKeyboardPressFunc(lv_event_t * e);
+void NetworkConfigUpdateFunc(lv_event_t * e);
 void ip_auto_next(lv_event_t * e);
 void NetworkConfigKeyPressFunc(lv_event_t * e);
+void UpdateProtocolFunc(lv_event_t * e);
 void UpdateParameterTableFunc(lv_event_t * e);
+void ParameterUpdateFunc(lv_event_t * e);
+void RefreshTimeFunc(lv_event_t * e);
+void TimeSyncLocalPcFunc(lv_event_t * e);
+void TimeSyncServerUpdateFunc(lv_event_t * e);
 void SysTimeUpdateCallback(lv_event_t * e);
 void CalenderValueChangeCallback(lv_event_t * e);
+void TimeSyncUpdateFunc(lv_event_t * e);
+void ScheduleAutoManualValChangeFun(lv_event_t * e);
+void ScheduleSwithValueChangeFunc(lv_event_t * e);
+void ScheduleSetupUpdateBtnFunc(lv_event_t * e);
+void ScheduleKeyboardPressFunc(lv_event_t * e);
 void ScheduleTimeSelectedFunc(lv_event_t * e);
 void ScheduleTimeUpdateCallback(lv_event_t * e);
+void SchSaveBtnFunc(lv_event_t * e);
+void SchClearAllFunc(lv_event_t * e);
+void SchCopyAllFunc(lv_event_t * e);
 
 #ifdef __cplusplus
 } /*extern "C"*/

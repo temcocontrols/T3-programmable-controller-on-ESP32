@@ -19,8 +19,6 @@ lv_obj_t * ui_RefreshBtn = NULL;
 lv_obj_t * ui_Label17 = NULL;
 lv_obj_t * ui_SyncWithPcBtn = NULL;
 lv_obj_t * ui_Label18 = NULL;
-lv_obj_t * ui_UpdateLastServerSyncBtn2 = NULL;
-lv_obj_t * ui_Label24 = NULL;
 lv_obj_t * ui_SyncLocalPcCheckbox2 = NULL;
 lv_obj_t * ui_Panel3 = NULL;
 lv_obj_t * ui_Dropdown5 = NULL;
@@ -39,6 +37,8 @@ lv_obj_t * ui_Dropdown11 = NULL;
 lv_obj_t * ui_Label67 = NULL;
 lv_obj_t * ui_Dropdown8 = NULL;
 lv_obj_t * ui_Calendar3 = NULL;
+lv_obj_t * ui_TimeSyncSetupUpdateBtn = NULL;
+lv_obj_t * ui_Label72 = NULL;
 // event funtions
 void ui_event_Time(lv_event_t * e)
 {
@@ -79,6 +79,33 @@ void ui_event_ChangeDateBtn(lv_event_t * e)
     }
 }
 
+void ui_event_RefreshBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        RefreshTimeFunc(e);
+    }
+}
+
+void ui_event_SyncWithPcBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        TimeSyncLocalPcFunc(e);
+    }
+}
+
+void ui_event_UpdateLastServerSyncBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        TimeSyncServerUpdateFunc(e);
+    }
+}
+
 void ui_event_Button16(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -96,6 +123,16 @@ void ui_event_Calendar3(lv_event_t * e)
     if(event_code == LV_EVENT_VALUE_CHANGED) {
         CalenderValueChangeCallback(e);
         _ui_flag_modify(ui_Calendar3, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+    }
+}
+
+void ui_event_TimeSyncSetupUpdateBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        TimeSyncUpdateFunc(e);
+        _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 1000, 100, &ui_MainMenu_screen_init);
     }
 }
 
@@ -197,7 +234,7 @@ void ui_Time_screen_init(void)
     lv_obj_set_width(ui_Label70, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Label70, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Label70, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label70, "03-Feb-26");
+    lv_label_set_text(ui_Label70, "03-02-26");
 
     ui_RefreshBtn = lv_button_create(ui_Panel1);
     lv_obj_set_width(ui_RefreshBtn, 150);
@@ -242,28 +279,6 @@ void ui_Time_screen_init(void)
     lv_obj_set_height(ui_Label18, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Label18, LV_ALIGN_CENTER);
     lv_label_set_text(ui_Label18, "SYNC Local PC");
-
-    ui_UpdateLastServerSyncBtn2 = lv_button_create(ui_Panel1);
-    lv_obj_set_width(ui_UpdateLastServerSyncBtn2, 100);
-    lv_obj_set_height(ui_UpdateLastServerSyncBtn2, 25);
-    lv_obj_set_x(ui_UpdateLastServerSyncBtn2, 15);
-    lv_obj_set_y(ui_UpdateLastServerSyncBtn2, 0);
-    lv_obj_set_align(ui_UpdateLastServerSyncBtn2, LV_ALIGN_BOTTOM_RIGHT);
-    lv_obj_add_flag(ui_UpdateLastServerSyncBtn2, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_remove_flag(ui_UpdateLastServerSyncBtn2, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_radius(ui_UpdateLastServerSyncBtn2, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_UpdateLastServerSyncBtn2, lv_color_hex(0x373640), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_UpdateLastServerSyncBtn2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(ui_UpdateLastServerSyncBtn2, lv_color_hex(0x55555B), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_opa(ui_UpdateLastServerSyncBtn2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_UpdateLastServerSyncBtn2, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_UpdateLastServerSyncBtn2, LV_BORDER_SIDE_FULL, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_Label24 = lv_label_create(ui_UpdateLastServerSyncBtn2);
-    lv_obj_set_width(ui_Label24, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label24, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label24, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label24, "Update");
 
     ui_SyncLocalPcCheckbox2 = lv_checkbox_create(ui_Time);
     lv_checkbox_set_text(ui_SyncLocalPcCheckbox2, "Synchronize with time server");
@@ -342,7 +357,7 @@ void ui_Time_screen_init(void)
 
     ui_Dropdown4 = lv_dropdown_create(ui_Panel3);
     lv_dropdown_set_options(ui_Dropdown4,
-                            "(UTC -12:00), Yankee Time Zone\n(UTC -11:00), X-ray Time Zone\n(UTC -10:00), Cook Island Time, Hawaii-Aleutian Standard Time\n(UTC -09:00), Alaska Standard Time\n(UTC -08:00), Pacific Standard Time\n(UTC -07:00), Mountain Standard Time\n(UTC -06:00), Central Standard Time\n(UTC -05:00), Eastern Standard Time\n(UTC -04:00), Atlantic Standard Time\n(UTC -03:30), Newfoundland Standard Time\n(UTC -03:00), Atlantic Daylight Time\n(UTC -02:00), Fernando de Noronha Time\n(UTC -01:00), Azores Time, Cape Verde Time\n(UTC  00:00), Azores Summer Time\n(UTC  00:00), Alpha Time Zone\n(UTC +01:00), Central Africa Time\n(UTC +02:00), Charlie Time Zone\n(UTC +03:00), Charlie Time Zone, East Africa Time\n(UTC +03:30), Tehran Time\n(UTC +04:00), Armenia Time, Azerbaijan Time\n(UTC +04:30), Kabul Time\n(UTC +05:00), Armenia Summer Time\n(UTC +05:30), Sri Jayawardenepura Standard Time\n(UTC +05:45), Nepal Standard Time\n(UTC +06:00), Bangladesh Standard Time\n(UTC +06:30), Yangon Time\n(UTC +07:00), Christmas Island Time\n(UTC +08:00), China Standard Time, Hong Kong Time\n(UTC +09:00), Australian Western Standard Time\n(UTC +09:30), Darwin Time\n(UTC +10:00), Chamorro Standard Time\n(UTC +11:00), Lima, Vanuatu, Solomon Islands Time\n(UTC +12:00), Anadyr Time, Fiji Time\n(UTC +13:00), New Zealand Daylight Time\n");
+                            "(UTC -12:00), Yankee Time Zone\n(UTC -11:00), X-ray Time Zone\n(UTC -10:00), Cook Island Time, Hawaii-Aleutian Standard Time\n(UTC -09:00), Alaska Standard Time\n(UTC -08:00), Pacific Standard Time\n(UTC -07:00), Mountain Standard Time\n(UTC -06:00), Central Standard Time\n(UTC -05:00), Eastern Standard Time\n(UTC -04:00), Atlantic Standard Time\n(UTC -03:30), Newfoundland Standard Time\n(UTC -03:00), Atlantic Daylight Time\n(UTC -02:00), Fernando de Noronha Time\n(UTC -01:00), Azores Time, Cape Verde Time\n(UTC  00:00), Azores Summer Time\n(UTC  01:00), Alpha Time Zone\n(UTC +02:00), Central Africa Time\n(UTC +03:00), Charlie Time Zone, East Africa Time\n(UTC +03:30), Tehran Time\n(UTC +04:00), Armenia Time, Azerbaijan Time\n(UTC +04:30), Kabul Time\n(UTC +05:00), Armenia Summer Time\n(UTC +05:30), Sri Jayawardenepura Standard Time\n(UTC +05:45), Nepal Standard Time\n(UTC +06:00), Bangladesh Standard Time\n(UTC +06:30), Yangon Time\n(UTC +07:00), Christmas Island Time\n(UTC +08:00), China Standard Time, Hong Kong Time\n(UTC +09:00), Australian Western Standard Time\n(UTC +09:30), Darwin Time\n(UTC +10:00), Chamorro Standard Time\n(UTC +11:00), Lima, Vanuatu, Solomon Islands Time\n(UTC +12:00), Anadyr Time, Fiji Time\n(UTC +13:00), New Zealand Daylight Time");
     lv_obj_set_width(ui_Dropdown4, 300);
     lv_obj_set_height(ui_Dropdown4, 25);
     lv_obj_set_x(ui_Dropdown4, 0);
@@ -505,11 +520,33 @@ void ui_Time_screen_init(void)
     lv_obj_set_style_shadow_width(ui_Calendar3, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_spread(ui_Calendar3, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    ui_TimeSyncSetupUpdateBtn = lv_button_create(ui_Time);
+    lv_obj_set_width(ui_TimeSyncSetupUpdateBtn, 100);
+    lv_obj_set_height(ui_TimeSyncSetupUpdateBtn, 30);
+    lv_obj_set_x(ui_TimeSyncSetupUpdateBtn, 180);
+    lv_obj_set_y(ui_TimeSyncSetupUpdateBtn, 135);
+    lv_obj_set_align(ui_TimeSyncSetupUpdateBtn, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_TimeSyncSetupUpdateBtn, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_remove_flag(ui_TimeSyncSetupUpdateBtn, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_bg_color(ui_TimeSyncSetupUpdateBtn, lv_color_hex(0x2971A4), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_TimeSyncSetupUpdateBtn, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Label72 = lv_label_create(ui_TimeSyncSetupUpdateBtn);
+    lv_obj_set_width(ui_Label72, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Label72, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_align(ui_Label72, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_Label72, "Update");
+    lv_obj_set_style_text_font(ui_Label72, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+
     lv_obj_add_event_cb(ui_GotoMenuButton9, ui_event_GotoMenuButton9, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ChangeTimeBtn, ui_event_ChangeTimeBtn, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ChangeDateBtn, ui_event_ChangeDateBtn, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_RefreshBtn, ui_event_RefreshBtn, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SyncWithPcBtn, ui_event_SyncWithPcBtn, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_UpdateLastServerSyncBtn, ui_event_UpdateLastServerSyncBtn, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button16, ui_event_Button16, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Calendar3, ui_event_Calendar3, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_TimeSyncSetupUpdateBtn, ui_event_TimeSyncSetupUpdateBtn, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Time, ui_event_Time, LV_EVENT_ALL, NULL);
 
 }
@@ -533,8 +570,6 @@ void ui_Time_screen_destroy(void)
     ui_Label17 = NULL;
     ui_SyncWithPcBtn = NULL;
     ui_Label18 = NULL;
-    ui_UpdateLastServerSyncBtn2 = NULL;
-    ui_Label24 = NULL;
     ui_SyncLocalPcCheckbox2 = NULL;
     ui_Panel3 = NULL;
     ui_Dropdown5 = NULL;
@@ -553,5 +588,7 @@ void ui_Time_screen_destroy(void)
     ui_Label67 = NULL;
     ui_Dropdown8 = NULL;
     ui_Calendar3 = NULL;
+    ui_TimeSyncSetupUpdateBtn = NULL;
+    ui_Label72 = NULL;
 
 }

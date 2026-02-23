@@ -64,7 +64,7 @@ void ui_event_WifiUpdateButton2(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        UpdateWifiConfig(e);
+        NetworkConfigUpdateFunc(e);
         _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 1000, 100, &ui_MainMenu_screen_init);
     }
 }

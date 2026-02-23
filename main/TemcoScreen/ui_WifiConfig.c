@@ -56,16 +56,6 @@ void ui_event_WifiEnSw(lv_event_t * e)
     }
 }
 
-void ui_event_SSIDText(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_Keyboard,  ui_SSIDText);
-        _ui_flag_modify(ui_Keyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-}
-
 void ui_event_Dropdown2(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -279,7 +269,6 @@ void ui_WifiConfig_screen_init(void)
 
     lv_obj_add_event_cb(ui_GotoMenuButton6, ui_event_GotoMenuButton6, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_WifiEnSw, ui_event_WifiEnSw, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SSIDText, ui_event_SSIDText, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Dropdown2, ui_event_Dropdown2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_PasswordText, ui_event_PasswordText, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_WifiUpdateButton, ui_event_WifiUpdateButton, LV_EVENT_ALL, NULL);

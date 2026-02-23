@@ -153,6 +153,7 @@ void ui_event_FanButton(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_FanModePanel, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_SysModePanel, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
     }
 }
 
@@ -173,6 +174,7 @@ void ui_event_ModeBtn(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_SysModePanel, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
+        _ui_flag_modify(ui_FanModePanel, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
     }
 }
 

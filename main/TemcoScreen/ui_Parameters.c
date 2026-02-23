@@ -12,11 +12,8 @@ lv_obj_t * ui_NetworkSetupConfig4 = NULL;
 lv_obj_t * ui_GotoMenuButton8 = NULL;
 lv_obj_t * ui_Container1 = NULL;
 lv_obj_t * ui_Panel4 = NULL;
+lv_obj_t * ui_ParameterUpdateBtn = NULL;
 lv_obj_t * ui_Label15 = NULL;
-lv_obj_t * ui_Label11 = NULL;
-lv_obj_t * ui_Label42 = NULL;
-lv_obj_t * ui_Label43 = NULL;
-lv_obj_t * ui_Label44 = NULL;
 // event funtions
 void ui_event_Parameters(lv_event_t * e)
 {
@@ -33,6 +30,16 @@ void ui_event_GotoMenuButton8(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 100, &ui_MainMenu_screen_init);
+    }
+}
+
+void ui_event_ParameterUpdateBtn(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_CLICKED) {
+        ParameterUpdateFunc(e);
+        _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 1000, 100, &ui_MainMenu_screen_init);
     }
 }
 
@@ -82,49 +89,35 @@ void ui_Parameters_screen_init(void)
 
     ui_Panel4 = lv_obj_create(ui_Container1);
     lv_obj_set_width(ui_Panel4, 480);
-    lv_obj_set_height(ui_Panel4, 25);
+    lv_obj_set_height(ui_Panel4, 230);
     lv_obj_set_x(ui_Panel4, 0);
-    lv_obj_set_y(ui_Panel4, 5);
-    lv_obj_set_align(ui_Panel4, LV_ALIGN_TOP_MID);
-    lv_obj_set_flex_flow(ui_Panel4, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ui_Panel4, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_y(ui_Panel4, -20);
+    lv_obj_set_align(ui_Panel4, LV_ALIGN_CENTER);
     lv_obj_remove_flag(ui_Panel4, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_pad_left(ui_Panel4, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(ui_Panel4, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(ui_Panel4, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(ui_Panel4, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Panel4, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Panel4, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_side(ui_Panel4, LV_BORDER_SIDE_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label15 = lv_label_create(ui_Panel4);
+    ui_ParameterUpdateBtn = lv_button_create(ui_Container1);
+    lv_obj_set_width(ui_ParameterUpdateBtn, 100);
+    lv_obj_set_height(ui_ParameterUpdateBtn, 30);
+    lv_obj_set_x(ui_ParameterUpdateBtn, 180);
+    lv_obj_set_y(ui_ParameterUpdateBtn, 110);
+    lv_obj_set_align(ui_ParameterUpdateBtn, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_ParameterUpdateBtn, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_remove_flag(ui_ParameterUpdateBtn, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_bg_color(ui_ParameterUpdateBtn, lv_color_hex(0x2971A4), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_ParameterUpdateBtn, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Label15 = lv_label_create(ui_ParameterUpdateBtn);
     lv_obj_set_width(ui_Label15, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Label15, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_Label15, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label15, "Index");
-
-    ui_Label11 = lv_label_create(ui_Panel4);
-    lv_obj_set_width(ui_Label11, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label11, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label11, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label11, "Full Lable");
-
-    ui_Label42 = lv_label_create(ui_Panel4);
-    lv_obj_set_width(ui_Label42, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label42, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label42, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label42, "Auto/Manual");
-
-    ui_Label43 = lv_label_create(ui_Panel4);
-    lv_obj_set_width(ui_Label43, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label43, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label43, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label43, "Value");
-
-    ui_Label44 = lv_label_create(ui_Panel4);
-    lv_obj_set_width(ui_Label44, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label44, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_Label44, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label44, "Units");
+    lv_label_set_text(ui_Label15, "Update");
+    lv_obj_set_style_text_font(ui_Label15, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_GotoMenuButton8, ui_event_GotoMenuButton8, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ParameterUpdateBtn, ui_event_ParameterUpdateBtn, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Parameters, ui_event_Parameters, LV_EVENT_ALL, NULL);
     uic_Parameters = ui_Parameters;
 
@@ -142,10 +135,7 @@ void ui_Parameters_screen_destroy(void)
     ui_GotoMenuButton8 = NULL;
     ui_Container1 = NULL;
     ui_Panel4 = NULL;
+    ui_ParameterUpdateBtn = NULL;
     ui_Label15 = NULL;
-    ui_Label11 = NULL;
-    ui_Label42 = NULL;
-    ui_Label43 = NULL;
-    ui_Label44 = NULL;
 
 }
