@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include "esp_err.h"
 
-#include "mbcontroller.h"
+// #include "mbcontroller.h"
 #include "define.h"
 #include "esp_log.h"            // for log_write
 #include "driver/gpio.h"
+#include "driver/uart.h"
 #include "modbus.h"
 #include "i2c_task.h"
 #include "flash.h"
@@ -23,7 +24,7 @@
 #include "co2.h"
 
 
-extern xSemaphoreHandle xSem_comport[3];
+extern SemaphoreHandle_t xSem_comport[3];
 
 #define EEPROM_VERSION	  105
 
@@ -530,7 +531,7 @@ void check_whether_modbus_slave(uint8_t * uart_rsv, uint16_t len, uint8_t port)
 
 }
 
-void uart0_rx_task(void)
+void uart0_rx_task(void *pvParameters)
 {
 //	uint8_t modbus_send_buf[500];
 //	uint16_t modbus_send_len;
@@ -564,7 +565,7 @@ void uart0_rx_task(void)
 				else //if(Modbus.baudrate <= 6)
 					block_time = 70;
 
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_PERIOD_MS);
 
 				if(len > 0)
 				{
@@ -603,7 +604,7 @@ void uart0_rx_task(void)
 			{
 				if(system_timer / 1000 > 10)
 				{
-					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
+					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
 
 					if(len > 0)
 					{
@@ -619,13 +620,13 @@ void uart0_rx_task(void)
 					}
 				}
 				else
-					vTaskDelay(500 / portTICK_RATE_MS);
+					vTaskDelay(500 / portTICK_PERIOD_MS);
 			}
 			else
 			{
 				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
 				{
-					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_RATE_MS);
+					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 
 					if(len>0)
 					{Test[24]++;
@@ -638,14 +639,14 @@ void uart0_rx_task(void)
 
 				}
 				else
-					vTaskDelay(50 / portTICK_RATE_MS);
+					vTaskDelay(50 / portTICK_PERIOD_MS);
 			}
 
 	}
 
 }
 
-void uart2_rx_task(void)
+void uart2_rx_task(void *pvParameters)
 {
 	//uint8_t modbus_send_buf[500];
 	//uint16_t modbus_send_len;
@@ -659,7 +660,7 @@ void uart2_rx_task(void)
 		task_test.count[10]++;
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_PERIOD_MS);
 
 			if(len>0)
 			{
@@ -695,7 +696,7 @@ void uart2_rx_task(void)
 		{
 			if(system_timer / 1000 > 10)
 			{
-				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_RATE_MS);
+				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
 
 				if(len > 0)
 				{
@@ -707,14 +708,14 @@ void uart2_rx_task(void)
 				}
 			}
 			else
-				vTaskDelay(500 / portTICK_RATE_MS);
+				vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
 		else
 		{
 			if((Modbus.com_config[2] == 0)/* || (Modbus.com_config[2] == MODBUS_MASTER) */)
 			{
 
-				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 				if(len>0)
 				{
 					led_main_rx++;
@@ -724,7 +725,7 @@ void uart2_rx_task(void)
 				}
 			}
 			else
-				vTaskDelay(500 / portTICK_RATE_MS);
+				vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
 	}
 }
@@ -799,7 +800,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          crc16_byte(*(bufadd+i));
       }
 
-      
+
 		if(type == BAC_TO_MODBUS)
 		{
 			memcpy(&bacnet_to_modbus,&uart_send[3],reg_num*2);
@@ -810,7 +811,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			uart_send[7] = CRClo;
 			uart_send_string((const char *)uart_send, 8,port);
 
-		}      
+		}
 		else  // WIFI OR ETHERNET
 		{
 			 uart_sendB[0] = *bufadd;//0;         //   TransID
@@ -890,17 +891,17 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          }
          else if(address == (SERIALNUMBER_HIWORD +1))
          {
-            
+
             temp1 = 0;
             temp2 = Modbus.serialNum[3];
          }
          else if(address == VERSION_NUMBER_LO)
-         {            
+         {
             temp1 = 0;
             temp2 = SW_REV % 100;
          }
          else if(address == VERSION_NUMBER_HI)
-         {            
+         {
             temp1 = 0;
             temp2 = SW_REV / 100;
          }
@@ -1238,7 +1239,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0 ;
 			temp2 = 0;
 		}
-		 
+
          if(type == SERIAL || type == BAC_TO_MODBUS)
          {
 			uart_send[send_cout++] = temp1 ;
@@ -1259,7 +1260,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             uart_sendB[5] = (uint8_t)(3 + num * 2) ;
          }
       }
-   
+
 	   temp1 = CRChi ;
 	   temp2 = CRClo;
 	   if(type == BAC_TO_MODBUS)
@@ -1290,17 +1291,17 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
          uart_send[send_cout++] = Modbus.serialNum[2];
          uart_send[send_cout++] = Modbus.serialNum[3];
          for(i=0;i<send_cout;i++)
-            crc16_byte(uart_send[i]);      	  
-	  
+            crc16_byte(uart_send[i]);
+
 		   temp1 = CRChi ;
 		   temp2 = CRClo;
-		   
+
 		   uart_send[send_cout++] = temp1 ;
 		   uart_send[send_cout++] = temp2 ;
 		   uart_send_string((const char *)uart_send, send_cout,port);
 	  }
    }
-   
+
 
    if(type == WIFI)
    {
@@ -3201,7 +3202,7 @@ void Write_IO_reg(uint16_t StartAdd,uint8_t * pData)
 	}
 	else if(StartAdd >= MODBUS_WR_AM_FIRST && StartAdd <= MODBUS_WR_AM_LAST)
 	{
-		i = (StartAdd - MODBUS_WR_AM_FIRST);		
+		i = (StartAdd - MODBUS_WR_AM_FIRST);
 		weekly_routines[i].auto_manual = pData[5];
 		ChangeFlash = 1;
 	}
@@ -3298,7 +3299,7 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 			ptr = put_io_buf(OUT,i);
 			tempval = pData[10] + (U16_T)(pData[9] << 8) \
 				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
-			
+
 			ptr.pout->value = tempval;
 
 			if(ptr.pout->digital_analog == 0)  // digital
@@ -3354,9 +3355,9 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 			ptr = put_io_buf(IN,i);
 			tempval = pData[10] + (U16_T)(pData[9] << 8) \
 				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
-				
-			
-			
+
+
+
 			if(ptr.pin->digital_analog == 0)  // digital
 			{
 				if(( ptr.pin->range >= ON_OFF && ptr.pin->range <= HIGH_LOW )
@@ -3405,7 +3406,7 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 			tempval = pData[10] + (U16_T)(pData[9] << 8) \
 				+ ((U32_T)pData[8] << 16) + ((U32_T)pData[7] << 24);
 
-			
+
 			if(ptr.pvar->digital_analog == 0)  // digital
 			{
 				if(( ptr.pvar->range >= ON_OFF && ptr.pvar->range <= HIGH_LOW )

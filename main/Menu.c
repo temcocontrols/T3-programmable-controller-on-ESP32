@@ -13,7 +13,7 @@
 #define	ScrollingSTACK_SIZE	portMINIMAL_STACK_SIZE//1024
 #define	CursorSTACK_SIZE	portMINIMAL_STACK_SIZE//512
 
-//xTaskHandle Handle_Menu, Handle_Scrolling, Handle_Cursor;
+//TaskHandle_t Handle_Menu, Handle_Scrolling, Handle_Cursor;
 
 U8_T show_identify;
 U8_T count_show_id;
@@ -168,7 +168,7 @@ void MenuTask(void *pvParameters)
 {
 	static U8_T refresh_screen_timer = 0;
 	u16 temp_key = 0;
-	portTickType xDelayPeriod = (portTickType)50 / portTICK_RATE_MS;
+	TickType_t xDelayPeriod = (TickType_t)50 / portTICK_PERIOD_MS;
 //	U8_T i;
 	// LCD_IO_Init();
 

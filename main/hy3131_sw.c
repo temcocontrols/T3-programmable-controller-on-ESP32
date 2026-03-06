@@ -15,7 +15,7 @@ void HY3131_Count_Reset(void)
 {
     uint8_t SPIDataBuffer[1] = {0x60};
     HY3131_WriteData(SPIDataBuffer, HY3131_R37, 1);
-    ets_delay_us(1); // 替代 NOP
+    esp_rom_delay_us(1); // 替代 NOP
 }
 /*----------------------------------------------------------------------------*/
 /*                                                                            */

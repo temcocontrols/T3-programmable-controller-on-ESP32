@@ -13,7 +13,7 @@
 
 extern uint16_t Test[50];
 int16_t  timezone;
-uint8_t  Daylight_Saving_Time;
+extern uint8_t  Daylight_Saving_Time;
 U32_T RTC_GetCounter(void);
 void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag);
 U32_T get_current_time_with_timezone(void);
@@ -764,7 +764,7 @@ void app_main(void)
 
         printf("ret %d time %ld\n ", ret, time(NULL));
 
-        vTaskDelay(5000 / portTICK_RATE_MS);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
 
     }
 

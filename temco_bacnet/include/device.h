@@ -44,7 +44,7 @@
 #include "bv.h"
 #include "ai.h"
 #include "ao.h"
-#include "bo.h"	
+#include "bo.h"
 #include "bi.h"
 
 #include "rpm.h"
@@ -138,7 +138,7 @@ bool Device_Value_List_Supported(
 bool Device_COV(
     BACNET_OBJECT_TYPE object_type,
     uint32_t object_instance);
-	
+
 	void Device_COV_Clear(
     BACNET_OBJECT_TYPE object_type,
     uint32_t object_instance);
@@ -156,7 +156,7 @@ extern "C" {
     void Device_Init(
         void);
 		void Set_Object_Name(char * name);
-		
+
     void Device_Property_Lists(
         const int **pRequired,
         const int **pOptional,
@@ -253,9 +253,11 @@ extern "C" {
         uint32_t array_index,
         BACNET_ERROR_CLASS * error_class,
         BACNET_ERROR_CODE * error_code);
-		
-		bool Device_Write_Property_Local(
-    BACNET_WRITE_PROPERTY_DATA * wp_data);
+
+	bool Device_Write_Property_Local(
+        BACNET_WRITE_PROPERTY_DATA *wp_data,
+        BACNET_ERROR_CLASS *error_class,
+        BACNET_ERROR_CODE *error_code);
 
     bool Device_Write_Property(
         BACNET_WRITE_PROPERTY_DATA * wp_data,
@@ -272,29 +274,29 @@ extern "C" {
 
 		int Device_Read_Property(
     BACNET_READ_PROPERTY_DATA * rpdata);
-		
+
 		void Device_Objects_Property_List(
     BACNET_OBJECT_TYPE object_type,
     struct special_property_list_t *pPropertyList);
-		
-		
+
+
 	unsigned Device_Count( void);
 		uint32_t Device_Index_To_Instance(
     unsigned index);
 	bool Device_Object_Name(
     uint32_t object_instance,
-    BACNET_CHARACTER_STRING * object_name);	
-	
+    BACNET_CHARACTER_STRING * object_name);
+
 	bool Device_Object_Name_Copy(
     BACNET_OBJECT_TYPE object_type,
     uint32_t object_instance,
     BACNET_CHARACTER_STRING * object_name);
-	
+
 	bool Device_Valid_Object_Name(
     BACNET_CHARACTER_STRING * object_name1,
     int *object_type,
     uint32_t * object_instance);
-		
+
 		bool Device_Encode_Value_List(
     BACNET_OBJECT_TYPE object_type,
     uint32_t object_instance,

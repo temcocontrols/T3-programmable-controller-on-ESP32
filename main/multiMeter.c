@@ -233,7 +233,7 @@ void processMeasurementFunction(MultiMeter *meter, uint8_t *tempBuffer) {
 
     // Add a condition to check if the combined value is greater than 22100, if so, it is considered invalid data
     if (measuredValue > 22100) {
-        printf("Invalid data: %u\n", measuredValue);
+        printf("Invalid data: %lu\n", measuredValue);
         return;
     }
 

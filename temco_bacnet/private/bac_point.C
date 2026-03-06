@@ -1572,7 +1572,7 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 				ptr1->instance = Get_device_id_by_panel(point.panel,point.sub_id,BAC_IP_CLIENT);
 
-				vTaskDelay( 100 / portTICK_RATE_MS);
+				vTaskDelay( pdMS_TO_TICKS(100) );
 
 				if(mode == 0)
 					ptr1->time_to_live = NP_TIME_TO_LIVE;

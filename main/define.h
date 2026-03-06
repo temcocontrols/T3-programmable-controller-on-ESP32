@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "esp_attr.h"
+#include <stdint.h>
 
 #pragma pack(1)
 
@@ -29,7 +30,7 @@ extern STR_Task_Test task_test;
 typedef struct
 {
 	U8_T serialNum[4];
-	U8_T address; 	
+	U8_T address;
 	U8_T protocal;
 	U8_T product_model;
 	U8_T hardRev;
@@ -63,18 +64,18 @@ typedef struct
 
 	U8_T usb_mode;
 	U8_T en_dyndns;
-	U8_T en_sntp;	
-	
+	U8_T en_sntp;
+
 	U16_T Bip_port;
-	U16_T vcc_adc; // 
+	U16_T vcc_adc; //
 	U8_T network_master;
-	
-	
+
+
 	U8_T fix_com_config;
 //	U8_T backlight;
 	U8_T LCD_time_off_delay;
 	U8_T en_time_sync_with_pc;
-	
+
 	U8_T uart_parity[3];
 	U8_T uart_stopbit[3];
 //	U8_T network_ID[3]; // 3 RS485 port
@@ -186,11 +187,11 @@ typedef	enum
 
 #define MAX_MINI_TYPE 		28
 
-uint16 READ_POINT_TIMER;
-uint16 READ_POINT_TIMER_FROM_EEP;
+extern uint16 READ_POINT_TIMER;
+extern uint16 READ_POINT_TIMER_FROM_EEP;
 extern uint8 uart0_config;
 extern STR_MODBUS Modbus;
-extern U16_T Test[50];
+extern uint16_t Test[50];
 //extern uint8_t modbus_wifi_buf[500];
 //extern uint16_t modbus_wifi_len;
 extern uint8 reg_num;

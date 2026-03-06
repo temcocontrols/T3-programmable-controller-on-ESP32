@@ -26,7 +26,7 @@ uint32 TSTAT8_MENU_COLOR2 = 0xd6dd;
 uint32 TANGLE_COLOR = 0xd6dd;
 #endif
 
-extern U16_T Test[50];
+extern uint16_t Test[50];
 
 uint8_t display_config[5];
 uint8 EEP_DEGCorF;
@@ -3413,7 +3413,7 @@ void LCD_IO_Init(void)
 {
     gpio_config_t io_conf;
     //disable interrupt
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
     //set as output mode
     io_conf.mode = GPIO_MODE_OUTPUT;
     //bit mask of the pins that you want to set,e.g.GPIO18/19
@@ -4828,7 +4828,7 @@ void Lcd_task(void *arg)
 
 		}
 
-		vTaskDelay(1000 / portTICK_RATE_MS);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 }
 

@@ -12,7 +12,7 @@
 
 #if 1
 
-#define LOCAL //EXT_RAM_ATTR
+#define LOCAL //EXT_RAM_BSS_ATTR
 
 uint8_t _ade7953_write_addr;
 uint8_t _ade7953_read_addr;
@@ -103,9 +103,9 @@ void newAde7953Read (uint16 reg, uint8_t* value)
 		for (int i = 0; i < (size - 1); i++) {
 			i2c_master_read_byte(cmd, value, ACK_VAL);
 		}
-		i2c_master_read_byte(cmd, value[size-1], NACK_VAL);
+		i2c_master_read_byte(cmd, &value[size-1], NACK_VAL);
 		i2c_master_stop(cmd);
-		i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+		i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 		i2c_cmd_link_delete(cmd);
 	}
 }
@@ -136,7 +136,7 @@ LOCAL uint32_t Ade7953Read(uint16_t reg){
         for (int i = 0; i < (size - 1); i++) {
             //response = response << 8 | i2c_master_readByte();   // receive DATA (MSB first)
         	//i2c_master_read_byte(cmd, &temp_data, ACK_VAL);
-        	i2c_master_read_byte(cmd, &holding_reg_params.testBuf[i], ACK_VAL);
+        	i2c_master_read_byte(cmd, (uint8_t *)&holding_reg_params.testBuf[i], ACK_VAL);
         	//response = response << 8 | temp_data;
         }
         //i2c_master_read(cmd, tempBuf, size-1, ACK_VAL);
@@ -145,7 +145,7 @@ LOCAL uint32_t Ade7953Read(uint16_t reg){
         //holding_reg_params.testBuf[2] = 0;
         //holding_reg_params.testBuf[3] = 0;
         //i2c_master_read(cmd, holding_reg_params.testBuf, size-1, ACK_VAL);
-        i2c_master_read_byte(cmd, &holding_reg_params.testBuf[3], NACK_VAL);
+        i2c_master_read_byte(cmd, (uint8_t *)&holding_reg_params.testBuf[3], NACK_VAL);
         if(size == 4)
         	response = BUILD_UINT32(holding_reg_params.testBuf[3],holding_reg_params.testBuf[2],holding_reg_params.testBuf[1],holding_reg_params.testBuf[0]);
         else if( size == 3)
@@ -159,7 +159,7 @@ LOCAL uint32_t Ade7953Read(uint16_t reg){
 
         //i2c_master_send_nack(); // STOP
 		i2c_master_stop(cmd);
-		i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+		i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 		i2c_cmd_link_delete(cmd);
     }
 
@@ -193,7 +193,7 @@ void Ade7953Write(uint16_t reg, uint32_t val){
         	i2c_master_write_byte(cmd, (val >> (8 * size)) & 0xFF, ACK_CHECK_EN);
         }
         i2c_master_stop(cmd);
-        ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+        ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
         i2c_cmd_link_delete(cmd);
         //os_delay_us(5);
     }
@@ -212,7 +212,7 @@ void Ade7953_init(){
 
 void Ade7953GetData(void){
     ade7953_voltage_rms = Ade7953Read(0x21C);      // Both relays
-    vTaskDelay(100 / portTICK_RATE_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
     ade_7953_voltage = Ade7953Read(0x218);
     ade7953_current_rms1 = Ade7953Read(0x21B);     // Relay 1
     if (ade7953_current_rms1 < 2000) {             // No load threshold (20mA)
@@ -221,7 +221,7 @@ void Ade7953GetData(void){
     } else {
         ade7953_active_power1 = (int32_t)Ade7953Read(0x313) * -1;//Ade7953Read(0x213);  // Relay 1
     }
-    vTaskDelay(100 / portTICK_RATE_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
     ade7953_current_rms2 = Ade7953Read(0x21A);     // Relay 2
     if (ade7953_current_rms2 < 2000) {             // No load threshold (20mA)
         ade7953_current_rms2 = 0;
@@ -243,16 +243,16 @@ void Ade7953GetData(void){
 
 uint16_t Ade7953_getVoltage(){
 	//ade7953_voltage_rms = Ade7953Read(0x21C);      // Both relays
-	newAde7953Read(MGOS_ADE7953_REG_V, &inputs[0].value);//
+	newAde7953Read(MGOS_ADE7953_REG_V, (uint8_t *)&inputs[0].value);//
     return (ade7953_voltage_rms / ADE7953_UREF);
 }
 uint16_t Ade7953_getCurrent(uint8_t channel){
 	//ade7953_current_rms2 = Ade7953Read(0x21A);     // Relay 2
-	newAde7953Read(MGOS_ADE7953_REG_IA, &inputs[1].value); //
+	newAde7953Read(MGOS_ADE7953_REG_IA, (uint8_t *)&inputs[1].value); //
     return (channel < 2 ? ade7953_current_rms1 : ade7953_current_rms2) / ADE7953_IREF;
 }
 uint16_t Ade7953_getActivePower(uint8_t channel){
-	newAde7953Read(MGOS_ADE7953_REG_AWATT, &inputs[3].value);
+	newAde7953Read(MGOS_ADE7953_REG_AWATT, (uint8_t *)&inputs[3].value);
     return (channel < 2 ? ade7953_active_power1 : ade7953_active_power2 ) / ADE7953_PREF;
 }
 

@@ -84,7 +84,7 @@ int32_t mlx90632_i2c_read(int16_t register_address, uint16_t *value)
 	i2c_master_read_byte(cmd, &temp_data[0], ACK_VAL);
 	i2c_master_read_byte(cmd, &temp_data[1], NACK_VAL);
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	got_data = BUILD_UINT16(temp_data[1], temp_data[0]);
 	memcpy(value, &got_data, 2);
@@ -107,14 +107,14 @@ int32_t mlx90632_i2c_write(int16_t register_address, uint16_t value)
 	i2c_master_write_byte(cmd, data_h,ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, data_l,ACK_CHECK_EN);
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
 
 void WaitEE(uint16_t ms)
 {
-	vTaskDelay(ms / portTICK_RATE_MS);
+	vTaskDelay(ms / portTICK_PERIOD_MS);
 }
 
 uint8_t Calculate_PEC (uint8_t initPEC, uint8_t newData)
@@ -168,7 +168,7 @@ int MLX90614_SMBusRead(uint8_t slaveAddr, uint8_t readAddress, uint16_t *data)
     i2c_master_read_byte(i2c_cmd, (uint8_t*)&smbData[1], ACK_VAL);
     i2c_master_read_byte(i2c_cmd, (uint8_t*)&smbData[2], ACK_VAL);
     i2c_master_stop(i2c_cmd);
-	i2c_master_cmd_begin(I2C_MASTER_NUM, i2c_cmd, 1000 / portTICK_RATE_MS);
+	i2c_master_cmd_begin(I2C_MASTER_NUM, i2c_cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(i2c_cmd);
     //i2c.stop();
 	sa = sa | 0x01;
@@ -228,7 +228,7 @@ int MLX90614_GetTo(uint8_t slaveAddr, float *to)
 
 void msleep(int msecs)
 {
-	vTaskDelay(msecs / portTICK_RATE_MS);
+	vTaskDelay(msecs / portTICK_PERIOD_MS);
 }
 
 void mlx_usleep(int min_range, int max_range)
@@ -272,12 +272,12 @@ static esp_err_t i2c_master_sensor_mlx90614(i2c_port_t i2c_num, uint8_t *data)
     //i2c_master_write_byte(cmd, MLX90614_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
     i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
     i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	if (ret != ESP_OK) {
 		return ret;
 	}
-    vTaskDelay(15 / portTICK_RATE_MS);*/
+    vTaskDelay(15 / portTICK_PERIOD_MS);*/
 
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -286,9 +286,9 @@ static esp_err_t i2c_master_sensor_mlx90614(i2c_port_t i2c_num, uint8_t *data)
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, MLX90614_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
     i2c_master_read(cmd,data,3,ACK_VAL);
-    //vTaskDelay(10 / portTICK_RATE_MS);
+    //vTaskDelay(10 / portTICK_PERIOD_MS);
     i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	if (ret != ESP_OK) {
 		return ret;
@@ -306,12 +306,12 @@ static esp_err_t i2c_master_sensor_sht31(i2c_port_t i2c_num, uint8_t *data)//_h,
     i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
     //BH1750_CMD_START, ACK_CHECK_EN);
     i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
     if (ret != ESP_OK) {
         return ret;
     }
-    vTaskDelay(30 / portTICK_RATE_MS);
+    vTaskDelay(30 / portTICK_PERIOD_MS);
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, SHT31_SENSOR_ADDR << 1 | READ_BIT, ACK_CHECK_EN);
@@ -319,7 +319,7 @@ static esp_err_t i2c_master_sensor_sht31(i2c_port_t i2c_num, uint8_t *data)//_h,
     //i2c_master_read_byte(cmd, data_l, NACK_VAL);
     i2c_master_read(cmd,data,6,ACK_VAL);
     i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
     return ret;
 }
@@ -334,12 +334,12 @@ static esp_err_t i2c_master_sensor_veml7700(i2c_port_t i2c_num, uint8_t *data_l,
 	i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, 0x00,ACK_CHECK_EN);
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 	if (ret != ESP_OK) {
 		return ret;
 	}
-	vTaskDelay(30 / portTICK_RATE_MS);
+	vTaskDelay(30 / portTICK_PERIOD_MS);
 	cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, VEML7700_SENSOR_ADDR << 1 | WRITE_BIT, ACK_CHECK_EN);
@@ -349,7 +349,7 @@ static esp_err_t i2c_master_sensor_veml7700(i2c_port_t i2c_num, uint8_t *data_l,
 	i2c_master_read_byte(cmd, data_l, ACK_VAL);
 	i2c_master_read_byte(cmd, data_h, NACK_VAL);
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -370,7 +370,7 @@ static esp_err_t i2c_master_sensor_mlx90621(i2c_port_t i2c_num, uint8_t cmd_h, u
 	i2c_master_read_byte(cmd, data_l, ACK_VAL);
 	i2c_master_read_byte(cmd, data_h, NACK_VAL);
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -384,12 +384,12 @@ static esp_err_t i2c_master_sensor_scd40(i2c_port_t i2c_num, uint8_t cmd_h, uint
 	i2c_master_write_byte(cmd, (SCD40_SENSOR_ADDR << 1) | WRITE_BIT, ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_h,ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, cmd_l,ACK_CHECK_EN);
-	vTaskDelay(500/portTICK_RATE_MS);
+	vTaskDelay(500/portTICK_PERIOD_MS);
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, (SCD40_SENSOR_ADDR << 1) | READ_BIT, ACK_CHECK_EN);
 	i2c_master_read(cmd,data,9,ACK_VAL);
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -407,7 +407,7 @@ esp_err_t sensirion_i2c_write(uint8_t address, const uint8_t *data,
         ret = i2c_master_write_byte(cmd, data[i],ACK_CHECK_EN);
     }
     ret = i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 5000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 5000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -420,13 +420,13 @@ esp_err_t sensirion_i2c_read(uint8_t address, uint8_t *data, uint16_t count) {
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd,address << 1| READ_BIT, ACK_CHECK_EN);
     //usleep(600);
-    vTaskDelay(5/portTICK_RATE_MS);
+    vTaskDelay(5/portTICK_PERIOD_MS);
     for (i = 0; i < count; i++) {
 		send_ack = i < (count - 1); // last byte must be NACK'ed
 		i2c_master_read_byte(cmd, &data[i],!send_ack);
 	}
     i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 2000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 2000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
     return ret;
 }
@@ -444,7 +444,7 @@ esp_err_t LED_i2c_write(uint8_t address, const uint8_t *data,
         ret = i2c_master_write_byte(cmd, data[i],ACK_CHECK_EN);
     }
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -465,7 +465,7 @@ esp_err_t stm_i2c_write(uint8_t reg,const uint8_t *value, uint16_t count)
     }
 
 	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -482,7 +482,7 @@ int32_t stm_i2c_read(int16_t reg, uint8_t *value,uint16_t len)
     i2c_master_write_byte(cmd, (0x74 << 1) | WRITE_BIT, ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, reg,ACK_CHECK_EN);
 
-	vTaskDelay(50/portTICK_RATE_MS);
+	vTaskDelay(50/portTICK_PERIOD_MS);
 
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, (0x74 << 1) | READ_BIT, ACK_CHECK_EN);
@@ -497,7 +497,7 @@ int32_t stm_i2c_read(int16_t reg, uint8_t *value,uint16_t len)
 
 	i2c_master_stop(cmd);
 
-	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -585,7 +585,7 @@ void VOC_Initial(void) 	// SGP30
 			voc_ok = 0;
 			break;
 		}
-		vTaskDelay(100/ portTICK_RATE_MS);
+		vTaskDelay(100/ portTICK_PERIOD_MS);
 	}
 	temp = 0;
 	if(voc_ok)
@@ -612,7 +612,7 @@ void VOC_Initial(void) 	// SGP30
 			if(ret == STATUS_OK)
 				printf(" set baseline: OK");
 
-			vTaskDelay(100 / portTICK_RATE_MS);
+			vTaskDelay(100 / portTICK_PERIOD_MS);
 		}
 		if (ret == ESP_ERR_TIMEOUT) {
 			ESP_LOGE(TAG, "I2C SGP30 Timeout");
@@ -951,16 +951,16 @@ void i2c_sensor_task(void *arg)
 		}
 
 
-        vTaskDelay(100 / portTICK_RATE_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         if(Modbus.mini_type == PROJECT_TRANSDUCER || Modbus.mini_type == PROJECT_LSW_SENSOR)
         {
-        	int16 temp_tmp;
-        	int16 temp_hum;
+        	int32_t temp_tmp;
+        	int32_t temp_hum;
         	uint16 temp_co2;
         	int32_t pre_value = 0;
 
 			scd4x_start_periodic_measurement();
-			vTaskDelay(100 / portTICK_RATE_MS);
+			vTaskDelay(100 / portTICK_PERIOD_MS);
 			ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
 			if(ret != ESP_OK)
 			{
@@ -1040,7 +1040,7 @@ void i2c_sensor_task(void *arg)
 			ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
 		}
 		xSemaphoreGive(print_mux);
-		vTaskDelay(100 / portTICK_RATE_MS);
+		vTaskDelay(100 / portTICK_PERIOD_MS);
         /*ret =i2c_master_sensor_mlx90621(I2C_MASTER_NUM,0x24,0x05,&temp_data[0], &temp_data[1]);
         xSemaphoreTake(print_mux, portMAX_DELAY);
 		if (ret == ESP_ERR_TIMEOUT) {
@@ -1079,7 +1079,7 @@ void i2c_sensor_task(void *arg)
 			g_sensors.object = (uint16_t )(object*10)/2;
 			//g_sensors.infrared_temp1 = 321;
 			xSemaphoreGive(print_mux);
-			vTaskDelay(100/ portTICK_RATE_MS);
+			vTaskDelay(100/ portTICK_PERIOD_MS);
 		}
 #endif
 		//-----------------tVOC
@@ -1090,7 +1090,7 @@ void i2c_sensor_task(void *arg)
 		{
 			if(sgp30_measure_tvoc() == STATUS_OK)
 			{
-				vTaskDelay(100 / portTICK_RATE_MS);
+				vTaskDelay(100 / portTICK_PERIOD_MS);
 				if( sgp30_read_tvoc(&g_sensors.tvoc_ppb) == STATUS_OK)
 				{
 				  if(voc_cnt<4)
@@ -1140,7 +1140,7 @@ void i2c_sensor_task(void *arg)
 			}
 
 	//		xSemaphoreGive(print_mux);
-			vTaskDelay(500/portTICK_RATE_MS);
+			vTaskDelay(500/portTICK_PERIOD_MS);
 		}
 
 			//------------------SCD40
@@ -1156,11 +1156,11 @@ void i2c_sensor_task(void *arg)
 				if(scd4x_perform_forced == 1)
 				{
 					scd4x_stop_periodic_measurement();
-					vTaskDelay(1000/portTICK_RATE_MS);
+					vTaskDelay(1000/portTICK_PERIOD_MS);
 					scd4x_perform_forced_recalibration(co2_frc,&co2_asc);
-					vTaskDelay(1000/portTICK_RATE_MS);
+					vTaskDelay(1000/portTICK_PERIOD_MS);
 					scd4x_start_periodic_measurement();
-					vTaskDelay(5000/portTICK_RATE_MS);
+					vTaskDelay(5000/portTICK_PERIOD_MS);
 					scd4x_perform_forced = 0;
 				}
 				uint8_t error = scd4x_read_measurement(&co2, &temperature, &humidity);
@@ -1195,7 +1195,7 @@ void i2c_sensor_task(void *arg)
 			}
 
 //		xSemaphoreGive(print_mux);
-		vTaskDelay(2000 / portTICK_RATE_MS);
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
 #endif
 
         //---------------------------------------------------

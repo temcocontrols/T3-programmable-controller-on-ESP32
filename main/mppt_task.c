@@ -68,7 +68,7 @@ void mppt_task_init(void)
 {
 	gpio_config_t io_conf;
 	//disable interrupt
-	io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
 	//set as output mode
 	io_conf.mode = GPIO_MODE_OUTPUT;
 	//bit mask of the pins that you want to set
@@ -108,7 +108,7 @@ void ina228_read_task(void* arg)
 		inputs[7].value = Test[43] = gMPPT.output_energy = (uint32_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
 		//Test[45] = outputs[0].value/1000;
 
-		vTaskDelay(2000 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
+		vTaskDelay(2000 / portTICK_PERIOD_MS);//pdMS_TO_TICKS(1000));
 	}
 }
 
@@ -258,7 +258,7 @@ void mppt_task(void* arg)
 			}
 		}
 
-        vTaskDelay(100 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
+        vTaskDelay(100 / portTICK_PERIOD_MS);//pdMS_TO_TICKS(1000));
     }
 }
 

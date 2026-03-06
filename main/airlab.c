@@ -65,7 +65,7 @@ uint16 typical_partical_size = 0;
 
 u8 uart_sendC[11];
 
-//CDM FORMAT: Start, Adr, Cmd, Length, DataL, Check, Stop 
+//CDM FORMAT: Start, Adr, Cmd, Length, DataL, Check, Stop
 uint8 const PM25_CMD_START_MEASUREMENT[8] = 	{0x7E, 0x00, 0x00, 0x02, 0x01, 0x03, 0xF9, 0x7E};
 uint8 const PM25_CMD_STOP_MEASUREMENT[6] = 		{0x7E, 0x00, 0x01, 0x00, 0xFE, 0x7E};
 uint8 const PM25_CMD_READ_MEASUREMENT[6] =	 	{0x7E, 0x00, 0x03, 0x00, 0xFC, 0x7E};
@@ -85,7 +85,7 @@ const uint8 Var_label[16][9] = {
 	"StnNumer",   //1
 	"Protocol", //2
 	"Instance",//3
-	"Unit", //10 
+	"Unit", //10
 	"Trgger_S",
 	"Timer_S",
 	"Trgger_L",
@@ -128,7 +128,7 @@ uint8 flag_refresh_PM25;
 uint8 update_flag;
 
 uint8 isBlankScreen;
-uint8_t display_config[5];
+extern uint8_t display_config[5];
 uint8 pir_trigger;
 uint8 sound_level;
 
@@ -142,17 +142,17 @@ uint16 pir_value = 0;
 
 uint16 aqi_table_customer[5] = {12, 35, 55, 150, 250};
 
-uint16 const aqi_table_china[501] =  { 0, 3 , 4 , 6 , 7 , 9 , 10 , 11 , 13 , 14 , 16 , 17 , 19 , 20 , 21 , 23 , 24 , 26 , 27 , 29 , 30 , 31 , 33 , 34 , 36 , 37 , 39 , 40 , 41 , 43 , 44 , 46 , 47 , 49 , 50, 51 , 53 , 54 , 55 , 56 , 58 , 59 , 60 , 61 , 63 , 64 , 65 , 66 , 68 , 69 , 70 , 71 , 73 , 74 , 75 , 76 , 78 , 79 , 80 , 81 , 83 , 84 , 85 , 86 , 88 , 89 , 90 , 91 , 93 , 94 , 95 , 96 , 98 , 99 , 100 , 101 , 103 , 104 , 105 , 106 , 108 , 109 , 110 , 111 , 113 , 114 , 115 , 116 , 118 , 119 , 120 , 121 , 123 , 124 , 125 , 126 , 128 , 129 , 130 , 131 , 133 , 134 , 135 , 136 , 138 , 139 , 140 , 141 , 143 , 144 , 145 , 146 , 148 , 149 , 150 , 151 , 153 , 154 , 156 , 157 , 159 , 160 , 161 , 163 , 164 , 166 , 167 , 169 , 170 , 171 , 173 , 174 , 176 , 177 , 179 , 180 , 181 , 183 , 184 , 186 , 187 , 189 , 190 , 191 , 193 , 194 , 196 , 197 , 199 , 200 , 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 };	  
+uint16 const aqi_table_china[501] =  { 0, 3 , 4 , 6 , 7 , 9 , 10 , 11 , 13 , 14 , 16 , 17 , 19 , 20 , 21 , 23 , 24 , 26 , 27 , 29 , 30 , 31 , 33 , 34 , 36 , 37 , 39 , 40 , 41 , 43 , 44 , 46 , 47 , 49 , 50, 51 , 53 , 54 , 55 , 56 , 58 , 59 , 60 , 61 , 63 , 64 , 65 , 66 , 68 , 69 , 70 , 71 , 73 , 74 , 75 , 76 , 78 , 79 , 80 , 81 , 83 , 84 , 85 , 86 , 88 , 89 , 90 , 91 , 93 , 94 , 95 , 96 , 98 , 99 , 100 , 101 , 103 , 104 , 105 , 106 , 108 , 109 , 110 , 111 , 113 , 114 , 115 , 116 , 118 , 119 , 120 , 121 , 123 , 124 , 125 , 126 , 128 , 129 , 130 , 131 , 133 , 134 , 135 , 136 , 138 , 139 , 140 , 141 , 143 , 144 , 145 , 146 , 148 , 149 , 150 , 151 , 153 , 154 , 156 , 157 , 159 , 160 , 161 , 163 , 164 , 166 , 167 , 169 , 170 , 171 , 173 , 174 , 176 , 177 , 179 , 180 , 181 , 183 , 184 , 186 , 187 , 189 , 190 , 191 , 193 , 194 , 196 , 197 , 199 , 200 , 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 };
 
-uint16 const aqi_table_usa[501] =  { 0, 4, 8, 13, 17, 21, 25, 29, 33, 38, 42, 46, 50, 53, 55, 57, 59, 61, 63, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 95, 97, 99, 102, 105, 107, 110, 112, 115, 117, 119, 122, 124, 127, 129, 132, 134, 137, 139, 142, 144, 147, 149, 151, 152, 152, 153, 153, 154, 154, 155, 155, 156, 156, 157, 157, 158, 158, 159, 160, 160, 161, 161, 162, 162, 163, 163, 164, 164, 165, 165, 166, 166, 167, 167, 168, 168, 169, 169, 170, 170, 171, 171, 172, 172, 173, 173, 174, 174, 175, 176, 176, 177, 177, 178, 178, 179, 179, 180, 180, 181, 181, 182, 182, 183, 183, 184, 184, 185, 185, 186, 186, 187, 187, 188, 188, 189, 189, 190, 190, 191, 192, 192, 193, 193, 194, 194, 195, 195, 196, 196, 197, 197, 198, 198, 199, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 }; 
+uint16 const aqi_table_usa[501] =  { 0, 4, 8, 13, 17, 21, 25, 29, 33, 38, 42, 46, 50, 53, 55, 57, 59, 61, 63, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 95, 97, 99, 102, 105, 107, 110, 112, 115, 117, 119, 122, 124, 127, 129, 132, 134, 137, 139, 142, 144, 147, 149, 151, 152, 152, 153, 153, 154, 154, 155, 155, 156, 156, 157, 157, 158, 158, 159, 160, 160, 161, 161, 162, 162, 163, 163, 164, 164, 165, 165, 166, 166, 167, 167, 168, 168, 169, 169, 170, 170, 171, 171, 172, 172, 173, 173, 174, 174, 175, 176, 176, 177, 177, 178, 178, 179, 179, 180, 180, 181, 181, 182, 182, 183, 183, 184, 184, 185, 185, 186, 186, 187, 187, 188, 188, 189, 189, 190, 190, 191, 192, 192, 193, 193, 194, 194, 195, 195, 196, 196, 197, 197, 198, 198, 199, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 };
 
 void uart_send_string(U8_T *p, U16_T length,U8_T port);
 
-#define AQI_INDEX_RNG				500 
+#define AQI_INDEX_RNG				500
 
 #define LEVEL0			50		//AQI:   0 ~ 50
 #define LEVEL1			100		//AQI:  50 ~ 99
-#define LEVEL2			150		//AQI:  99 ~ 149	
+#define LEVEL2			150		//AQI:  99 ~ 149
 #define LEVEL3			200		//AQI: 149 ~ 200
 #define LEVEL4			300		//AQI: 200 ~ 300
 #define LEVEL5			500		//AQI: 300 ~ 500
@@ -160,7 +160,7 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port);
 
 
 float Datasum(uint8 FloatByte1, uint8 FloatByte2, uint8 FloatByte3, uint8 FloatByte4)
-{   
+{
 	float aa;
 //	uint8 Sflag;
 	uint16 Evalue;
@@ -169,31 +169,31 @@ float Datasum(uint8 FloatByte1, uint8 FloatByte2, uint8 FloatByte3, uint8 FloatB
 	float mfloat = 0;
 	uint32 Etemp;
 	uint8 i;
-	
+
 //	Sflag = 0x01& (FloatByte1 >> 7);//indicate it is positive or negative value
-	
+
 	Evalue = FloatByte1 & 0x7f;
 	Evalue = Evalue<<1;
 	if((FloatByte2 & 0x80) == 0x80)
 		Evalue = Evalue | 0x01 ;
 	else
 		Evalue = Evalue & 0xfe ;
-	
+
 	Mvalue = FloatByte2 & 0x7f;
 	Mvalue = (Mvalue << 16);
 	Mvalue |= ((uint16)FloatByte3 << 8);
 	Mvalue |= FloatByte4;
-	
+
 
 	for(i=0;i<23;i++)
 	{
 		Mtemp = (Mvalue >> i) & 0x01;
 		if(Mtemp != 0)
-			mfloat += (float)1/(Mtemp << (23-i));		
+			mfloat += (float)1/(Mtemp << (23-i));
 	}
 
 	Etemp =  0x01 << (Evalue - 127);
-	
+
 	aa = (float)Etemp * (1 + mfloat);
 	return aa;
 }
@@ -204,34 +204,34 @@ void pm25_send_cmd(uint8 command)
 	{
 		case SENSIRION_START_MEASUREMENT:
 			uart_send_string(PM25_CMD_START_MEASUREMENT,8,2);
-			break;		
+			break;
 		case SENSIRION_STOP_MEASUREMENT:
 			uart_send_string(PM25_CMD_STOP_MEASUREMENT,6,2);
-			break;			
+			break;
 		case SENSIRION_READ_MEASUREMENT:
 			uart_send_string(PM25_CMD_READ_MEASUREMENT,6,2);
-			break;		
+			break;
 		case SENSIRION_READ_AUTO_CLEAN:
 			uart_send_string(PM25_CMD_READ_AUTO_CLEAN,8,2);
-			break;		
+			break;
 		case SENSIRION_DISABLE_AUTO_CLEAN:
 			uart_send_string(PM25_CMD_DISABLE_AUTO_CLEAN,11,2);
-			break;		
+			break;
 		case SENSIRION_START_FAN_CLEAN:
 			uart_send_string(PM25_CMD_START_FAN_CLEAN,6,2);
-			break;		
-		case SENSIRION_RESET:	
+			break;
+		case SENSIRION_RESET:
 			uart_send_string(PM25_CMD_RESET,6,2);
 			break;
 		default:
 		break;
-	
-	}	
+
+	}
 }
 
 void get_aqi_value(uint16 PM_val, uint16 *AQI_val,uint8 *AQI_level)
 {
-	if(PM_val < AQI_INDEX_RNG) 
+	if(PM_val < AQI_INDEX_RNG)
 	{
 		if(AQI_area == 1)
 			*AQI_val = aqi_table_china[PM_val];
@@ -265,7 +265,7 @@ void get_aqi_value(uint16 PM_val, uint16 *AQI_val,uint8 *AQI_level)
 		else
 			*AQI_val = aqi_table_usa[PM_val];
 	}
-	else 
+	else
 		*AQI_val = PM_val;
 
 	if(*AQI_val < LEVEL0) *AQI_level = GOOD;
@@ -273,7 +273,7 @@ void get_aqi_value(uint16 PM_val, uint16 *AQI_val,uint8 *AQI_level)
 	else if(*AQI_val < LEVEL2 ) *AQI_level = POOL_FOR_SOME;
 	else if(*AQI_val < LEVEL3 ) *AQI_level = UNHEALTHY;
 	else if(*AQI_val < LEVEL4) *AQI_level = MORE_UNHEALTHY;
-	else   *AQI_level = HAZARDOUS; 
+	else   *AQI_level = HAZARDOUS;
 
 
 }
@@ -289,7 +289,7 @@ uint8 Process_Rece_Data(uint8 *p,uint8 rece_count)
 	{
 		if(p[0] != 0x7E || p[2] != 0x03)
 			return 0;
-		
+
 		if(pm25_unit == NUM_CM3)
 		{
 			pm25_org = (uint16)Datasum(p[DATA_OFFSET + 24],p[DATA_OFFSET + 25],p[DATA_OFFSET + 26],p[DATA_OFFSET + 27]);
@@ -459,7 +459,7 @@ void Aialab_IO_Init(void)
 {
     gpio_config_t io_conf;
     //disable interrupt
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
     //set as output mode
     io_conf.mode = GPIO_MODE_OUTPUT;
     //bit mask of the pins that you want to set,e.g.GPIO18/19
@@ -483,7 +483,7 @@ void vPM25Task(void *pvParameters )
 	uint8_t uart_rsv[60];
 	pm25_current_cmd = SENSIRION_NULL;
 	//	pm25_send_cmd(SENSIRION_START_MEASUREMENT);
-	pm25_unit = NUM_CM3; // only for test, need to store it 
+	pm25_unit = NUM_CM3; // only for test, need to store it
 	task_test.enable[15] = 1;
 	flag_pm25 = 0;
 
@@ -500,7 +500,7 @@ void vPM25Task(void *pvParameters )
 	{
 		task_test.count[15]++;
 		{
-			int len = uart_read_bytes(UART_NUM_2, uart_rsv, 50, 20 / portTICK_RATE_MS);
+			int len = uart_read_bytes(UART_NUM_2, uart_rsv, 50, 20 / portTICK_PERIOD_MS);
 			if(len > 0)
 			{
 				err_count = 0;
@@ -541,7 +541,7 @@ void vPM25Task(void *pvParameters )
 
 		vTaskDelay(3000 / portTICK_PERIOD_MS);
 	}
-	
+
 }
 
 
@@ -570,7 +570,7 @@ void vInputTask( void *pvParameters )
 */
 	task_test.enable[7] = 1;
 	for(;;)
-	{			
+	{
 		//CalInput();
 		//control_input();
 		task_test.count[7]++;
@@ -580,7 +580,7 @@ void vInputTask( void *pvParameters )
 		}
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
-		
+
 }
 #endif
 
@@ -665,7 +665,7 @@ static void Airlab_adc_task(void* arg)
 	uint32_t vol_pir =0;
 	uint32_t vol_voice =0;
 	uint32_t vol_rs485 =0;
-	
+
 	int i = 0;
     //Continuously sample ADC1//Characterize ADC
 	Airlab_adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
@@ -736,7 +736,7 @@ static void Airlab_adc_task(void* arg)
     	}
 
 
-        vTaskDelay(200 / portTICK_RATE_MS);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 }
 
@@ -803,7 +803,7 @@ static void Key_Process(void* arg)
 				//xQueueSend(qKey, &key_temp, 0);
 			}
 		}
-		vTaskDelay(10 / portTICK_RATE_MS);
+		vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
@@ -828,7 +828,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	uint16_t *block;
 	uint8_t *block1;
 	uint8_t temp;
-	
+
 	if(addr == MODBUS_AIRLAB_DEGC_OR_F)
 	{
 	  return DEGCorF;
@@ -883,7 +883,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_2_5)
 	{
 	  return pm25_weight_25;
-	}	
+	}
 	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_4_0)
 	{
 	  return pm25_weight_40;
@@ -899,7 +899,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_1_0)
 	{
 	  return pm25_number_10;
-	}	
+	}
 	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_2_5)
 	{
 	  return pm25_number_25;
@@ -920,7 +920,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	{
 	  return disp_pm25_number_25;
 	}
-// VOC	
+// VOC
 	else if((addr >= MODBUS_AIRLAB_VOC_BASELINE1) && (addr <= MODBUS_AIRLAB_VOC_BASELINE1))
 	{
 	  return g_sensors.voc_baseline[addr - MODBUS_AIRLAB_VOC_BASELINE1];
@@ -928,7 +928,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	else if(addr == MODBUS_AIRLAB_VOC_DATA)
 	{
 	  return g_sensors.voc_value;
-	}	
+	}
 	else if(addr == MODBUS_AIRLAB_PATICAL_SIZE)
 	{
 	  return 0;
@@ -990,7 +990,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	{
 	  return aqi_table_customer[addr - MODBUS_AIRLAB_AQI_FIRST_LINE];
 	}
-	
+
 	// CO2
 	else if(addr == MODBUS_AIRLAB_CO2_ASC_ENABLE)
 	{
@@ -1049,34 +1049,34 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 	{
 		DEGCorF = pData[HeadLen + 5];
 	}
-	
+
 	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
-	  
+
 	}
 	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
-	  
+
 	}
 	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
-	  
+
 	}
-	
+
 	// PIR
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
-	  
+
 	}
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  PirSensorZero = pData[HeadLen + 5];
 	}
-	
+
 // PM2.5
-	
-// VOC	
-	
+
+// VOC
+
 	// AQI
 	else if(addr >= MODBUS_AIRLAB_AQ_LEVEL0 && addr <= MODBUS_AIRLAB_MAX_AQ_VAL)
 	{
@@ -1097,12 +1097,12 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 		aqi_table_customer[addr - MODBUS_AIRLAB_AQI_FIRST_LINE] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	  }
 	}
-	
-	// CO2	
+
+	// CO2
 	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 		uint16 tmp;
-		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];	
+		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];
 		sensirion_co2_cmd_ForcedCalibration[5] = pData[HeadLen + 5];
 		tmp = (uint16)(sensirion_co2_cmd_ForcedCalibration[4]<<8 )|sensirion_co2_cmd_ForcedCalibration[5];
 		if((tmp >= 0) && (tmp <= 5000))
@@ -1119,7 +1119,7 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 					scd4x_perform_forced = 1;
 					//scd4x_perform_forced_count = 0;
 				}
-			}					
+			}
 		}
 	}
 	// DISPLAY CONFIG
@@ -1131,7 +1131,7 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 	{
 		if((pData[HeadLen + 5] == 0) || (pData[HeadLen + 5]==1))
 		{
-			isBlankScreen= pData[HeadLen + 5];	
+			isBlankScreen= pData[HeadLen + 5];
 			//SoftReset();
 		}
 	}
@@ -1191,7 +1191,7 @@ void Get_AVS(void)
 	ptr = put_io_buf(VAR,base + 3);ptr.pvar->value = (uint32)Instance;
 	ptr = put_io_buf(VAR,base + 4);ptr.pvar->value = DEGCorF;
 
-	  
+
 }
 
 

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "esp_event.h"
 #include "INA228.h"
+#include "esp_system.h"
 
 /*
  * SHUNT_CAL is a conversion constant that represents the shunt resistance
@@ -76,7 +77,7 @@ esp_err_t i2c_write_byte(uint8_t i2c_master_port, uint8_t address, uint8_t comma
 	i2c_master_write_byte(cmd, command, ACK_CHECK_EN);
 	i2c_master_write_byte(cmd, data, ACK_CHECK_EN);
 	i2c_master_stop(cmd);
-	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
 	if (ret == ESP_OK) {
@@ -100,7 +101,7 @@ esp_err_t i2c_write_short(uint8_t i2c_master_port, uint8_t address, uint8_t comm
 	i2c_master_write_byte(cmd, data & 0xFF, ACK_CHECK_EN);
 	i2c_master_stop(cmd);
 
-	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
 	if (ret == ESP_OK) {
@@ -126,7 +127,7 @@ esp_err_t i2c_write_buf(uint8_t i2c_master_port, uint8_t address, uint8_t comman
 	}
 	i2c_master_stop(cmd);
 
-	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
 	if (ret == ESP_OK) {
@@ -150,7 +151,7 @@ uint8_t i2c_read_byte(uint8_t i2c_master_port, uint8_t address, uint8_t command)
 	i2c_master_read_byte(cmd, &data, NACK_VAL);
 	i2c_master_stop(cmd);
 
-	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
 	if (ret == ESP_OK) {
@@ -175,7 +176,7 @@ uint16_t i2c_read_short(uint8_t i2c_master_port, uint8_t address, uint8_t comman
 	i2c_master_read(cmd, (uint8_t *)&data, 2, ACK_VAL);
 	i2c_master_stop(cmd);
 
-	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
 
@@ -186,7 +187,7 @@ uint16_t i2c_read_short(uint8_t i2c_master_port, uint8_t address, uint8_t comman
 	} else {
 		//ESP_LOGW(TAG, "Read failed");
 	}
-	return(__bswap16(data));
+	return(__builtin_bswap16(data));
 }
 
 esp_err_t i2c_read_buf(uint8_t i2c_master_port, uint8_t address, uint8_t command, uint8_t *buffer, uint8_t len)
@@ -199,7 +200,7 @@ esp_err_t i2c_read_buf(uint8_t i2c_master_port, uint8_t address, uint8_t command
 	i2c_master_read(cmd, buffer, len, ACK_VAL);
 	i2c_master_stop(cmd);
 
-	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_RATE_MS);
+	esp_err_t ret = i2c_master_cmd_begin(i2c_master_port, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
 	if (ret == ESP_OK) {
@@ -222,7 +223,7 @@ float ina228_voltage(uint8_t i2c_master_port,uint8_t i2c_address)
 
 	i2c_read_buf(i2c_master_port,i2c_address,/*INA228_SLAVE_ADDRESS*/INA228_VBUS, (uint8_t *)&iBusVoltage, 3);
 	sign = iBusVoltage & 0x80;
-	iBusVoltage = __bswap32(iBusVoltage & 0xFFFFFF) >> 12;
+	iBusVoltage = __builtin_bswap32(iBusVoltage & 0xFFFFFF) >> 12;
 	if (sign) iBusVoltage += 0xFFF00000;
 	fBusVoltage = (iBusVoltage) * 0.0001953125;
 
@@ -248,7 +249,7 @@ float ina228_shuntvoltage(uint8_t i2c_master_port, uint8_t i2c_address)
 
 	i2c_read_buf(i2c_master_port, i2c_address, INA228_VSHUNT, (uint8_t *)&iShuntVoltage, 3);
 	sign = iShuntVoltage & 0x80;
-	iShuntVoltage = __bswap32(iShuntVoltage & 0xFFFFFF) >> 12;
+	iShuntVoltage = __builtin_bswap32(iShuntVoltage & 0xFFFFFF) >> 12;
 	if (sign) iShuntVoltage += 0xFFF00000;
 
 	fShuntVoltage = (iShuntVoltage) * 0.0003125;		// Output in mV when ADCRange = 0
@@ -265,7 +266,7 @@ float ina228_current(uint8_t i2c_master_port, uint8_t i2c_address)
 
 	i2c_read_buf(i2c_master_port, i2c_address, INA228_CURRENT, (uint8_t *)&iCurrent, 3);
 	sign = iCurrent & 0x80;
-	iCurrent = __bswap32(iCurrent & 0xFFFFFF) >> 12;
+	iCurrent = __builtin_bswap32(iCurrent & 0xFFFFFF) >> 12;
 	if (sign) iCurrent += 0xFFF00000;
 	fCurrent = (iCurrent) * CURRENT_LSB;
 
@@ -278,7 +279,7 @@ float ina228_power(uint8_t i2c_master_port, uint8_t i2c_address)
 	float fPower;
 
 	i2c_read_buf(i2c_master_port, i2c_address, INA228_POWER, (uint8_t *)&iPower, 3);
-	iPower = __bswap32(iPower & 0xFFFFFF) >> 8;
+	iPower = __builtin_bswap32(iPower & 0xFFFFFF) >> 8;
 	fPower = 3.2 * CURRENT_LSB * iPower;
 
 	return (fPower);
@@ -296,7 +297,7 @@ float ina228_energy(uint8_t i2c_master_port, uint8_t i2c_address)
 	float fEnergy;
 
 	i2c_read_buf(i2c_master_port, i2c_address, INA228_ENERGY, (uint8_t *)&iEnergy, 5);
-	iEnergy = __bswap64(iEnergy & 0xFFFFFFFFFF) >> 24;
+	iEnergy = __builtin_bswap64(iEnergy & 0xFFFFFFFFFF) >> 24;
 
 	fEnergy = 16 * 3.2 * CURRENT_LSB * iEnergy;
 
@@ -317,7 +318,7 @@ float ina228_charge(uint8_t i2c_master_port, uint8_t i2c_address)
 
 	i2c_read_buf(i2c_master_port, i2c_address, INA228_CHARGE, (uint8_t *)&iCharge, 5);
 	sign = iCharge & 0x80;
-	iCharge = __bswap64(iCharge & 0xFFFFFFFFFF) >> 24;
+	iCharge = __builtin_bswap64(iCharge & 0xFFFFFFFFFF) >> 24;
 	if (sign) iCharge += 0xFFFFFF0000000000;
 
 	fCharge = CURRENT_LSB * iCharge;
@@ -341,7 +342,7 @@ float ina228_get_voltage()
 	i2c_master_read_byte(cmd, &voltage_raw, I2C_MASTER_ACK);
 	i2c_master_read_byte(cmd, &voltage_raw, I2C_MASTER_NACK);
 	i2c_master_stop(cmd);
-	i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+	i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
 	i2c_cmd_link_delete(cmd);
 
 	// Convert the raw value to voltage
@@ -366,7 +367,7 @@ float ina228_get_power()
     i2c_master_read_byte(cmd, &power_raw, I2C_MASTER_ACK);
     i2c_master_read_byte(cmd, &power_raw, I2C_MASTER_NACK);
     i2c_master_stop(cmd);
-    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+    i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
 
     // Convert the raw value to power

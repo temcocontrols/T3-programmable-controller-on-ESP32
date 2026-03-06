@@ -54,16 +54,16 @@ void MenuIdle_init(void)
 		Modbus.disable_tstat10_display = 3;
 	}
 	digital_top_area_type = Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type;
-	digital_top_area_num = Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.number - 1;	
-						
+	digital_top_area_num = Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.number - 1;
+
 	memset(UI_DIS_TOP,0,9);
 	digital_top_area_changed = 0;
-	
-	disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);					
+
+	disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
 	disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "            ",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 	disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
-	disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT * 2 - 7, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);	
-	
+	disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT * 2 - 7, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
+
 	if(digital_top_area_type == IN)
 	{
 		ptr = put_io_buf(IN,digital_top_area_num);
@@ -81,7 +81,7 @@ void MenuIdle_init(void)
 	}
 
 	disp_null_icon(240, 36, 0, 0,TIME_POS,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR2);
-	
+
 	ptr = put_io_buf(VAR,0);
 	memcpy(UI_DIS_LINE1, ptr.pvar->label, 3);UI_DIS_LINE1[3] = 0;
 	if(ptr.pvar->range != 0)
@@ -114,11 +114,11 @@ void MenuIdle_init(void)
 		}
 }
 
- 
+
 void get_data_format(u8 loc,float num,char *s)
 {
 	u8 i,s_len,s_start,buf_start;
-	
+
 	if(loc == 0)
 		sprintf(s,"%9.0f",num);
 	else if(loc == 1)
@@ -135,7 +135,7 @@ void get_data_format(u8 loc,float num,char *s)
 		sprintf(s,"%9.6f",num);
 	else
 		sprintf(s,"%f",num);
-	
+
 	for(i=0;i<9;i++)
 	{
 		if(s[i]!= 0x20) break;
@@ -143,7 +143,7 @@ void get_data_format(u8 loc,float num,char *s)
 	s_len = 9 - i;   					//���ݳ���
 	s_start = i;     					//������ʼλ��
 	buf_start = i - i / 2; 				//�������ú����ʼλ��
-	
+
 	for(i=0;i<s_len;i++) 				//��������
 	{
 		s[buf_start + i] = s[s_start + i];
@@ -151,9 +151,9 @@ void get_data_format(u8 loc,float num,char *s)
 	for(i=buf_start + s_len;i<9;i++ ) 	//��" "
 	{
 		s[i] = 0x20;
-	} 
+	}
 }
- 
+
 void MenuIdle_display(void)
 {
    	static u8 count_tx = 0;
@@ -248,7 +248,7 @@ void MenuIdle_display(void)
 			uint8 type,num;
 			//if(Setting_Info.reg.display_lcd.lcddisplay[0] == 1) // modbus
 			if(Modbus.mini_type == MINI_TSTAT10)
-			{				
+			{
 				if(digital_top_area_type != Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type)
 				{
 					digital_top_area_type = Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type;
@@ -268,7 +268,7 @@ void MenuIdle_display(void)
 				if(digital_top_area_changed)
 				{
 					digital_top_area_changed = 0;
-					disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);					
+					disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
 					disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "            ",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 					disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
 					disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT * 2 - 7, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -279,14 +279,14 @@ void MenuIdle_display(void)
 					ptr = put_io_buf(IN,num);
 					if(ptr.pin->digital_analog == 1)
 					{
-						flag_digital_top_area = 0;		
+						flag_digital_top_area = 0;
 						if(ptr.pin->range == 4/* R10K_40_250DegF*/)
 							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 100, TOP_AREA_DISP_UNIT_F);
 						else if(ptr.pin->range == 3/*R10K_40_120DegC*/)
 							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 100, TOP_AREA_DISP_UNIT_C);
 						else if(ptr.pin->range == 27)  // humidity
 							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 100, TOP_AREA_DISP_UNIT_RH);
-						else 
+						else
 							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pin->value / 1000, TOP_AREA_DISP_UNIT_NONE);
 					}
 					else
@@ -334,7 +334,7 @@ void MenuIdle_display(void)
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);
 						}
-					
+
 					}
 				}
 				else if(type == OUT)
@@ -388,7 +388,7 @@ void MenuIdle_display(void)
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);
 						}
-					
+
 					}
 				}
 				else if(type == VAR)
@@ -396,9 +396,9 @@ void MenuIdle_display(void)
 					ptr = put_io_buf(VAR,num);
 					if(ptr.pvar->digital_analog == 1)
 					{
-						flag_digital_top_area = 0;	
+						flag_digital_top_area = 0;
 						if(ptr.pvar->range == degF) //���rangeѡ����10K type2 F ����ʾ F
-						{	
+						{
 							Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, ptr.pvar->value / 100, TOP_AREA_DISP_UNIT_F);
 						}
 						else	if(ptr.pvar->range == degC) //���rangeѡ����10K type2 F ����ʾ F
@@ -422,7 +422,7 @@ void MenuIdle_display(void)
 					}
 					else
 					{
-						flag_digital_top_area = 1;						
+						flag_digital_top_area = 1;
 						ptr = put_io_buf(VAR,digital_top_area_num);
 						memcpy(UI_DIS_TOP, ptr.pvar->label, 9);
 						disp_str_16_24(FORM15X30, SCH_XPOS + 20,  IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
@@ -465,16 +465,16 @@ void MenuIdle_display(void)
 							else
 								disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "OFF",SCH_COLOR,TSTAT8_BACK_COLOR);
 						}
-					
+
 					}
 //					else
-//					{						
+//					{
 //						Top_area_display(TOP_AREA_DISP_ITEM_TEMPERATURE, vars[num].control, TOP_AREA_DISP_UNIT_NONE);
 //					}
 //					else
-//					{// uint is not 
+//					{// uint is not
 //						// tbd: add more
-//						
+//
 //					}
 				}
 				// ..... tbd: add more type
@@ -482,9 +482,9 @@ void MenuIdle_display(void)
 // 			if(Setting_Info.reg.display_lcd.lcddisplay[0] == 1) // bacnet
 //			{
 //			}
-			
+
 		}
-		if(count_left_key > 5) 
+		if(count_left_key > 5)
 			disp_index = 0;
 		else
 			count_left_key++;
@@ -496,7 +496,7 @@ void MenuIdle_display(void)
 		}
 
 
-				
+
 	if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL)//����Ļ���Ͻ���ʾwifi��״̬
 	{
 		if(SSID_Info.rssi < -80)
@@ -682,13 +682,13 @@ void MenuIdle_keycope(uint16 key_value)
 
 			ChangeFlash = 1;
 			break;
-		case KEY_SPEED_10 | KEY_UP_MASK:	
+		case KEY_SPEED_10 | KEY_UP_MASK:
 			count_left_key = 0;
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
-				{					
+				{
 					char len;
 					len = check_msv_data_len(disp_index - 1);
 					for (i = 0; i < len; i++)
@@ -768,7 +768,7 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 
 		case KEY_DOWN_MASK:
-			count_left_key = 0;			
+			count_left_key = 0;
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
@@ -858,12 +858,12 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 				}
 			}
-		
+
 
 			ChangeFlash = 1;
-			break;		
-		case KEY_SPEED_10 | KEY_DOWN_MASK: 
-			count_left_key = 0;			
+			break;
+		case KEY_SPEED_10 | KEY_DOWN_MASK:
+			count_left_key = 0;
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
@@ -939,22 +939,22 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 				}
 			}
-		
+
 			ChangeFlash = 1;
 			break;
-		
+
 		case KEY_LEFT_MASK:
 			// change SETP, FAN , SYS
 			if(flag_digital_top_area == 1)
 			{
 				if(disp_index < 4) disp_index++;
-				else 
+				else
 					disp_index = 1;
 			}
 			else
 			{
 				if(disp_index < 3) disp_index++;
-				else 
+				else
 					disp_index = 1;
 			}
 			flag_left_key = 1;
@@ -1280,7 +1280,7 @@ void Refresh_scroll(void)
 		{// tbd::::::::::::
 			uint8 len;
 			sprintf((char*)&scroll_ram[0][0],"%d.%d.%d.%d",(uint8)SSID_Info.ip_addr[0],(uint8)SSID_Info.ip_addr[1],(uint8)SSID_Info.ip_addr[2], (uint8)SSID_Info.ip_addr[3]);
-			len = strlen(&scroll_ram[0]);
+			len = strlen((const char *)scroll_ram[0]);
 			scroll_ram[0][len] = ' ';
 		}
 		else if(SSID_Info.IP_Wifi_Status == 3)

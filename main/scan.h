@@ -14,7 +14,7 @@ typedef struct _SCAN_DATABASE_
 	U8_T id;
 	U32_T sn;
 	U8_T port;	// high half byte -- baut , low half byte - port
-	U8_T product_model;  
+	U8_T product_model;
 } SCAN_DB;
 
 #define STACK_LEN  20
@@ -91,12 +91,12 @@ extern U16_T  collision[3];  // id collision
 extern U16_T  packet_error[3];  // bautrate not match
 extern U16_T  timeout[3];
 
-extern EXT_RAM_ATTR U8_T  tstat_name[MAX_ID][16];
-extern EXT_RAM_ATTR U8_T  flag_tstat_name[MAX_ID];
-extern EXT_RAM_ATTR U16_T  count_read_tstat_name[MAX_ID];
-extern EXT_RAM_ATTR SCAN_DB  current_db;
-extern EXT_RAM_ATTR SCAN_DB  scan_db[MAX_ID];
-extern EXT_RAM_ATTR S16_T  scan_db_time_to_live[MAX_ID];
+extern EXT_RAM_BSS_ATTR U8_T  tstat_name[MAX_ID][16];
+extern EXT_RAM_BSS_ATTR U8_T  flag_tstat_name[MAX_ID];
+extern EXT_RAM_BSS_ATTR U16_T  count_read_tstat_name[MAX_ID];
+extern EXT_RAM_BSS_ATTR SCAN_DB  current_db;
+extern EXT_RAM_BSS_ATTR SCAN_DB  scan_db[MAX_ID];
+extern EXT_RAM_BSS_ATTR S16_T  scan_db_time_to_live[MAX_ID];
 extern U8_T db_ctr;
 extern U8_T db_online[32], db_occupy[32]/*, get_para[32]*/;
 extern U8_T current_online[32];
@@ -114,24 +114,24 @@ extern U8_T count_send_id_to_zigbee;
 
 typedef struct
 {
-	U8_T f_schedule_sync; // 
+	U8_T f_schedule_sync; //
 	U8_T f_send_schdule_data;
 	U8_T f_time_sync;
 	U8_T schedule_id;
 	U8_T schedule_index;
 	U8_T schedule_output;
-	U8_T en_device_schdule;// 0: noused 1: enabled 
-	
+	U8_T en_device_schdule;// 0: noused 1: enabled
+
 	U8_T count_send_schedule;  // send command after 10 sec
 }STR_Sch_To_T8;
 
 //extern U8_T count_send_schedule[100];
 extern STR_Sch_To_T8 Sch_To_T8[MAX_ID];
-	
+
 typedef struct
 {
 	U8_T flag; // 0 - writing , 1 - ok, 2 - fail
-	U32_T sn; // 
+	U32_T sn; //
 	U8_T oldid;
 	U8_T newid;
 }STR_T3000;

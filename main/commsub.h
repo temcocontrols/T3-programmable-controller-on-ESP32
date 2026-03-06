@@ -9,7 +9,7 @@
 
 
 
-extern EXT_RAM_ATTR STR_MAP_table far sub_map[SUB_NO];
+extern EXT_RAM_BSS_ATTR STR_MAP_table far sub_map[SUB_NO];
 //extern TST_INFO far tst_info[SUB_NO];
 
 //extern U8_T far tst_addr_index[3];
@@ -17,11 +17,11 @@ extern EXT_RAM_ATTR STR_MAP_table far sub_map[SUB_NO];
 
 
 //extern U8_T far sub_addr[SUB_NO];
-extern EXT_RAM_ATTR U8_T far uart0_sub_addr[SUB_NO];
+extern EXT_RAM_BSS_ATTR U8_T far uart0_sub_addr[SUB_NO];
 
 
-extern EXT_RAM_ATTR U8_T far uart1_sub_addr[SUB_NO];
-extern EXT_RAM_ATTR U8_T far uart2_sub_addr[SUB_NO];
+extern EXT_RAM_BSS_ATTR U8_T far uart1_sub_addr[SUB_NO];
+extern EXT_RAM_BSS_ATTR U8_T far uart2_sub_addr[SUB_NO];
 extern U8_T far uart1_sub_no;
 extern U8_T far uart2_sub_no;
 
@@ -33,7 +33,7 @@ extern U8_T far uart0_sub_no;
 #define TST_MAX_READ_COUNT 5
 
 
-typedef struct 
+typedef struct
 {
 // start reg   len	 mum
 //	U8_T index;
@@ -42,7 +42,7 @@ typedef struct
 //	U8_T valid_reg[TST_MAX_READ_LEN];
 }STR_Read_tst_by_block;
 
-enum{ 
+enum{
 	TST_PRODUCT_MODEL = 0,
 	TST_OCCUPIED,
 	TST_COOL_SETPOINT ,
@@ -59,7 +59,7 @@ enum{
 	//TST_DAY_HEAT_DB,
 	//TST_DAY_COOL_DB,
 	TST_REG_END,
-	
+
 	TST_ADDRESS = TST_REG_END,
 	//TST_OVER_RIDE,
 	TST_PORT,
@@ -73,14 +73,14 @@ enum{
 typedef enum
 {
 	TSTAT_5A =	0,
-	TSTAT_6, 
+	TSTAT_6,
 	TSTAT_5E,
-	
+
 	T3_8AI8AO,	 // 21
 	T3_8AI13DO, // 20
 	T3_4AO,	 // 28
 	T3_32AI,	 // 22
-	
+
 	MAX_SUB_TYPE
 }E_DEVICE_TYPE;
 
@@ -97,10 +97,10 @@ typedef enum
 typedef enum
 {
 	MAP_AI =	0,
-	MAP_DI, 
+	MAP_DI,
 	MAP_DO,
 	MAP_AO,
-	MAP_VAR,	
+	MAP_VAR,
 	MAX_MAP_TYPE
 }E_POINT_TYPE;
 
@@ -171,12 +171,12 @@ extern U8_T base_in;
 extern U8_T base_out;
 extern U8_T base_var;
 //enum
-//{	
-//	READ_PRODUCT_MODLE = 0,	
+//{
+//	READ_PRODUCT_MODLE = 0,
 //	READ_ROOM_SETPOINT,
 //
 //	READ_COOLING_SETPOINT,
-//	READ_HEATTING_SETPOINT,	
+//	READ_HEATTING_SETPOINT,
 //	READ_TEMPERAUTE,
 //	READ_MODE_OPERATION,
 //	READ_COOL_HART_MODE,
@@ -194,22 +194,22 @@ extern U8_T base_var;
 //	READ_SERIAL_NUMBER_3,
 //
 //	READ_WALL_SETPOINT,
-//	READ_ADDRESS, 			// read 
-//	
+//	READ_ADDRESS, 			// read
 //
-//	WRITE_ROOM_SETPOINT,	
-//	WRITE_COOLING_SETPOINT,		
-//	WRITE_HEATTING_SETPOINT,	
-//	WRITE_NIGHT_HEAT_DB,	
-//	WRITE_NIGHT_COOL_DB,	
-//	WRITE_NIGHT_HEAT_SP,		
-//	WRITE_NIGHT_COOL_SP,	
-//	WRITE_OVER_RIDE,	
-//	  // for innvox tstat 
-//	WRITE_WALL_SETPOINT,  // for innvox tstat 
+//
+//	WRITE_ROOM_SETPOINT,
+//	WRITE_COOLING_SETPOINT,
+//	WRITE_HEATTING_SETPOINT,
+//	WRITE_NIGHT_HEAT_DB,
+//	WRITE_NIGHT_COOL_DB,
+//	WRITE_NIGHT_HEAT_SP,
+//	WRITE_NIGHT_COOL_SP,
+//	WRITE_OVER_RIDE,
+//	  // for innvox tstat
+//	WRITE_WALL_SETPOINT,  // for innvox tstat
 //	SEND_SCHEDUEL,     // write
-//	
-//	
+//
+//
 //};
 
 
