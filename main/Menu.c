@@ -220,7 +220,6 @@ void MenuTask(void *pvParameters)
 				}
 			}
 		}
-
 	}
 }
 
