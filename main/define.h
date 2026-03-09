@@ -82,6 +82,7 @@ typedef struct
 	U16_T zigbee_module_id;
 	U8_T dead_master_for_PLC;;
 	U8_T disable_tstat10_display;  // display icons and scrolling string
+	U8_T enabled_Display_HomeScreen;
 	//lcdconfig display_lcd;
 	U8_T start_month;
 	U8_T start_day;

@@ -1873,61 +1873,63 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
 
 uint16_t read_tstat10_data_by_block(uint16_t addr)
 {
-   uint8_t item;
-   uint16_t *block;
-   uint8_t *block1;
-   uint8_t temp;
-   Str_points_ptr ptr;
+	uint8_t item;
+	uint16_t *block;
+	uint8_t *block1;
+	uint8_t temp;
+	Str_points_ptr ptr;
 
-
-   if(addr == MODBUS_ICON_CONFIG)
-   {
-      return Modbus.icon_config;
-   }
-   else if(addr == MODBUS_DISALBE_TSTAT10_DIS)
-   {
-      return 0;//SSID_Info.IP_Auto_Manual;
-   }
-   else if(addr == MODBUS_TEMPERATURE)
-   {
-	  ptr = put_io_buf(IN,8);
-      return ptr.pin->value / 100;//SSID_Info.IP_Wifi_Status;
-   }
-   else if(addr == MODBUS_TVOC)
-   {
-	   ptr = put_io_buf(IN,9);
-	   return ptr.pin->value / 1000;
-   }
-   else if(addr == MODBUS_HUMIDY)
-   {
-	   ptr = put_io_buf(IN,10);
-	   return ptr.pin->value / 100;
-   }
-   else if(addr == MODBUS_OCCUPID)
-   {
-	   ptr = put_io_buf(IN,11);
-	   return ptr.pin->control;
-   }
-   else if(addr == MODBUS_CO2)
-   {
-	   ptr = put_io_buf(IN,12);
-	   return ptr.pin->value / 1000;
-   }
-   else if(addr == MODBUS_LIGHT)
+	if(addr == MODBUS_ICON_CONFIG)
 	{
-	   ptr = put_io_buf(IN,13);
-	   return ptr.pin->value / 1000;
+		return Modbus.icon_config;
 	}
-   else if(addr == MODBUS_VOICE)
+	else if(addr == MODBUS_DIS_HOME_SCREEN_FLAG)
 	{
-	   ptr = put_io_buf(IN,14);
-	   return ptr.pin->value / 1000;
+		return Modbus.enabled_Display_HomeScreen;
 	}
-   else
-      return 0;
+	else if(addr == MODBUS_DISALBE_TSTAT10_DIS)
+	{
+		return 0;//SSID_Info.IP_Auto_Manual;
+	}
+	else if(addr == MODBUS_TEMPERATURE)
+	{
+		ptr = put_io_buf(IN,8);
+		return ptr.pin->value / 100;//SSID_Info.IP_Wifi_Status;
+	}
+	else if(addr == MODBUS_TVOC)
+	{
+		ptr = put_io_buf(IN,9);
+		return ptr.pin->value / 1000;
+	}
+	else if(addr == MODBUS_HUMIDY)
+	{
+		ptr = put_io_buf(IN,10);
+		return ptr.pin->value / 100;
+	}
+	else if(addr == MODBUS_OCCUPID)
+	{
+		ptr = put_io_buf(IN,11);
+		return ptr.pin->control;
+	}
+	else if(addr == MODBUS_CO2)
+	{
+		ptr = put_io_buf(IN,12);
+		return ptr.pin->value / 1000;
+	}
+	else if(addr == MODBUS_LIGHT)
+	{
+		ptr = put_io_buf(IN,13);
+		return ptr.pin->value / 1000;
+	}
+	else if(addr == MODBUS_VOICE)
+	{
+		ptr = put_io_buf(IN,14);
+		return ptr.pin->value / 1000;
+	}
+	else
+		return 0;
 
 }
-
 
 static void write_tstat10_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *pData,uint8_t type)
 {
@@ -2303,6 +2305,14 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				Modbus.LcdTheme = *(bufadd + 5);
 				LcdThemeMarkForUpdate();
 				save_uint8_to_flash( FLASH_THEME_TYPE, Modbus.LcdTheme);
+			}
+		}
+		else if(address == MODBUS_DIS_HOME_SCREEN_FLAG)
+		{
+			if(*(bufadd + 5) == 0 || *(bufadd + 5) == 1)
+			{
+				Modbus.enabled_Display_HomeScreen = *(bufadd + 5);
+				save_uint8_to_flash( FLASH_DIS_HOME_SCREEN, Modbus.enabled_Display_HomeScreen);
 			}
 		}
 		else if(address == MODBUS_PANEL_NUMBER)

@@ -66,7 +66,7 @@ void MenuIdle_init(void)
 
 	IsHomeScreen = false;
 
-	if(IsHomeScreen == false)
+	if(IsHomeScreen == false && Modbus.enabled_Display_HomeScreen)
 	{
 		DisplayHomeScreen(IsHomeScreen);
 		IsHomeScreen = true;
@@ -576,7 +576,7 @@ void DisplayMenuScreen(void)
 
 void MenuIdle_display(void)
 {
-	if(disp_index)
+	if(disp_index || Modbus.enabled_Display_HomeScreen == false)
 	{
 		if(IsHomeScreen)
 		{
