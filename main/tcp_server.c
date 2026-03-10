@@ -204,7 +204,6 @@ void esp_retboot(void)
    esp_restart();
 }
 
-
 void UdpData(unsigned char type)
 {
    // header 2 bytes
@@ -281,7 +280,6 @@ uint32_t get_ip_addr(void)
 	if(Modbus.ethernet_status == 4) // wifi is disconnected
 	{
 		return ((uint32_t)Modbus.ip_addr[3] << 24) + ((uint32_t)Modbus.ip_addr[2] << 16) + ((uint16_t)Modbus.ip_addr[1] << 8) + Modbus.ip_addr[0];
-
 	}
 	else
 	{
@@ -439,6 +437,8 @@ static void bip_task(void *pvParameters)
             break;
          }
          ESP_LOGI(UDP_TASK_TAG, "Socket created");
+
+
 
          int err = bind(bip_sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
          if (err < 0) {
@@ -4589,7 +4589,7 @@ void app_main()
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    //Modbus.mini_type = MINI_TSTAT10;
+    Modbus.mini_type = MINI_TSTAT10;
 #endif
 
     if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
@@ -4597,10 +4597,10 @@ void app_main()
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
-	// esp_netif_init();
+
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
-   flag_ethernet_initial = ethernet_init();
+    flag_ethernet_initial = ethernet_init();
 
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 

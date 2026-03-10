@@ -218,6 +218,10 @@ static void DisplayDrawFormat( void )
 void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
 {
     int16 value_buf;
+    static int8_t prev_sign[2] = {2, 2};
+    static int16 prev_value = 0;
+    uint8_t sign_idx;
+    int8_t curr_sign;
     uint16_t xPos, yPos;
     uint16_t xSymPos, ySymPos;
     uint16_t yUnitPos, xUnitPos;
@@ -236,19 +240,23 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
 
     xSymPos = xPos - 27;
     ySymPos = yPos ;
+    sign_idx = (index == 1) ? 1 : 0;
+    curr_sign = (value < 0) ? 1 : 0;
 
+    if(prev_value == value)
+        return;
+
+    prev_value = value;
     if(unit == TOP_AREA_DISP_UNIT_C || unit == TOP_AREA_DISP_UNIT_F)
     {
         value_buf = value;
-        if(value >=0)
+        if(prev_sign[sign_idx] != curr_sign)
         {
-            disp_ch(FORM48X64, xSymPos,  ySymPos, ' ',SCH_COLOR,TSTAT8_BACK_COLOR);
+            disp_ch(FORM48X64, xSymPos,  ySymPos, (curr_sign == 0) ? ' ' : '-', SCH_COLOR, TSTAT8_BACK_COLOR);
+            prev_sign[sign_idx] = curr_sign;
         }
-        else
-        {
+        if(value < 0)
             value_buf = -value;
-            disp_ch(FORM48X64, xSymPos,  ySymPos, '-',SCH_COLOR,TSTAT8_BACK_COLOR);
-        }
         if(value >= 1000)
         {
             value_buf /= 10;
