@@ -23,63 +23,6 @@
 #include "controls.h"
 #include "ud_str.h"
 
-#define TEST_USE_SAME_VALUE_FOR_AMBIENT 0
-
-#define START_XPOS          8
-#define START_YPOS          18
-
-#define BOX_HEIGHT          150
-
-// #define WEATHER_STR_XPOS    70
-// #define WEATHER_STR_YPOS    6
-
-#define START_XPOS_2        START_XPOS
-#define START_YPOS_2        START_YPOS + BOX_HEIGHT + 3
-
-// Icon Menu position
-#define MENU_DOT_XSIZE      6
-#define MENU_DOT_YSIZE      6
-#define MENU_DOT_XPOS       10
-#define MENU_DOT_XPOS_1     MENU_DOT_XPOS
-#define MENU_DOT_XPOS_2     MENU_DOT_XPOS + 10
-#define MENU_DOT_XPOS_3     MENU_DOT_XPOS + 20
-#define MENU_DOT_YPOS       8
-
-#define HUMIDITY_STR        "HUM"
-#define HUMIDITY_STR_LEN     4
-
-#define OUTDOOR_BOX_YPOS  START_YPOS
-#define INDOOR_BOX_YPOS   START_YPOS_2
-
-// Outdoor temperature position
-#define TEMP_OUTDOOR_XPOS   40
-#define TEMP_OUTDOOR_YPOS   OUTDOOR_BOX_YPOS + 48
-
-#define HUMIDITY_OUTDOOR_XPOS  30
-#define HUMIDITY_OUTDOOR_YPOS  OUTDOOR_BOX_YPOS + BOX_HEIGHT - 40
-
-#define OUTDOOR_STR_XPOS  120
-#define OUTDOOR_STR_YPOS  OUTDOOR_BOX_YPOS + 5
-
-#define OUT_ICON_XPOS     START_XPOS + 2
-#define OUT_ICON_YPOS     OUTDOOR_BOX_YPOS + 2
-
-// Indoor temperature position
-#define TEMP_INDOOR_XPOS    TEMP_OUTDOOR_XPOS
-#define TEMP_INDOOR_YPOS    INDOOR_BOX_YPOS + 45
-
-#define HUMIDITY_INDOOR_XPOS  HUMIDITY_OUTDOOR_XPOS
-#define HUMIDITY_INDOOR_YPOS  INDOOR_BOX_YPOS + BOX_HEIGHT - 40
-
-#define INDOOR_STR_XPOS  OUTDOOR_STR_XPOS
-#define INDOOR_STR_YPOS  INDOOR_BOX_YPOS + 5
-
-#define INDOOR_ICON_XPOS  START_XPOS + 4
-#define INDOOR_ICON_YPOS  INDOOR_BOX_YPOS + 2
-
-// Humidity value X position
-#define HUMIDITY_VALUE_XPOS   HUMIDITY_INDOOR_XPOS + (HUMIDITY_STR_LEN * 12) + 4
-
 static void DisplayDrawFormat( void );
 void DisplayTemperature( uint8_t index , S16_T value, uint8 unit);
 void DisplayHumidity( uint8_t index , S16_T value );
@@ -93,13 +36,32 @@ int32_t Temperature_OutValue     = 0;
 int32_t Temperature_AmbientValue = 0;
 int32_t Humidity_OutValue        = 0;
 int32_t Humidity_AmbientValue    = 0;
+bool IsOutdoorTempValid = false;
 
 void DisplayHomeScreen( bool isHomeScreen )
 {
-    Temperature_OutdorrDataPtr = put_io_buf(IN, 8); // VAR9 is for room temperature
-    Temperature_AmbientDataPtr = put_io_buf(IN, 9); // VAR10 is for outdoor temperature
-    Humidity_OutdorrDataPtr    = put_io_buf(IN, 10); // VAR11 is for room humidity
-    Humidity_AmbientDataPtr    = put_io_buf(IN, 11); // VAR12 is for outdoor humidity
+    Temperature_AmbientDataPtr = put_io_buf(IN, 8); // VAR9 is for room temperature
+    Temperature_OutdorrDataPtr = put_io_buf(IN, 6); // VAR7 is for outdoor temperature
+    Humidity_AmbientDataPtr    = put_io_buf(IN, 10);// VAR11 is for room humidity
+    Humidity_OutdorrDataPtr    = put_io_buf(IN, 7); // VAR8 is for outdoor humidity
+
+    if(Temperature_OutdorrDataPtr.pin->range == R10K_40_120DegC ||
+            Temperature_OutdorrDataPtr.pin->range == R10K_40_250DegF)
+    {
+        if(!IsOutdoorTempValid)
+        {
+            IsOutdoorTempValid = true;
+            isHomeScreen = false; // Force refresh the screen to show outdoor temperature now that it's valid
+        }
+    }
+    else
+    {
+        if(IsOutdoorTempValid)
+        {
+            IsOutdoorTempValid = false;
+            isHomeScreen = false; // Force refresh the screen to hide outdoor temperature now that it's not valid
+        }
+    }
 
     if(!isHomeScreen)
     {
@@ -112,19 +74,6 @@ void DisplayHomeScreen( bool isHomeScreen )
     }
     else
     {
-        if(Temperature_OutValue != Temperature_OutdorrDataPtr.pin->value)
-        {
-            Temperature_OutValue = Temperature_OutdorrDataPtr.pin->value;
-            if(Temperature_OutdorrDataPtr.pin->range == 4 ) /* R10K_40_250DegF*/
-                DisplayTemperature(1, Temperature_OutdorrDataPtr.pin->value / 100, TOP_AREA_DISP_UNIT_F);
-            else if(Temperature_OutdorrDataPtr.pin->range == 3 ) /*R10K_40_120DegC*/
-                DisplayTemperature(1, Temperature_OutdorrDataPtr.pin->value / 100, TOP_AREA_DISP_UNIT_C);
-            // disp_str_16_24(FORM15X30, HUMIDITY_OUTDOOR_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
-        }
-#if TEST_USE_SAME_VALUE_FOR_AMBIENT
-        Temperature_AmbientDataPtr.pin->value = -Temperature_OutdorrDataPtr.pin->value; // For testing only, remove this line in actual code
-        Temperature_AmbientDataPtr.pin->range = Temperature_OutdorrDataPtr.pin->range; // For testing only, remove this line in actual code
-#endif
         if(Temperature_AmbientValue != Temperature_AmbientDataPtr.pin->value)
         {
             Temperature_AmbientValue = Temperature_AmbientDataPtr.pin->value;
@@ -135,25 +84,46 @@ void DisplayHomeScreen( bool isHomeScreen )
             // disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
         }
 #if TEST_USE_SAME_VALUE_FOR_AMBIENT
+        Temperature_OutdorrDataPtr.pin->value = -Temperature_AmbientDataPtr.pin->value; // For testing only, remove this line in actual code
+        Temperature_OutdorrDataPtr.pin->range = Temperature_AmbientDataPtr.pin->range; // For testing only, remove this line in actual code
+#endif
+        if(Temperature_OutValue != Temperature_OutdorrDataPtr.pin->value)
+        {
+            Temperature_OutValue = Temperature_OutdorrDataPtr.pin->value;
+            if(Temperature_OutdorrDataPtr.pin->range == 4 ) /* R10K_40_250DegF*/
+                DisplayTemperature(1, Temperature_OutdorrDataPtr.pin->value / 100, TOP_AREA_DISP_UNIT_F);
+            else if(Temperature_OutdorrDataPtr.pin->range == 3 ) /*R10K_40_120DegC*/
+                DisplayTemperature(1, Temperature_OutdorrDataPtr.pin->value / 100, TOP_AREA_DISP_UNIT_C);
+            // disp_str_16_24(FORM15X30, HUMIDITY_OUTDOOR_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
+        }
+
+#if TEST_USE_SAME_VALUE_FOR_AMBIENT
         Humidity_OutdorrDataPtr.pin->value = 55; // For testing only, remove this line in actual code
         Humidity_AmbientDataPtr.pin->value = 45; // For testing only, remove this line in actual code
 #endif
-        if(Humidity_OutValue != Humidity_OutdorrDataPtr.pin->value)
-        {
-            Humidity_OutValue = Humidity_OutdorrDataPtr.pin->value;
-            DisplayHumidity(1, Humidity_OutdorrDataPtr.pin->value ); // Display indoor humidity at position 1
-        }
+
         if(Humidity_AmbientValue != Humidity_AmbientDataPtr.pin->value)
         {
             Humidity_AmbientValue = Humidity_AmbientDataPtr.pin->value;
-            DisplayHumidity(0, Humidity_AmbientDataPtr.pin->value ); // Display outdoor humidity at position 0
+            DisplayHumidity(0, Humidity_AmbientDataPtr.pin->value ); // Display indoor humidity at position 0
         }
+        if(Humidity_OutValue != Humidity_OutdorrDataPtr.pin->value)
+        {
+            Humidity_OutValue = Humidity_OutdorrDataPtr.pin->value;
+            DisplayHumidity(1, Humidity_OutdorrDataPtr.pin->value ); // Display outdoor humidity at position 1
+        }
+        display_icon();
+        display_fan();
     }
 }
 
 void DisDraw_Square(uint16 xPos , uint16 yPos )
 {
-
+    uint8_t boxHeight = 0;
+    if(IsOutdoorTempValid)
+        boxHeight = BOX_HEIGHT;
+    else
+        boxHeight = BOX_HEIGHT + 50; // If outdoor temperature is not valid, make the box taller to accommodate "N/A" text
     // LEFT-UP CORNER  (top-left)
     disp_null_icon(1,1,0, xPos + 3, yPos + 0, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
     disp_null_icon(1,1,0, xPos + 2, yPos + 1, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
@@ -167,7 +137,7 @@ void DisDraw_Square(uint16 xPos , uint16 yPos )
     disp_null_icon(1,1,0, xPos + 222 + 3, yPos + 3, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
     // LEFT-DOWN CORNER  (bottom-left)
-    int yLD = yPos + BOX_HEIGHT - 6;
+    int yLD = yPos + boxHeight - 6;
 
     disp_null_icon(1,1,0, xPos + 3, yLD + 3, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
     disp_null_icon(1,1,0, xPos + 2, yLD + 2, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
@@ -176,38 +146,51 @@ void DisDraw_Square(uint16 xPos , uint16 yPos )
 
     // RIGHT-DOWN CORNER  (bottom-right)
     int xRD = xPos + 222;
-    int yRD = yPos + BOX_HEIGHT - 6;
+    int yRD = yPos + boxHeight - 6;
 
     disp_null_icon(1,1,0, xRD + 0, yRD + 3, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
     disp_null_icon(1,1,0, xRD + 1, yRD + 2, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
     disp_null_icon(1,1,0, xRD + 2, yRD + 1, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
     disp_null_icon(1,1,0, xRD + 3, yRD + 0, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 
-    disp_null_icon(219, 1, 0, xPos + 3, yPos + BOX_HEIGHT - 3, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+    disp_null_icon(219, 1, 0, xPos + 3, yPos + boxHeight - 3, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
     disp_null_icon(219, 1, 0, xPos + 3, yPos, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
-    disp_null_icon(1, BOX_HEIGHT - 10, 0, xPos, yPos + 4, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
-    disp_null_icon(1, BOX_HEIGHT - 10, 0, xPos + 226, yPos + 4, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+    disp_null_icon(1, boxHeight - 10, 0, xPos, yPos + 4, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
+    disp_null_icon(1, boxHeight - 10, 0, xPos + 226, yPos + 4, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
 }
 
 static void DisplayDrawFormat( void )
 {
+    if(IsOutdoorTempValid)
+    {
+        // disp_str_16_24(FORM15X30, WEATHER_STR_XPOS,  WEATHER_STR_YPOS,  (uint8 *)"Weather",SCH_COLOR,TSTAT8_BACK_COLOR);
+        DisDraw_Square( START_XPOS , START_YPOS );
+        disp_str_16_24(FORM15X30, INDOOR_STR_XPOS,  INDOOR_STR_YPOS,  (uint8 *)"Inside",SCH_COLOR,TSTAT8_BACK_COLOR);
 
-    // disp_str_16_24(FORM15X30, WEATHER_STR_XPOS,  WEATHER_STR_YPOS,  (uint8 *)"Weather",SCH_COLOR,TSTAT8_BACK_COLOR);
-    DisDraw_Square( START_XPOS , START_YPOS );
-    disp_str_16_24(FORM15X30, INDOOR_STR_XPOS,  INDOOR_STR_YPOS,  (uint8 *)"Inside",SCH_COLOR,TSTAT8_BACK_COLOR);
+        disp_edge(ICON_XDOTS, ICON_YDOTS, indoorTemp, INDOOR_ICON_XPOS,	INDOOR_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-    disp_edge(ICON_XDOTS, ICON_YDOTS, outsideSymbol, OUT_ICON_XPOS,	OUT_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
 
-    disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
-    disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+        DisDraw_Square( START_XPOS_2 , START_YPOS_2 );
+        disp_str_16_24(FORM15X30, OUTDOOR_STR_XPOS,  OUTDOOR_STR_YPOS, (uint8 *)"Outside",SCH_COLOR,TSTAT8_BACK_COLOR);
 
-    DisDraw_Square( START_XPOS_2 , START_YPOS_2 );
-    disp_str_16_24(FORM15X30, OUTDOOR_STR_XPOS,  OUTDOOR_STR_YPOS, (uint8 *)"Outside",SCH_COLOR,TSTAT8_BACK_COLOR);
+        disp_edge(ICON_XDOTS, ICON_YDOTS, outsideSymbol, OUT_ICON_XPOS,	OUT_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-    disp_edge(ICON_XDOTS, ICON_YDOTS, indoorTemp, INDOOR_ICON_XPOS,	INDOOR_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_OUTDOOR_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+    }
+    else
+    {
+        // disp_str_16_24(FORM15X30, WEATHER_STR_XPOS,  WEATHER_STR_YPOS,  (uint8 *)"Weather",SCH_COLOR,TSTAT8_BACK_COLOR);
+        DisDraw_Square( START_XPOS , START_YPOS + 50 ); // Move the box down to make large square
+        disp_str_16_24(FORM15X30, INDOOR_STR_XPOS,  INDOOR_STR_YPOS - 100,  (uint8 *)"Inside",SCH_COLOR,TSTAT8_BACK_COLOR);
 
-    disp_str_16_24(FORM15X30, HUMIDITY_OUTDOOR_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
-    disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_edge(ICON_XDOTS, ICON_YDOTS, indoorTemp, INDOOR_ICON_XPOS,	INDOOR_ICON_YPOS - 100,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+
+        disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS - 60, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS - 60, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+    }
 
     // Menu Dots
     disp_null_icon(MENU_DOT_XSIZE, MENU_DOT_YSIZE, 0, MENU_DOT_XPOS_1, MENU_DOT_YPOS, SCH_COLOR, SCH_COLOR);
@@ -220,14 +203,23 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
     int16 value_buf;
     static int8_t prev_sign[2] = {2, 2};
     static int16 prev_value = 0;
-    uint8_t sign_idx;
     int8_t curr_sign;
     uint16_t xPos, yPos;
     uint16_t xSymPos, ySymPos;
     uint16_t yUnitPos, xUnitPos;
     uint16_t xDecPos, yDecPos;
 
-    if(index == 1) // outdoor temperature
+    if(index > 1)
+        return; // Invalid index, only 0 (indoor) and 1 (outdoor) are valid
+
+    if(!IsOutdoorTempValid)
+    {
+        if(index == 1) // outdoor temperature
+            return; // Don't display outdoor temperature if it's not valid
+        xPos = TEMP_INDOOR_XPOS;
+        yPos = TEMP_INDOOR_YPOS - 80;
+    }
+    else if(index == 1) // outdoor temperature
     {
         xPos = TEMP_OUTDOOR_XPOS;
         yPos = TEMP_OUTDOOR_YPOS;
@@ -240,7 +232,6 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
 
     xSymPos = xPos - 27;
     ySymPos = yPos ;
-    sign_idx = (index == 1) ? 1 : 0;
     curr_sign = (value < 0) ? 1 : 0;
 
     if(prev_value == value)
@@ -250,10 +241,10 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
     if(unit == TOP_AREA_DISP_UNIT_C || unit == TOP_AREA_DISP_UNIT_F)
     {
         value_buf = value;
-        if(prev_sign[sign_idx] != curr_sign)
+        if(prev_sign[index] != curr_sign)
         {
             disp_ch(FORM48X64, xSymPos,  ySymPos, (curr_sign == 0) ? ' ' : '-', SCH_COLOR, TSTAT8_BACK_COLOR);
-            prev_sign[sign_idx] = curr_sign;
+            prev_sign[index] = curr_sign;
         }
         if(value < 0)
             value_buf = -value;
@@ -302,16 +293,18 @@ void DisplayHumidity( uint8_t index , S16_T value )
     int16 value_buf;
     uint16_t xPos, yPos;
 
-    if(index == 1) // outdoor temperature
+    xPos = HUMIDITY_VALUE_XPOS;
+    if(!IsOutdoorTempValid)
     {
-        xPos = HUMIDITY_VALUE_XPOS;
+        if(index == 1) // outdoor humidity
+            return; // Don't display outdoor humidity if it's not valid
+        yPos = HUMIDITY_INDOOR_YPOS - 60;
+    }
+    else if(index == 1) // outdoor Humidity
         yPos = HUMIDITY_OUTDOOR_YPOS;
-    }
-    else // indoor temperature
-    {
-        xPos = HUMIDITY_VALUE_XPOS;
+    else            // indoor Humidity
         yPos = HUMIDITY_INDOOR_YPOS;
-    }
+
     value_buf = value;
     if(value < 0)
     {
@@ -337,3 +330,5 @@ void DisplayHumidity( uint8_t index , S16_T value )
     xPos = xPos + 16; // Symbol position
     disp_str_16_24(FORM15X30, xPos, yPos, (uint8_t*)"%", SCH_COLOR, TSTAT8_BACK_COLOR);
 }
+
+/* End of File */
