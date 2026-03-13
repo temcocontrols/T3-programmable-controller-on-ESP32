@@ -163,7 +163,7 @@ extern STR_T3000 T3000_Private;
 //extern u8 tcp_server_sendbuf[300];
 //extern u16 tcp_server_sendlen;
 extern u8 modbus_send_buf[500];
-extern u16 modbus_send_len;
+extern U16_T modbus_send_len;
 
 void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header);
 void Record_conflict_ID(U8_T id, U32_T oldsn,U32_T newsn,U8_T port,U8_T product);

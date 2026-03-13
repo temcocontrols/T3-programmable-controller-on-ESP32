@@ -854,7 +854,7 @@ EXT_RAM_BSS_ATTR int Sock_table[MAX_TCP_CONN];
 U8_T rx_buffer[MAX_TCP_CONN][512];
 extern SemaphoreHandle_t xSem_comport[3];
 
-u16 modbus_send_len;
+U16_T modbus_send_len;
 u8 modbus_send_buf[500];
 int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 {
