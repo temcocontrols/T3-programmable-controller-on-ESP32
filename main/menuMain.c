@@ -50,21 +50,19 @@ void start_menu(void)
 	uint8 menu_buf2[10];
 //	clear_lines();
 
-	for(i=0;i<10;i++)
-	{
-		menu_buf1[i] = menu[item_to_adjust].first_line[i];//
-		menu_buf2[i] = menu[item_to_adjust].second_line[i];//
-	}
-
-	display_menu(menu_buf1,menu_buf2);
+    clear_line(0);
+    for(i=0;i<10;i++)
+    {
+        menu_buf1[i] = menu[item_to_adjust].first_line[i];//
+        menu_buf2[i] = menu[item_to_adjust].second_line[i];//
+    }
+    display_menu(menu_buf1,menu_buf2);
 }
 
 void MenuMain_init(void)
 {
 	item_to_adjust = 0;
-//	clear_line(1);
-//	clear_line(0);
-	clear_lines();
+    ClearScreen(TSTAT8_BACK_COLOR);
 	start_menu();
 }
 
@@ -81,7 +79,6 @@ uint32 get_display_value(uint8 item)
 		return 0;
 
 }
-
 
 void show_parameter(void)
 {
@@ -117,25 +114,25 @@ void show_parameter(void)
             break;
 
         }
-        disp_str(FORM15X30, 0, MENU_VALUE_POS, temp_buffer, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str(FORM15X30, 10, MENU_VALUE_POS, temp_buffer, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
     }
     break;
     case 2:
     {
         if ((Setting_Info.reg.com_config[0] == BACNET_SLAVE) ||
             (Setting_Info.reg.com_config[0] == BACNET_MASTER))
-            disp_str(FORM15X30, 0, MENU_VALUE_POS, "BACNET", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+            disp_str(FORM15X30, 10, MENU_VALUE_POS, "BACNET", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
         else
-            disp_str(FORM15X30, 0, MENU_VALUE_POS, "MODBUS", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+            disp_str(FORM15X30, 10, MENU_VALUE_POS, "MODBUS", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
     }
         //if (Setting_Info.reg.com_config[0] == 0)
-        //    disp_str(FORM15X30, 0, MENU_VALUE_POS, "BACNET", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+        //    disp_str(FORM15X30, 10, MENU_VALUE_POS, "BACNET", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
         //else
-        //    disp_str(FORM15X30, 0, MENU_VALUE_POS, "MODBUS", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+        //    disp_str(FORM15X30, 10, MENU_VALUE_POS, "MODBUS", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
         break;
 		/* case 3:
         memcpy(temp_buffer, c_strSch[current_schedule], 7);
-        disp_str(FORM15X30, 0, MENU_VALUE_POS, temp_buffer, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str(FORM15X30, 10, MENU_VALUE_POS, temp_buffer, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
 		 break;*/
     default:
@@ -189,8 +186,8 @@ void MenuMain_keycope(uint16 key_value)
 void display_menu (uint8 *item1, uint8 *item2)
 {
 	clear_line(1);
-	disp_str(FORM15X30, 0,SETPOINT_POS,(char *)item1,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-	disp_str(FORM15X30, 0,FAN_MODE_POS,(char *)item2,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+	disp_str(FORM15X30, 5,SETPOINT_POS,(char *)item1,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+	disp_str(FORM15X30, 5,FAN_MODE_POS,(char *)item2,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 }
 
 void draw_tangle(uint8 xpos, uint16 ypos)

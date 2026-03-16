@@ -127,7 +127,6 @@ void Write_Data(unsigned char DH,unsigned char DL);
 //void delay_ms(unsigned int tt);
 void  Write_Data_U16(unsigned int y);
 static void LCD_SetPos(unsigned char x0,unsigned char x1,unsigned  int y0,unsigned int y1);
-void ClearScreen(unsigned int bColor);
 void disp_ch(uint8_t form, uint16_t x, uint16_t y,uint8_t value,uint16_t dcolor,uint16_t bgcolor);
 
 void disp_icon(uint16_t cp, uint16_t pp, uint16_t const *icon_name, uint16_t x,uint16_t y,uint16_t dcolor, uint16_t bgcolor);

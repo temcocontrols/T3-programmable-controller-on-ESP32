@@ -36,6 +36,7 @@ int32_t Temperature_OutValue     = 0;
 int32_t Temperature_AmbientValue = 0;
 int32_t Humidity_OutValue        = 0;
 int32_t Humidity_AmbientValue    = 0;
+int8_t Prev_TempSign[2] = {2, 2};
 bool IsOutdoorTempValid = false;
 
 void DisplayHomeScreen( bool isHomeScreen )
@@ -71,6 +72,8 @@ void DisplayHomeScreen( bool isHomeScreen )
         Temperature_AmbientValue = 0;
         Humidity_OutValue        = 0;
         Humidity_AmbientValue    = 0;
+        Prev_TempSign[0]   = 2;
+        Prev_TempSign[1]   = 2;
     }
     else
     {
@@ -201,8 +204,6 @@ static void DisplayDrawFormat( void )
 void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
 {
     int16 value_buf;
-    static int8_t prev_sign[2] = {2, 2};
-    static int16 prev_value = 0;
     int8_t curr_sign;
     uint16_t xPos, yPos;
     uint16_t xSymPos, ySymPos;
@@ -234,17 +235,13 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
     ySymPos = yPos ;
     curr_sign = (value < 0) ? 1 : 0;
 
-    if(prev_value == value)
-        return;
-
-    prev_value = value;
     if(unit == TOP_AREA_DISP_UNIT_C || unit == TOP_AREA_DISP_UNIT_F)
     {
         value_buf = value;
-        if(prev_sign[index] != curr_sign)
+        if(Prev_TempSign[index] != curr_sign)
         {
             disp_ch(FORM48X64, xSymPos,  ySymPos, (curr_sign == 0) ? ' ' : '-', SCH_COLOR, TSTAT8_BACK_COLOR);
-            prev_sign[index] = curr_sign;
+            Prev_TempSign[index] = curr_sign;
         }
         if(value < 0)
             value_buf = -value;

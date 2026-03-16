@@ -30,7 +30,8 @@ static uint8 disp_index = 0;
 static uint8 set_msv = 0;
 static uint8 warming_state = TRUE;
 static uint8 force_refresh = TRUE;
-uint8 flag_left_key = 0;
+static int8_t last_icon_flag[7] = {-1,-1,-1,-1,-1,-1,-1};
+static uint8_t fanStage = 0,fanSpeed = 0;
 uint8	count_left_key = 0;
 uint8 flag_digital_top_area = 0;
 uint8 digital_top_area_type = 0;
@@ -55,6 +56,10 @@ void MenuIdle_init(void)
 	digital_top_area_type = 0;
 	digital_top_area_num = 0;
 	digital_top_area_changed = 0;
+	count_left_key = 0;
+	fanStage = 0xFF;
+	fanSpeed = 0xFF;
+	memset(last_icon_flag, -1, sizeof(last_icon_flag));
 	if(Modbus.mini_type == PROJECT_AIRLAB)
 	{
 		Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type = IN;
@@ -68,7 +73,10 @@ void MenuIdle_init(void)
 	memset(UI_DIS_TOP,0,9);
 	digital_top_area_changed = 0;
 
-	IsHomeScreen = false;
+	if(disp_index)
+		IsHomeScreen = true;
+	else
+		IsHomeScreen = false;
 
 	if(IsHomeScreen == false && Modbus.enabled_Display_HomeScreen)
 	{
@@ -77,6 +85,7 @@ void MenuIdle_init(void)
 	}
 	else
 	{
+		IsHomeScreen = false;
 		disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "            ",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 		disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -107,14 +116,14 @@ void MenuIdle_init(void)
 			draw_tangle(102,112);
 			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 		}
-		ptr = put_io_buf(VAR,1);
+		ptr = put_io_buf(VAR,2);
 		memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);UI_DIS_LINE2[3] = 0;
 		if(ptr.pvar->range != 0)
 		{
 			draw_tangle(102,155);
 			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
 		}
-		ptr = put_io_buf(VAR,2);
+		ptr = put_io_buf(VAR,1);
 		memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);UI_DIS_LINE3[3] = 0;
 		if(ptr.pvar->range != 0)
 		{
@@ -195,7 +204,7 @@ void DisplayMenuScreen(void)
 		disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS, UI_DIS_LINE1, SCH_COLOR,(disp_index == 1) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
 
-	ptr = put_io_buf(VAR,1);
+	ptr = put_io_buf(VAR,2);
 	if(memcmp(UI_DIS_LINE2,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
 		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -212,7 +221,7 @@ void DisplayMenuScreen(void)
 	}
 
 
-	ptr = put_io_buf(VAR,2);
+	ptr = put_io_buf(VAR,1);
 	if(memcmp(UI_DIS_LINE3,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
 		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -984,6 +993,11 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 
 		case KEY_LEFT_MASK:
+			count_left_key = 5; // This will update Display to Home Screen
+			disp_index = 0;
+			break;
+
+		case KEY_RIGHT_MASK:
 			// change SETP, FAN , SYS
 			if(flag_digital_top_area == 1)
 			{
@@ -997,12 +1011,7 @@ void MenuIdle_keycope(uint16 key_value)
 				else
 					disp_index = 1;
 			}
-			flag_left_key = 1;
 			count_left_key = 0;
-			break;
-		case KEY_RIGHT_MASK:
-			// go into main menu
-			//vars[19].value += 1000;
 			break;
 		case KEY_LEFT_RIGHT_MASK:
 			update_menu_state(MenuMain);
@@ -1383,7 +1392,6 @@ void display_fan(void)
 	uint8 stage_buf = 0;
 	uint16 const *fannum;
 	static bool isFanDisplayisON = false;
-	static uint8_t fanStage = 0,fanSpeed = 0;
 	static bool isScreenChanged = false;
 	uint16_t fanIcon_Xpos = 0, fanIcon_Ypos = 0;
 	uint16_t fanspeedIcon_Xpos = 0;
@@ -1504,8 +1512,6 @@ void display_fan(void)
 
 void display_icon(void)
 {
-	static int8_t last_icon_flag[7] = {-1,-1,-1,-1,-1,-1,-1};
-
 	if(last_icon_flag[6] != IsHomeScreen)
 	{
 		memset(last_icon_flag, -1, sizeof(last_icon_flag));

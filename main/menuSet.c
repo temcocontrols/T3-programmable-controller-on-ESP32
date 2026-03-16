@@ -15,25 +15,21 @@ uint8 blink_count = 0;
 uint8 flag_blink = 0;
 void MenuSet_init(void)
 {
-	//item_to_adjust = 0;
-//	clear_line(1);
-//	clear_line(0);
-	//set_value = Modbus.address;
 	if (item_to_adjust == 0) // ��ʼ��ID��
 	{
-			set_value = Setting_Info.reg.modbus_id;
+		set_value = Setting_Info.reg.modbus_id;
 	}
 	else if (item_to_adjust == 1)
 	{
-			set_value = Setting_Info.reg.com_baudrate[0];
+		set_value = Setting_Info.reg.com_baudrate[0];
 	}
 	else if (item_to_adjust == 2)
-	{ 
-			if ((Setting_Info.reg.com_config[0] == BACNET_MASTER) ||
-					(Setting_Info.reg.com_config[0] == BACNET_SLAVE))
-					set_value = 0;
-			else
-					set_value = 1;
+	{
+		if ((Setting_Info.reg.com_config[0] == BACNET_MASTER) ||
+			(Setting_Info.reg.com_config[0] == BACNET_SLAVE))
+				set_value = 0;
+		else
+				set_value = 1;
 	}
 	else if (item_to_adjust == 3)
 	{
@@ -46,7 +42,7 @@ void MenuSet_init(void)
 	flag_blink = 1;
 	//blink_count = 0;
 }
- 
+
 extern const char c_strBaudate[UART_BAUDRATE_MAX][7];
 extern const char c_strSch[MAX_WR][7];
 
@@ -70,15 +66,15 @@ void MenuSet_display(void)
             if (set_value > 9)
                 set_value = 9;
             memcpy(temp_buffer, c_strBaudate[set_value], 7);
-						
-            disp_str(FORM15X30, 0, MENU_VALUE_POS, temp_buffer, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+
+            disp_str(FORM15X30, 0, MENU_VALUE_POS, temp_buffer, TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
         }
         else if (item_to_adjust == 2) //����Э��
         {
             if (set_value == 0)
-                disp_str(FORM15X30, 0, MENU_VALUE_POS, "BACNET", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+                disp_str(FORM15X30, 0, MENU_VALUE_POS, "BACNET", TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
             else
-                disp_str(FORM15X30, 0, MENU_VALUE_POS, "MODBUS", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+                disp_str(FORM15X30, 0, MENU_VALUE_POS, "MODBUS", TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
         }
 		/*else if (item_to_adjust == 3) //����Schedlue
 		{
@@ -115,7 +111,7 @@ void Save_Parmeter(uint8_t item_to_adjust)
             dlmstp_init(NULL);
         break;
     case 1:  //�޸� ������
-    {        
+    {
     	Modbus.baudrate[0] = set_value;
         Setting_Info.reg.com_baudrate[0] = Modbus.baudrate[0];
        // E2prom_Write_Byte(EEP_UART0_BAUDRATE, uart0_baudrate);
@@ -155,9 +151,9 @@ void Save_Parmeter(uint8_t item_to_adjust)
     }
         break;
 	/*case 3:
-	
+
 			current_schedule = set_value;
-	
+
 		break;*/
     default:
         break;
@@ -173,11 +169,11 @@ void MenuSet_keycope(uint16 key_value)
 		case KEY_UP_MASK:
 			// do nothing
 		if(set_value < menu[item_to_adjust].max)	set_value++;
-		
+
 			break;
 		case KEY_DOWN_MASK:
 			// do nothing
-			if(set_value > menu[item_to_adjust].min)	set_value--; 
+			if(set_value > menu[item_to_adjust].min)	set_value--;
 			break;
 		case KEY_LEFT_MASK:
 			update_menu_state(MenuMain);
@@ -187,13 +183,13 @@ void MenuSet_keycope(uint16 key_value)
 			{// confirm setting,save value
 				Save_Parmeter(item_to_adjust);
 				update_menu_state(MenuIdle);
-			} 
+			}
 			/*else  // item_to_adjust == 3   set schedule
-			{		
+			{
 				current_schedule = set_value;
 				update_menu_state(MenuDaySet);
 			}*/
-			
+
 			break;
 		default:
 			break;
