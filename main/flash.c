@@ -1612,6 +1612,7 @@ void Initial_points(uint8_t point_type)
 
 		if(Modbus.mini_type == MINI_TSTAT10)
 		{
+
 			ptr = put_io_buf(IN,8);
 			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
 			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));

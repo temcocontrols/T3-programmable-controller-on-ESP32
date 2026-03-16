@@ -42,7 +42,7 @@ typedef struct
 #define READ_DIS_INPUT 	0X02
 #define READ_INPUT      0x04
 #define WRITE_COIL 			0X05
-#define WRITE_MULTI_COIL 0x0f 
+#define WRITE_MULTI_COIL 0x0f
 
 #define READ_REMOTE_INPUT		0x09
 
@@ -52,9 +52,9 @@ typedef struct
 //	uint8 all[ID_SIZE];
 //	struct
 //	{
-//		uint8 id;		
+//		uint8 id;
 //		uint8 on_line; // 0: offline    1: online
-//		uint8 schedule;	
+//		uint8 schedule;
 //		uint8 flag;
 //		char name[15];
 ///*  flag formate:
@@ -75,14 +75,14 @@ typedef	union
   uint8 schedule;
   uint8 flag;
 	uint16_t reserved_reg[6];
-	 
+
   uint8 on_line; // 0: offline    1: online
   char name[15];
   uint16_t daysetpoint;
   uint16_t nightsetpoint;
   uint16_t awaysetpoint;
   uint16_t sleepsetpoint;
-  
+
   /*  flag formate:
   7   6  5  4  3   2   1  0
   a/m  output state1 -  -  -  -  -
@@ -94,7 +94,7 @@ typedef	union
 typedef	union
 	{
 		U8_T all[10];
-		struct 
+		struct
 		{
 			U8_T sec;				/* 0-59	*/
 			U8_T min;    		/* 0-59	*/
@@ -104,8 +104,8 @@ typedef	union
 			U8_T mon;     		/* 1-12	*/
 			U8_T year;      		/* 0-99	*/
 			U16_T day_of_year; 	/* 0-365	*/
-			S8_T is_dst;        /* daylight saving time on / off */		
-				
+			S8_T is_dst;        /* daylight saving time on / off */
+
 		}Clk;
 		struct
     {
@@ -117,7 +117,7 @@ typedef	union
 	}UN_Time;
 
 #endif
-	
+
 typedef union
 {
     uint8_t lcddisplay[7];
@@ -136,15 +136,15 @@ typedef union
     }lcd_bac_reg;
 
 }lcdconfig;
-	
+
 typedef	union
 {
 	uint8_t all[400];
-	struct 
+	struct
 	{
 	 uint8_t ip_addr[4];
 	 uint8_t subnet[4];
-	 uint8_t getway[4];		 
+	 uint8_t getway[4];
 	 uint8_t mac_addr[6];
 
 	 uint8_t tcp_type;   /* 1 -- DHCP, 0 -- STATIC */
@@ -158,19 +158,19 @@ typedef	union
 	 uint8_t en_plug_n_play;
 
 	 uint8_t reset_default;	  // write 88
-	 uint8_t com_baudrate[3]; 
+	 uint8_t com_baudrate[3];
 
 	 uint8_t  en_username;  // 2-enalbe  1 - disable 0: unused
 	 uint8_t  cus_unit;
 
-	 uint8_t usb_mode; 
+	 uint8_t usb_mode;
 	 uint8_t network_number;
 	 uint8_t panel_type;
 
 	 S8_T panel_name[20];
 	 uint8_t en_panel_name;
 	 uint8_t panel_number;
-	 
+
 	uint8_t dyndns_user[32]; // no used
 	uint8_t dyndns_pass[32]; // no used
 	uint8_t dyndns_domain[32]; // no used
@@ -178,57 +178,57 @@ typedef	union
 	uint8_t dyndns_provider;  // 0- www.3322.org 1-www.dyndns.com  2 - www.no-ip.com 3 - temco server
 	uint16_t dyndns_update_time;  // xx min
 	uint8_t en_sntp;		// 0 - no  1 - disable 2 - timeserver1, 3 - timeserver2 , 4 - timeserver3 5 - customer timersverver  - 200 local PC
-	S16_T time_zone;	
+	S16_T time_zone;
 	uint32_t sn;
-	
-	UN_Time update_dyndns; 
+
+	UN_Time update_dyndns;
 	uint16_t mstp_network_number;
 	uint8_t BBMD_EN;
 	uint8_t sd_exist;
-	
+
 	uint16_t tcp_port;
 	uint8_t modbus_id;
 	uint32_t instance;
-	
+
 	uint32_t update_sntp_last_time;
 	uint8_t Daylight_Saving_Time;
-	
+
 	S8_T sntp_server[30];
-	U8_T zigbee_exist;  // 0x74 - exist 
-	
+	U8_T zigbee_exist;  // 0x74 - exist
+
 	U8_T LCD_time_off_delay;//U8_T backlight;
-	U8_T update_time_sync_pc;   //  0 - finished  1 - ask updating 
+	U8_T update_time_sync_pc;   //  0 - finished  1 - ask updating
 	U8_T en_time_sync_with_pc;  // 0 - time server 1 - pc
 	U8_T sync_with_ntp_result; // 0 - fail , 1 - ok
-	
+
 //	U8_T network_ID[3];
 	U8_T MSTP_ID;
 	U16_T zigbee_module_id;
-	U8_T MAX_MASTER;  
+	U8_T MAX_MASTER;
 	U8_T specila_flag;
 	// bit0 -> support PT1K, 0 - NO PT1K , 1- PT1K
 	// bit1 -> support PT100, 0 - NO PT100 , 1- PT100
-	
+
 	U8_T uart_parity[3];  // 2- Even  1 - Odd  0 - none
 	U8_T uart_stopbit[3];
-//	USART_StopBits_1        0             
-// 	USART_StopBits_0_5      1          
-// 	USART_StopBits_2        2           
+//	USART_StopBits_1        0
+// 	USART_StopBits_0_5      1
+// 	USART_StopBits_2        2
 // 	USART_StopBits_1_5  		3
-	
+
 	lcdconfig display_lcd;
 	U8_T start_month;
 	U8_T start_day;
 	U8_T end_month;
 	U8_T end_day;
-	
+
 	U8_T network_number_hi;
 	U8_T webview_json_flash; //value 1 old way     value 2  new way for jsaon
-	
+
 	U8_T max_var;
 	U8_T max_in;
 	U8_T max_out;
-	
+
 	U8_T fix_com_config; // 0
 	U8_T write_flash;
 	}reg;
@@ -249,7 +249,7 @@ typedef union
         char secure_connection_type;  //0 -NULL   1-SSL   2-TLS
 		char To1Addr[60];
 		char To2Addr[60];
-		uint8_t error_code; 
+		uint8_t error_code;
     }reg;
 }Str_Email_point;
 
@@ -257,15 +257,15 @@ typedef union
 typedef	union
 {
 	uint8_t all[400];
-	struct 
-	{ 
+	struct
+	{
 	 uint16_t flag; // 0x55ff
 	 uint32_t monitor_block_num[24];
-	 uint8_t operate_time[12][4];	
-		
+	 uint8_t operate_time[12][4];
+
 	 uint8_t flag1; // network health  0x55
 	 uint32_t com_rx[3];
-	 uint32_t com_tx[3];	
+	 uint32_t com_tx[3];
 	 uint16_t collision[3];  // id collision
 	 uint16_t packet_error[3];  // bautrate not match
 	 uint16_t timeout[3];
@@ -315,14 +315,14 @@ typedef enum { WRITE_SD_OK = 0,WAIT_FOR_SD} E_OPERATE_SD;
 extern U32_T	timeCount1,timeCount2;
 //extern uint8_t invokeid_bip;
 extern uint8_t  invokeid_mstp;
-extern uint8_t  flag_receive_netp;	// network points 
+extern uint8_t  flag_receive_netp;	// network points
 extern uint8_t  flag_receive_netp_temcovar;
 //extern uint8_t  flag_receive_netp_temcoreg;
 extern uint8_t  temcovar_panel;
 //extern uint8_t  temcoreg[20];
 extern uint8_t  temcovar_panel_invoke;
 //extern uint8_t  temcoreg_panel_invoke;
-extern uint8_t  flag_receive_netp_modbus;	// network points 
+extern uint8_t  flag_receive_netp_modbus;	// network points
 extern uint8_t  flag_receive_rmbp;  // remote bacnet points
 extern U8_T Send_Whois_Flag;
 extern U8_T Send_Time_Sync;
@@ -335,7 +335,7 @@ extern U8_T  count_send_bip;
 //extern U8_T  Send_bip_address2[6];
 //extern U8_T  Send_bip_count2;
 //extern U8_T flag_get_network_point;
-extern U8_T remote_modbus_index;	
+extern U8_T remote_modbus_index;
 extern U8_T remote_bacnet_index;
 extern U8_T  network_point_index;
 extern U8_T remote_mstp_panel_index;
@@ -406,7 +406,7 @@ extern EXT_RAM_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
 //extern S16_T                          MAX_MONITOR_BLOCKS;
 //extern U8_T                         free_mon_blocks;
 
- 
+
 extern char  panelname[20];
 //extern U8_T 	client_ip[4];
 //extern U8_T newsocket;
@@ -602,7 +602,7 @@ extern u8 rec_mstp_index;  // for i-am
 extern u8 send_mstp_index;
 extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];
 
-extern u8 rec_mstp_index1; // response packets form   
+extern u8 rec_mstp_index1; // response packets form
 extern u8 send_mstp_index1;
 extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf1[10];
 
