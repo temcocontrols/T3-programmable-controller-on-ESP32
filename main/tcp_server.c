@@ -274,6 +274,10 @@ void UdpData(unsigned char type)
 
 }
 
+void Set_icon_config(U8_T icon_config)
+{
+	Modbus.icon_config = icon_config;
+}
 
 uint32_t get_ip_addr(void)
 {
