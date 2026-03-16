@@ -63,6 +63,8 @@ void MenuMain_init(void)
 {
 	item_to_adjust = 0;
     ClearScreen(TSTAT8_BACK_COLOR);
+	disp_str(FORM15X30, TEMP_OUTDOOR_XPOS - 30, TEMP_OUTDOOR_YPOS - 20, "Menu Info", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+    disp_str(FORM15X30, 20, ICON_POS, "  Edit >", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	start_menu();
 }
 

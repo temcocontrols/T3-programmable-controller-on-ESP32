@@ -1001,15 +1001,27 @@ void MenuIdle_keycope(uint16 key_value)
 			// change SETP, FAN , SYS
 			if(flag_digital_top_area == 1)
 			{
-				if(disp_index < 4) disp_index++;
+				if(disp_index < 4)
+				{
+					disp_index++;
+				}
 				else
+				{
+					update_menu_state(MenuMain);
 					disp_index = 1;
+				}
 			}
 			else
 			{
-				if(disp_index < 3) disp_index++;
+				if(disp_index < 3)
+				{
+					disp_index++;
+				}
 				else
+				{
+					update_menu_state(MenuMain);
 					disp_index = 1;
+				}
 			}
 			count_left_key = 0;
 			break;

@@ -37,6 +37,8 @@ void MenuSet_init(void)
 	}
 
 	clear_lines();
+	disp_str(FORM15X30, TEMP_OUTDOOR_XPOS - 30, TEMP_OUTDOOR_YPOS - 20, "Menu Edit", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+	disp_str(FORM15X30, 20, ICON_POS, "- Edit +", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	//if(item_to_adjust != 3)  //��ϣ����Schedule ���� ���� set schedule �� �̶��ַ�;
 	start_menu();
 	flag_blink = 1;
