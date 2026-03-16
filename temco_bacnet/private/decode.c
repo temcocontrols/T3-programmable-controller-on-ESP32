@@ -20,6 +20,9 @@ void pushlong(unsigned long value);
 unsigned long poplong(void);
 
 U8_T Get_Mini_Type(void);
+void Set_icon_config(U8_T icon_config);
+U8_T icon_config;
+
 
 extern U8_T current_online[32];
 extern UN_Time Rtc;
@@ -863,36 +866,44 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								prog += 4;
 								break;
 			// ICON1-ICON4 are for TSTAT10
-			case ICON1: // DAY_NIGHT
+			// ICON1: bit0-bit1
+			// ICON2: bit2-bit3
+			// ICON3: bit4-bit5
+			// ICON4: bit6-bit7
+			case ICON1: // icon of DAY_NIGHT
 				r = (U32_T)veval_exp(local);
 				r /= 1000;			
-				Modbus.icon_config &= 0xfc;
+				icon_config &= 0xfc;
 				if(r <= 3)
-					Modbus.icon_config |= r;
+					icon_config |= r;
+				Set_icon_config(icon_config);
 				prog += 4;
 				break;
-			case ICON2: // OCC_UNOCC
+			case ICON2: // icon of OCC_UNOCC
 				r = (U32_T)veval_exp(local);
 				r /= 1000;
-				Modbus.icon_config &= 0xf3;
+				icon_config &= 0xf3;
 				if(r <= 3)
-					Modbus.icon_config |= (r << 2);
+					icon_config |= (r << 2);
+				Set_icon_config(icon_config);
 				prog += 4;
 				break;
-			case ICON3: // HEAT_COOL
+			case ICON3: // icon of HEAT_COOL
 				r = (U32_T)veval_exp(local);
 				r /= 1000;
-				Modbus.icon_config &= 0xcf;
+				icon_config &= 0xcf;
 				if(r <= 3)
-					Modbus.icon_config |= (r << 4);
+					icon_config |= (r << 4);
+				Set_icon_config(icon_config);
 				prog += 4;
 				break;
-			case ICON4:	// FAN			
+			case ICON4:	// icon of FAN
 				r = (U32_T)veval_exp(local);
 				r /= 1000;
-				Modbus.icon_config &= 0x3f;
+				icon_config &= 0x3f;
 				if(r <= 3)
-					Modbus.icon_config |= (r << 6);
+					icon_config |= (r << 6);
+				Set_icon_config(icon_config);
 				prog += 4;
 				break;
 			default :
