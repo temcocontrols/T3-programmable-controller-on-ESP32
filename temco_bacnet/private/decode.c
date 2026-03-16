@@ -862,8 +862,41 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								}
 								prog += 4;
 								break;
-		default :  
-			break;
+			// ICON1-ICON4 are for TSTAT10
+			case ICON1: // DAY_NIGHT
+				r = (U32_T)veval_exp(local);
+				r /= 1000;			
+				Modbus.icon_config &= 0xfc;
+				if(r <= 3)
+					Modbus.icon_config |= r;
+				prog += 4;
+				break;
+			case ICON2: // OCC_UNOCC
+				r = (U32_T)veval_exp(local);
+				r /= 1000;
+				Modbus.icon_config &= 0xf3;
+				if(r <= 3)
+					Modbus.icon_config |= (r << 2);
+				prog += 4;
+				break;
+			case ICON3: // HEAT_COOL
+				r = (U32_T)veval_exp(local);
+				r /= 1000;
+				Modbus.icon_config &= 0xcf;
+				if(r <= 3)
+					Modbus.icon_config |= (r << 4);
+				prog += 4;
+				break;
+			case ICON4:	// FAN			
+				r = (U32_T)veval_exp(local);
+				r /= 1000;
+				Modbus.icon_config &= 0x3f;
+				if(r <= 3)
+					Modbus.icon_config |= (r << 6);
+				prog += 4;
+				break;
+			default :
+				break;
 	 	}
 		 
 	}
@@ -1295,7 +1328,7 @@ S32_T veval_exp(U8_T *local)
 				}				
 				push(value / m);	
 				break;
-	case PVAR:
+	/*case PVAR:  NO USED
 				op1 = pop() / 1000;
 				if(op1 < 4)
 				{
@@ -1303,7 +1336,7 @@ S32_T veval_exp(U8_T *local)
 				}
 				else
 					push(0);
-				break;
+				break;*/
 #if (ARM_MINI || ASIX_MINI)
 		case COM1:	 			
 				m = *prog++;
