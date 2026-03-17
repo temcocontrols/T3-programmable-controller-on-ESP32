@@ -72,14 +72,14 @@ struct _MENU_STATE_ const StateArray[MenuEnd] =
 		MenuMain_display,
 		MENU_BLOCK_SECONDS_DEFAULT,
 	},
-	{
+#if 0//SET_SCH
+
 		MenuSet,
 		MenuSet_keycope,
 		MenuSet_init,
 		MenuSet_display,
 		MENU_BLOCK_SECONDS_DEFAULT,
 	},
-#if 0//SET_SCH
 	{
 		MenuDaySet,
 		MenuDaySet_keycope,

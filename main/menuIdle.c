@@ -43,6 +43,7 @@ static bool IsHomeScreen = false;
 extern uint16_t count_suspend_mstp;
 extern uint8_t ChangeFlash;
 extern bool IsOutdoorTempValid;
+extern bool HomeScreenSetpointMode;
 
 void set_output_raw(uint8_t point,uint16_t value);
 
@@ -52,6 +53,7 @@ void MenuIdle_init(void)
 	Str_points_ptr ptr;
 	//LCDtest();
 	ClearScreen(TSTAT8_BACK_COLOR);
+	HomeScreenSetpointMode = false;
 	flag_digital_top_area = 0;
 	digital_top_area_type = 0;
 	digital_top_area_num = 0;
@@ -516,7 +518,10 @@ void DisplayMenuScreen(void)
 		}
 
 		if(count_left_key > 5)
+		{
 			disp_index = 0;
+			count_left_key = 0;
+		}
 		else
 			count_left_key++;
 
@@ -594,6 +599,7 @@ void MenuIdle_display(void)
 		if(IsHomeScreen)
 		{
 			ClearScreen(TSTAT8_BACK_COLOR);
+			HomeScreenSetpointMode = false;
 			IsHomeScreen = false;
 		}
 		DisplayMenuScreen();
@@ -640,6 +646,24 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 		case KEY_UP_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value + 1000;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
@@ -733,6 +757,24 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 		case KEY_SPEED_10 | KEY_UP_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value + 1000;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
@@ -818,6 +860,24 @@ void MenuIdle_keycope(uint16 key_value)
 
 		case KEY_DOWN_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value - 1000;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
@@ -913,6 +973,24 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 		case KEY_SPEED_10 | KEY_DOWN_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value - 1000;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
@@ -995,9 +1073,12 @@ void MenuIdle_keycope(uint16 key_value)
 		case KEY_LEFT_MASK:
 			count_left_key = 5; // This will update Display to Home Screen
 			disp_index = 0;
+			HomeScreenSetpointMode = false; // return to default home layout
+			IsHomeScreen = false;
 			break;
 
 		case KEY_RIGHT_MASK:
+			HomeScreenSetpointMode = false; // move away from home screen adjustments
 			// change SETP, FAN , SYS
 			if(flag_digital_top_area == 1)
 			{

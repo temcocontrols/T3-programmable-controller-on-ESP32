@@ -655,7 +655,7 @@ void disp_str_16_24(uint8 form, uint16 x, uint16 y, uint8 *str, uint16 dcolor, u
 				x1 += 9;
 			else if(*str == 't' || *str == 'l' || *str == 'I' || *str == 'j')
 				x1 += 12;
-			else if(*str == 'W' || *str == 'M')
+			else if(*str == 'W' || *str == 'M' || *str == 'w' || *str == 'm')
 				x1 += 16;
 			else if( *str == 'U' || *str == 'O')
 				x1 += 15;
