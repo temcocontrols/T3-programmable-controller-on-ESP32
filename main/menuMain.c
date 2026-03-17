@@ -89,14 +89,14 @@ static void render_labels(uint8 selected_index)
     uint16 bg1 = (selected_index == 1) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR;
     uint16 bg2 = (selected_index == 2) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR;
 
-	disp_str_16_24(FORM15X30, SCH_XPOS-5,  SETPOINT_POS, (uint8 *)"Modbus", SCH_COLOR, bg0);
-	disp_str_16_24(FORM15X30, SCH_XPOS-5,  FAN_MODE_POS-5, (uint8 *)"Baud", SCH_COLOR, bg1);
-	disp_str_16_24(FORM15X30, SCH_XPOS-5,  SYS_MODE_POS-10, (uint8 *)"Mode", SCH_COLOR, bg2);
+	disp_str_16_24(FORM15X30, SCH_XPOS,  SETPOINT_POS, (uint8 *)"Modbus", SCH_COLOR, bg0);
+	disp_str_16_24(FORM15X30, SCH_XPOS,  FAN_MODE_POS-5, (uint8 *)"Baud", SCH_COLOR, bg1);
+	disp_str_16_24(FORM15X30, SCH_XPOS,  SYS_MODE_POS-10, (uint8 *)"Mode", SCH_COLOR, bg2);
 }
 
 static void render_value_row(uint8 row, uint16 value)
 {
-    uint16 ypos = (row == 0) ? SETPOINT_POS : (row == 1 ? FAN_MODE_POS-10 : SYS_MODE_POS-20);
+    uint16 ypos = (row == 0) ? SETPOINT_POS : (row == 1 ? FAN_MODE_POS-5 : SYS_MODE_POS-10);
 	char temp_buffer[16] = {0};
 	memcpy(temp_buffer, "      ", strlen("      "));
 	if(row == 0)
@@ -173,8 +173,8 @@ void MenuMain_display(void)
 	if(!boxes_drawn)
 	{
 		draw_tangle(125, SETPOINT_POS - 3);
-		draw_tangle(125, FAN_MODE_POS - 13);
-		draw_tangle(125, SYS_MODE_POS - 23);
+		draw_tangle(125, FAN_MODE_POS - 8);
+		draw_tangle(125, SYS_MODE_POS - 13);
 		boxes_drawn = true;
 	}
 
@@ -243,7 +243,7 @@ void draw_tangle(uint8 xpos, uint16 ypos)
 {
 	uint8_t xEndPos = 113;
 	uint8_t yEndPos = 34;
-	if(xpos > 110)	{xEndPos = 98; yEndPos = 25;}
+	if(xpos > 110)	{xEndPos = 94; yEndPos = 25;}
     disp_edge     (8, 8, leftup, 	xpos,	ypos, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
     disp_null_icon(xEndPos, 2, 0, xpos+6,ypos+2,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
     disp_null_icon(3, yEndPos-6, 0, xpos+2,ypos+8,TSTAT8_CH_COLOR, TSTAT8_MENU_COLOR);
