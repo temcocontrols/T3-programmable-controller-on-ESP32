@@ -15,6 +15,7 @@
  */
 
 #include <string.h>
+#include <limits.h>
 #include "LcdTheme.h"
 #include "lcd.h"
 #include "LCD_TSTAT.h"
@@ -22,6 +23,7 @@
 #include "Menu.h"
 #include "controls.h"
 #include "ud_str.h"
+#include "define.h"
 
 static void DisplayDrawFormat( void );
 void DisplayTemperature( uint8_t index , S16_T value, uint8 unit);
@@ -36,8 +38,12 @@ int32_t Temperature_OutValue     = 0;
 int32_t Temperature_AmbientValue = 0;
 int32_t Humidity_OutValue        = 0;
 int32_t Humidity_AmbientValue    = 0;
-int8_t Prev_TempSign[2] = {2, 2};
+int8_t Prev_TempSign[3] = {2, 2, 2}; // index 2 is reserved for setpoint
 bool IsOutdoorTempValid = false;
+bool HomeScreenSetpointMode = false; // toggled by keypad on home screen
+static bool Prev_SetpointMode = false;
+
+static void DisplaySetpointValue(void);
 
 void DisplayHomeScreen( bool isHomeScreen )
 {
@@ -45,6 +51,12 @@ void DisplayHomeScreen( bool isHomeScreen )
     Temperature_OutdorrDataPtr = put_io_buf(IN, 6); // VAR7 is for outdoor temperature
     Humidity_AmbientDataPtr    = put_io_buf(IN, 10);// VAR11 is for room humidity
     Humidity_OutdorrDataPtr    = put_io_buf(IN, 7); // VAR8 is for outdoor humidity
+
+    if(Prev_SetpointMode != HomeScreenSetpointMode)
+    {
+        isHomeScreen = false; // force redraw when mode changes
+        Prev_SetpointMode = HomeScreenSetpointMode;
+    }
 
     if(Temperature_OutdorrDataPtr.pin->range == R10K_40_120DegC ||
             Temperature_OutdorrDataPtr.pin->range == R10K_40_250DegF)
@@ -74,6 +86,7 @@ void DisplayHomeScreen( bool isHomeScreen )
         Humidity_AmbientValue    = 0;
         Prev_TempSign[0]   = 2;
         Prev_TempSign[1]   = 2;
+        Prev_TempSign[2]   = 2;
     }
     else
     {
@@ -90,7 +103,7 @@ void DisplayHomeScreen( bool isHomeScreen )
         Temperature_OutdorrDataPtr.pin->value = -Temperature_AmbientDataPtr.pin->value; // For testing only, remove this line in actual code
         Temperature_OutdorrDataPtr.pin->range = Temperature_AmbientDataPtr.pin->range; // For testing only, remove this line in actual code
 #endif
-        if(Temperature_OutValue != Temperature_OutdorrDataPtr.pin->value)
+        if(!HomeScreenSetpointMode && Temperature_OutValue != Temperature_OutdorrDataPtr.pin->value)
         {
             Temperature_OutValue = Temperature_OutdorrDataPtr.pin->value;
             if(Temperature_OutdorrDataPtr.pin->range == 4 ) /* R10K_40_250DegF*/
@@ -110,10 +123,14 @@ void DisplayHomeScreen( bool isHomeScreen )
             Humidity_AmbientValue = Humidity_AmbientDataPtr.pin->value;
             DisplayHumidity(0, Humidity_AmbientDataPtr.pin->value ); // Display indoor humidity at position 0
         }
-        if(Humidity_OutValue != Humidity_OutdorrDataPtr.pin->value)
+        if(!HomeScreenSetpointMode && Humidity_OutValue != Humidity_OutdorrDataPtr.pin->value)
         {
             Humidity_OutValue = Humidity_OutdorrDataPtr.pin->value;
             DisplayHumidity(1, Humidity_OutdorrDataPtr.pin->value ); // Display outdoor humidity at position 1
+        }
+        if(HomeScreenSetpointMode)
+        {
+            DisplaySetpointValue();
         }
         display_icon();
         display_fan();
@@ -164,7 +181,22 @@ void DisDraw_Square(uint16 xPos , uint16 yPos )
 
 static void DisplayDrawFormat( void )
 {
-    if(IsOutdoorTempValid)
+
+    if(HomeScreenSetpointMode)
+    {
+        // Keep indoor data in the lower box and use the upper area for setpoint
+        DisDraw_Square( START_XPOS_2 , START_YPOS_2 );
+        disp_str_16_24(FORM15X30, INDOOR_STR_XPOS,  INDOOR_STR_YPOS,  (uint8 *)"Inside",SCH_COLOR,TSTAT8_BACK_COLOR);
+
+        disp_edge(ICON_XDOTS, ICON_YDOTS, indoorTemp, INDOOR_ICON_XPOS,	INDOOR_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+
+        disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+
+        // Setpoint label replaces the outdoor title
+        disp_str_16_24(FORM15X30, HOME_SETPOINT_STR_XPOS, HOME_SETPOINT_STR_YPOS, (uint8 *)"Setpoint", SCH_COLOR, TSTAT8_BACK_COLOR);
+    }
+    else if(IsOutdoorTempValid)
     {
         // disp_str_16_24(FORM15X30, WEATHER_STR_XPOS,  WEATHER_STR_YPOS,  (uint8 *)"Weather",SCH_COLOR,TSTAT8_BACK_COLOR);
         DisDraw_Square( START_XPOS , START_YPOS );
@@ -211,24 +243,24 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
     uint16_t xDecPos, yDecPos;
 
     if(index > 1)
-        return; // Invalid index, only 0 (indoor) and 1 (outdoor) are valid
+        return; // Invalid index, only 0 (indoor), 1 (outdoor)
 
-    if(!IsOutdoorTempValid)
+    if(index == 1) // outdoor temperature
     {
-        if(index == 1) // outdoor temperature
+        if(HomeScreenSetpointMode)
+            return; // Outdoor box is hidden in setpoint mode
+        if(!IsOutdoorTempValid)
             return; // Don't display outdoor temperature if it's not valid
-        xPos = TEMP_INDOOR_XPOS;
-        yPos = TEMP_INDOOR_YPOS - 80;
-    }
-    else if(index == 1) // outdoor temperature
-    {
         xPos = TEMP_OUTDOOR_XPOS;
         yPos = TEMP_OUTDOOR_YPOS;
     }
-    else // indoor temperature
+    else
     {
         xPos = TEMP_INDOOR_XPOS;
-        yPos = TEMP_INDOOR_YPOS;
+        if(!IsOutdoorTempValid && !HomeScreenSetpointMode)
+            yPos = TEMP_INDOOR_YPOS - 80;
+        else
+            yPos = TEMP_INDOOR_YPOS;
     }
 
     xSymPos = xPos - 27;
@@ -275,13 +307,13 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
         disp_edge(14, 14, degree_o, xUnitPos - 14,yUnitPos ,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
         if(unit == TOP_AREA_DISP_UNIT_C)
-		{
-			disp_str(FORM15X30, xUnitPos, yUnitPos, "C",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
-		}
-	    else if(unit == TOP_AREA_DISP_UNIT_F)
-		{
-			disp_str(FORM15X30, xUnitPos, yUnitPos, "F", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		}
+        {
+                disp_str(FORM15X30, xUnitPos, yUnitPos, "C",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+        }
+        else if(unit == TOP_AREA_DISP_UNIT_F)
+        {
+                disp_str(FORM15X30, xUnitPos, yUnitPos, "F", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+        }
     }
 }
 
@@ -291,16 +323,20 @@ void DisplayHumidity( uint8_t index , S16_T value )
     uint16_t xPos, yPos;
 
     xPos = HUMIDITY_VALUE_XPOS;
-    if(!IsOutdoorTempValid)
+
+    if(index == 1)
     {
-        if(index == 1) // outdoor humidity
-            return; // Don't display outdoor humidity if it's not valid
-        yPos = HUMIDITY_INDOOR_YPOS - 60;
-    }
-    else if(index == 1) // outdoor Humidity
+        if(HomeScreenSetpointMode || !IsOutdoorTempValid)
+            return; // Outdoor box is hidden or invalid
         yPos = HUMIDITY_OUTDOOR_YPOS;
+    }
     else            // indoor Humidity
-        yPos = HUMIDITY_INDOOR_YPOS;
+    {
+        if(!IsOutdoorTempValid && !HomeScreenSetpointMode) // If outdoor temp is not valid and we're not in setpoint mode, move indoor humidity up to fill the space
+            yPos = HUMIDITY_INDOOR_YPOS - 60;
+        else
+            yPos = HUMIDITY_INDOOR_YPOS;
+    }
 
     value_buf = value;
     if(value < 0)
@@ -326,6 +362,15 @@ void DisplayHumidity( uint8_t index , S16_T value )
 
     xPos = xPos + 16; // Symbol position
     disp_str_16_24(FORM15X30, xPos, yPos, (uint8_t*)"%", SCH_COLOR, TSTAT8_BACK_COLOR);
+}
+
+static void DisplaySetpointValue(void)
+{
+    Str_points_ptr setpointPtr = put_io_buf(VAR, 0);
+    // Label at the same spot as idle screen
+    disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS, (char*)setpointPtr.pvar->label, SCH_COLOR, TSTAT8_BACK_COLOR);
+    // Value with the same formatter used by idle screen
+    display_screen_value(1);
 }
 
 /* End of File */

@@ -127,6 +127,14 @@
 // Humidity value X position
 #define HUMIDITY_VALUE_XPOS   HUMIDITY_INDOOR_XPOS + (HUMIDITY_STR_LEN * 12) + 4
 
+// Home-screen setpoint placement
+#define HOME_SETPOINT_STR_XPOS        OUTDOOR_STR_XPOS
+#define HOME_SETPOINT_STR_YPOS        OUTDOOR_STR_YPOS
+#define HOME_SETPOINT_VALUE_XPOS      TEMP_OUTDOOR_XPOS
+#define HOME_SETPOINT_VALUE_YPOS      TEMP_OUTDOOR_YPOS
+#define HOME_SETPOINT_STR_BOTTOM_YPOS INDOOR_STR_YPOS
+#define HOME_SETPOINT_VALUE_BOTTOM_YPOS TEMP_INDOOR_YPOS
+
 #define TOP_AREA_DISP_ITEM_TEMPERATURE      0
 #define TOP_AREA_DISP_ITEM_HUM              1
 #define TOP_AREA_DISP_ITEM_CO2              2
@@ -285,8 +293,6 @@ extern uint16 const moonicon[];
 extern uint16 const coolicon[];
 extern uint16 const heaticon[];
 extern uint16 const degree_o[];
-extern uint16 const outsideSymbol[];
-extern uint16 const indoorTemp[];
 
 /*      Display Fonts         */
 /* Declaration in DisFonts.c  */
@@ -316,8 +322,6 @@ void display_mode(uint8 heat_cool_user);
 void display_fan(void);
 void display_icon(void);
 void display_value(uint16 pos,S16_T disp_value, uint8 disp_unit);
-//void display_menu(uint16 pos, uint8 *item);
-void display_menu (uint8 *item1, uint8 *item2);
 void clear_line(uint8 linenum);
 void clear_lines(void);
 //void display_clock_date(int8 item, int16 value);

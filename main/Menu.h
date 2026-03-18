@@ -16,7 +16,7 @@
 
 
 
-#define MAX_MENU_NUM 4 // add sch
+#define MAX_MENU_NUM 3 // communication menu only
 
 
 typedef struct
