@@ -1427,7 +1427,7 @@ void Refresh_scroll(void)
 				(uint8)SSID_Info.ip_addr[2],
 				(uint8)SSID_Info.ip_addr[3]);
 
-		uint8 len = strlen(&scroll_ram[0]);
+		uint8 len = strlen((char *)scroll_ram[0]);
 		scroll_ram[0][len] = ' ';
     }
 	else if(SSID_Info.IP_Wifi_Status == 5)

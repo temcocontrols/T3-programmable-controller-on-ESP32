@@ -77,7 +77,7 @@ BACNET_BVLC_FUNCTION far BVLC_Function_Code = BVLC_RESULT;  /* A safe default */
  * BBMD needs to handle its services.
  * Separately, define BBMD_CLIENT_ENABLED to get the
  * functions that allow a client to manage a BBMD.
- */	
+ */
 
 /* copy the source internet address to the BACnet address */
 /* FIXME: IPv6? */
@@ -307,7 +307,7 @@ int bvlc_bbmd_read_bdt(
     mtu_len = bvlc_encode_read_bdt(mtu);
     if (mtu_len > 0) {
         bbmd.sin_addr.s_addr = bbmd_address;
-        bbmd.sin_port = bbmd_port;	 
+        bbmd.sin_port = bbmd_port;
 
         rv = bvlc_send_mpdu(&bbmd, &mtu[0], mtu_len);
     }
@@ -391,7 +391,7 @@ static int bvlc_encode_forwarded_npdu(
         len = 4;
         len +=
             bvlc_encode_bip_address(&pdu[len], &sin->sin_addr, sin->sin_port);
-			
+
         for (i = 0; i < npdu_length; i++) {
             pdu[len] = npdu[i];
             len++;
@@ -609,7 +609,7 @@ bool bvlc_register_foreign_device(
 {       /* time in seconds */
     unsigned i = 0;
     bool status = false;
-		
+
     /* am I here already?  If so, update my time to live... */
     for (i = 0; i < MAX_FD_ENTRIES; i++) {
         if (FD_Table[i].valid) {
@@ -617,7 +617,7 @@ bool bvlc_register_foreign_device(
                 (FD_Table[i].dest_port == sin->sin_port)) {
                 status = true;
                 FD_Table[i].time_to_live = time_to_live;
-									
+
                 /*  Upon receipt of a BVLL Register-Foreign-Device message,
                    a BBMD shall start a timer with a value equal to the
                    Time-to-Live parameter supplied plus a fixed grace
@@ -635,7 +635,7 @@ bool bvlc_register_foreign_device(
                 FD_Table[i].time_to_live = time_to_live;
                 FD_Table[i].seconds_remaining = time_to_live + 30;
                 FD_Table[i].valid = true;
-                status = true;								
+                status = true;
                 break;
             }
         }
@@ -700,16 +700,16 @@ int bvlc_send_mpdu(
     /* Send the packet */
 //#if ASIX
 //  	TCPIP_UdpSend(bip_socket(), 0, 0, mtu, mtu_len);
-//#endif 
-//		
+//#endif
+//
 //#if ARM
-		
+
 #ifdef BIP
 		;//uip_send((char *)mtu, mtu_len);
 #endif
-		
+
 //#endif
-   return;
+   return 1;
 }
 
 #if BBMD_ENABLED
@@ -747,7 +747,7 @@ void bvlc_bdt_forward_npdu(
                 continue;
             }
             bvlc_send_mpdu(&bip_dest, mtu, mtu_len);
-						
+
          //   debug_printf("BVLC: BDT Sent Forwarded-NPDU to %s:%04X\n",
            //     inet_ntoa(bip_dest.sin_addr), ntohs(bip_dest.sin_port));	  tbd : it is a lixux function - chaned by chelsea
         }
@@ -771,7 +771,7 @@ void bvlc_forward_npdu(
         (uint16_t) bvlc_encode_forwarded_npdu(&mtu[0], sin, npdu, npdu_length);
     bip_dest.sin_addr.s_addr = bip_get_broadcast_addr();
     bip_dest.sin_port = bip_get_port();
-		
+
     bvlc_send_mpdu(&bip_dest, mtu, mtu_len);
 //    debug_printf("BVLC: Sent Forwarded-NPDU as local broadcast.\n");
 }
@@ -798,19 +798,19 @@ void bvlc_fdt_forward_npdu(
                 (bip_dest.sin_port == bip_get_port())) {
                 continue;
             }
-						
+
             /* don't send to src ip address and same port */
             if ((bip_dest.sin_addr.s_addr == sin->sin_addr.s_addr) &&
                 (bip_dest.sin_port == sin->sin_port)) {
                 continue;
             }
-						
+
 //						bip_set_socket(TCPIP_UdpNew(whois_InterAppId, 0, bip_dest.sin_addr.s_addr,
 //						bip_dest.sin_port, 47808));
-						
-            bvlc_send_mpdu(&bip_dest, mtu, mtu_len);  
+
+            bvlc_send_mpdu(&bip_dest, mtu, mtu_len);
         //    debug_printf("BVLC: FDT Sent Forwarded-NPDU to %s:%04X\n",
-         //       inet_ntoa(bip_dest.sin_addr), ntohs(bip_dest.sin_port));	  // tbd: ----  
+         //       inet_ntoa(bip_dest.sin_addr), ntohs(bip_dest.sin_port));	  // tbd: ----
         }
     }
 
@@ -827,7 +827,7 @@ void bvlc_send_result(
     uint16_t mtu_len = 0;
 
     mtu_len = (uint16_t) bvlc_encode_bvlc_result(&mtu[0], result_code);
-    bvlc_send_mpdu(dest, mtu, mtu_len);	 
+    bvlc_send_mpdu(dest, mtu, mtu_len);
 
     return;
 }
@@ -841,7 +841,7 @@ int bvlc_send_bdt(
 
     mtu_len = (uint16_t) bvlc_encode_read_bdt_ack(&mtu[0], sizeof(mtu));
     if (mtu_len) {
-        bvlc_send_mpdu(dest, &mtu[0], mtu_len);	  
+        bvlc_send_mpdu(dest, &mtu[0], mtu_len);
     }
 
     return mtu_len;
@@ -854,7 +854,7 @@ int bvlc_send_fdt(
     uint16_t mtu_len = 0;
 
     mtu_len = (uint16_t) bvlc_encode_read_fdt_ack(&mtu[0], sizeof(mtu));
-    if (mtu_len) {	
+    if (mtu_len) {
         bvlc_send_mpdu(dest, &mtu[0], mtu_len);
     }
 
@@ -928,14 +928,14 @@ uint16_t bvlc_receive(
     /* see if there is a packet for us */
 //#if ASIX
 //	  received_bytes = bip_len;
-//    bip_Data = npdu;    
+//    bip_Data = npdu;
 //#endif
 
 //#if ARM
 
 #ifdef BIP
 		received_bytes = bip_len;
-    bip_Data = npdu; 
+    bip_Data = npdu;
 #endif
 
 //#endif
@@ -949,7 +949,7 @@ uint16_t bvlc_receive(
         return 0;
     }
     /* the signature of a BACnet/IP packet */
-    if (npdu[0] != BVLL_TYPE_BACNET_IP) { 
+    if (npdu[0] != BVLL_TYPE_BACNET_IP) {
         return 0;
     }
     BVLC_Function_Code = npdu[1];
@@ -957,7 +957,7 @@ uint16_t bvlc_receive(
     (void) decode_unsigned16(&npdu[2], &npdu_len);
     /* subtract off the BVLC header */
     npdu_len -= 4;
-		
+
     switch (BVLC_Function_Code) {
         case BVLC_RESULT:
             /* Upon receipt of a BVLC-Result message containing a result code
@@ -1042,7 +1042,7 @@ uint16_t bvlc_receive(
             /*  Broadcast locally if received via unicast from a BDT member */
             if (bvlc_bdt_member_mask_is_unicast(&sin)) {
                 dest.sin_addr.s_addr = bip_get_broadcast_addr();
-                dest.sin_port = bip_get_port();		
+                dest.sin_port = bip_get_port();
                 bvlc_send_mpdu(&dest, &npdu[4 + 6], npdu_len);
             }
             /* use the original addr from the BVLC for src */
@@ -1074,7 +1074,7 @@ uint16_t bvlc_receive(
                message from the same foreign device, the FDT entry for this
                device shall be cleared. */
             (void) decode_unsigned16(&npdu[4], &time_to_live);
-            if (bvlc_register_foreign_device(&sin, time_to_live)) { 
+            if (bvlc_register_foreign_device(&sin, time_to_live)) {
                 bvlc_send_result(&sin, BVLC_RESULT_SUCCESSFUL_COMPLETION);
 //                debug_printf("BVLC: Registered a Foreign Device.\n");
             } else {
@@ -1229,27 +1229,27 @@ int bvlc_send_pdu(
     if ((dest->net == BACNET_BROADCAST_NETWORK) || ((dest->net > 0) &&
             (dest->len == 0)) || (dest->mac_len == 0)) {
         /* if we are a foreign device */
-        if (Remote_BBMD.sin_port) {	
+        if (Remote_BBMD.sin_port) {
             mtu[1] = BVLC_DISTRIBUTE_BROADCAST_TO_NETWORK;
             address.s_addr = Remote_BBMD.sin_addr.s_addr;
             port = Remote_BBMD.sin_port;
 //            debug_printf("BVLC: Sent Distribute-Broadcast-to-Network.\n");
-        } else {	 
+        } else {
             address.s_addr = bip_get_broadcast_addr();
             port = bip_get_port();
             mtu[1] = BVLC_ORIGINAL_BROADCAST_NPDU;
  //           debug_printf("BVLC: Sent Original-Broadcast-NPDU.\n");
         }
     } else if (dest->mac_len == 6) {
-        /* valid unicast */		  
+        /* valid unicast */
         bvlc_decode_bip_address(&dest->mac[0], &address, &port);
         mtu[1] = BVLC_ORIGINAL_UNICAST_NPDU;
  //       debug_printf("BVLC: Sent Original-Unicast-NPDU.\n");
-    } else { 
+    } else {
         /* invalid address */
         return -1;
     }
-    bvlc_dest.sin_addr.s_addr = address.s_addr;	 
+    bvlc_dest.sin_addr.s_addr = address.s_addr;
     bvlc_dest.sin_port = port;
     BVLC_length = (uint16_t) pdu_len + 4 /*inclusive */ ;
     mtu_len = 2;
@@ -1317,8 +1317,8 @@ int bvlc_register_with_bbmd(
        register with the BBMD as a Foreign Device */
     mtu_len =
         (uint16_t) bvlc_encode_register_foreign_device(&mtu[0],
-        time_to_live_seconds); 
-  
+        time_to_live_seconds);
+
     retval = bvlc_send_mpdu(&Remote_BBMD, &mtu[0], mtu_len);
     return retval;
 }
@@ -1342,7 +1342,7 @@ int bvlc_for_non_bbmd(
     uint16_t result_code = 0;   /* aka, BVLC_RESULT_SUCCESSFUL_COMPLETION */
 
     BVLC_Function_Code = npdu[1];       /* The BVLC function */
-		
+
     switch (BVLC_Function_Code) {
         case BVLC_RESULT:
             if (received_bytes >= 6) {
@@ -1361,7 +1361,7 @@ int bvlc_for_non_bbmd(
             result_code = BVLC_RESULT_READ_BROADCAST_DISTRIBUTION_TABLE_NAK;
             break;
             /* case BVLC_READ_BROADCAST_DIST_TABLE_ACK: */
-        case BVLC_REGISTER_FOREIGN_DEVICE:					
+        case BVLC_REGISTER_FOREIGN_DEVICE:
             result_code = BVLC_RESULT_REGISTER_FOREIGN_DEVICE_NAK;
             break;
         case BVLC_READ_FOREIGN_DEVICE_TABLE:

@@ -12,8 +12,7 @@
 #include "types.h"
 #include "esp_attr.h"
 #include "led_strip.h"
-#include "driver/rmt.h"
-
+#include "driver/rmt_tx.h"
 
 
 static const char *TAG = "ws2812";
@@ -63,52 +62,69 @@ void LS_LED_Control(uint32_t* color)
 	}
 }
 
-extern uint16_t Test[50];
-void LS_led_task(void)
+void LS_led_task(void *pvParameters)
 {
-	uint32_t red = 0;
-	uint32_t green = 0;
-	uint32_t blue = 0;
-	uint16_t hue = 0;
-	uint16_t start_rgb = 0;
-	uint16_t t1 = 0;
-	uint8_t t2 = 0;
-	uint8_t ret1[7] = {0,0,0,0,0,0,0};
-	//uart_init_test();
-	rmt_config_t config = RMT_DEFAULT_CONFIG_TX(CONFIG_EXAMPLE_RMT_TX_GPIO, RMT_TX_CHANNEL);
-	// set counter clock to 40MHz
-	config.clk_div = 2;
+    uint32_t red = 0;
+    uint32_t green = 0;
+    uint32_t blue = 0;
+    uint16_t hue = 0;
+    uint16_t start_rgb = 0;
+    uint16_t t1 = 0;
+    uint8_t t2 = 0;
+    uint8_t ret1[7] = {0,0,0,0,0,0,0};
 
-	ESP_ERROR_CHECK(rmt_config(&config));
-	ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
-	// install ws2812 driver
-	led_strip_config_t strip_config = LED_STRIP_DEFAULT_CONFIG(CONFIG_EXAMPLE_STRIP_LED_NUMBER, (led_strip_dev_t)config.channel);
-	led_strip_t *strip = led_strip_new_rmt_ws2812(&strip_config);
-	if (!strip) {
-		ESP_LOGE(TAG, "install WS2812 driver failed");
-	}
-	// Clear LED strip (turn off all LEDs)
-	ESP_ERROR_CHECK(strip->clear(strip, 100));
+    /* ---------------- Driver Init (Replaces old RMT init) ---------------- */
 
-	while (true) {
+    led_strip_handle_t strip;
 
-		strip->clear(strip, 50);
-		vTaskDelay(10 / portTICK_RATE_MS);
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = CONFIG_EXAMPLE_RMT_TX_GPIO,
+        .max_leds = CONFIG_EXAMPLE_STRIP_LED_NUMBER,
+        .led_model = LED_MODEL_WS2812,
+        .flags.invert_out = false,
+    };
 
-		for(uint8_t i = 0; i < 6;i++)
-		{
-			if(led_status.pos[i] == 1)
-			{
-				strip->set_pixel(strip, i, led_status.color_r[i], led_status.color_g[i], led_status.color_b[i]);
-			}
-			else
-				strip->set_pixel(strip, i, 0, 0, 0);
-		}
+    led_strip_rmt_config_t rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000,
+        .mem_block_symbols = 64,
+        .flags.with_dma = false,
+    };
 
-		strip->refresh(strip, 100);
+    ESP_ERROR_CHECK(
+        led_strip_new_rmt_device(&strip_config, &rmt_config, &strip)
+    );
 
-		vTaskDelay(200 / portTICK_RATE_MS);
+    /* Clear LED strip (turn off all LEDs) */
+    ESP_ERROR_CHECK(led_strip_clear(strip));
 
-	}
+    while (true)
+    {
+        /* Same as: strip->clear(strip, 50); */
+        led_strip_clear(strip);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
 
+        for(uint8_t i = 0; i < 6; i++)
+        {
+            if(led_status.pos[i] == 1)
+            {
+                /* Same as strip->set_pixel() */
+                led_strip_set_pixel(strip, i,
+                                    led_status.color_r[i],
+                                    led_status.color_g[i],
+                                    led_status.color_b[i]);
+            }
+            else
+            {
+                led_strip_set_pixel(strip, i, 0, 0, 0);
+            }
+        }
+
+        /* Same as strip->refresh(strip, 100); */
+        led_strip_refresh(strip);
+
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+    }
 }
+
+/* End of file */

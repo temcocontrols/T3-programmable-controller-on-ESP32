@@ -2,6 +2,7 @@
 #define SNTP_APP_H
 
 #include <types.h>
+#include "esp_sntp.h"
 
 extern uint8_t sntpc_Conns_State;
 extern uint8_t flag_send_udp_timesync;
@@ -23,7 +24,7 @@ void sntp_select_time_server(uint8_t type);
 
 void update_sntp(void);
 void Send_TimeSync_Broadcast(uint8_t protocal);
-u8_t sntp_getoperatingmode(void);
+esp_sntp_operatingmode_t sntp_getoperatingmode(void);
 
 
 #endif

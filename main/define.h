@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "esp_attr.h"
+#include <stdint.h>
 
 #pragma pack(1)
 
@@ -187,11 +188,11 @@ typedef	enum
 
 #define MAX_MINI_TYPE 		28
 
-uint16 READ_POINT_TIMER;
-uint16 READ_POINT_TIMER_FROM_EEP;
+extern uint16 READ_POINT_TIMER;
+extern uint16 READ_POINT_TIMER_FROM_EEP;
 extern uint8 uart0_config;
 extern STR_MODBUS Modbus;
-extern U16_T Test[50];
+extern uint16_t Test[50];
 //extern uint8_t modbus_wifi_buf[500];
 //extern uint16_t modbus_wifi_len;
 extern uint8 reg_num;

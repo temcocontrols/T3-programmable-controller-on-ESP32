@@ -68,8 +68,8 @@ uint8_t MSTP_Transmit_Finished;
 
 
 
-extern EXT_RAM_ATTR FIFO_BUFFER Receive_Buffer2;
-extern EXT_RAM_ATTR uint8_t Receive_Buffer_Data2[512];
+extern EXT_RAM_BSS_ATTR FIFO_BUFFER Receive_Buffer2;
+extern EXT_RAM_BSS_ATTR uint8_t Receive_Buffer_Data2[512];
 
 /****************************************************************************
 * DESCRIPTION: Initializes the RS485 hardware and variables, and starts in
@@ -83,7 +83,7 @@ void Recievebuf_Initialize(uint8_t port)
 //	if(port == 0)
 //	{
 //	FIFO_Init(&Receive_Buffer0, &Receive_Buffer_Data0[0],
-//         sizeof(Receive_Buffer_Data0)); 	
+//         sizeof(Receive_Buffer_Data0));
 //	}
 //	else if(port == 1)
 //	{
@@ -121,7 +121,7 @@ void Recievebuf_Initialize(uint8_t port)
 //    uint32_t baud)
 //{
 //    bool valid = true;
-//	RS485_Initialize();	
+//	RS485_Initialize();
 // #if 0
 //    switch (baud) {
 //        case 9600:
@@ -189,31 +189,31 @@ void RS485_Turnaround_Delay(
 
 //		}
 //	}
-//	else 
+//	else
 	//if(Modbus.com_config[2] == MAIN_MSTP)
 	/*{
 		switch(uart2_baudrate)
 		{
-			case UART_9600:	 
+			case UART_9600:
 			turnaround_time = 6;
 			break;
-			case UART_19200:	 
+			case UART_19200:
 			turnaround_time = 4;
 			break;
 			case UART_38400:
 			turnaround_time = 3;
-			break;		
-//			case UART_57600:	 
-//			case UART_115200:	 
-//			case UART_921600:			
-			default: 
+			break;
+//			case UART_57600:
+//			case UART_115200:
+//			case UART_921600:
+			default:
 			turnaround_time = 2;
 			break;
-			
+
 		}
 	}*/
 
-	while (Timer_Silence() < turnaround_time) 
+	while (Timer_Silence() < turnaround_time)
 	{
 	/* do nothing - wait for timer to increment */
 	};
@@ -234,12 +234,12 @@ void RS485_Send_Data(
 {       /* number of bytes of data */
     /* send all the bytes */
 	uint16_t count = 0;
-	
+
 //	if(Modbus.com_config[0] == MAIN_MSTP)
 //	{
-//	  while (nbytes) 
+//	  while (nbytes)
 //		{
-//			SBUF0 = *buffer;	
+//			SBUF0 = *buffer;
 //	    MSTP_Transmit_Finished = 0;
 //			count = 0;
 //	    while (!MSTP_Transmit_Finished && count < 2500) {
@@ -248,11 +248,11 @@ void RS485_Send_Data(
 //	        }
 //			gbReceiveError = false;
 //			if(count >= 2500)
-//			{		
-//				
+//			{
+//
 //				gbReceiveError = true;
 //			}
-//				
+//
 //	        buffer++;
 //	        nbytes--;
 //	    }
@@ -262,7 +262,7 @@ void RS485_Send_Data(
 		uart_send_string(buffer,nbytes,0);
 	}
 	if(Modbus.com_config[2] == 9 || Modbus.com_config[2] == 1)
-	{		
+	{
 		uart_send_string(buffer,nbytes,2);
 	}
 	else if(Modbus.com_config[0] == 9 || Modbus.com_config[0] == 1)
@@ -270,7 +270,7 @@ void RS485_Send_Data(
 		uart_send_string(buffer,nbytes,0);
 	}
     /* per MSTP spec */
-	
+
   Timer_Silence_Reset();
 }
 
@@ -284,7 +284,7 @@ bool RS485_ReceiveError(
     void)
 {
    // bool ReceiveError = false;
- 
+
     return false;//gbReceiveError;
 }
 
@@ -359,7 +359,7 @@ bool RS485_DataAvailable(uint8_t * data_register,uint8_t port)
 
 /* Public access to the Silence Timer */
 /*uint16_t Timer_Silence(void)
-{ 
+{
     return SilenceTime;
 }*/
 

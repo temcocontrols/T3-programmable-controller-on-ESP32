@@ -37,7 +37,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-	
+
 	typedef struct {
     uint8_t Flags;
     uint32_t device_id;
@@ -45,13 +45,13 @@ extern "C" {
     BACNET_ADDRESS address;
     uint32_t TimeToLive;
 }Address_Cache_Entry;
-	
 
 
-extern EXT_RAM_ATTR Address_Cache_Entry Address_Cache[MAX_ADDRESS_CACHE];
 
-	
-	
+extern EXT_RAM_BSS_ATTR Address_Cache_Entry Address_Cache[MAX_ADDRESS_CACHE];
+
+
+
     void address_init(
         void);
 

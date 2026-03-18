@@ -19,10 +19,10 @@
 #include "esp_sleep.h"
 #include "nvs_flash.h"
 //#include "protocol_examples_common.h"
-#include "esp_sntp.h"
 #include "sntp_app.h"
 #include "user_data.h"
 #include "define.h"
+#include "wifi.h"
 
 static const char *TAG = "example";
 
@@ -31,7 +31,7 @@ static const char *TAG = "example";
  * maintains its value when ESP32 wakes from deep sleep.
  */
 RTC_DATA_ATTR static int boot_count = 0;
-uint16_t Test[50];
+extern uint16_t Test[50];
 static void obtain_time(void);
 static void initialize_sntp(void);
 
@@ -54,6 +54,7 @@ void sntp_sync_time(struct timeval *tv)
 void debug_info(char *string);
 void Get_RTC_by_timestamp(U32_T timestamp,UN_Time* rtc,U8_T source);
 int PCF_systohc();
+
 void time_sync_notification_cb(struct timeval *tv)
 {
     //ESP_LOGI(TAG, "Notification of a time synchronization event");
@@ -71,7 +72,7 @@ void time_sync_notification_cb(struct timeval *tv)
 	sntpc_Conns_State = SNTP_STATE_GET_DONE;
 	Setting_Info.reg.sync_with_ntp_result = 1;
 	flag_Update_Sntp = 1;
-	sntp_stop();
+	esp_sntp_stop();
 
 	if(Modbus.network_master == 1)
 		flag_send_udp_timesync = 1;
@@ -80,9 +81,6 @@ void time_sync_notification_cb(struct timeval *tv)
 		Send_TimeSync_Broadcast(BAC_MSTP);
 
 }
-
-
-
 
 uint8_t SNTPC_GetState(void)
 {
@@ -97,63 +95,63 @@ char sntp_server[30];
 // update_sntp() should be called every 1s by default
 void update_sntp(void)
 {
-	uint8_t state;
-	uint8_t *time_ptr;
-	uint8_t temp[48];
-	time_ptr = temp;
-	static uint32_t count_sntp = 0;
-	if(Modbus.en_sntp >= 2)  // enable
-	{
-		count_sntp++;
-		if(flag_Update_Sntp == 0)
-		{
-			state = SNTPC_GetState();
-			if(SNTP_STATE_GET_DONE  == state)
-			{
-				Update_Sntp_Retry = 0;
-				flag_Update_Sntp = 1;
-				count_sntp = 0;
-			}
-			else
-			{
-				if(Update_Sntp_Retry < MAX_SNTP_RETRY_COUNT)
-				{
-					if(count_sntp % 20 == 0)
-					{
-						debug_info("sntp_select_time_server");
-						if(Setting_Info.reg.en_time_sync_with_pc == 0)
-						{// udpate with NTP
-							sntp_select_time_server(Modbus.en_sntp);
-						}
-						Update_Sntp_Retry++;
-					}
-				}
-				else
-				{debug_info("update SNTP fail");
-					// update SNTP fail
-					//generate_common_alarm(ALARM_SNTP_FAIL);
-					Update_Sntp_Retry = 0;
-					flag_Update_Sntp = 1;
-					sntpc_Conns_State = SNTP_STATE_TIMEOUT;
-					sntp_stop();
-				}
+    uint8_t state;
+    static uint32_t count_sntp = 0;
 
+    if (Modbus.en_sntp >= 2)
+    {
+        count_sntp++;
 
-		  }
-		}
-		else
-		{
-			if(count_sntp > 24 * 3600)  // update per 1 day
-			{
-				debug_info("update SNTP per min");
-				flag_Update_Sntp = 0;
-				Update_Sntp_Retry = 0;
-				count_sntp = 0;
-				sntp_select_time_server(Modbus.en_sntp);
-			}
-		}
-	}
+        if (flag_Update_Sntp == 0)
+        {
+            state = SNTPC_GetState();
 
+            if (SNTP_STATE_GET_DONE == state)
+            {
+                Update_Sntp_Retry = 0;
+                flag_Update_Sntp = 1;
+                count_sntp = 0;
+            }
+            else
+            {
+                if (Update_Sntp_Retry < MAX_SNTP_RETRY_COUNT)
+                {
+                    if (count_sntp % 20 == 0)
+                    {
+                        if (Setting_Info.reg.en_time_sync_with_pc == 0 && SSID_Info.IP_Wifi_Status == WIFI_NORMAL)
+                        {
+                            debug_info("sntp_select_time_server");
+                            sntp_select_time_server(Modbus.en_sntp);
+                        }
+
+                        Update_Sntp_Retry++;
+                    }
+                }
+                else
+                {
+                    debug_info("update SNTP fail");
+
+                    Update_Sntp_Retry = 0;
+                    flag_Update_Sntp = 1;
+                    sntpc_Conns_State = SNTP_STATE_TIMEOUT;
+
+                    esp_sntp_stop();
+                }
+            }
+        }
+        else
+        {
+            if (count_sntp > 24 * 3600)
+            {
+                debug_info("update SNTP per day");
+
+                flag_Update_Sntp = 0;
+                Update_Sntp_Retry = 0;
+                count_sntp = 0;
+                sntp_select_time_server(Modbus.en_sntp);
+            }
+        }
+    }
 }
 
 static void initialize_sntp(void)
@@ -162,24 +160,24 @@ static void initialize_sntp(void)
     ESP_LOGI(TAG, "Initializing SNTP");
     sntpc_Conns_State = SNTP_STATE_INITIAL;
     debug_info("SNTP INTIAL");
-    if(sntp_enabled())
+    if(esp_sntp_enabled())
 	{// sntp_pcb != null
-		sntp_stop();
+		esp_sntp_stop();
 		debug_info("SNTP STOP");
 	}
 
-   	sntp_setoperatingmode(SNTP_OPMODE_POLL);
+   	esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
-	sntp_setservername(0, sntp_server);
-    sntp_setservername(1, "cn.pool.ntp.org");
-    sntp_setservername(2, "time.nist.gov");
-    sntp_setservername(3, "time.windows.com");
-    sntp_set_time_sync_notification_cb(time_sync_notification_cb);
+	esp_sntp_setservername(0, sntp_server);
+    esp_sntp_setservername(1, "cn.pool.ntp.org");
+    esp_sntp_setservername(2, "time.nist.gov");
+    esp_sntp_setservername(3, "time.windows.com");
+    esp_sntp_set_time_sync_notification_cb(time_sync_notification_cb);
 
 #ifdef CONFIG_SNTP_TIME_SYNC_METHOD_SMOOTH
-    sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+    esp_sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
 #endif
-	sntp_init();
+	esp_sntp_init();
     sntpc_Conns_State = SNTP_STATE_WAIT;
 }
 

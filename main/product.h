@@ -179,7 +179,7 @@ void uart_send_string(unsigned char *p, unsigned int length,unsigned char port);
 #define cQueueSend xQueueSend
 #define cQueueReceive xQueueReceive
 #define vSemaphoreCreateBinary xQueueCreateMutex
-//#define xSemaphoreHandle QueueHandle_t
+//#define SemaphoreHandle_t QueueHandle_t
 #define cSemaphoreTake xQueueTakeMutexRecursive
 #define cSemaphoreGive xQueueGiveMutexRecursive
 

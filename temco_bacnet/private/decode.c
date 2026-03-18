@@ -35,7 +35,7 @@ extern uint8_t flag_start_scan_mstp;
 extern uint8_t start_scan_mstp_count;
 
 extern uint32_t net_health[4];
-extern uint16_t current_page; 
+extern uint16_t current_page;
 
 S16_T exec_program(S16_T current_prg, U8_T *prog_code);
 
@@ -47,20 +47,20 @@ S16_T isdelimit(S8_T c)
 {
 	static U16_T count = 0;
 	if (strchr( "\x1\xFF\xFE" , c) )
-	{	
+	{
 		count = 0;
 		return 1;
 	}
-	else 
+	else
 	{
-		count++;		
-		if(count > 2000)	
+		count++;
+		if(count > 2000)
 		{
-			count = 0;  
-			return 1; // avoid dead 
+			count = 0;
+			return 1; // avoid dead
 		}
 		else
-			return 0; 
+			return 0;
 	}
 }
 
@@ -74,7 +74,7 @@ S16_T isdelimit(S8_T c)
 /*
 ��������ת��Ϊ4���ֽ����ݷ���byte
 */
-		
+
 
 void Float_to_Byte(float f, unsigned char *mybyte,  unsigned char ntype)
 {
@@ -167,13 +167,13 @@ void Byte_to_Float(float *f, S32_T val_ptr,unsigned char ntype)
 #endif
 
 U16_T convert_pointer_to_word( U8_T *iAddr ) //	 mGetPointWord
-{ 
+{
   	return( iAddr[1] | (U16_T)iAddr[0] << 8 );
 }
 
 
 //U16_T swap_word( U16_T dat ) 	//	  swap_word
-//{ 
+//{
 //	U8_T far temp1,temp2;
 //	temp1 = (U8_T)dat;
 //	temp2 = (U8_T)(dat >> 8);
@@ -188,7 +188,7 @@ uint32_t convert_pointer_to_double( U8_T *iAddr )	  // DoulbemGetPointWord
 */
 
 //uint32_t swap_double( uint32_t dat ) 	 //swap_double
-//{ 
+//{
 //	U8_T temp1,temp2,temp3,temp4;
 //	temp1 = (U8_T)dat;
 //	temp2 = (U8_T)(dat >> 8);
@@ -227,7 +227,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 //	Program_remote_points /**r_remote,*/ *remote_local_list;
 //	S16_T ind_remote_local_list;
 	S32_T tempval = 0;
-	
+
 	return_pointer= NULL;
 	p_buf = NULL;
 	p = NULL;
@@ -236,21 +236,21 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	v1 = 0; v2 = 0;
 	then_else = alarm_flag /*= error_flag*/ = 0;
 	prog = (U8_T *)prog_code;
-	
+
 /*	if (called_program)
 	{
 		if (*(prog+2+3)!=DECLARE)		 return 1;
 	}
 	else */
 	 	index_stack = stack;
-	
+
 	memcpy(&nbytes, prog, 2);
 
 	if(nbytes == 0) return 0;
 
 	prog += nbytes+2+3;
 
-	memcpy(&nbytes, prog, 2);       /*LOCAL VARIABLES*/	
+	memcpy(&nbytes, prog, 2);       /*LOCAL VARIABLES*/
 	local = (prog + 2);
 	prog += 2 + nbytes;
 
@@ -258,10 +258,10 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 
 
 	memcpy(&nbytes, prog, 2);
-	
-	prog += 2;	
+
+	prog += 2;
 	p_buf = (U8_T*)prog + nbytes;
-	
+
 	time_buf = (U8_T*)prog;
 // modify program bytes
 	//programs[current_prg].bytes = base_len + local_len + time_len;
@@ -291,24 +291,24 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			}
 		}
 		else if(*prog++)
-		{	
+		{
 		 	*(prog-1) = 0;
 		 	*pn = 0;
 		}
-		else 
+		else
 		{
 			if(just_load) *pn = 0;
 			(*pn) += miliseclast_cur;
-		}	
+		}
 	 	prog += 4;
  	}
-	if(temp >= 2000) 
+	if(temp >= 2000)
 	{
-// generate a alarm		
+// generate a alarm
 		generate_program_alarm(0,current_prg + 1);
 		return 0;
 	}
-	
+
 	prog = (U8_T *)prog_code;
 	p_buf = (U8_T*)prog;
 	memcpy(&nbytes, prog, 2);
@@ -321,7 +321,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	// *(prog + nbytes + 2) -> high byte
 	// these are attached with 0xfe, if need WAIT, jumpe to end
 	// fixed it by chelsea
-	if(*(prog + nbytes + 1) + *(prog + nbytes + 2) * 256 > 2000) 
+	if(*(prog + nbytes + 1) + *(prog + nbytes + 2) * 256 > 2000)
 	// offset is too bigger, it is wrong
 		return 0;
 	prog = prog + *(prog + nbytes + 1) + *(prog + nbytes + 2) * 256;
@@ -339,16 +339,16 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 
 		t2 = system_timer;
 		if(t2 - t1 > 20)	// avoid dead cycle
-		{	
+		{
 			return 0;
 		}
-		
+
 
 		lvar = 0;
 		if(!then_else)
-	 	{	 
+	 	{
 			if (*prog!=0x01)
-			{	
+			{
 			/*			printf("ERROR!!!!!!Virtual!!!!!!!!!!!!!!\n"); */
 			/*			exit(1);*/
 				return -1;
@@ -358,13 +358,13 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			prog += 2;
 	 	}
 	 	else if (*prog==0x01)
-		{	
+		{
 			then_else = 0;
 			continue;
 		}
-		switch (*prog++) 
-		{	
-		case ASSIGN:  
+		switch (*prog++)
+		{
+		case ASSIGN:
 		case ASSIGNAR:
 		case ASSIGNARRAY_1:
 		case ASSIGNARRAY_2:
@@ -381,14 +381,14 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 					 ana_dig=DIGITAL;
 
 			if(*prog >= LOCAL_VARIABLE && *prog <= STRING_TYPE_ARRAY)
-			{	 
+			{
 				type_var = LOCAL;
 				p = prog;
 				prog++;
 				prog += 2;
 			}
 			else if (*prog == LOCAL_POINT_PRG)
-			{	
+			{
 				  prog++;
 				  type_var = LOCAL_POINT_PRG;
 				  p_var = *((Point *)prog);
@@ -405,7 +405,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 				}
 			}
 			if ( id==OPEN )
-			{	
+			{
 //				 if (type_var == LOCAL_POINT_PRG)
 //				 {
 //					if ( p_var.point_type - 1 == GRP )
@@ -431,11 +431,11 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			{
 				 value = veval_exp(local);
 				 if (type_var == LOCAL)
-				 {	
+				 {
 
 					put_local_var(p,value,local);
 				 }
-						
+
 			}
 			else if (id==ASSIGNARRAY_1)
 			{
@@ -467,13 +467,13 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 				}
 			}
 			if (type_var == LOCAL_POINT_PRG)
-			{		
+			{
 				put_point_value( &p_var, &value, ana_dig, PROGR );
 			}
 			// added for remote point by chelsa
 			else if(type_var == REMOTE_POINT_PRG)
-			{  
-				
+			{
+
 				put_net_point_value(&point_net,&value,ana_dig,PROGR,0);
 			}
 			break;
@@ -535,15 +535,15 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								prog = (U8_T *)p_buf + i - 2;
 								break;
 		case GOSUB:
-	
+
 								return_pointer =  (U8_T*)prog + 2 ;
 								memcpy(&i, prog, 2);
 								prog = (U8_T *)p_buf + i - 2;
 								pushlong((S32_T)return_pointer);
 								break;
-	
+
 		case ON_ALARM:
-					
+
 								if (alarm_flag)
 								{
 									memcpy(&i, prog, 2);
@@ -567,9 +567,9 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 		case GOTO:
 								memcpy(&i, prog, 2);
 								prog = (U8_T *)p_buf + i - 2;
-								
+
 								break;
-		case Alarm:		
+		case Alarm:
 								 if((p=(uint8_t *)memchr(prog,LT,30)) != NULL)
 									i = LT;
 								else
@@ -583,7 +583,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								memcpy(message, prog, len);
 								message[len] = 0;
 								prog += len;
-								
+
 								if (*prog++)
 									{
 										if (i==LT)
@@ -598,7 +598,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 											}
 										}
 										if (i==GT)
-										{											
+										{
 											if ( v1 < v2 - value)
 											{
 													*(prog-1) = 0;
@@ -607,7 +607,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 											{
 												*(prog-1) = 1;
 												generatealarm(message, current_prg+1, Station_NUM, VIRTUAL_ALARM, alarm_at_all, ind_alarm_panel, alarm_panel, 0);
-										
+
 											}
 										}
 									}
@@ -632,7 +632,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 
 									break;
 								break;
-		/*case ALARM_AT:			
+		/*case ALARM_AT:
 								if (*prog==0xFF)
 								{
 									 alarm_at_all = ON;
@@ -662,15 +662,15 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 //		case CALLB:
 //								break;
 		case DALARM:
-							 {	
+							 {
 							 	U8_T i = 0;
 								alarm_flag = 0;
-								cond = veval_exp(local);  /* condition  */								
-								
+								cond = veval_exp(local);  /* condition  */
+
 								memcpy(&value,prog,4);    /* delay time */
-								
+
 								prog += 4;
-								len = *prog++;								
+								len = *prog++;
 								if (cond)         /* test condition*/
 									{
 										memcpy(message, prog, len);
@@ -705,11 +705,11 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 										 //resume(ALARMTASK);
 										}
 										prog += len;
-										
+
 									  memcpy(prog,&value,4);
-									
+
 									}
-									
+
 								prog += 4;
 						 }
 						 break;
@@ -719,7 +719,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 //							 {
 //							 }
 //							break;
-//	
+//
 //		case REMOTE_SET:
 //								break;
 		case FOR:
@@ -753,11 +753,11 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								prog = p;
 								value=operand(NULL,local);    /*	veval_exp(local);*/
 								value += step;
-								
+
 								put_local_var(p,value,local);
 								prog = q;
 								if(value<=val2)
-								{									
+								{
 									prog += 2;
 								}
 								else
@@ -767,18 +767,18 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								}
 							 }
 							 break;
-		case IF:				
+		case IF:
 
 								then_else = 1;
 
 								cond = veval_exp(local);
 								if(cond)
-								{	
-									prog++; 
+								{
+									prog++;
 									prog++;
 								}
 								else
-								{	
+								{
 									prog = (U8_T *)p_buf + (*((S16_T *)prog)) -2;
 									if( *prog == 0x01 || *prog == 0xFE)      /*TEST DACA EXISTA ELSE*/
 										then_else = 0;
@@ -789,7 +789,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								if (cond)
 								 if (!*prog++)
 								 {
-								 	
+
 									*(prog-1) = 1;
 									prog++; prog++;
 								 }
@@ -802,7 +802,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 									*prog++ = 0;
 									prog = (U8_T *)p_buf + (*((S16_T *)prog)) -2;
 								 }
-	
+
 								then_else = 1;
 								if( *prog == 0x01 || *prog == 0xFE)      /*TEST DACA EXISTA ELSE*/
 									then_else = 0;
@@ -831,7 +831,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 		case ELSE:
 								/*prog++;
 								prog = (U8_T *)p_buf + *((S16_T *)prog) -2;*/
-								prog++;								
+								prog++;
 								prog = (U8_T *)p_buf + (*((S16_T *)prog)) -2;
 								break;
 		case WAIT:
@@ -839,18 +839,18 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 								if (*prog == 0xA1)
 								{
 									memcpy(&r,++prog,4);
-								
+
 									r = 1000 * r; // T3000 send raw data, need 1000x
 									prog += 4;
 								}
 								else
 								{
-									r = (uint32_t)veval_exp(local);									
+									r = (uint32_t)veval_exp(local);
 								}
-								
+
 								memcpy(&value,prog,4);
 								value += miliseclast_cur;
-							
+
 								if (value > r)
 								{
 									memset(prog,0,4);
@@ -872,7 +872,7 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			// ICON4: bit6-bit7
 			case ICON1: // icon of DAY_NIGHT
 				r = (U32_T)veval_exp(local);
-				r /= 1000;			
+				r /= 1000;
 				icon_config &= 0xfc;
 				if(r <= 3)
 					icon_config |= r;
@@ -909,15 +909,15 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 			default :
 				break;
 	 	}
-		 
+
 	}
 	t2 = system_timer;
-	if(temp >= 2000) 
+	if(temp >= 2000)
 	{
-// generate a alarm		
+// generate a alarm
 		//generate_program_alarm(1,current_prg + 1);
 	}
-	
+
 #endif
 
 	return 0;
@@ -933,7 +933,7 @@ void get_ay_elem(long *value, U8_T *local)
 	num_point = ((Point *)(prog))->number;
 	prog += sizeof(Point);
 	num = veval_exp(local)/1000L;
-	
+
 	if( ( num < arrays[num_point].length ) & ( num >= 0 ) )
 	{
 		p = arrays_address[num_point];
@@ -1022,8 +1022,8 @@ S32_T veval_exp(U8_T *local)
 	S16_T i, m;
 //	S8_T *p;
 	S32_T n;
-	U8_T time_sign; 
-	
+	U8_T time_sign;
+
 	/* S32_T timer;*/
 	uint32_t temp1,temp2 = 0;
 
@@ -1034,16 +1034,16 @@ S32_T veval_exp(U8_T *local)
 	}
 
 	while( !isdelimit(*prog))         /* && code < )*/
-	{	
-		switch (*prog++) {	
-		case PLUS:			
+	{
+		switch (*prog++) {
+		case PLUS:
 							op1 = pop();
 							op2 = pop();
 							push(op1 + op2);
 							 break;
 		case MINUS:
 							op1 = pop();
-							op2 = pop();							
+							op2 = pop();
 							 push(op2 - op1);
 							 break;
 		case MINUSUNAR:
@@ -1062,10 +1062,10 @@ S32_T veval_exp(U8_T *local)
 							 push( n );
 							 break;
 		case MUL:
-							 op2 = pop(); 
+							 op2 = pop();
 							 op1 = pop();
 
-							 push( (op1/1000L)*op2 + (op1%1000L)*op2/1000L );					
+							 push( (op1/1000L)*op2 + (op1%1000L)*op2/1000L );
 							 break;
 		case DIV:
 							 op2 = pop(); op1 = pop();
@@ -1092,12 +1092,12 @@ S32_T veval_exp(U8_T *local)
 								 push( op1*1000L );
 							 }
 							 break;
-		case XOR:	
+		case XOR:
 							 op2 = pop();
 							 op1 = pop();
 							 op2 = op2/1000L; op1 = op1/1000L;
 							 push((op2 ^ op1)*1000L);
-							 
+
 							 break;
 		case OR:
 							 op1 = pop(); op2 = pop();
@@ -1116,7 +1116,7 @@ S32_T veval_exp(U8_T *local)
 		case BITOR:
 							 op1 = pop(); op2 = pop();
 							 op1 = (op1) / 1000;
-							 op2 = (op2) / 1000; 							 
+							 op2 = (op2) / 1000;
 							 push(( (op1 | op2) * 1000));
 							 break;
 		case BITAND:
@@ -1135,7 +1135,7 @@ S32_T veval_exp(U8_T *local)
 							 push((op1 > op2));
 							 break;
 		case GE:
-							op2 = pop(); op1 = pop();							 
+							op2 = pop(); op1 = pop();
 							 push(op1 >= op2);
 							 break;
 		case LT:
@@ -1155,26 +1155,26 @@ S32_T veval_exp(U8_T *local)
 							 push( op1 != op2 );
 							 break;
 		case ABS:
-							op1 = pop();			
+							op1 = pop();
 							 push(labs(op1));
 							 break;
 		case LN:
-							op1 = pop();							
-							op1 = (float)log(op1 / 1000.0) * 1000;			
+							op1 = pop();
+							op1 = (float)log(op1 / 1000.0) * 1000;
 							 break;
 		case LN_1:
-							op1 = pop();							
-							op1 = (float)exp(op1 / 1000.0) * 1000;							
+							op1 = pop();
+							op1 = (float)exp(op1 / 1000.0) * 1000;
 							 push(op1);
 							 break;
 		case SIN:
-							op1 = pop();							
-							op1 = (float)sin(3.14159 * op1 / 180000.0) * 1000;							
+							op1 = pop();
+							op1 = (float)sin(3.14159 * op1 / 180000.0) * 1000;
 							push(op1);
 							break;
 		case COS:
-							op1 = pop();							
-							op1 = (float)cos(3.14159 * op1 / 180000.0) * 1000;							
+							op1 = pop();
+							op1 = (float)cos(3.14159 * op1 / 180000.0) * 1000;
 							push(op1);
 							break;
 		case RGB:
@@ -1210,15 +1210,15 @@ S32_T veval_exp(U8_T *local)
 							push( op1);
 						}
 							break;
-							 
+
 		case SQR:
 							op1 = pop();
 							 op1 = (float)sqrt(op1 / 1000.0) * 1000;
 							 push(op1);
-							 //push((float)sqrt(pop()));		
+							 //push((float)sqrt(pop()));
 							 break;
-		case INT:							 
-							op1 = pop();		
+		case INT:
+							op1 = pop();
 							op1 = (int)(op1 / 1000) * 1000;
 							 push(op1);
 							 break;
@@ -1226,7 +1226,7 @@ S32_T veval_exp(U8_T *local)
 							{
 							 sptr.pin = &inputs[*(prog-3)];
 							 pop();
-//							 push(( GetByteBit(sptr.pin->in_sen_on,1) ) ? 1000L : 0L );  
+//							 push(( GetByteBit(sptr.pin->in_sen_on,1) ) ? 1000L : 0L );
 							}
 							 break;
 		case SENSOR_OFF:
@@ -1246,7 +1246,7 @@ S32_T veval_exp(U8_T *local)
 							{
 							 memcpy(&n,prog,4);
 							 n -= miliseclast_cur;
-		
+
 							 if(n > 0)
 							 {
 									pop();
@@ -1262,16 +1262,16 @@ S32_T veval_exp(U8_T *local)
 									 else
 									 {
 										n = (uint32_t)pop();
-										
+
 										push(1);
 									 }
 								 }
 							}
 							memcpy(prog,&n,4);
-							prog += 4;						
+							prog += 4;
 
 							break;
-	 	case TIME_ON:  
+	 	case TIME_ON:
 							pn = (S32_T *)(time_buf + (*(S16_T *)prog));
 							if( *((S8_T *)pn - 1) )
 							 push(*pn);
@@ -1302,16 +1302,16 @@ S32_T veval_exp(U8_T *local)
 				case Status:
 				 m = (int)pop()/1000L;
 				 if(m == Station_NUM)
-				 {		
+				 {
 						push(1);
 				 }
 				 else
-				 {// whethe sub modbus device is on-line 
+				 {// whethe sub modbus device is on-line
 					 // remote modbus device
 					 if(current_online[m / 8] & (1 << (m % 8)))
 						 push(1);
-					 else 
-						{								
+					 else
+						{
 						 // check whether remote panel is online
 						 // remote mstp device  or network panel
 							for(i = 0;i < remote_panel_num;i++)
@@ -1320,24 +1320,24 @@ S32_T veval_exp(U8_T *local)
 								{
 									push(1);
 									break;
-								}								
-							}	
+								}
+							}
 							if(i == remote_panel_num)
 							{
 								push(0);
 							}
 						}
 					}
-				 break;			
-	 case AVG:	 			
+				 break;
+	 case AVG:
 				m = *prog++;
 				value = 0;
 				for(i = 0;i < m;i++)
 				{
 					op1 = pop();
 					value += op1;
-				}				
-				push(value / m);	
+				}
+				push(value / m);
 				break;
 	/*case PVAR:  NO USED
 				op1 = pop() / 1000;
@@ -1349,22 +1349,22 @@ S32_T veval_exp(U8_T *local)
 					push(0);
 				break;*/
 #if (ARM_MINI || ASIX_MINI)
-		case COM1:	 			
+		case COM1:
 				m = *prog++;
 				value = 0;
 
 				for(i = 0;i < m;i++)
 				{
-					op1 = pop();	
+					op1 = pop();
 					value += op1;
-					
+
 					if(i == 0) rs232_cmd.cmd[0] = op1 / 1000;
 					if(i == 1) rs232_cmd.type = op1 / 1000;
 					if(i == 2) rs232_cmd.baut = op1 / 1000;
-				}	
+				}
 				rs232_cmd.len = m - 2;
 				send_rs232_command();
-				push(rs232_cmd.res);	
+				push(rs232_cmd.res);
 				break;
 #endif
 			case MB_BW:
@@ -1372,17 +1372,17 @@ S32_T veval_exp(U8_T *local)
 				uint16_t addr;
 				Point_Net point;
 			  uint16_t val[50];
-				m = *prog++;				
-				
+				m = *prog++;
+
 				if(m < 3) break;
-				 
+
 				for(i = 0;i < m;i++)
 				{
 					op1 = pop()/1000;
-	 				//op1 = swap_double(op1); 
-					val[m - i - 1] = op1;					
-				}				
-				
+	 				//op1 = swap_double(op1);
+					val[m - i - 1] = op1;
+				}
+
 				point.panel =  panel_number;//val[0];
 				point.sub_id = val[0];
 				point.number = LOW_BYTE(val[1]);
@@ -1390,8 +1390,8 @@ S32_T veval_exp(U8_T *local)
 				point.network_number = (HIGH_BYTE(val[1]) >> 3) + 0x80;
 				len = m - 2;
 				//if(len == m - 2)
-				{	
-					put_net_point_value(&point,(int *)&val[2],len*2,1,1);
+				{
+					put_net_point_value(&point,(long *)&val[2],len*2,1,1);
 				}
 				push(1000);
 			}
@@ -1401,17 +1401,17 @@ S32_T veval_exp(U8_T *local)
 				uint16_t addr;
 				Point_Net point;
 			  uint16_t val[50];
-				m = *prog++;				
-				
+				m = *prog++;
+
 				if(m < 3) break;
-				 
+
 				for(i = 0;i < m;i++)
 				{
 					op1 = pop()/1000;
-	 				//op1 = swap_double(op1); 
-					val[m - i - 1] = op1;					
-				}			
-				
+	 				//op1 = swap_double(op1);
+					val[m - i - 1] = op1;
+				}
+
 				point.panel = panel_number;//val[0];
 				point.sub_id = val[0];
 				point.number = LOW_BYTE(val[1]);
@@ -1420,8 +1420,8 @@ S32_T veval_exp(U8_T *local)
 				//len = val[3];
 				len = m - 2;
 				//if(len == m - 3)
-				{	
-					put_net_point_value(&point,(int *)&val[2],len*2,1,1);
+				{
+					put_net_point_value(&point,(S32_T *)&val[2],len*2,1,1);
 				}
 				push(1000);
 			}
@@ -1432,7 +1432,7 @@ S32_T veval_exp(U8_T *local)
 				for(i = 0;i < m - 1;i++)
 				{
 					op1 = pop();
-					if((v = op1) > value) 
+					if((v = op1) > value)
 						value = v;
 				}
 				push(value);
@@ -1443,7 +1443,7 @@ S32_T veval_exp(U8_T *local)
 				for(i = 0;i < m - 1;i++)
 				{
 					op1 = pop();
-					if((v = op1) < value) 
+					if((v = op1) < value)
 						value = v;
 				}
 				push(value);
@@ -1465,13 +1465,13 @@ S32_T veval_exp(U8_T *local)
 	 case PIDDERIV: // dtem
 				value = pop() / 10;
 				i = pop() / 1000;
-				
- 
-				if(value < 0) 
+
+
+				if(value < 0)
 					value = 0;
 				//							 if(value>0.2) value=0.2;
-				
-				if(value > 200L) 
+
+				if(value > 200L)
 					value = 200L;
 				//							 n=(int)(value*100);
 				n = value;
@@ -1484,9 +1484,9 @@ S32_T veval_exp(U8_T *local)
 	 case PIDINT:  // item
 				 m = pop() / 1000;
 				 i = pop() / 1000;
-				 if(m > 255) 
+				 if(m > 255)
 					 m = 255;
-				 if(m < 0) 
+				 if(m < 0)
 					 m = 0;
 				 n = m;
 				 if (controllers[i - 1].auto_manual == AUTO)
@@ -1500,17 +1500,17 @@ S32_T veval_exp(U8_T *local)
 	 case WR_OFF:
 				 op1 = pop();
 				 op2 = pop();
-				 i = op1 / 1000 - 1;  
+				 i = op1 / 1000 - 1;
 				 m = Rtc.Clk.week - 1;
 				 if (m < 0) m = 6;
 			//	 p =(S8_T *)wr_times[(op2/1000)-1][m].time;
-					
+
 				if(*(prog-1)==WR_ON)
 				    i = i * 2;
 				else
-					i = i * 2 + 1;	
-				
-				if(((op2 / 1000) <= 0)		||					
+					i = i * 2 + 1;
+
+				if(((op2 / 1000) <= 0)		||
 				((i < 0) || (i >= MAX_SCHEDULES_PER_WEEK )) ||
 					(m <= 0))
 				{
@@ -1518,11 +1518,11 @@ S32_T veval_exp(U8_T *local)
 					break;
 				}
 				value = (S32_T)wr_times[(op2/1000)-1][m - 1].time[i].hours * 3600L + (S32_T)wr_times[(op2/1000)-1][m - 1].time[i].minutes * 60L;
-				
-				push(value*1000L);				 
-				 
+
+				push(value*1000L);
+
 				 break;
-           
+
 		case DOM:
 				value = (Rtc.Clk.day)*1000L;
 				push(value);
@@ -1551,19 +1551,19 @@ S32_T veval_exp(U8_T *local)
 						 break;
 						}
 */
-		case POWER_LOSS: 
+		case POWER_LOSS:
 		{
 			static char power_loss = 0;
 			if(power_loss == 0)
 			{
 				power_loss = 1;
-				push(1);	
+				push(1);
 			}
 			else
-				push(0);	
-		}			
+				push(0);
+		}
 		break;
-		case SCANS:	 push(1);  break;  /* nr scanari pe secunda*/						 
+		case SCANS:	 push(1);  break;  /* nr scanari pe secunda*/
 		case SUN:		 push(0);						 break;
 		case MON:		 push(1000);					 break;
 		case TUE:		 push(2000);					 break;
@@ -1593,18 +1593,18 @@ S32_T veval_exp(U8_T *local)
 //						}
 //						else
 //							value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;// - (S16_T)timezone * 36000;
-						//value =  100000L * Rtc.Clk.hour + 1000L * Rtc.Clk.min + 10L * Rtc.Clk.sec;		
-						value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;						
+						//value =  100000L * Rtc.Clk.hour + 1000L * Rtc.Clk.min + 10L * Rtc.Clk.sec;
+						value =  3600000L * Rtc.Clk.hour + 60000L * Rtc.Clk.min + 1000L * Rtc.Clk.sec;
 						push(value);
 						break;
 		case USER_A:	 // ethernet
 //			if()
-			push(1);						 
+			push(1);
 			break;
 		case USER_B:	 // mstp
-			push(0);						 
+			push(0);
 			break;
-		/*case UNACK:		 
+		/*case UNACK:
 		{
 			char i = 0;
 			for(i = 0;i < MAX_ALARMS;i++)
@@ -1615,7 +1615,7 @@ S32_T veval_exp(U8_T *local)
 					return 1;
 				}
 			}
-			push(0);		
+			push(0);
 		}
 		break;*/
 		case INKEYD:
@@ -1631,10 +1631,10 @@ S32_T veval_exp(U8_T *local)
 	*/
 						 push( -1000l );
 					#endif
-					
+
 						 break;
-		case OUTPUTD:	
-	 	//	push( outputd( local + (pop()/1000), pop()/1000, port)*1000l );				 
+		case OUTPUTD:
+	 	//	push( outputd( local + (pop()/1000), pop()/1000, port)*1000l );
 			break;
 		case ASSIGNARRAY: /* local var */
 						if (*prog >= LOCAL_VARIABLE && *prog <= STRING_TYPE_ARRAY)
@@ -1651,7 +1651,7 @@ S32_T veval_exp(U8_T *local)
 								prog--;
 				push(operand(0,local));
 	}
- }	 
+ }
 
 	if (*prog==0xFF) 	{ prog++;  }
 	temp1 = pop();
@@ -1664,7 +1664,7 @@ S32_T veval_exp(U8_T *local)
 /*
  * ----------------------------------------------------------------------------
  * Function Name: operand
- * Purpose: 
+ * Purpose:
  * Params:
  * Returns:
  * Note: this function is called in veval_exp() routions
@@ -1676,14 +1676,14 @@ S32_T operand(U8_T **buf,U8_T *local)
 	U8_T *p;
 	S16_T num;
 	value = 0;
-	
+
 	if (*prog >= LOCAL_VARIABLE && *prog <= BYTE_TYPE)    /* local var */
 	{
 		prog += 3;
 		if(buf)			*buf=0;
 		return localvalue(prog-3, local);
 	}
-	
+
 	if (*prog == LOCAL_POINT_PRG)
 	{
 		if( (((Point *)(prog+1))->point_type)-1 == 11/*ARRAY*/ )
@@ -1691,8 +1691,8 @@ S32_T operand(U8_T **buf,U8_T *local)
 			++prog;
 			get_ay_elem(&value, local);
 		}
-		else 
-		{	
+		else
+		{
 			get_point_value( ( (Point *)(++prog) ), &value );
 			prog += sizeof(Point);
 
@@ -1700,7 +1700,7 @@ S32_T operand(U8_T **buf,U8_T *local)
 		return value;              /* = read point */
 	}
 	if (*prog == REMOTE_POINT_PRG)
-	{	
+	{
 		if( (((Point_Net *)(prog+1))->point_type)-1 == 11/*ARRAY*/)
 		{
 			++prog;
@@ -1711,17 +1711,17 @@ S32_T operand(U8_T **buf,U8_T *local)
 		}
 		else
 		{	// if exist remote point, try to scan network
-			
+
 			get_net_point_value( ( (Point_Net *)(++prog) ), &value,0,0 );
 			prog += sizeof( Point_Net );
-		}	
+		}
 	/*	get_remote_point_value(*((Point_Net *)(++prog)), &value, buf);
 	prog += sizeof(Point_Net);*/
 		return value;              /* = read point */
 	}
 
 	if (*prog == CONST_VALUE_PRG)
-	{	  
+	{
 		prog += 5;
 		if(buf)		*buf=0;
 		return *((S32_T *)(prog-4));
@@ -1897,16 +1897,16 @@ void put_local_var(U8_T *p, S32_T value, U8_T *local)
 {
 	S16_T i;
 	i = *((S16_T *)(p+1));
-	
+
 	switch(*p)
 	{
 		case FLOAT_TYPE:
 		case LONG_TYPE:
 				*((S32_T *)&local[i])=value;
 				break;
-		case INTEGER_TYPE: 
+		case INTEGER_TYPE:
 				*((S16_T *)&local[i])=(S16_T)(value/1000L);
-			
+
 				break;
 		case BYTE_TYPE:
 				local[i]=(S8_T)(value/1000L);

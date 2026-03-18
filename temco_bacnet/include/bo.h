@@ -111,8 +111,8 @@ int Binary_Output_Encode_Property_APDU(
    /* bool Binary_Output_Encode_Value_List(
         uint32_t object_instance,
         BACNET_PROPERTY_VALUE * value_list);*/
-    bool Binary_Output_Change_Of_Value(
-        uint32_t instance);
+   /* bool Binary_Output_Change_Of_Value(
+        uint32_t instance);                 */
     void Binary_Output_Change_Of_Value_Clear(
         uint32_t instance);
 
@@ -121,8 +121,8 @@ int Binary_Output_Encode_Property_APDU(
     bool Binary_Output_Polarity_Set(
         uint32_t object_instance,
         BACNET_POLARITY polarity);
-		
-		
+
+
 #ifdef TEST
 #include "ctest.h"
     void testBinaryOutput(

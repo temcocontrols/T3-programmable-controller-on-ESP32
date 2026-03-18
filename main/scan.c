@@ -11,15 +11,15 @@
 #include "driver/uart.h"
 
 
-extern xTaskHandle main_task_handle[20];
+extern TaskHandle_t main_task_handle[20];
 #define MAX_REMOTE_PANEL_NUMBER 30
 
 #define ScanSTACK_SIZE					2048
 #define ScanNetSTACK_SIZE	  512
 
 void uart_send_string(U8_T *p, U16_T length,U8_T port);
-xTaskHandle Handle_Scan;
-//xTaskHandle Handle_COV;
+TaskHandle_t Handle_Scan;
+//TaskHandle_t Handle_COV;
 //void check_id_alarm(uint8_t type, uint8_t id, uint32_t old_sn, uint32_t new_sn);
 void add_id_online(U8_T index);
 
@@ -100,7 +100,7 @@ U8_T remote_modbus_index = 0;
 U8_T remote_bacnet_index = 0;
 U8_T remote_mstp_panel_index = 0;
 
-U8_T db_online[32];	// Should be added by scan					 
+U8_T db_online[32];	// Should be added by scan
 U8_T db_occupy[32]; // Added/subtracted by scan
 U8_T current_online[32]; // Added/subtracted by co2 request command
 U8_T current_online_ctr = 0;
@@ -122,7 +122,7 @@ U8_T tst_retry[MAX_ID];
 void read_name_of_tstat(U8_T index);
 
 void recount_sub_addr(void)
-{	
+{
 	U8_T i;
 	U8_T tmp_uart0 = 0;
 	U8_T tmp_uart1 = 0;
@@ -143,7 +143,7 @@ void recount_sub_addr(void)
 //		sub_addr[i] = scan_db[i].id;
 
 	}
-	
+
 	uart0_sub_no = tmp_uart0;
 //	memcpy(sub_addr,uart0_sub_addr,uart0_sub_no);
 	sub_no = uart0_sub_no;
@@ -168,9 +168,9 @@ void Get_Tst_DB_From_Flash(void)
 
 	db_ctr = 0;
 	for(i = 0;i < SUB_NO;i++)
-	{	
-		if(((scan_db[i].port & 0x0f) == 1) || ((scan_db[i].port & 0x0f) == 2) || ((scan_db[i].port & 0x0f) == 3)) 
-		{ 	
+	{
+		if(((scan_db[i].port & 0x0f) == 1) || ((scan_db[i].port & 0x0f) == 2) || ((scan_db[i].port & 0x0f) == 3))
+		{
 			if((scan_db[i].id != 0) && (scan_db[i].id != 0xff))
 			{
 				if(i > 0)
@@ -183,30 +183,30 @@ void Get_Tst_DB_From_Flash(void)
 					//	current_online[scan_db[i].id / 8] |= 1 << (scan_db[i].id % 8);
 					//	get_para[db_ctr / 8] |= 1 << (db_ctr % 8);
 						db_ctr++;
-						
+
 					}
 				}
 				else
 				{
-					
+
 					db_online[scan_db[i].id / 8] |= 1 << (scan_db[i].id % 8);
 					db_occupy[scan_db[i].id / 8] &= ~(1 << (scan_db[i].id % 8));
 				//	current_online[scan_db[i].id / 8] |= 1 << (scan_db[i].id % 8);
 				//	get_para[db_ctr / 8] |= 1 << (db_ctr % 8);
 					db_ctr++;
-				}				
-			} 
-		}		
+				}
+			}
+		}
 	}
 	for(i = 0;i < db_ctr;i++)
-	{			
+	{
 		if((scan_db[i].port & 0x0f) == 0 + 1)
 			uart0_sub_addr[tmp_uart0++]	= scan_db[i].id;
 		else if((scan_db[i].port & 0x0f) == 1 + 1)
 			uart1_sub_addr[tmp_uart1++]	= scan_db[i].id;
-		
+
 	}
-	
+
 	uart0_sub_no = tmp_uart0;
 	sub_no = uart0_sub_no;
 
@@ -220,8 +220,8 @@ void Get_Tst_DB_From_Flash(void)
 	for(i = 0;i < sub_no;i++)
 	{
  		remap_table(i,scan_db[i].product_model);
-	}			
-		
+	}
+
 	refresh_extio_by_database(0,0,0,0,0);
 }
 
@@ -236,7 +236,7 @@ U8_T receive_scan_reply(U8_T *p, U8_T len)
 	{
 		current_db.id = p[2];
 
-		current_db.sn = ((U32_T)p[6] << 24) | ((U32_T)p[5] << 16) | 
+		current_db.sn = ((U32_T)p[6] << 24) | ((U32_T)p[5] << 16) |
 						((U32_T)p[4] << 8) | p[3];
 		if((len == subnet_rec_package_size) /*&& (subnet_response_buf[2] == subnet_response_buf[3])*/)
 		{
@@ -255,13 +255,13 @@ U8_T receive_scan_reply(U8_T *p, U8_T len)
 
 U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 {
-	U16_T wCrc16;	
+	U16_T wCrc16;
 	U8_T buf[6];
 	U16_T length = 0;
 	U8_T ret = 0;
-	U16_T delay; 
+	U16_T delay;
 
-	
+
 	buf[0] = 0xff;
 	buf[1] = 0x19;
 	buf[2] = max_id;
@@ -271,14 +271,14 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 	buf[4] = HIGH_BYTE(wCrc16);
 	buf[5] = LOW_BYTE(wCrc16);
 	uart_send_string(buf, 6,port);
-	
+
 	subnet_rec_package_size = 9;
 
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 
 	if(port == 0 || port == 2)
 	{
-		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
+		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_PERIOD_MS);
 	}
 	else
 		length = 0;
@@ -302,7 +302,7 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 		else
 			ret = NONE_ID;
 	}
-	
+
 	free(subnet_response_buf);
 	return ret;
 }
@@ -321,7 +321,7 @@ U8_T assignment_id_with_sn(U8_T old_id, U8_T new_id, U32_T current_sn,U8_T port)
 	U8_T buf[12];
 	U16_T wCrc16;
 	U16_T length, ret = NONE_ID;
-	
+
 
 	buf[0] = old_id;
 	buf[1] = 0x06;
@@ -336,7 +336,7 @@ U8_T assignment_id_with_sn(U8_T old_id, U8_T new_id, U32_T current_sn,U8_T port)
 	buf[8] = (U8_T)(current_sn >> 16);
 	buf[9] = (U8_T)(current_sn >> 24);
 
-	
+
 	wCrc16 = crc16(buf, 10);
 	buf[10] = HIGH_BYTE(wCrc16);
 	buf[11] = LOW_BYTE(wCrc16);
@@ -347,7 +347,7 @@ U8_T assignment_id_with_sn(U8_T old_id, U8_T new_id, U32_T current_sn,U8_T port)
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 
 	if(port == 0 || port == 2)
-		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
+		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_PERIOD_MS);
 	else
 		length = 0;
 
@@ -377,7 +377,7 @@ U8_T get_idle_id(void)
 
 
 U8_T check_id_in_database(U8_T id, U32_T sn,U8_T port,U8_T baut,U8_T product_id)
-{	
+{
 	U8_T ret;
 	U8_T i;
 	U8_T replace;
@@ -390,36 +390,36 @@ U8_T check_id_in_database(U8_T id, U32_T sn,U8_T port,U8_T baut,U8_T product_id)
 		{
 			if(port != (scan_db[i].port & 0x0f) - 1)	  // change port
 			{
-				scan_db[i].port = (baut << 4) + port + 1;	
+				scan_db[i].port = (baut << 4) + port + 1;
 				if(product_id > 0)
 					scan_db[i].product_model = product_id;
 				scan_db_changed = TRUE;
-				
-				
+
+
 			}
 		}
 	}
 	replace = 255;
-	if(id == Modbus.address) 	
+	if(id == Modbus.address)
 	{
-		db_occupy[id / 8] |= 1 << (id % 8); 
+		db_occupy[id / 8] |= 1 << (id % 8);
 		// id is confict with master, generate a alarm
-#if ALARM_SYNC		
+#if ALARM_SYNC
 		check_id_alarm(0,id,0,sn);
 #endif
-	
+
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 		Record_conflict_ID(id,Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8)
 	 + ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24),sn,port,Modbus.product_model);
 #endif
-		
+
 	}
 	else
 	{
-		
+
 		if(db_online[id / 8] & (1 << (id % 8)))  // in the database
-		{	
-					
+		{
+
 			for(i = 0; i < db_ctr; i++)
 			{
 				if(id == scan_db[i].id) // id already in the database
@@ -428,30 +428,30 @@ U8_T check_id_in_database(U8_T id, U32_T sn,U8_T port,U8_T baut,U8_T product_id)
 					{
 						if(Modbus.external_nodes_plug_and_play == 0)
 						{
-							// for test now 
+							// for test now
 							//remove_id_from_db(i);
 						}
 						else
 						{
-							db_occupy[id / 8] |= 1 << (id % 8);							
+							db_occupy[id / 8] |= 1 << (id % 8);
 						}
-						
+
 
 						if((sn != 0) && (scan_db[i].sn == 0))
 						{ // replace old place
-							scan_db[i].sn = sn; 
+							scan_db[i].sn = sn;
 							scan_db[i].port = (baut << 4) + port + 1;
 							if(product_id > 0)
 								scan_db[i].product_model = product_id;
-							
-						}						
+
+						}
 						else if((sn != 0) && (scan_db[i].sn != 0))
-						{							
+						{
 						// id is confict with sub, generate a alarm
 #if ALARM_SYNC
 						check_id_alarm(1,id,scan_db[i].sn,sn);
 #endif
-							
+
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 							if(current_online[scan_db[i].id / 8] & (1 << (scan_db[i].id % 8)))
 								Record_conflict_ID(id,scan_db[i].sn,sn,port,9);
@@ -464,15 +464,15 @@ U8_T check_id_in_database(U8_T id, U32_T sn,U8_T port,U8_T baut,U8_T product_id)
 			}
 		}
 		else
-		{ 
+		{
 		// if change id for tstat in db, delete old id in db
 			for(i = 0; i < db_ctr; i++)
 			{
 				if((sn == scan_db[i].sn) && (sn != 0))
 				{
-					scan_db[i].id = id;	
+					scan_db[i].id = id;
 					replace = i;
-					break;	
+					break;
 				}
 			}
 
@@ -481,9 +481,9 @@ U8_T check_id_in_database(U8_T id, U32_T sn,U8_T port,U8_T baut,U8_T product_id)
 //			{  // change id succusfully, but do not receive response
 //				// clear conflict id
 //				clear_confilct_id();
-//				
+//
 //			}
-			
+
 			if(replace != 255)
 			{ // replace old one
 				db_online[scan_db[replace].id / 8] &= ~(1 << (scan_db[replace].id % 8));
@@ -493,20 +493,20 @@ U8_T check_id_in_database(U8_T id, U32_T sn,U8_T port,U8_T baut,U8_T product_id)
 				db_occupy[id / 8] &= ~(1 << (id % 8));
 //				get_para[db_ctr / 8] |= 1 << (db_ctr % 8);
 				scan_db[replace].id = id;
-				scan_db[replace].sn = sn; 
+				scan_db[replace].sn = sn;
 				scan_db[replace].port = (baut << 4) + port + 1;
 				if(product_id > 0)
 					scan_db[replace].product_model = product_id;
-//					
+//
 			}
 			else
 			{ // add new one
 				db_online[id / 8] |= 1 << (id % 8);
 				db_occupy[id / 8] &= ~(1 << (id % 8));
 //				get_para[db_ctr / 8] |= 1 << (db_ctr % 8);
-			
+
 				scan_db[db_ctr].id = id;
-				scan_db[db_ctr].sn = sn; 
+				scan_db[db_ctr].sn = sn;
 				scan_db[db_ctr].port = (baut << 4) + port + 1;
 				if(product_id > 0)
 					scan_db[db_ctr].product_model = product_id;
@@ -535,7 +535,7 @@ U8_T check_id_in_database(U8_T id, U32_T sn,U8_T port,U8_T baut,U8_T product_id)
 void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 {
 	U8_T scan_status;
-	if(min_id > max_id) 	return; 
+	if(min_id > max_id) 	return;
 	scan_status = send_scan_cmd(max_id, min_id, port);
 
 	switch(scan_status)	// wait for response from nodes scan command
@@ -549,7 +549,7 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 			{
 				//bin_search(min_id, (U8_T)(((U16_T)min_id + (U16_T)max_id) / 2),port);
 				//bin_search((U8_T)(((U16_T)min_id + (U16_T)max_id) / 2) + 1, max_id,port);
-			}			
+			}
 			break;
 		case MULTIPLE_ID:
 			// multiple id means there is more than one id in the range.
@@ -569,7 +569,7 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 				}
 			}
 			else
-			{	
+			{
 				bin_search(min_id, (U8_T)(((U16_T)min_id + (U16_T)max_id) / 2),port);
 				bin_search((U8_T)(((U16_T)min_id + (U16_T)max_id) / 2) + 1, max_id,port);
 			}
@@ -590,19 +590,19 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 							break;
 						}
 					}
-					//remove_id_from_db(i);	
+					//remove_id_from_db(i);
 
 				}
 
 			}
 			else
-			{	
+			{
 				check_id_in_database(current_db.id, current_db.sn,port,get_baut_by_port(port + 1),0);
 				bin_search(min_id, (U8_T)(((U16_T)min_id + (U16_T)max_id) / 2),port);
 				bin_search((U8_T)(((U16_T)min_id + (U16_T)max_id) / 2) + 1, max_id,port);
 			}
 			break;
-		case NONE_ID:  
+		case NONE_ID:
 			// none id means there is not id in the range
 			break;
 		case SCAN_BUSY:
@@ -616,7 +616,7 @@ void bin_search(U8_T min_id, U8_T max_id,U8_T port) //reentrant
 
 U8_T get_baut_by_port(U8_T port)
 {
-	if(port == 0)  // no in database 
+	if(port == 0)  // no in database
 	{
 		if(Modbus.com_config[0] == MODBUS_MASTER)
 			return Modbus.baudrate[0];
@@ -625,11 +625,11 @@ U8_T get_baut_by_port(U8_T port)
 		else
 			return 19200;
 	}
-	else	if(port == 1)	
+	else	if(port == 1)
 		return Modbus.baudrate[0];
 	else
 		return Modbus.baudrate[2];//scan_port;
-	
+
 }
 
 U8_T get_baut_by_id(U8_T port,U8_T id)
@@ -642,7 +642,7 @@ U8_T get_baut_by_id(U8_T port,U8_T id)
 			if((scan_db[i].port >> 4) > 0)  // if baut is larger than 5, it is new structrue
 			{
 				return 	scan_db[i].port >> 4;
-				
+
 			}
 			else  // if baut is 0,it is old, return current baut
 			{
@@ -669,16 +669,16 @@ void set_baut_by_port(U8_T port,U8_T baut)
 //	while(1)
 //	{
 //		if(db_occupy[occupy_id / 8] & (1 << (occupy_id % 8)))
-//		{	
+//		{
 //			idle_id = get_idle_id();
 //			if(idle_id == 0xff) break;
-//				
+//
 //			status = send_scan_cmd(occupy_id, occupy_id, port); // get the seperate sn
 //			if((status == UNIQUE_ID) || (status == UNIQUE_ID_FROM_MULTIPLE))
 //			{
-//				// detect ID conflict, decide whether change id automatically by flag external_nodes_plug_and_play	
+//				// detect ID conflict, decide whether change id automatically by flag external_nodes_plug_and_play
 ////				if(Modbus.external_nodes_plug_and_play == 1)
-////				{				
+////				{
 //					if(occupy_id == current_db.id)
 //						db_occupy[occupy_id / 8] &= ~(1 << (occupy_id % 8));
 
@@ -690,11 +690,11 @@ void set_baut_by_port(U8_T port,U8_T baut)
 //						// assign idle id with sn to this occupy device.
 //						collision[port]++;
 //						if(assignment_id_with_sn(current_db.id, idle_id, current_db.sn,port)== ASSIGN_ID)
-//						{	
+//						{
 //							db_online[idle_id / 8] |= 1 << (idle_id % 8);
 
 //							scan_db[db_ctr].id = idle_id;
-//							scan_db[db_ctr].sn = current_db.sn;	
+//							scan_db[db_ctr].sn = current_db.sn;
 
 //							db_ctr++;
 //							scan_db_changed = TRUE;
@@ -706,7 +706,7 @@ void set_baut_by_port(U8_T port,U8_T baut)
 ////					Test[15] = occupy_id;
 ////					Test[14]++;
 ////				}
-//					
+//
 //				if(status == UNIQUE_ID_FROM_MULTIPLE)
 //					continue;
 //			}
@@ -719,7 +719,7 @@ void set_baut_by_port(U8_T port,U8_T baut)
 //				// maybe the nodes are removed from the subnet, so skip it.
 //			}
 //		}
-//		
+//
 //		occupy_id++;
 //		if(occupy_id == 0xff) break;
 //	}
@@ -753,7 +753,7 @@ void init_scan_db(void)
 	memset(uart1_sub_addr,0,SUB_NO);
 	memset(uart2_sub_addr,0,SUB_NO);
 	uart1_sub_no = 0;
-	uart2_sub_no = 0; 
+	uart2_sub_no = 0;
 
 #endif
 	memset(uart0_sub_addr,0,SUB_NO);
@@ -778,7 +778,7 @@ void clear_scan_db(void)
 		flag_tstat_name[i] = 0;
 		count_read_tstat_name[i] = READ_TSTAT_COUNT;
 		memset(tstat_name[i],0,16);
-		
+
 	}
 	for (i = 0;i < MAXREMOTEPOINTS;i++)
 	{
@@ -794,7 +794,7 @@ void clear_scan_db(void)
 	clear_conflict_id();
 #endif
 //	start_data_save_timer();
-	
+
 	refresh_extio_by_database(0,0,0,0,0);
 	// clear mstp devide
 	memset(remote_panel_db,0,sizeof(STR_REMOTE_PANEL_DB) * MAX_REMOTE_PANEL_NUMBER);
@@ -823,9 +823,9 @@ void add_id_online(U8_T index)
 //	if(index < db_ctr) // can not delete the internal sensor
 	{
 		i = scan_db[index].id;
-		
+
 		current_online[i / 8] |= (1 << (i % 8));
-		
+
 	}
 	Check_On_Line();
 
@@ -886,7 +886,7 @@ U8_T get_port_by_id(U8_T id)
 			return 	scan_db[i].port & 0x0f;
 		}
 	}
-	
+
 	// if id is not in database, check which port is master
 	for(i = 0;i < 3;i++)
 	{
@@ -921,9 +921,9 @@ U8_T get_IO_index_by_reg(U16_T reg, U8_T* index)
 			*index = (reg - MODBUS_OUTPUT_BLOCK_FIRST) / ((sizeof(Str_out_point) + 1)/ 2);
 			return OUT+1;
 		}
-		else 
+		else
 			return 0;
-	}	
+	}
 	if((reg >= MODBUS_INPUT_BLOCK_FIRST) && (reg < MODBUS_INPUT_BLOCK_LAST) )
 	{
 		if((reg - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1)/ 2) == 0)
@@ -931,9 +931,9 @@ U8_T get_IO_index_by_reg(U16_T reg, U8_T* index)
 			*index = (reg - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1)/ 2);
 			return IN+1;
 		}
-		else 
-			return 0;		
-	}	
+		else
+			return 0;
+	}
 	else
 		return 0;
 }
@@ -952,7 +952,7 @@ U8_T Check_Read_Len(U16_T reg,U8_T product_id,U16_T *newreg)
 			case 20:case 24:case 28:case 32:case 36:case 40:
 			case 44:case 56:case 60:case 85:
 			case 180:case 183:case 186:
-			case 190:case 194:case 197:case 200:case 203:case 206:		
+			case 190:case 194:case 197:case 200:case 203:case 206:
 			case 210:case 214:case 217:case 220:case 223:case 226:
 			case 230:case 234:case 237:
 			case 240:case 243:case 246:
@@ -964,9 +964,9 @@ U8_T Check_Read_Len(U16_T reg,U8_T product_id,U16_T *newreg)
 				break;
 			default:
 				break;
-			
+
 		}
-	}	
+	}
 	else if(product_id == PM_T36CTA)   // T3 6CTA
 	{
 		if((reg >= T3_6CTA_AI_REG_START) && (reg < T3_6CTA_AI_REG_START + 20))
@@ -978,7 +978,7 @@ U8_T Check_Read_Len(U16_T reg,U8_T product_id,U16_T *newreg)
 		{
 			*newreg = MODBUS_OUTPUT_BLOCK_FIRST + (reg - T3_6CTA_DO_REG_START) * ((sizeof(Str_out_point) + 1) / 2);
 			len = 0x80 + (sizeof(Str_out_point) + 1) / 2;
-		}		
+		}
 	}
 	// if T3 moudle, multi-read
 	else if(product_id == PM_T322AI)   // T3 22I
@@ -990,7 +990,7 @@ U8_T Check_Read_Len(U16_T reg,U8_T product_id,U16_T *newreg)
 		}
 	}
 	else if(product_id == PM_T3PT12)
-	{		
+	{
 		if((reg >= T3_PT12_AI_REG_START) && (reg < T3_PT12_AI_REG_START + 12))
 		{
 			*newreg = MODBUS_INPUT_BLOCK_FIRST + (reg - T3_PT12_AI_REG_START) * ((sizeof(Str_in_point) + 1) / 2);
@@ -1082,16 +1082,16 @@ U8_T Check_Read_Len(U16_T reg,U8_T product_id,U16_T *newreg)
 			len =  0x80 + 2;
 		}
 	}
-	else 
+	else
 	{
 		len = 1;
 	}
-	
+
 	return len;
 }
 
 
-	
+
 void get_parameters_from_nodes(U8_T index,U8_T type)
 {
 	U8_T port;
@@ -1129,12 +1129,12 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 		float_type = (remote_points_list[index].tb.RP_modbus.func & 0xff00) >> 8;
 		buf[2] = HIGH_BYTE(remote_points_list[index].tb.RP_modbus.reg);
 		buf[3] = LOW_BYTE(remote_points_list[index].tb.RP_modbus.reg); // start address
-		port = get_port_by_id(buf[0]);	
+		port = get_port_by_id(buf[0]);
 		baut = get_baut_by_id(port,buf[0]);
 	}
-	
+
 #if 1
-	if(port == 0) 
+	if(port == 0)
 	{  // wrong id
 	    return;
 	}
@@ -1144,10 +1144,10 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 	if(Modbus.com_config[port] != MODBUS_MASTER)
 		return;
 #endif
-	
+
 	buf[4] = 0;
 // check whether current device is Power Merter, if that, deal with it speicailly, muilt-read
-	if(type == 0)	
+	if(type == 0)
 		buf[5] = 1;
 	else
 	{
@@ -1176,22 +1176,22 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 	//uart_init_send_com(port);
 	uart_send_string(buf, 8,port);
 
-	
+
 	if(buf[1] == READ_COIL || buf[1] == READ_DIS_INPUT)
 	{
 		size0 = (buf[5] + 7) / 8 + 5;
 	}
 	else
-		size0 = buf[5] * 2 + 5;		
+		size0 = buf[5] * 2 + 5;
 
 	subnet_rec_package_size = size0;
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 	if(port == 0 || port == 2)
-		length = uart_read_bytes(port, subnet_response_buf, 100, 100 / portTICK_RATE_MS);
+		length = uart_read_bytes(port, subnet_response_buf, 100, 100 / portTICK_PERIOD_MS);
 	else
 		length = 0;
 
-	if(length > 0)	 
+	if(length > 0)
 	{
 		check_whether_modbus_slave(subnet_response_buf,length,port);
 		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
@@ -1201,7 +1201,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 		if((HIGH_BYTE(crc_check) == subnet_response_buf[length - 2]) && (LOW_BYTE(crc_check) == subnet_response_buf[length - 1]))
 		{
 			if(type == 0)
-			{ 	
+			{
 				U8_T j;
 				if(subnet_response_buf[4] < CUSTOMER_PRODUCT)
 				{
@@ -1209,12 +1209,12 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 
 					if(scan_db[index].product_model == PM_T322AI || scan_db[index].product_model == PM_T38AI8AO6DO
 						|| scan_db[index].product_model == PM_T36CTA || scan_db[index].product_model == PM_T3PT12)
-					{	
+					{
 						refresh_extio_by_database(0,0,0,0,1);  // refresh time of T3-expansion
 					}
 
 	//				if((index == 0) || (sub_map[index - 1].add_in_map == 1))
-					{		
+					{
 						U8_T i;
 
 	//					if(index > 0)
@@ -1235,21 +1235,21 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 								}
 							}
 						//add_id_online(index);
-						remap_table(index,scan_db[index].product_model);	
+						remap_table(index,scan_db[index].product_model);
 					}
 
-				}	
+				}
 			}
 			else
-			{					
+			{
 				U8_T i,j;
 				get_index_by_id(buf[0],&j);
 				if(scan_db[j].product_model == PM_T322AI || scan_db[j].product_model == PM_T38AI8AO6DO
 					|| scan_db[j].product_model == PM_T36CTA || scan_db[j].product_model == PM_T3PT12)
-				{	
+				{
 					refresh_extio_by_database(0,0,0,0,1);  //  refresh time of T3-expansion
 				}
-				
+
 				if(read_len == 0)
 				{
 					for(i = 0;i < buf[5];i++)
@@ -1318,7 +1318,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 
 							}
 							else	// old T3 module
-							{	
+							{
 							if(remote_points_list[index].tb.RP_modbus.reg > 255)
 							{
 								if(product == 10 || product == 74) // T10 or MINIPANEL
@@ -1349,13 +1349,13 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 								+ (U16_T)(subnet_response_buf[5 + i * 4] << 8) + subnet_response_buf[6 + i * 4],\
 							(remote_points_list[index].tb.RP_modbus.func & 0x80) ? 1 : 0,
 								float_type);
-							}								
+							}
 							}
 						}
 						remote_points_list[index + i].decomisioned = 1;
 					}
-				}											
-				
+				}
+
 
 					if(read_len == 0)
 					{ // read one byte
@@ -1368,19 +1368,19 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 					else
 					{	// multi-read	, only for new T3, work as external IO
 						U8_T product = Get_product_by_id(remote_points_list[index].tb.RP_modbus.id);
-						if((product == PM_T38AI8AO6DO) || (product == PM_T322AI) || (product == PM_T36CTA) || (product == PM_T3PT12)) 
-						{	
+						if((product == PM_T38AI8AO6DO) || (product == PM_T322AI) || (product == PM_T36CTA) || (product == PM_T3PT12))
+						{
 							update_remote_map_table(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.reg,0,subnet_response_buf);
 						}
 						else
 						{
 							for(i = 0;i < buf[5] / 2;i++)
 							{
-								update_remote_map_table(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24)  
-								+ (U32_T)(subnet_response_buf[4 + i * 4] << 16)	+ (U16_T)(subnet_response_buf[5 + i * 4] << 8) + subnet_response_buf[6 + i * 4],subnet_response_buf);						
+								update_remote_map_table(remote_points_list[index].tb.RP_modbus.id,remote_points_list[index].tb.RP_modbus.reg + i * 2,(U32_T)(subnet_response_buf[3 + i * 4] << 24)
+								+ (U32_T)(subnet_response_buf[4 + i * 4] << 16)	+ (U16_T)(subnet_response_buf[5 + i * 4] << 8) + subnet_response_buf[6 + i * 4],subnet_response_buf);
 							}
 							remote_modbus_index = remote_modbus_index + buf[5] / 2 - 1;
-						}						
+						}
 					}
 
 
@@ -1396,50 +1396,50 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 						add_id_online(add_i);
 				}
 			}
-			
+
 		}
 		else
 		{
 			packet_error[port]++;
-		}			
+		}
 	}
 	else
-	{	
+	{
 		timeout[port]++;
 		tst_retry[buf[0]]++;
 
 	if(type == 1)  // read parameters
 	{
 			if(read_len == 0)
-			{ // read one byte				
+			{ // read one byte
 				remote_modbus_index = remote_modbus_index + buf[5] - 1;
 			}
 			else
 			{	// multi-read	, only for new T3, work as external IO
 				U8_T product = Get_product_by_id(remote_points_list[index].tb.RP_modbus.id);
-				if((product == PM_T38AI8AO6DO) || (product == PM_T322AI) || (product == PM_T36CTA) || (product == PM_T3PT12)) 
+				if((product == PM_T38AI8AO6DO) || (product == PM_T322AI) || (product == PM_T36CTA) || (product == PM_T3PT12))
 				{
 					remote_modbus_index = remote_modbus_index + 22;
 				}
 				else
 				{
-					
+
 					remote_modbus_index = remote_modbus_index + buf[5] / 2 - 1;
-				}						
+				}
 			}
 		}
-								
+
 
 	}
 
 	free(subnet_response_buf);
 
-	if(tst_retry[buf[0]] >= 10)	
-	{  		
+	if(tst_retry[buf[0]] >= 10)
+	{
 		U8_T remove_i;
  		// get index form scan_db
 		if(get_index_by_id(buf[0],&remove_i) == 1)
-		{		
+		{
 			if(scan_db[remove_i].product_model < CUSTOMER_PRODUCT)
 			{
 				remove_id_online(remove_i);
@@ -1465,13 +1465,13 @@ void write_parameters_to_nodes(uint8_t func,uint8 id, uint16 reg, uint16* value,
 	}
 	for(i = 0;i < STACK_LEN;i++)
 	{
-		if(node_write[i].flag == WRITE_OK) 	
+		if(node_write[i].flag == WRITE_OK)
 			break;
 	}
-	if(i == STACK_LEN)		
+	if(i == STACK_LEN)
 	{  // stack full
 	// tbd
-		return;	
+		return;
 	}
 	else
 	{
@@ -1480,13 +1480,13 @@ void write_parameters_to_nodes(uint8_t func,uint8 id, uint16 reg, uint16* value,
 		node_write[i].id = id;
 		node_write[i].reg = reg;
 		node_write[i].len = len;
-		
+
 		if(len == 1)
 		{
 			node_write[i].value[0] = value[0];
 		}
 		else
-		{			
+		{
 			U8_T temp_value[50];
 			U8_T j;
 			for(j = 0;j < len / 2;j++)
@@ -1520,14 +1520,14 @@ void check_write_to_nodes(U8_T port)
 			}
 			else
 			{  	// retry 10 time, give up
-				node_write[i].flag = WRITE_OK; 
+				node_write[i].flag = WRITE_OK;
 				node_write[i].retry = 0;
 			}
 		}
 	}
 	if(i >= STACK_LEN)		// no WAIT_FOR_WRITE
 	{
-		return ;	
+		return ;
 	}
 
 	if(Get_product_by_id(node_write[i].id) > 0)
@@ -1537,15 +1537,15 @@ void check_write_to_nodes(U8_T port)
 			return ;
 		}
 	}
-		
+
 
 	buf[0] = node_write[i].id;
 
 	baut = get_baut_by_id(port,buf[0]);
-	set_baut_by_port(port,baut);	
-	
+	set_baut_by_port(port,baut);
+
 	//uart_init_send_com(port);
-	
+
 	buf[2] = HIGH_BYTE(node_write[i].reg);
 	buf[3] = LOW_BYTE(node_write[i].reg); // start address
 	if(node_write[i].len > 1)
@@ -1586,12 +1586,12 @@ void check_write_to_nodes(U8_T port)
 			}
 		}
 		crc_check = crc16(buf, buf[6] + 7); // crc16
-		buf[buf[6] + 7] = HIGH_BYTE(crc_check);				 
+		buf[buf[6] + 7] = HIGH_BYTE(crc_check);
 		buf[buf[6] + 8] = LOW_BYTE(crc_check);
 		uart_send_string(buf, buf[6] + 9,port);
 	}
 	else  // signal wirte
-	{		
+	{
 		buf[1] = node_write[i].func;
 		if(node_write[i].func == 0x05)
 		{
@@ -1611,18 +1611,18 @@ void check_write_to_nodes(U8_T port)
 			buf[4] = HIGH_BYTE(node_write[i].value[0]);
 			buf[5] = LOW_BYTE(node_write[i].value[0]);
 		}
-		
+
 		crc_check = crc16(buf, 6); // crc16
-		buf[6] = HIGH_BYTE(crc_check);				 
+		buf[6] = HIGH_BYTE(crc_check);
 		buf[7] = LOW_BYTE(crc_check);
 
-		uart_send_string(buf, 8,port);	
+		uart_send_string(buf, 8,port);
 	}
 	subnet_rec_package_size = 8;
 
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 	if(port == 0 || port == 2)
-		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_RATE_MS);
+		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_PERIOD_MS);
 	else
 		length = 0;
 
@@ -1636,7 +1636,7 @@ void check_write_to_nodes(U8_T port)
 //		node_write[i].id = 0;
 //		node_write[i].reg = 0;
 		if(node_write[i].len == 1)
-		{	
+		{
 			if(node_write[i].func == 0x05)
 				add_remote_point(buf[0],READ_COIL + (buf[2] << 5),buf[2] >> 3,buf[3],node_write[i].value[0],1,0);
 			else if(node_write[i].func == 0x06)
@@ -1644,7 +1644,7 @@ void check_write_to_nodes(U8_T port)
 				add_remote_point(buf[0],READ_VARIABLES + (buf[2] << 5),buf[2] >> 3,buf[3],node_write[i].value[0],1,0);
 			}
 		}
-		
+
 		tst_retry[buf[0]] = 0;
 		scan_db_time_to_live[buf[0]] = SCAN_DB_TIME_TO_LIVE;
 		if((current_online[buf[0] / 8] & (1 << (buf[0] % 8))) == 0)
@@ -1665,28 +1665,28 @@ void check_write_to_nodes(U8_T port)
 //#endif
 
 	}
-	
-	if(tst_retry[buf[0]] >= 10)	
-	{  		
+
+	if(tst_retry[buf[0]] >= 10)
+	{
 		U8_T remove_i;
-		
+
  		// get index form scan_db
 		if(get_index_by_id(buf[0],&remove_i) == 1)
-		{			
+		{
 			if(scan_db[remove_i].product_model < CUSTOMER_PRODUCT)
 			{
 				remove_id_online(remove_i);
 			}
 		}
 	}
-	
+
 	free(subnet_response_buf);
 
 }
 
 void Count_com_config(void)
 {
-	U8_T i = 0;	
+	U8_T i = 0;
 	U8_T temp = 0;
 	for(i = 0;i < 3;i++)
 		if(Modbus.com_config[i] == MODBUS_MASTER)
@@ -1758,7 +1758,7 @@ void Scan_Idle(void)
 		if(uart0_sub_no == 0)
 		{
 			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-			int len = uart_read_bytes(0, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+			int len = uart_read_bytes(0, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
 
 			if(len>0)
 			{
@@ -1776,7 +1776,7 @@ void Scan_Idle(void)
 			if(uart2_sub_no == 0)
 			{
 				uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-				int len = uart_read_bytes(2, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+				int len = uart_read_bytes(2, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
 
 				if(len>0)
 				{
@@ -1804,7 +1804,7 @@ void Scan_Idle(void)
 
 			port = subcom_seq[comindex2];
 			Test[21]++;
-			int len = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+			int len = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
 
 			if(len>0)
 			{
@@ -1833,18 +1833,18 @@ void check_whether_force_scan(void)
 {
 	if(force_scan == 1)
 	{
-		modbus_scan_count++;	
+		modbus_scan_count++;
 		if(modbus_scan_count > 10)
 		{
 			force_scan = 0;
 			modbus_scan_count = 0;
 		}
-	}	
+	}
 }
 
-U8_T tempcount;	
+U8_T tempcount;
 U8_T comindex1;
-U8_T comindex2;	
+U8_T comindex2;
 
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 U8_T TimeSync_Tstat(void);
@@ -1874,7 +1874,7 @@ void update_Read_point_timer(void)
 		READ_POINT_TIMER = 10000;
 }
 
-void ScanTask(void)
+void ScanTask(void *pvParameters)
 {
 	U8_T far port = 0;
 	U8_T far baut = 0;
@@ -1884,7 +1884,7 @@ void ScanTask(void)
 	comindex1 = 0;
 	comindex2 = 0;
 
-	Count_com_config();	
+	Count_com_config();
 	force_scan = 1;
 	modbus_scan_count = 0;
 	memset(tst_retry,0,MAX_ID);
@@ -1892,8 +1892,8 @@ void ScanTask(void)
 	flag_response_zigbee = 0;
 	type = 0;
 
-	while(1)	 
-	{	
+	while(1)
+	{
 
 		update_Read_point_timer();
 		if(flag_suspend_scan == 0)
@@ -1920,7 +1920,7 @@ void ScanTask(void)
 			{
 				Check_scan_db_time_to_live();
 
-				vTaskDelay( READ_POINT_TIMER / portTICK_RATE_MS);
+				vTaskDelay( READ_POINT_TIMER / portTICK_PERIOD_MS);
 				tempcount++;
 
 				if(type < 50)
@@ -1942,7 +1942,7 @@ void ScanTask(void)
 					if(subcom_num > 0)
 					{
 						port = subcom_seq[comindex2];
-						
+
 						if(comindex2 < subcom_num - 1)
 						{
 							comindex2++;
@@ -1958,7 +1958,7 @@ void ScanTask(void)
 							for(i = 0;i < 5;i++)
 							{
 								Scan_Idle();
-								vTaskDelay( 1000 / portTICK_RATE_MS);
+								vTaskDelay( 1000 / portTICK_PERIOD_MS);
 							}
 							tempcount = tempcount + 50;
 	// only heartbeat frame, slow down
@@ -2017,7 +2017,7 @@ void ScanTask(void)
 			{
 				recount_sub_addr();
 	//  recount IN OUT VAR map table
-	
+
 				scan_db_changed = FALSE;
 			}
 
@@ -2029,7 +2029,7 @@ void ScanTask(void)
 				flag_suspend_scan = 0;
 				suspend_scan_count = 0;
 			}
-			vTaskDelay(1000 / portTICK_RATE_MS);
+			vTaskDelay(1000 / portTICK_PERIOD_MS);
 		}
 	}
 }
@@ -2057,9 +2057,9 @@ void Check_On_Line(void)
 		if((current_online[scan_db[i].id / 8] & (1 << (scan_db[i].id % 8))))	  	 // in database and on_line
 		{
 			temp_no++;
-		}				
-	}	
-	current_online_ctr = temp_no;		
+		}
+	}
+	current_online_ctr = temp_no;
 
 }
 
@@ -2072,7 +2072,7 @@ void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * 
 		if(NPM_node_write[i].flag == WRITE_OK)
 			break;
 	}
-	
+
 	if(i == STACK_LEN)
 	{  // stack full
 	// tbd
@@ -2086,7 +2086,7 @@ void write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * 
 		NPM_node_write[i].id = sub_id;
 		NPM_node_write[i].reg = reg;
 		NPM_node_write[i].len = len;
-		
+
 		if(len == 1)
 		{
 			NPM_node_write[i].value[0] = value[0];
@@ -2138,18 +2138,18 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	flag_expansion = 0;
 
 	if(buf[1] == READ_VARIABLES || buf[1] == READ_INPUT || buf[1] == READ_COIL || buf[1] == READ_DIS_INPUT ) // read
-	{	
+	{
 		U8_T i;
 		if(buf[1] == READ_COIL || buf[1] == READ_DIS_INPUT)
 		{
 			size0 = (buf[5] + 7) / 8 + 5;
 		}
 		else
-		  size0 = buf[5] * 2 + 5;		
+		  size0 = buf[5] * 2 + 5;
 		// change it bigger, tstat7 response too slow
 	}
 	else if(buf[1] == WRITE_VARIABLES || buf[1] == MULTIPLE_WRITE || buf[1] == WRITE_COIL || buf[1] == WRITE_MULTI_COIL)
-	{	
+	{
 		size0 = 8;
 
 		if(buf[1] == MULTIPLE_WRITE)  // multi-write
@@ -2175,14 +2175,14 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		else  // private command > 100 write
 		{
 			size0 = 16;  // �ظ��ĳ�����16
-		}		
-		
+		}
+
 	}
 
 	if(buf[1] == CHECKONLINE)  // scan command
 	{
 		port = scan_port;
-		set_baut_by_port(port,scan_baut);		
+		set_baut_by_port(port,scan_baut);
 		size0 = 9;
 	}
 	else
@@ -2193,11 +2193,11 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		}
 		else
 		{
-			if(port == 0)	
+			if(port == 0)
 				set_baut_by_port(port,Modbus.baudrate[0]);
-			else if(port == 1)	
+			else if(port == 1)
 				set_baut_by_port(port,Modbus.baudrate[1]);
-			
+
 		}
 	}
 
@@ -2211,7 +2211,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		uart_send_string(tmp_sendbuf, len,port);
 	}
 	else
-	{	
+	{
 		memcpy(tmp_sendbuf,buf,len);
 		crc_check = crc16(tmp_sendbuf, len);
 
@@ -2222,11 +2222,11 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	}
 
 #if 1
-	
+
 	if(buf[1] == CHECKONLINE)  // scan command
 	{
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 512, 20 / portTICK_RATE_MS);
+			length = uart_read_bytes(port, subnet_response_buf, 512, 20 / portTICK_PERIOD_MS);
 		else
 			length = 0; // tbd:
 		if(length > 0)
@@ -2236,12 +2236,12 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
 			com_rx[port] += length;
 			memcpy(tmp_sendbuf,header,6);
-			memcpy(&tmp_sendbuf[6],subnet_response_buf,length);			
+			memcpy(&tmp_sendbuf[6],subnet_response_buf,length);
 
 			memcpy(modbus_send_buf,tmp_sendbuf,length + 6);
 			modbus_send_len = length + 6;
 
-			
+
 			ret = receive_scan_reply(subnet_response_buf, length);
 			if((ret == UNIQUE_ID) || (ret == UNIQUE_ID_FROM_MULTIPLE))
 			{
@@ -2251,8 +2251,8 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 					Modbus.com_config[port] = MODBUS_MASTER;
 					//E2prom_Write_Byte(EEP_COM0_CONFIG + port,Modbus.com_config[port]);
 				}
-				
-				if(port == 0) 
+
+				if(port == 0)
 				{
 					Modbus.baudrate[0] = scan_baut;
 					//E2prom_Write_Byte(EEP_UART0_BAUDRATE,uart0_baudrate);
@@ -2261,12 +2261,12 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				{
 					Modbus.baudrate[1] = scan_baut;
 					//E2prom_Write_Byte(EEP_UART2_BAUDRATE,uart2_baudrate);
-				}				
-		
+				}
+
 				if(scan_db_changed == TRUE)
 				{
 					recount_sub_addr();
-					scan_db_changed = FALSE;			
+					scan_db_changed = FALSE;
 				}
 			}
 		}
@@ -2274,7 +2274,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	else
 	{
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 512, 100 / portTICK_RATE_MS);
+			length = uart_read_bytes(port, subnet_response_buf, 512, 100 / portTICK_PERIOD_MS);
 		else
 			length = 0;
 
@@ -2285,7 +2285,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
 			else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
 			com_rx[port] += length;
-			crc_check = crc16(subnet_response_buf, length - 2);		
+			crc_check = crc16(subnet_response_buf, length - 2);
 			if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])
 			{
 //			auto_check_master_retry[port] = 0;
@@ -2294,7 +2294,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 
 				if(buf[1] == TEMCO_MODBUS)
 				{
-					memcpy(&tmp_sendbuf[6],subnet_response_buf,length);	
+					memcpy(&tmp_sendbuf[6],subnet_response_buf,length);
 					memcpy(modbus_send_buf,tmp_sendbuf,size0 + 6);
 					modbus_send_len = size0 + 6;
 				}
@@ -2320,9 +2320,9 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 
 
 				if(flag_expansion == 1)
-				{  
-					// forword mult_write expansion io, refresh local status at once					
-					update_remote_map_table(buf[0],buf[2] * 256 + buf[3],0,&buf[7]);					
+				{
+					// forword mult_write expansion io, refresh local status at once
+					update_remote_map_table(buf[0],buf[2] * 256 + buf[3],0,&buf[7]);
 				}
 
 
@@ -2334,7 +2334,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				{
 					U8_T add_i;
 					if(get_index_by_id(buf[0],&add_i) == 1)
-					{				
+					{
 						if(scan_db[add_i].product_model < CUSTOMER_PRODUCT)
 							add_id_online(add_i);
 					}
@@ -2344,7 +2344,7 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			else
 			{
 				packet_error[port]++;
-			}			
+			}
 		}
 		else
 		{// һ��read�����ظ�ȫ0
@@ -2356,18 +2356,18 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		}
 
 		/*if(tst_retry[buf[0]] >= 10)
-		{  		
+		{
 			U8_T remove_i;
 			// get index form scan_db
 			if(get_index_by_id(buf[0],&remove_i) == 1)
-			{			
+			{
 				if(scan_db[remove_i].product_model < CUSTOMER_PRODUCT)
 				{
 					remove_id_online(remove_i);
 				}
 			}
 		}*/
-	}	
+	}
 #endif
 	free(subnet_response_buf);
 
@@ -2384,7 +2384,7 @@ void vStartScanTask(unsigned char uxPriority)
 
 	memset(node_write,0,sizeof(STR_NODE_OPERATE) * STACK_LEN);
 	subcom_seq[0] = subcom_seq[1] = subcom_seq[2] = 0;
-	subcom_num = 0;	 
+	subcom_num = 0;
 
 	reset_scan_db_flag = 0;
 	current_online_ctr = 0;
@@ -2392,7 +2392,7 @@ void vStartScanTask(unsigned char uxPriority)
 	remote_modbus_index = 0;
 //	flag_scan_sub = 0;
 //	count_scan_sub_by_hand = 0;
-	
+
 	for(i = 0;i < 3;i++)
 	{
 		com_rx[i] = 0;
@@ -2400,7 +2400,7 @@ void vStartScanTask(unsigned char uxPriority)
 		collision[i] = 0;
 		packet_error[i] = 0;
 		timeout[i] = 0;
-		
+
 		flag_temp_baut[i] = 0;
 		temp_baut[i] = 0;
 	}
@@ -2418,7 +2418,7 @@ void vStartScanTask(unsigned char uxPriority)
 	scan_port = 0xff;
     scan_baut = 0xff;
 
-    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (xTaskHandle *)&main_task_handle[5]);
+    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (TaskHandle_t *)&main_task_handle[5]);
 
 }
 
@@ -2480,7 +2480,7 @@ void read_rmp_ad(uint8_t index)
 			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 
 			if(port == 0 || port == 2)
-				length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+				length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
 			else
 				length = 0;
 
@@ -2534,7 +2534,7 @@ void read_name_of_tstat(U8_T index)
 	U16_T length;
 
 
-	if(scan_db[index].product_model > CUSTOMER_PRODUCT) 
+	if(scan_db[index].product_model > CUSTOMER_PRODUCT)
 		return;
 	buf[0] = scan_db[index].id;
 	buf[1] = READ_VARIABLES;
@@ -2542,30 +2542,30 @@ void read_name_of_tstat(U8_T index)
 	buf[3] = 0xca; // start address 714 , len 9
 	buf[4] = 0x00;
 	buf[5] = 0x09;
-	
+
 	port = get_port_by_id(buf[0]);
 	baut = get_baut_by_id(port,buf[0]);
-	if(port == 0) 
+	if(port == 0)
 	{  // wrong id
 	    return;
 	}
-	
+
 	port = port - 1;
-	
+
 	if(Modbus.com_config[port] != MODBUS_MASTER)
 		return;
-	
+
 	crc_check = crc16(buf, 6); // crc16
 	buf[6] = HIGH_BYTE(crc_check);
 	buf[7] = LOW_BYTE(crc_check);
-	
+
 	set_baut_by_port(port,baut);
 	uart_send_string(buf,8,port);
 
 
 	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
 	if(port == 0 || port == 2)
-		length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_RATE_MS);
+		length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
 	else
 		length = 0;
 
@@ -2586,10 +2586,10 @@ void read_name_of_tstat(U8_T index)
 			}
 			else
 			{
-				memset(tstat_name[index],0,16);	
-			}				
+				memset(tstat_name[index],0,16);
+			}
 			flag_tstat_name[index] = 1;
-			
+
 			// add id to online
 			tst_retry[buf[0]] = 0;
 			scan_db_time_to_live[buf[0]] = SCAN_DB_TIME_TO_LIVE;
@@ -2597,36 +2597,36 @@ void read_name_of_tstat(U8_T index)
 			{
 				U8_T add_i;
 				if(get_index_by_id(buf[0],&add_i) == 1)
-				{				
+				{
 					if(scan_db[add_i].product_model < CUSTOMER_PRODUCT)
 						add_id_online(add_i);
 				}
 			}
-			
+
 		}
 		else
 			packet_error[port]++;
 	}
 	else
-	{		
-		timeout[port]++;		
+	{
+		timeout[port]++;
 		tst_retry[buf[0]]++;
 //		auto_check_master_retry[port]++;
-	}	
+	}
 
-	if(tst_retry[buf[0]] >= 10)	
-	{  		
+	if(tst_retry[buf[0]] >= 10)
+	{
 		U8_T remove_i;
  		// get index form scan_db
 		if(get_index_by_id(buf[0],&remove_i) == 1)
-		{			
+		{
 			if(scan_db[remove_i].product_model < CUSTOMER_PRODUCT)
 			{
 				remove_id_online(remove_i);
 			}
 		}
 	}
-	
+
 	free(subnet_response_buf);
 
 }
@@ -2658,20 +2658,20 @@ void Change_com_config(U8_T port)
 // if discover device in this port by hands, change config
 	if(Modbus.com_config[port] != MODBUS_MASTER)
 	{
-		Modbus.com_config[port] = MODBUS_MASTER;		
+		Modbus.com_config[port] = MODBUS_MASTER;
 		//E2prom_Write_Byte(EEP_COM0_CONFIG + port, Modbus.com_config[port]);
 		Count_com_config();
 	}
-	
+
 	if(port == 0)
-	{		
+	{
 		//E2prom_Read_Byte(EEP_UART0_BAUDRATE,&temp_baut);
 		if(temp_baut != Modbus.baudrate[0])
 			;//E2prom_Write_Byte(EEP_UART0_BAUDRATE, Modbus.baudrate[0]);
 	}
-	
+
 	if(port == 1)
-	{		
+	{
 		//E2prom_Read_Byte(EEP_UART1_BAUDRATE,&temp_baut);
 		if(temp_baut != Modbus.baudrate[1])
 			;//E2prom_Write_Byte(EEP_UART1_BAUDRATE, Modbus.baudrate[1]);
@@ -2734,7 +2734,7 @@ void Check_scan_db_time_to_live(void)
 {
 	U8_T i,j;
 	for(i = 0;i < sub_no;i++)
-	{		
+	{
 		if(scan_db_time_to_live[scan_db[i].id]-- < 0)
 		{
 			db_online[scan_db[i].id / 8] &= ~(1 << (scan_db[i].id % 8));
@@ -2755,9 +2755,9 @@ void Check_scan_db_time_to_live(void)
 			scan_db[j + 1].product_model = 0;
 
 			if(db_ctr > 0)	db_ctr--;
-			
+
 			recount_sub_addr();
-			
+
 			//ChangeFlash = 1;
 			scan_db_time_to_live[scan_db[i].id] = 0;
 			return;
