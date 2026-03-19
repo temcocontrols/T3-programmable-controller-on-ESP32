@@ -15,7 +15,7 @@
 #define	ScrollingSTACK_SIZE	portMINIMAL_STACK_SIZE//1024
 #define	CursorSTACK_SIZE	portMINIMAL_STACK_SIZE//512
 
-//xTaskHandle Handle_Menu, Handle_Scrolling, Handle_Cursor;
+//TaskHandle_t Handle_Menu, Handle_Scrolling, Handle_Cursor;
 
 U8_T show_identify;
 U8_T count_show_id;
@@ -201,6 +201,7 @@ void MenuTask(void *pvParameters)
 			case LCD_MENU_INIT:
 			{
 				// Initialize Menu
+				LCD_IO_Init();
 				menu_init();
 				// delay_ms(100);
 				if(Modbus.mini_type == PROJECT_AIRLAB)

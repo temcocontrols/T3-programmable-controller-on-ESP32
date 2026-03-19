@@ -54,7 +54,7 @@
 
 
 
-EXT_RAM_ATTR Address_Cache_Entry Address_Cache[MAX_ADDRESS_CACHE];
+EXT_RAM_BSS_ATTR Address_Cache_Entry Address_Cache[MAX_ADDRESS_CACHE];
 
 
 /* State flags for cache entries */
@@ -356,10 +356,10 @@ bool address_get_by_device(
     Address_Cache_Entry *pMatch;
     bool found = false; /* return value */
 
-	
+
    pMatch = Address_Cache;
 
-    while (pMatch <= &Address_Cache[MAX_ADDRESS_CACHE - 1]) 
+    while (pMatch <= &Address_Cache[MAX_ADDRESS_CACHE - 1])
 	{
         if (((pMatch->Flags & BAC_ADDR_IN_USE) != 0) &&
             (pMatch->device_id == device_id)) {
@@ -372,7 +372,7 @@ bool address_get_by_device(
         }
         pMatch++;
     }
-		
+
     return found;
 }
 

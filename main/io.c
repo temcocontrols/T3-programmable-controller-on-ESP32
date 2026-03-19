@@ -4,9 +4,9 @@
 #include "scan.h"
 #include "commsub.h"
 
-U8_T base_in;
-U8_T base_out;
-U8_T base_var;
+// U8_T base_in;
+// U8_T base_out;
+// U8_T base_var;
 
 
 
@@ -14,13 +14,13 @@ U8_T base_var;
 
 
 
-U16_T Test[50];
+uint16_t Test[50];
 
-U8_T base_in;
-U8_T base_out;
-U8_T base_var;
+// U8_T base_in;
+// U8_T base_out;
+// U8_T base_var;
 
-U8_T far sub_no;
+// U8_T far sub_no;
 
 
 

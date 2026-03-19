@@ -370,18 +370,18 @@ extern U8_T  boot;
 //extern U32_T  changed_index;
 //extern U32_T  changed_index2;
 
-extern EXT_RAM_ATTR Str_Remote_TstDB        Remote_tst_db;
-extern EXT_RAM_ATTR Str_Panel_Info 	    		Panel_Info;
-extern EXT_RAM_ATTR Str_Setting_Info     		Setting_Info;
-extern EXT_RAM_ATTR Str_MISC  						 	MISC_Info;
-extern EXT_RAM_ATTR Str_Special  Write_Special;
+extern EXT_RAM_BSS_ATTR Str_Remote_TstDB        Remote_tst_db;
+extern EXT_RAM_BSS_ATTR Str_Panel_Info 	    		Panel_Info;
+extern EXT_RAM_BSS_ATTR Str_Setting_Info     		Setting_Info;
+extern EXT_RAM_BSS_ATTR Str_MISC  						 	MISC_Info;
+extern EXT_RAM_BSS_ATTR Str_Special  Write_Special;
 
 
 extern Str_in_point 		*new_inputs;
 extern Str_out_point 		*new_outputs;
 extern Str_variable_point 	*new_vars;
-extern EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];
-extern EXT_RAM_ATTR Str_out_point  	outputs[MAX_OUTS];
+extern EXT_RAM_BSS_ATTR Str_in_point  inputs[MAX_INS];
+extern EXT_RAM_BSS_ATTR Str_out_point  	outputs[MAX_OUTS];
 //extern Str_out_point   	*outputs;
 extern uint8_t				 				 no_outs;
 //extern Str_in_point    	*inputs;
@@ -400,8 +400,8 @@ extern Monitor_Block		 			mon_block[2 * MAX_MONITORS];
 extern Mon_Data 			 		*Graphi_data;
 extern S8_T 				 			Garphi_data_buf[sizeof(Mon_Data)];
 
-extern EXT_RAM_ATTR S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
-extern EXT_RAM_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
+extern EXT_RAM_BSS_ATTR S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
+extern EXT_RAM_BSS_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
 
 //extern S16_T                          MAX_MONITOR_BLOCKS;
 //extern U8_T                         free_mon_blocks;
@@ -418,22 +418,22 @@ extern U8_T 			     							 ind_alarms_set;
 extern U16_T                 alarm_id;
 extern S8_T                         new_alarm_flag;
 
-extern EXT_RAM_ATTR Units_element		     				 digi_units[MAX_DIG_UNIT];
+extern EXT_RAM_BSS_ATTR Units_element		     				 digi_units[MAX_DIG_UNIT];
 extern U8_T 					 		ind_passwords;
-extern EXT_RAM_ATTR Password_point			 			passwords[ MAX_PASSW ];
+extern EXT_RAM_BSS_ATTR Password_point			 			passwords[ MAX_PASSW ];
 
 extern Str_Email_point Email_Setting;
 
-extern EXT_RAM_ATTR Str_variable_point		 		 vars[MAX_VARS + 12];
-extern EXT_RAM_ATTR Str_controller_point 	 			 controllers[MAX_CONS];
-extern EXT_RAM_ATTR Str_totalizer_point           totalizers[MAX_TOTALIZERS];
-extern EXT_RAM_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];
-extern EXT_RAM_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;
+extern EXT_RAM_BSS_ATTR Str_variable_point		 		 vars[MAX_VARS + 12];
+extern EXT_RAM_BSS_ATTR Str_controller_point 	 			 controllers[MAX_CONS];
+extern EXT_RAM_BSS_ATTR Str_totalizer_point           totalizers[MAX_TOTALIZERS];
+extern EXT_RAM_BSS_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];
+extern EXT_RAM_BSS_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;
 //extern Aux_group_point        	 		 aux_groups[MAX_GRPS];
 //extern S8_T                     		 Icon_names[MAX_ICONS][14];
-extern EXT_RAM_ATTR Control_group_point  	 		 control_groups[MAX_GRPS];
+extern EXT_RAM_BSS_ATTR Control_group_point  	 		 control_groups[MAX_GRPS];
 //extern Str_grp_element			 	    		 group_data[MAX_ELEMENTS];
-extern EXT_RAM_ATTR 	Str_grp_element_new   		group_data_new;
+extern EXT_RAM_BSS_ATTR 	Str_grp_element_new   		group_data_new;
 extern S16_T 					 							 total_elements;
 extern S16_T 					 							 group_data_length;
 
@@ -445,15 +445,15 @@ extern U32_T 				 		SD_block_num[MAX_MONITORS * 2];
 extern Str_mon_element 		write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
 extern Str_mon_element      read_mon_point_buf_from_flash[MAX_MON_POINT_READ];
 
-extern EXT_RAM_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
-extern EXT_RAM_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
-extern EXT_RAM_ATTR Str_annual_routine_point	 	 annual_routines[MAX_AR];
-extern EXT_RAM_ATTR U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];
-extern EXT_RAM_ATTR U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
+extern EXT_RAM_BSS_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
+extern EXT_RAM_BSS_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
+extern EXT_RAM_BSS_ATTR Str_annual_routine_point	 	 annual_routines[MAX_AR];
+extern EXT_RAM_BSS_ATTR U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];
+extern EXT_RAM_BSS_ATTR U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
  /* Assume bit0 from octet0 = Jan 1st */
-extern EXT_RAM_ATTR Str_program_point	     			 programs[MAX_PRGS];
+extern EXT_RAM_BSS_ATTR Str_program_point	     			 programs[MAX_PRGS];
 extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
-extern EXT_RAM_ATTR U8_T    	    	 	 prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
+extern EXT_RAM_BSS_ATTR U8_T    	    	 	 prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
 extern Str_array_point 	     			 arrays[MAX_ARRAYS];
@@ -483,11 +483,11 @@ extern U32_T                       miliseclast;
 extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
-extern EXT_RAM_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern EXT_RAM_BSS_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
 extern Byte              			  number_of_network_points_bacnet;
 extern Byte              			  number_of_network_points_modbus;
 
-extern EXT_RAM_ATTR REMOTE_POINTS		   		  remote_points_list[MAXREMOTEPOINTS];
+extern EXT_RAM_BSS_ATTR REMOTE_POINTS		   		  remote_points_list[MAXREMOTEPOINTS];
 extern Byte              			  number_of_remote_points_bacnet;
 extern Byte              			  number_of_remote_points_modbus;
 
@@ -600,11 +600,11 @@ void clear_dead_master(void);
 
 extern u8 rec_mstp_index;  // for i-am
 extern u8 send_mstp_index;
-extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];
+extern EXT_RAM_BSS_ATTR STR_SEND_BUF mstp_bac_buf[10];
 
 extern u8 rec_mstp_index1; // response packets form
 extern u8 send_mstp_index1;
-extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf1[10];
+extern EXT_RAM_BSS_ATTR STR_SEND_BUF mstp_bac_buf1[10];
 
 uint8_t Get_panel_by_deviceid(uint16_t deviceid);
 U32_T Get_device_id_by_panel(uint8 panel,uint8 sub,uint8 protocal);

@@ -7,7 +7,7 @@
 extern uint8_t ChangeFlash;
 extern uint16_t count_write_Flash;
 
-enum
+typedef enum
 {
 	FLASH_BLOCK1_SSID,
 	FLASH_BLOCK2_PN,

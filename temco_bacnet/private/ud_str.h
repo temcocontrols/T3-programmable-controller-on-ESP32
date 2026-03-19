@@ -7,10 +7,10 @@
 
 
 #include "esp_attr.h"
-//#define  EXT_RAM_ATTR
-#pragma pack(1) 
+//#define  EXT_RAM_BSS_ATTR
+#pragma pack(1)
 
-#define MAXFRAMEBUFFER			      490 
+#define MAXFRAMEBUFFER			      490
 #define MAX_SEND_FRAMES             5
 
 #define LOW_BYTE(word)	(U8_T)(word & 0x00FF)
@@ -107,14 +107,14 @@ typedef enum
 	{
 		OUT=0, IN, VAR, CON, WRT, AR, PRG,/* TBL,*/  TZ = 8,
 		AMON = 9, GRP, ARRAY, ALARMM = 12,
-		UNIT, USER_NAME, ALARM_SET = 15, WR_TIME, AR_DATA, 
+		UNIT, USER_NAME, ALARM_SET = 15, WR_TIME, AR_DATA,
 		PRG_CODE, GRP_POINT = 19,SUB_DB = 20,
 		TBL = 22,ID_ROUTION,
 		MAX_POINT_TYPE
 	}	Point_type_equate;
 
 
-typedef enum { 
+typedef enum {
 		 READOUTPUT_T3000          = OUT+1,  /* read outputs */
 		 READINPUT_T3000           = IN+1,   /* read inputs  */
 		 READVARIABLE_T3000        = VAR+1,        /* read variables*/
@@ -185,7 +185,7 @@ typedef enum {
 		 WRITE_MSV_COMMAND 		= 142,
 		 WRITE_EMAIL_ALARM           = 143,
 
-		 
+
 //		 SEND_TIME_SYNC				= 150,    // no used
 		 WRITETABLE_T3000          = 134,        /* write tables         */
 		 WRITEWEATHER_T3000  = 135,
@@ -193,15 +193,15 @@ typedef enum {
 		 WRITEEXT_IO_T3000 = 137,
 		 WRITE_ZONE_T3000		= 138,
 		 WRITE_SCHEDULE_FLAG	= 141,
-		 
+
 		 WRITETIME_COMMAND       = 121,
 		 WRITEPRGFLASH_COMMAND     = 122,
 //		 OPENSCREEN_COMMAND        = 123,
 
-		
-		 		 
+
+
 		 READPIC_T3000					= 95,
- 
+
 		 READ_MISC				= 96,
 		 READ_SETTING			 = 98,
 
@@ -213,10 +213,10 @@ typedef enum {
 		 WRITEPIC_T3000        = 195,
 		 WRITE_SPECIAL_COMMAND = 197,
 		 CLEAR_MONITOR = 200,
-		 
-		 READ_BACNET_TO_MDOBUS	=	94,		
-		 WRITE_BACNET_TO_MDOBUS	=	194,		
-		 
+
+		 READ_BACNET_TO_MDOBUS	=	94,
+		 WRITE_BACNET_TO_MDOBUS	=	194,
+
 		 READ_JSON_SCREEN          = 86,
 		 READ_JSON_ITEM            = 87,
 		 WRITE_JSON_SCREEN			= 186,
@@ -235,7 +235,7 @@ typedef enum  {
 	Volts, KV, Amps, ma, CFM, Sec, Min, Hours, Days, time_unit, ohms,
 	procent, RH, ppm, counts,	Open, CFH, GPM, GPH, GAL, CF, BTU, CMH,
 	custom1, custom2, custom3, custom4, custom5, custom6, custom7, custom8
-	} Analog_units_equate;	
+	} Analog_units_equate;
 
 
 
@@ -252,30 +252,30 @@ typedef enum { UNUSED=0,
 
 
 //not_used_input = 0,
-//Y3K_40_150DegC = 1, 
+//Y3K_40_150DegC = 1,
 //Y3K_40_300DegF = 2,
 //R10K_40_120DegC = 3,
 //R10K_40_250DegF = 4,
-//R3K_40_150DegC = 5, 
+//R3K_40_150DegC = 5,
 //R3K_40_300DegF = 6,
 //KM10K_40_120DegC = 7,
 //KM10K_40_250DegF = 8,
-//A10K_50_110DegC = 9, 
+//A10K_50_110DegC = 9,
 //A10K_60_200DegF = 10,
-//V0_5 = 11, 
+//V0_5 = 11,
 //I0_100Amps = 12,
 //I0_20ma = 13,
-//I0_20psi = 14, 
-//N0_2_32counts = 15, 
-//N0_3000FPM_0_10V = 16, 
+//I0_20psi = 14,
+//N0_2_32counts = 15,
+//N0_3000FPM_0_10V = 16,
 //P0_100_0_5V = 17,
-//P0_100_4_20ma = 18, 
-//V0_10_IN = 19, 
-//table1 = 20, 
-//table2 = 21, 
+//P0_100_4_20ma = 18,
+//V0_10_IN = 19,
+//table1 = 20,
+//table2 = 21,
 //table3 = 22,
 //table4 = 23,
-//table5 = 24, 
+//table5 = 24,
 //HI_spd_count = 25
 
 typedef enum { not_used_input, Y3K_40_150DegC,Y3K_40_300DegF,/*PT100_40_1000DegC, PT100_40_1800DegF,*/ R10K_40_120DegC,
@@ -283,7 +283,7 @@ typedef enum { not_used_input, Y3K_40_150DegC,Y3K_40_300DegF,/*PT100_40_1000DegC
 	KM10K_40_250DegF, /*A10K_50_110DegC, A10K_60_200DegF,*/PT1000_200_300DegC, PT1000_200_570DegF,
 	V0_5, I0_100Amps,
 	I0_20ma, I0_20psi, N0_2_32counts,  /* N0_3000FPM_0_10V,*/P0_100_0_10V, P0_100_0_5V,
-	P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,	table5, 
+	P0_100_4_20ma/*, P0_255p_min*/, V0_10_IN, table1, table2, table3, table4,	table5,
 	HI_spd_count,   // HZ 56   		HUMIDTY 57  		CO2 PPM 58
 	RPM = 29, PPB = 30/*TVOC*/,UG_M3 = 31,NUM_CM3=32,DB=33,LUX=34,
 	AC_PWM,
@@ -347,7 +347,7 @@ typedef struct
 {
 	uint8_t number;
 	uint8_t point_type;	 // first 3 bit for number
-	uint8_t panel;   
+	uint8_t panel;
 	uint8_t sub_id;
 	uint8_t	network_number; // networknumber, when first bit is 0
 	//when first bit is 1, panel & sub_id & network_number are combined to instacne
@@ -360,7 +360,7 @@ typedef struct
 	int8_t description[19]; 	       /* (21 uint8_ts; string)*/
 	int8_t m_del_low;
 	int8_t s_del_high;
-	
+
 	int8_t label[9];		       /* (9 uint8_ts; string)*/
 
 	int32_t value;		       /* (4 uint8_ts; int32_t) */
@@ -377,7 +377,7 @@ typedef struct
 	uint8_t sub_product;//	uint8_t s_del_high; /* (1 uint8_t ; if analog then high)*/
 	uint8_t sub_number; // bit7: 0=digital, 1=analog
 	//uint8_t count;//uint16_t count ;//delay_timer;      /* (2 uint8_ts;  seconds,minutes)*/
-	
+
 	uint8_t pwm_period;
 } Str_out_point;  /* 45 */
 
@@ -404,7 +404,7 @@ typedef struct
 	int8_t digital_analog ; /* (1 bit; 1=analog, 0=digital)*/
 	int8_t calibration_sign; /* (1 bit; sign 0=positiv 1=negative )*/
 	uint8_t sub_number;
-	uint8_t calibration_hi; /* (5 bits - spare )*/ 
+	uint8_t calibration_hi; /* (5 bits - spare )*/
 	uint8_t calibration_lo;  /* (8 bits; -25.6 to 25.6 / -256 to 256 )*/
 
 	uint8_t range;	      /* (1 uint8_t ; input_range_equate)*/
@@ -425,7 +425,7 @@ typedef struct
 	uint8_t unused	;  //low 4 bit for prog
 	uint8_t range ; /*  (1 uint8_t ; variable_range_equate)*/
 
-	
+
 }	Str_variable_point; /*  39*/
 
 
@@ -452,7 +452,7 @@ typedef struct
 
 }	Str_controller_point; /*24 */
 
-typedef struct 
+typedef struct
 {
 	int32_t	old_err;
 	int32_t 	error_area;
@@ -481,7 +481,7 @@ typedef struct
 {
 	uint8_t	minutes;		/* (1 uint8_t ; 0-59)	*/
 	uint8_t	hours; 		/* (1 uint8_t ; 0-23)	*/
- 
+
 } Time_on_off;				/* (size = 2 uint8_ts)	*/
 
 typedef struct
@@ -518,11 +518,11 @@ typedef struct
 typedef struct
 {
 	int8_t description[21]; 	      	  /* (21 uint8_ts; string)*/
-	int8_t label[9];			  /* (9 uint8_ts; string)*/  
-	uint16_t bytes;		/* (2 uint8_ts; size in uint8_ts of program)*/ 
+	int8_t label[9];			  /* (9 uint8_ts; string)*/
+	uint16_t bytes;		/* (2 uint8_ts; size in uint8_ts of program)*/
 	uint8_t on_off;	//	      : 1; /* (1 bit; 0=off; 1=on)*/
 	uint8_t auto_manual;//	  : 1; /* (1 bit; 0=auto; 1=manual)*/
-	uint8_t costtime;	//	    : 1; 
+	uint8_t costtime;	//	    : 1;
 	uint16_t real_byte;   //      : 8;
 
 } Str_program_point;	  /* 37 */
@@ -556,7 +556,7 @@ typedef struct
 	U8_T minute_interval_time; 				/* 1 uint8_t ; 0-59 */
 	U8_T hour_interval_time;   				/* 1 uint8_t ; 0-255 */
 
-	U8_T max_time;      /* the length of the monitor in time units */  
+	U8_T max_time;      /* the length of the monitor in time units */
 	// high 2bit unit, 01-min 10-hour 11-day
 	// low 6bits - time
 
@@ -597,7 +597,7 @@ typedef struct
 	U8_T saved	  ;//    :1; /* 1 bit	*/
 	U8_T active	 ;//   :1; /* 1 bit - 0=inactive, 1=active	*/
 
-	
+
 }Mon_aux; 		/* 4++3+1 = 8 uint8_ts */
 
 typedef struct              /* 645 uint8_ts */
@@ -834,7 +834,7 @@ typedef struct {
  uint8_t ddelete   ;//   : 1;
  uint8_t  type        ;//  : 2;
  uint8_t  cond_type   ;//  : 4;
- uint8_t  level       ;//  : 4; 
+ uint8_t  level       ;//  : 4;
 
  int32_t   alarm_time;
  S8_T    alarm_count;
@@ -897,7 +897,7 @@ typedef struct
 	 S8_T digital_units_off[12];       /*12 bytes; string)*/
 	 S8_T digital_units_on[12];        /*12 bytes; string)*/
 
-} Units_element;  
+} Units_element;
 
 typedef struct
 {
@@ -931,18 +931,18 @@ typedef struct
 typedef struct
 {
 // start reg   len	 mum
-	U8_T id;	
+	U8_T id;
 	U16_T func;
 	U16_T reg;
-	
+
 }STR_SCAN_TB;
 
-typedef struct 
+typedef struct
 {
 // start reg   len	 mum
 	U8_T panel;
 	U16_T object;
-	U16_T instance;	
+	U16_T instance;
 //	U8_T func;
 }STR_BAC_TB;
 
@@ -987,8 +987,8 @@ typedef struct
 //	U8_T read;//					       : 2;
 //	U8_T write;//					     : 2;
 	U8_T read_write;//		       : 2;	   0 - read only 1- writen
-  S8_T time_to_live;	
-	U32_T instance;	
+  S8_T time_to_live;
+	U32_T instance;
 	union
 	{
 		STR_SCAN_TB 						RP_modbus;
@@ -996,7 +996,7 @@ typedef struct
 	}tb;
 	U8_T invoked_id;
 	U8_T lose_count;
-	
+
 	U8_T change	;//			       : 2;
 
 }	REMOTE_POINTS; /* 1+5+4+2+2=14 bytes */
@@ -1031,7 +1031,7 @@ typedef struct
 		STR_SCAN_TB 						NT_modbus;
 		STR_BAC_TB 							NT_bacnet;
 	}tb;
-	
+
 	U8_T invoked_id;
 	U8_T lose_count;
 }	NETWORK_POINTS;   /* 5+4+2 = 11 bytes */
@@ -1159,8 +1159,8 @@ typedef struct
 typedef	union
 {
 	uint8_t all[23];
-	struct 
-	{ 	
+	struct
+	{
 	 uint16_t instance;
 	 uint8_t mac[6];
 	 uint8_t serial_num[4];
@@ -1168,16 +1168,16 @@ typedef	union
 	 uint8_t product_type;
 	 uint8_t panel_number;
 	 uint16_t modbus_port;
-	 uint16_t sw;  
+	 uint16_t sw;
 	 uint8_t hw;
 //	 uint8_t subnet[4];
-//	 uint8_t gate_addr[4];		 
+//	 uint8_t gate_addr[4];
 //	 uint8_t mac_addr[6];
 //
 //	 uint8_t tcp_type;   /* 0 -- DHCP, 1-- STATIC */
 	 uint8_t protocal;//noused[1];
 	 uint16_t instance_hi;
-			
+
 	}reg;
 }Str_Panel_Info;
 
@@ -1186,12 +1186,12 @@ typedef	struct
 	{
 	uint8 protocal;
 	uint8 modbus_id;
-	uint32_t instance;	
+	uint32_t instance;
 	}Str_Remote_Info;
 typedef struct
 {
 	uint8 number;
-	
+
 	Str_Remote_Info sub[64];
 
 }Str_Remote_TstDB;
@@ -1200,8 +1200,8 @@ typedef struct
 typedef union
 {
  uint8_t all[100];
- struct 
- {  
+ struct
+ {
   U8_T clear_health_rx_tx; //check if not 0x55ff ,means it's the old version ,ignore it.
  }reg;
 }Str_Special;
@@ -1316,7 +1316,7 @@ typedef struct {
 //	S8_T     nextpanelisoff;
 //	uint32_t need_info;
 
-}STR_PTP;  
+}STR_PTP;
 
 
 typedef struct
@@ -1361,7 +1361,7 @@ typedef struct {
 		Port_Def  Port;
 	} Routing_Table;
 
-	
+
 typedef struct
 {
 	U32_T device_id;

@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include "esp_err.h"
 
-#include "mbcontroller.h"
+// #include "mbcontroller.h"
 #include "define.h"
 #include "esp_log.h"            // for log_write
 #include "driver/gpio.h"
+#include "driver/uart.h"
 #include "modbus.h"
 #include "i2c_task.h"
 #include "flash.h"
@@ -24,7 +25,7 @@
 #include "LcdTheme.h"
 
 
-extern xSemaphoreHandle xSem_comport[3];
+extern SemaphoreHandle_t xSem_comport[3];
 
 #define EEPROM_VERSION	  105
 
@@ -531,7 +532,7 @@ void check_whether_modbus_slave(uint8_t * uart_rsv, uint16_t len, uint8_t port)
 
 }
 
-void uart0_rx_task(void)
+void uart0_rx_task(void *pvParameters)
 {
 //	uint8_t modbus_send_buf[500];
 //	uint16_t modbus_send_len;
@@ -565,7 +566,7 @@ void uart0_rx_task(void)
 				else //if(Modbus.baudrate <= 6)
 					block_time = 70;
 
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_PERIOD_MS);
 
 				if(len > 0)
 				{
@@ -604,7 +605,7 @@ void uart0_rx_task(void)
 			{
 				if(system_timer / 1000 > 10)
 				{
-					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
+					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
 
 					if(len > 0)
 					{
@@ -620,13 +621,13 @@ void uart0_rx_task(void)
 					}
 				}
 				else
-					vTaskDelay(500 / portTICK_RATE_MS);
+					vTaskDelay(500 / portTICK_PERIOD_MS);
 			}
 			else
 			{
 				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
 				{
-					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_RATE_MS);
+					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 
 					if(len>0)
 					{Test[24]++;
@@ -639,14 +640,14 @@ void uart0_rx_task(void)
 
 				}
 				else
-					vTaskDelay(50 / portTICK_RATE_MS);
+					vTaskDelay(50 / portTICK_PERIOD_MS);
 			}
 
 	}
 
 }
 
-void uart2_rx_task(void)
+void uart2_rx_task(void *pvParameters)
 {
 	//uint8_t modbus_send_buf[500];
 	//uint16_t modbus_send_len;
@@ -660,7 +661,7 @@ void uart2_rx_task(void)
 		task_test.count[10]++;
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_PERIOD_MS);
 
 			if(len>0)
 			{
@@ -696,7 +697,7 @@ void uart2_rx_task(void)
 		{
 			if(system_timer / 1000 > 10)
 			{
-				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_RATE_MS);
+				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
 
 				if(len > 0)
 				{
@@ -708,14 +709,14 @@ void uart2_rx_task(void)
 				}
 			}
 			else
-				vTaskDelay(500 / portTICK_RATE_MS);
+				vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
 		else
 		{
 			if((Modbus.com_config[2] == 0)/* || (Modbus.com_config[2] == MODBUS_MASTER) */)
 			{
 
-				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 				if(len>0)
 				{
 					led_main_rx++;
@@ -725,7 +726,7 @@ void uart2_rx_task(void)
 				}
 			}
 			else
-				vTaskDelay(500 / portTICK_RATE_MS);
+				vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
 	}
 }

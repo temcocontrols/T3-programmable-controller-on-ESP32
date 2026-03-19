@@ -4,6 +4,7 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "esp_flash.h"
 #include "flash.h"
 #include "wifi.h"
 #include "define.h"
@@ -27,8 +28,8 @@ extern S16_T timezone;
 extern U8_T lcddisplay[7];
 void Get_AVS(void);
 
-const uint8 Var_Description[12][21];
-const uint8 Var_label[12][9];
+extern const uint8 Var_Description[16][21];
+extern const uint8 Var_label[16][9];
 
 extern uint16_t input_cal[16];
 
@@ -51,6 +52,7 @@ extern uint32_t  high_spd_counter_tempbuf[32/*HI_COMMON_CHANNEL*/];
 #define TRENDLOG_ADDR	0x10000
 #define TRENDLOG_LEN	0x10000
 
+#define SPI_FLASH_SEC_SIZE 4096
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -140,7 +142,7 @@ esp_err_t read_default_from_flash(void)
 	esp_err_t err;
 	uint8_t temp[4];
 	uint16_t temp_int[2];
-	uint32_t len;
+	size_t len;
 
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -352,7 +354,7 @@ esp_err_t read_default_from_flash(void)
 	}
 
 	nvs_get_u16(my_handle, FLASH_TIME_ZONE, (uint16 *)&timezone);
-	nvs_get_u16(my_handle, FLASH_DSL, &Daylight_Saving_Time);
+	nvs_get_u8(my_handle, FLASH_DSL, &Daylight_Saving_Time);
 
 	err = nvs_get_u8(my_handle, FLASH_MAX_VARS, &max_vars);
 	if(err == ESP_ERR_NVS_NOT_FOUND || max_vars == 0)

@@ -897,9 +897,9 @@ V8 if desired. */
 #if configENABLE_BACKWARD_COMPATIBILITY == 1
 	#define eTaskStateGet eTaskGetState
 	#define portTickType TickType_t
-	#define xTaskHandle TaskHandle_t
-	#define xQueueHandle QueueHandle_t
-	#define xSemaphoreHandle SemaphoreHandle_t
+	#define TaskHandle_t TaskHandle_t
+	#define QueueHandle_t QueueHandle_t
+	#define SemaphoreHandle_t SemaphoreHandle_t
 	#define xQueueSetHandle QueueSetHandle_t
 	#define xQueueSetMemberHandle QueueSetMemberHandle_t
 	#define xTimeOutType TimeOut_t
@@ -909,7 +909,7 @@ V8 if desired. */
 	#define xTimerHandle TimerHandle_t
 	#define xCoRoutineHandle CoRoutineHandle_t
 	#define pdTASK_HOOK_CODE TaskHookFunction_t
-	#define portTICK_RATE_MS portTICK_PERIOD_MS
+	#define portTICK_PERIOD_MS portTICK_PERIOD_MS
 	#define pcTaskGetTaskName pcTaskGetName
 	#define pcTimerGetTimerName pcTimerGetName
 	#define pcQueueGetQueueName pcQueueGetName

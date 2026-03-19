@@ -13,7 +13,7 @@
 
 #if BAC_SCHEDULE
 /*
-reliable have following property  
+reliable have following property
 
 -present_value
 -description
@@ -39,8 +39,8 @@ BACNET_DATE End_Date;
 
 static
 #if ARM
- const 
-#endif	
+ const
+#endif
 int Properties_Required[] = {
     PROP_OBJECT_IDENTIFIER,
     PROP_OBJECT_NAME,
@@ -58,16 +58,16 @@ int Properties_Required[] = {
 };
 static
 #if ARM
- const 
-#endif	
+ const
+#endif
 int Properties_Optional[] = {
     PROP_WEEKLY_SCHEDULE,
     -1
 };
 static
 #if ARM
- const 
-#endif	
+ const
+#endif
 int Properties_Proprietary[] = {
     -1
 };
@@ -99,7 +99,7 @@ void Schedule_Property_Lists(const int **pRequired,
         *pOptional = Properties_Optional;
     if (pProprietary)
         *pProprietary = Properties_Proprietary;
-		
+
 }
 
 
@@ -118,7 +118,7 @@ bool Schedule_Valid_Instance(uint32_t object_instance)
 
 /* we simply have 0-n object instances. */
 unsigned Schedule_Count(void)
-{	
+{
 		return SCHEDULES;
 }
 
@@ -129,11 +129,11 @@ uint32_t Schedule_Index_To_Instance(unsigned index)
 }
 
 /* we simply have 0-n object instances. */
-unsigned Schedule_Instance_To_Index(
-    uint32_t object_instance)
+uint32_t Schedule_Instance_To_Index(
+    unsigned object_instance)
 {
 
-	return object_instance - OBJECT_BASE; 
+	return object_instance - OBJECT_BASE;
 }
 
 
@@ -145,7 +145,7 @@ bool Schedule_Object_Name(
 		unsigned index = 0;
 
     index = Schedule_Instance_To_Index(object_instance);
-	
+
     if (object_instance < MAX_SCHEDULES) {
         status = characterstring_init_ansi(object_name, get_label(SCHEDULE,index));
     }
@@ -175,7 +175,7 @@ int Schedule_Encode_Property_APDU(
 		object_index = Schedule_Instance_To_Index(object_instance);
     switch (property) {
         case PROP_OBJECT_IDENTIFIER:
-            apdu_len = 
+            apdu_len =
                 encode_application_object_id(&apdu[0], OBJECT_SCHEDULE,
                 object_index);
             break;
@@ -196,7 +196,7 @@ int Schedule_Encode_Property_APDU(
         case PROP_PRESENT_VALUE:
             apdu_len =
                 encode_application_boolean(&apdu[0], Get_bacnet_value_from_buf(SCHEDULE,0,object_index)/*AI_Present_Value[object_index]*/);
-            break;       
+            break;
         case PROP_EVENT_STATE:
             apdu_len =
                 encode_application_enumerated(&apdu[0], EVENT_STATE_NORMAL);
@@ -204,7 +204,7 @@ int Schedule_Encode_Property_APDU(
         case PROP_OUT_OF_SERVICE:
             apdu_len = encode_application_boolean(&apdu[0], Get_Out_Of_Service(SCHEDULE,object_index));
             break;
-        case PROP_WEEKLY_SCHEDULE:	
+        case PROP_WEEKLY_SCHEDULE:
 				{
 						BACNET_TIME_VALUE array;
             if(array_index == 0)       /* count, always 7 */
@@ -213,25 +213,25 @@ int Schedule_Encode_Property_APDU(
 							apdu_len = 0;
 						}
             else if (array_index == BACNET_ARRAY_ALL) { /* full array */
-						
-                for (day = 0; day < 7; day++) { 
+
+                for (day = 0; day < 7; day++) {
 									apdu_len += encode_opening_tag(&apdu[apdu_len], 0);
-                    for (i = 0; i < Get_TV_count(object_index,day); i++) 
-									  {											
-											array =  Get_Time_Value(object_index,day,i);										
-											
+                    for (i = 0; i < Get_TV_count(object_index,day); i++)
+									  {
+											array =  Get_Time_Value(object_index,day,i);
+
 											// to be fixed, array->value is not correct, have to define tag and Enumerated again.
 											// ????????
 											#if 1
 											array.Value.tag = 9;
 											array.Value.type.Enumerated = Get_WR_ON_OFF(object_index,day,i);//(i + 1) % 2;
-											
+
                        apdu_len +=
                             bacapp_encode_time_value(&apdu[apdu_len],
                             &array/*Get_Time_Value(object_index,day,i)*/);
 											#endif
-											
-											#if 0// new 
+
+											#if 0// new
 											apdu_len +=
                             bacapp_encode_time_value(&apdu[apdu_len],
                            array);
@@ -240,33 +240,33 @@ int Schedule_Encode_Property_APDU(
                     apdu_len += encode_closing_tag(&apdu[apdu_len], 0);
 
                 }
-            } 
+            }
 						else if (array_index <= 7) {      /* some array element */
-							
-                int day = array_index - 1; 
+
+                int day = array_index - 1;
                 apdu_len += encode_opening_tag(&apdu[apdu_len], 0);
                 for (i = 0; i < Get_TV_count(object_index,day)/*CurrentSC->Weekly_Schedule[day].TV_Count*/; i++) {
-                   
+
 									array =  Get_Time_Value(object_index,day,i);
 									#if 1
 											array.Value.tag = 9;
 											array.Value.type.Enumerated = Get_WR_ON_OFF(object_index,day,i);//(i + 1) % 2;
-											
+
                        apdu_len +=
                             bacapp_encode_time_value(&apdu[apdu_len],
                             &array/*Get_Time_Value(object_index,day,i)*/);
 									#endif
-									
-								#if 0 // new 
+
+								#if 0 // new
 									apdu_len +=
                         bacapp_encode_time_value(&apdu[apdu_len],
                         &array/*Get_Time_Value(object_index,day,i)*//*&CurrentSC->Weekly_Schedule[day].Time_Values[i]*/);
                 #endif
 								}
-								
+
                 apdu_len += encode_closing_tag(&apdu[apdu_len], 0);
             } else {    /* out of bounds */
-						
+
                 *error_class = ERROR_CLASS_PROPERTY;
                 *error_code = ERROR_CODE_INVALID_ARRAY_INDEX;
                 apdu_len = BACNET_STATUS_ERROR;
@@ -276,7 +276,7 @@ int Schedule_Encode_Property_APDU(
         case PROP_EFFECTIVE_PERIOD:
 				{
 // to be fixed, encode_bacnet_date cant run corrctly,?????????????
-					
+
 //					apdu_len = encode_bacnet_date(&apdu[0], &Start_Date);
 //          apdu_len +=  encode_bacnet_date(&apdu[apdu_len], &End_Date);
 					apdu[0] = 0xa4;
@@ -284,13 +284,13 @@ int Schedule_Encode_Property_APDU(
 					apdu[2] = 0xff;
 					apdu[3] = 0xff;
 					apdu[4] = 0xff;
-					
+
 					apdu[5] = 0xa4;
 					apdu[6] = 0xff;
 					apdu[7] = 0xff;
 					apdu[8] = 0xff;
 					apdu[9] = 0xff;
-					
+
 					apdu_len = 10;
 //					  if (Start_Date.year >= 1900) {
 //								apdu[0] = (uint8_t) (Start_Date.year - 1900);
@@ -306,7 +306,7 @@ int Schedule_Encode_Property_APDU(
 //						apdu[1] = Start_Date.month;
 //						apdu[2] = Start_Date.day;
 //						apdu[3] = Start_Date.wday;
-//					
+//
 //					  if (End_Date.year >= 1900) {
 //								apdu[4] = (uint8_t) (End_Date.year - 1900);
 //						} else if (End_Date.year < 0x100) {
@@ -352,7 +352,7 @@ int Schedule_Encode_Property_APDU(
                 encode_application_enumerated(&apdu[0], EVENT_STATE_NORMAL);
             break;
 				case PROP_EXCEPTION_SCHEDULE:  // fixed me
-					
+
 					apdu_len = 0;
 					break;
 				case PROP_PRIORITY_FOR_WRITING:
@@ -374,7 +374,7 @@ int Schedule_Encode_Property_APDU(
         apdu_len = -1;
 			}
     }
-	
+
     return apdu_len;
 }
 
@@ -390,13 +390,13 @@ bool Schedule_Write_Property(
     BACNET_APPLICATION_DATA_VALUE far value;
 		BACNET_TIME_VALUE far time_value;
     /* decode the some of the request */
-	
+
 	  if(!IS_CONTEXT_SPECIFIC(*wp_data->application_data))
 		{
 				len =
         bacapp_decode_application_data(wp_data->application_data,
         wp_data->application_data_len, &value);
-		
+
 
     /* FIXME: len < application_data_len: more data? */
 			if (len < 0) {
@@ -410,11 +410,11 @@ bool Schedule_Write_Property(
 			if ((wp_data->object_property != PROP_EVENT_TIME_STAMPS) &&
 					(wp_data->array_index != BACNET_ARRAY_ALL)) {
 					wp_data->error_class = ERROR_CLASS_PROPERTY;
-					wp_data->error_code = ERROR_CODE_PROPERTY_IS_NOT_AN_ARRAY;						
+					wp_data->error_code = ERROR_CODE_PROPERTY_IS_NOT_AN_ARRAY;
 					return false;
 			}
 		}
-		
+
 		object_index = Schedule_Instance_To_Index(wp_data->object_instance);
     switch ((int) wp_data->object_property) {
         case PROP_PRESENT_VALUE:
@@ -430,22 +430,22 @@ bool Schedule_Write_Property(
 
             break;
 				// add it by chelsea
-				case PROP_WEEKLY_SCHEDULE:   
-				{		
+				case PROP_WEEKLY_SCHEDULE:
+				{
 					U16_T i = 0; // data_index
 					U8_T week = 0; // 0e 0f
 					U8_T len = 0;
 					week = 0;
-					
+
 					for(i = 0;i < wp_data->application_data_len;)
 					{
 						if(wp_data->application_data[i] == 0x0E)  // start
-						{		
-							len = 0;	
+						{
+							len = 0;
 							Clear_Time_Value(object_index,week);
 							i++;
 						}
-						else if(wp_data->application_data[i] == 0x0F)  
+						else if(wp_data->application_data[i] == 0x0F)
 						{
 							i++;
 							// set tv count
@@ -462,21 +462,21 @@ bool Schedule_Write_Property(
 							{
 								bacapp_decode_time_value(&wp_data->application_data[i],&time_value);
 #if ARM
-								write_Time_Value(object_index,week,len / 7,time_value.Time.hour,time_value.Time.min,wp_data->application_data[i + 6]);	
+								write_Time_Value(object_index,week,len / 7,time_value.Time.hour,time_value.Time.min,wp_data->application_data[i + 6]);
 #else
-								write_Time_Value(object_index,week,len / 7,time_value,wp_data->application_data[i + 6]);	
+								write_Time_Value(object_index,week,len / 7,time_value,wp_data->application_data[i + 6]);
 #endif
-								
+
 								len += 7;
 								i += 7;
 							}
-						}							
+						}
 					}
-			
+
           status = true;
 				}
 				break;
-				case PROP_OBJECT_NAME:	
+				case PROP_OBJECT_NAME:
 				if (value.tag == BACNET_APPLICATION_TAG_CHARACTER_STRING) {
 
 					write_bacnet_name_to_buf(SCHEDULE,wp_data->priority,object_index,value.type.Character_String.value);
@@ -484,7 +484,7 @@ bool Schedule_Write_Property(
             } else {
                 wp_data->error_class = ERROR_CLASS_PROPERTY;
                 wp_data->error_code = ERROR_CODE_INVALID_DATA_TYPE;
-            }						
+            }
 				break;
 				case PROP_DESCRIPTION:
 								if (value.tag == BACNET_APPLICATION_TAG_CHARACTER_STRING) {
@@ -495,9 +495,9 @@ bool Schedule_Write_Property(
             } else {
                 wp_data->error_class = ERROR_CLASS_PROPERTY;
                 wp_data->error_code = ERROR_CODE_INVALID_DATA_TYPE;
-            }						
-				break;		
-						
+            }
+				break;
+
         case PROP_OUT_OF_SERVICE:
 				if (value.tag == BACNET_APPLICATION_TAG_BOOLEAN) {
 
@@ -506,21 +506,21 @@ bool Schedule_Write_Property(
             } else {
                 wp_data->error_class = ERROR_CLASS_PROPERTY;
                 wp_data->error_code = ERROR_CODE_INVALID_DATA_TYPE;
-            }				
-				
-            break; 
-        case PROP_EFFECTIVE_PERIOD: 
-					
+            }
+
+            break;
+        case PROP_EFFECTIVE_PERIOD:
+
 						len = decode_application_date(wp_data->application_data,&Start_Date);
 						len = decode_application_date(&wp_data->application_data[len],&End_Date);
-				
+
 						if(len > 0)
 							status = true;
-						
+
             break;
 	      case PROP_LIST_OF_OBJECT_PROPERTY_REFERENCES:
 						status = true;
-				
+
 //            for (i = 0; i < 1; i++) {
 //                apdu_len +=
 //                    bacapp_encode_device_obj_property_ref(&apdu[apdu_len],
@@ -531,14 +531,14 @@ bool Schedule_Write_Property(
 
 						break;
 				case PROP_PRIORITY_FOR_WRITING:
-					
+
 					break;
-      	case PROP_OBJECT_IDENTIFIER:         
+      	case PROP_OBJECT_IDENTIFIER:
         case PROP_OBJECT_TYPE:
         case PROP_STATUS_FLAGS:
         case PROP_EVENT_STATE:
-        
-        case PROP_RELIABILITY: 
+
+        case PROP_RELIABILITY:
         default:
             wp_data->error_class = ERROR_CLASS_PROPERTY;
             wp_data->error_code = ERROR_CODE_UNKNOWN_PROPERTY;

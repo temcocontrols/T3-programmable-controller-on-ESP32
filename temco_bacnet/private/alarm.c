@@ -51,7 +51,7 @@ S16_T putmessage(S8_T *mes, S16_T prg, S16_T panel, S16_T type, S8_T alarmatall,
 		ptr->change_flag  = 0;
 		if( ++ind_alarms > MAX_ALARMS) ind_alarms = MAX_ALARMS;
 		/*	GAlarm = 1;*/
-		
+
 //  save alarm to SD card
 		alarm_index++;
 	}
@@ -68,23 +68,23 @@ S16_T checkforalarm(S8_T *mes, S16_T prg, S16_T panel, S16_T id, S16_T *free_ent
 	S16_T j;
 	ptr = alarms;
 	for(j = 0;j < MAX_ALARMS;ptr++,j++)
-	{ 		
+	{
 		if( ptr->alarm == 1)
-		{			
+		{
 		 	if( ptr->alarm_panel == panel )
 			{
 				//if( ptr->prg == prg )
 			 	if( !id )
-			 	{	
+			 	{
 					if( !ptr->restored )
 				 		if (ptr->alarm_count == strlen(mes) )
 							if( !strcmp(ptr->alarm_message, mes) )
-					{ 	
+					{
 					 return j+1;          /* existing alarm*/
 					}
 				}
 				else
-				{ 
+				{
 					if( ptr->alarm_id == *((S16_T *)mes) )
 					{
 						return j+1;           /* existing alarm*/
@@ -125,13 +125,13 @@ void check_input_alarm(void)
 	U8_T alarm_in_open_num;
 	U8_T len;
 	S8_T far str[200];
-	
-	// check input alarm  
+
+	// check input alarm
 	alarm_in_short = 0;
 	alarm_in_open = 0;
 	alarm_in_short_num = 0;
 	alarm_in_open_num = 0;
-	
+
   for(j = 0;j < 32;j++)
 	{
 		if(inputs[j].decom & IN_OPEN)
@@ -169,7 +169,7 @@ void check_input_alarm(void)
 		str[len++] = ' ';
 		str[len++] = 'I';
 		str[len++] = 'N';
-		
+
 //		str[len++] = 'I';
 //		str[len++] = 'N';
 //		str[len++] = ' ';
@@ -178,9 +178,9 @@ void check_input_alarm(void)
 //		str[len++] = 'E';
 //		str[len++] = 'N';
 //		str[len++] = ' ';
-		 
+
 		for(j = 0;j < 32 ;j++)
-		{				
+		{
 			if(alarm_in_open & (1L << j))
 			{
 				if(j < 9)
@@ -203,10 +203,10 @@ void check_input_alarm(void)
 		if ( i > 0 )    /* new alarm message*/
 		{
 			alarm_flag = 1;
-		}		
+		}
 	}
 
-	
+
 	memset(str,0,200);
 	len = 0;
 	if(alarm_in_short_num > 0)
@@ -230,7 +230,7 @@ void check_input_alarm(void)
 		str[len++] = ' ';
 		str[len++] = 'I';
 		str[len++] = 'N';
-		
+
 //		str[len++] = 'I';
 //		str[len++] = 'N';
 //		str[len++] = ' ';
@@ -240,9 +240,9 @@ void check_input_alarm(void)
 //		str[len++] = 'R';
 //		str[len++] = 'T';
 //		str[len++] = ' ';
-		
+
 		for(j = 0;j < 32;j++)
-		{				
+		{
 			if(alarm_in_short & (1L << j))
 			{
 				if(j < 9)
@@ -266,8 +266,8 @@ void check_input_alarm(void)
 		{
 			alarm_flag = 1;
 		}
-	}	
-	
+	}
+
 }
 
 // check SUB ID conflict
@@ -281,14 +281,14 @@ void check_id_alarm(uint8_t type, uint8_t id, uint32_t old_sn, uint32_t new_sn)
 	memset(str,0,200);
 	if(type == 0) // confilct with master
 	{
-		sprintf(str, "ID :%u SN: %u has conlift with T3 controller" , (uint16)id,new_sn);
+		sprintf(str, "ID :%u SN: %lu has conlift with T3 controller" , (uint16)id,new_sn);
 	}
 	else //  confilct with sub
 	{
-		sprintf(str, "ID :%u SN: %u has conlift SN: %u", (uint16)id,new_sn,old_sn);
+		sprintf(str, "ID :%u SN: %lu has conlift SN: %lu", (uint16)id,new_sn,old_sn);
 	}
-	
-	if(strlen(str) > ALARM_MESSAGE_SIZE) 
+
+	if(strlen(str) > ALARM_MESSAGE_SIZE)
 		str[ALARM_MESSAGE_SIZE] = '\0';
 
 	 /*printAlarms=1*/
@@ -302,7 +302,7 @@ void generate_common_alarm(U8_T index)
 {
 	S8_T far str[200];
 	memset(str,0,200);
-	
+
 	if(index == ALARM_LOST_TOP)
 		sprintf(str, "Lost communicaton with top board" );
 	else if(index == ALARM_AO_FB)
@@ -317,8 +317,8 @@ void generate_common_alarm(U8_T index)
 		sprintf(str, "CAN NOT CONNECT SNTP" );
 	else
 		return;
-		
-	if(strlen(str) > ALARM_MESSAGE_SIZE) 
+
+	if(strlen(str) > ALARM_MESSAGE_SIZE)
 		str[ALARM_MESSAGE_SIZE] = '\0';
 
 	 /*printAlarms=1*/
@@ -349,8 +349,8 @@ void generate_program_alarm(U8_T type,U8_T prg)
 	}
 //	else
 //		return;
-		
-	if(strlen(str) > ALARM_MESSAGE_SIZE) 
+
+	if(strlen(str) > ALARM_MESSAGE_SIZE)
 		str[ALARM_MESSAGE_SIZE] = '\0';
 
 	 /*printAlarms=1*/
@@ -366,9 +366,9 @@ void generate_program_alarm(U8_T type,U8_T prg)
 //	memset(str,0,200);
 
 //	sprintf(str, "Lost communicaton with top board" );
-//	
-//	
-//	if(strlen(str) > ALARM_MESSAGE_SIZE) 
+//
+//
+//	if(strlen(str) > ALARM_MESSAGE_SIZE)
 //		str[ALARM_MESSAGE_SIZE] = '\0';
 
 //	 /*printAlarms=1*/
@@ -383,9 +383,9 @@ void generate_program_alarm(U8_T type,U8_T prg)
 //	S8_T far str[200];
 //	memset(str,0,200);
 
-//	sprintf(str, "READ AO Feedback FAIL" );	
-//	
-//	if(strlen(str) > ALARM_MESSAGE_SIZE) 
+//	sprintf(str, "READ AO Feedback FAIL" );
+//
+//	if(strlen(str) > ALARM_MESSAGE_SIZE)
 //		str[ALARM_MESSAGE_SIZE] = '\0';
 
 //	 /*printAlarms=1*/
@@ -400,8 +400,8 @@ S16_T generatealarm(S8_T *mes, S16_T prg, S16_T panel, S16_T type, S8_T alarmata
 {
 	S16_T j;
 	j = -1;
- 
-	if(checkforalarm(mes,prg,panel,0,&j) > 0) 
+
+	if(checkforalarm(mes,prg,panel,0,&j) > 0)
 	{
 		return -1;
 	}
@@ -423,7 +423,7 @@ void dalarmrestore(S8_T *mes, S16_T prg, S16_T panel)
 {
 	S16_T j;
 	Alarm_point *ptr;
-	
+
 	ptr = alarms;
 	for(j = 0;j < MAX_ALARMS;ptr++,j++)
 	{
@@ -534,22 +534,22 @@ S16_T sendalarm(S16_T arg, Alarm_point *ptr, S16_T t)
 //			}
 //*/
  return 0;//ret;
-} 
+}
 
 void update_alarm_tbl(Alarm_point *block, S16_T max_points_bank)
-{ 
+{
 	S16_T i,j;
 	Alarm_point *bl;
 	Str_points_ptr ptr;
 	S8_T alarmtask;
-	
+
 	alarmtask = 0;
 	ptr.palrm = &alarms[0];
 	for(j = 0; j < MAX_ALARMS; j++, ptr.palrm++)
  	{
 		if(	ptr.palrm->alarm )
 		{
-		 	if( ptr.palrm->change_flag ) 
+		 	if( ptr.palrm->change_flag )
 				continue;
 			ptr.palrm->change_flag = 2;
 			bl = block;
@@ -568,8 +568,8 @@ void update_alarm_tbl(Alarm_point *block, S16_T max_points_bank)
 		 	if( bl->ddelete )
 		 	{
 				if( (ptr.palrm->restored == 0) && (ptr.palrm->acknowledged == 0) )
-				{								
-					if(!ind_alarms--) ind_alarms = 0;					
+				{
+					if(!ind_alarms--) ind_alarms = 0;
 				}
 				ptr.palrm->alarm        = 0;
 				ptr.palrm->change_flag  = 0;
@@ -628,7 +628,7 @@ void update_alarm_tbl(Alarm_point *block, S16_T max_points_bank)
 
 void alarm_task(void)
 {
-//	portTickType xDelayPeriod  = ( portTickType ) 50 / portTICK_RATE_MS; // 1000#endif
+//	portTickType xDelayPeriod  = ( portTickType ) 50 / portTICK_PERIOD_MS; // 1000#endif
 //	S16_T j,ret, ret1, retry;
 //	unsigned S16_T i;
 //	S8_T ;
@@ -640,7 +640,7 @@ void alarm_task(void)
 //	{
 //		vTaskDelay(xDelayPeriod);
 //		alf = 0;
-//		
+//
 //		while(1)
 //		{
 //		if(ret1 || new_alarm_flag)
@@ -682,7 +682,7 @@ void alarm_task(void)
 //									}
 //									else   /*success*/
 //									 ptr->ddelete = 0;
-//								}	
+//								}
 //							}
 //						}
 //					}
@@ -757,7 +757,7 @@ void alarm_task(void)
 //		continue;
 //	 }
 // }
-//		
+//
 
 //	if(ret)
 //	{

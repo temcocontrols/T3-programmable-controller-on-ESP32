@@ -60,7 +60,7 @@
 /* declare space for the TSM transactions, and set it up in the init. */
 /* table rules: an Invoke ID = 0 is an unused spot in the table */
 
-static EXT_RAM_ATTR BACNET_TSM_DATA TSM_List[MAX_TSM_TRANSACTIONS];
+static EXT_RAM_BSS_ATTR BACNET_TSM_DATA TSM_List[MAX_TSM_TRANSACTIONS];
 
 /* invoke ID for incrementing between subsequent calls. */
 static uint8_t Current_Invoke_ID = 1;

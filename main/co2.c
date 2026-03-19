@@ -21,12 +21,12 @@ Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
 
 /*const uint8 Var_label[13][9] = {
-	
+
 	"Baudrate",   //0
 	"StnNumer",   //1
 	"Protocol", //2
 	"Instance",//3
-	"Unit", //10 
+	"Unit", //10
 	"Trgger_S",
 	"Timer_S",
 	"Trgger_L",
@@ -38,7 +38,7 @@ Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
 };
 const uint8 Var_Description[13][21] = {
-	
+
 	"baudrate select",   	//0
 	"station number",   	//1
 	"modbus/bacnet switch",    //2
@@ -57,8 +57,8 @@ const uint8 Var_Description[13][21] = {
 
 
 QueueHandle_t qSendCo2;
-uint8 isBlankScreen;
-uint8_t display_config[5];
+// uint8 isBlankScreen;
+// uint8_t display_config[5];
 
 /*_RANGE_ output_range_table[3] =
 {
@@ -82,7 +82,7 @@ uint16_t read_co2_by_block(uint16_t addr)
 	uint8_t *block1;
 	uint8_t temp;
 	/*uint8_t lcd_i2c_sensor_index;
-	
+
 	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;*/
 
 	if(addr == MODBUS_CO2_TEMPERATURE_DEGREE_C_OR_F)
@@ -682,7 +682,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	uint8_t *block1;
 	uint8_t temp;
 /*	uint8_t lcd_i2c_sensor_index;
-	
+
 
 	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;
 	if(lcd_i2c_sensor_index == 255)
@@ -901,7 +901,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 
 	xQueueSend(qSendCo2, &flag_write_i2c, 0);
 
-	return 0;
+	return;
 }
 
 

@@ -19,7 +19,7 @@
 #define TIMER_SCALE    (TIMER_BASE_CLK / TIMER_DIVIDER)  /*!< used to calculate counter value */
 #define TIMER_DELTA    0.001
 static bool alarm_flag;
-static xQueueHandle timer_queue;
+static QueueHandle_t timer_queue;
 
 typedef struct {
     timer_group_t timer_group;
