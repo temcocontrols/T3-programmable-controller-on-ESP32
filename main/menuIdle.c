@@ -25,11 +25,7 @@ uint8 scroll_ram[5][MAX_SCOROLL];
 uint8 scroll_fan = 0;
 uint16_t scroll_index = 0;
 
-static uint8 display_around_time_ctr = NODES_POLL_PERIOD;
 static uint8 disp_index = 0;
-static uint8 set_msv = 0;
-static uint8 warming_state = TRUE;
-static uint8 force_refresh = TRUE;
 static int8_t last_icon_flag[7] = {-1,-1,-1,-1,-1,-1,-1};
 static uint8_t fanStage = 0,fanSpeed = 0;
 uint8	count_left_key = 0;
@@ -46,6 +42,7 @@ extern bool IsOutdoorTempValid;
 extern bool HomeScreenSetpointMode;
 
 void set_output_raw(uint8_t point,uint16_t value);
+static void DisplayHeaderSymbol(void);
 
 void MenuIdle_init(void)
 {
@@ -186,8 +183,6 @@ void get_data_format(u8 loc,float num,char *s)
 
 void DisplayMenuScreen(void)
 {
-   	static u8 count_tx = 0;
-	static u8 count_rx = 0;
 	Str_points_ptr ptr;
 	ptr = put_io_buf(VAR,0);
 	if(memcmp(UI_DIS_LINE1,ptr.pvar->label,3) || ptr.pvar->range == 0)
@@ -199,7 +194,6 @@ void DisplayMenuScreen(void)
 	}
 	if(ptr.pvar->range != 0)
 	{
-
 		display_screen_value( 1);
 		draw_tangle(102,112);
 		// Display the three lines with different background colors based on disp_index
@@ -222,7 +216,6 @@ void DisplayMenuScreen(void)
 		disp_str(FORM15X30, SCH_XPOS, FAN_MODE_POS, UI_DIS_LINE2, SCH_COLOR, (disp_index == 2) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
 
-
 	ptr = put_io_buf(VAR,1);
 	if(memcmp(UI_DIS_LINE3,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
@@ -238,7 +231,6 @@ void DisplayMenuScreen(void)
 		// Display the three lines with different background colors based on disp_index
 		disp_str(FORM15X30, SCH_XPOS, SYS_MODE_POS, UI_DIS_LINE3, SCH_COLOR,(disp_index == 3) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
-
 
 	if(Modbus.disable_tstat10_display == 0)
 	{
@@ -517,22 +509,62 @@ void DisplayMenuScreen(void)
 
 		}
 
-		if(count_left_key > 5)
+	if (flag_digital_top_area == 1)
+	{
+		disp_str_16_24(FORM15X30, SCH_XPOS + 20, IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP, SCH_COLOR,
+						(disp_index == 4) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
+	}
+
+	if(count_left_key > 5)
+	{
+		disp_index = 0;
+		HomeScreenSetpointMode = false;
+		count_left_key = 0;
+	}
+	else
+		count_left_key++;
+}
+
+void MenuIdle_display(void)
+{
+	if(disp_index || Modbus.enabled_Display_HomeScreen == false)
+	{
+		if(IsHomeScreen)
 		{
-			disp_index = 0;
-			count_left_key = 0;
+			ClearScreen(TSTAT8_BACK_COLOR);
+			IsHomeScreen = false;
+		}
+		DisplayMenuScreen();
+	}
+	else
+	{
+		DisplayHomeScreen(IsHomeScreen);
+		if(!IsHomeScreen)
+		{
+			IsHomeScreen = true;
+		}
+
+		if(count_left_key > 50)
+		{
+			if(HomeScreenSetpointMode == true)
+			{
+				disp_index = 0;
+				HomeScreenSetpointMode = false;
+				count_left_key = 0;
+			}
 		}
 		else
 			count_left_key++;
+	}
+	DisplayHeaderSymbol();
+}
 
-		if (flag_digital_top_area == 1)
-		{
-		    disp_str_16_24(FORM15X30, SCH_XPOS + 20, IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP, SCH_COLOR,
-		                   (disp_index == 4) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
-		}
-
-
-
+static void DisplayHeaderSymbol(void)
+{
+	static u8 count_tx = 0;
+	static u8 count_rx = 0;
+	static bool rxActive = 0;
+	static bool txActive = 0;
 	if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL || SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)//����Ļ���Ͻ���ʾwifi��״̬
 	{
 		if(SSID_Info.rssi < -80)
@@ -558,16 +590,19 @@ void DisplayMenuScreen(void)
 	if(flagLED_sub_tx > 0)
 	{
 		if(count_tx++ % 2 == 0)
+		{
 			disp_edge(13, 26, cmnct_send, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else
+			txActive = true;
+		}
+		else if(txActive)
 			disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
 	else
 	{
 		count_tx = 0;
-		disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		if(txActive)
+			disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
-
 
 	if(flagLED_sub_rx > 0)
 	{
@@ -575,43 +610,24 @@ void DisplayMenuScreen(void)
 		if(count_tx % 2 == 1)
 			count_rx = 0;
 		if(count_rx++ % 2 == 1)
+		{
+			rxActive = true;
 			disp_edge(13, 26, cmnct_rcv, 	13,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else
+		}
+		else if(rxActive)
 			disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
 	else
 	{
 		count_rx = 0;
-		disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		if(rxActive)
+			disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
 
 	if(flagLED_sub_tx > 0)
 		flagLED_sub_tx = 0;
 	if(flagLED_sub_rx > 0)
 		flagLED_sub_rx = 0;
-
-}
-
-void MenuIdle_display(void)
-{
-	if(disp_index || Modbus.enabled_Display_HomeScreen == false)
-	{
-		if(IsHomeScreen)
-		{
-			ClearScreen(TSTAT8_BACK_COLOR);
-			HomeScreenSetpointMode = false;
-			IsHomeScreen = false;
-		}
-		DisplayMenuScreen();
-	}
-	else
-	{
-		DisplayHomeScreen(IsHomeScreen);
-		if(!IsHomeScreen)
-		{
-			IsHomeScreen = true;
-		}
-	}
 }
 
 uint8_t check_msv_data_len(uint8_t index)
@@ -639,7 +655,9 @@ void MenuIdle_keycope(uint16 key_value)
 {
     uint8 i;
     uint8 temp_value = 0;
+	uint16_t ChangeValue = 1000;
     Str_points_ptr ptr;
+
 	switch(key_value /*& KEY_SPEED_MASK*/)
 	{
 		case 0:
@@ -659,7 +677,7 @@ void MenuIdle_keycope(uint16 key_value)
 					if(ptr.pvar->digital_analog == 0)
 						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 					else
-						ptr.pvar->value = ptr.pvar->value + 1000;
+						ptr.pvar->value = ptr.pvar->value + 500;
 					ChangeFlash = 1;
 				}
 				break;
@@ -667,6 +685,10 @@ void MenuIdle_keycope(uint16 key_value)
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 //					if (vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
@@ -710,9 +732,10 @@ void MenuIdle_keycope(uint16 key_value)
 							ptr.pvar->control = 0;
 					}
 					else
-					{Test[27]++;
-						if(ptr.pvar->value < 999 * 1000)
-							ptr.pvar->value = ptr.pvar->value + 1000;
+					{
+						Test[27]++;
+						if(ptr.pvar->value < 999 * ChangeValue)
+							ptr.pvar->value = ptr.pvar->value + ChangeValue;
 						else
 							ptr.pvar->value = 0;
 					}
@@ -770,7 +793,7 @@ void MenuIdle_keycope(uint16 key_value)
 					if(ptr.pvar->digital_analog == 0)
 						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 					else
-						ptr.pvar->value = ptr.pvar->value + 1000;
+						ptr.pvar->value = ptr.pvar->value + 500;
 					ChangeFlash = 1;
 				}
 				break;
@@ -778,6 +801,10 @@ void MenuIdle_keycope(uint16 key_value)
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					char len;
@@ -812,8 +839,8 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 					else
 					{
-						if(ptr.pvar->value < 999 * 1000)
-							ptr.pvar->value = ptr.pvar->value + 10000;
+						if(ptr.pvar->value < 999 * (ChangeValue * 10))
+							ptr.pvar->value = ptr.pvar->value + (ChangeValue*10);
 						else
 							ptr.pvar->value = 0;
 					}
@@ -873,7 +900,7 @@ void MenuIdle_keycope(uint16 key_value)
 					if(ptr.pvar->digital_analog == 0)
 						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 					else
-						ptr.pvar->value = ptr.pvar->value - 1000;
+						ptr.pvar->value = ptr.pvar->value - ChangeValue;
 					ChangeFlash = 1;
 				}
 				break;
@@ -881,6 +908,10 @@ void MenuIdle_keycope(uint16 key_value)
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					//if(vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
@@ -926,7 +957,7 @@ void MenuIdle_keycope(uint16 key_value)
 					else
 					{
 //					if(vars[disp_index - 1].value > 1000)
-						ptr.pvar->value = ptr.pvar->value - 1000;
+						ptr.pvar->value = ptr.pvar->value - ChangeValue;
 //						else
 //							vars[disp_index - 1].value = 99 * 1000;
 					}
@@ -986,7 +1017,7 @@ void MenuIdle_keycope(uint16 key_value)
 					if(ptr.pvar->digital_analog == 0)
 						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
 					else
-						ptr.pvar->value = ptr.pvar->value - 1000;
+						ptr.pvar->value = ptr.pvar->value - ChangeValue;
 					ChangeFlash = 1;
 				}
 				break;
@@ -994,6 +1025,10 @@ void MenuIdle_keycope(uint16 key_value)
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					char len;
@@ -1027,7 +1062,7 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 					else
 					{
-						ptr.pvar->value =ptr.pvar->value - 10000;
+						ptr.pvar->value =ptr.pvar->value - (ChangeValue * 10);
 					}
 				}
 			}
@@ -1123,11 +1158,13 @@ void display_screen_value(uint8 type)
     float show_value = 0;
     uint8 str_length = 0;
 
+
     memcpy(spbuf, "     ", strlen("     "));
     spbuf[5] = 0; //³õÊ¼»¯5¸ö×Ö½ÚÎª¿Õ¸ñ ±ÜÃâ µÚÒ»´ÎÏÔÊ¾12345 Öµ±äÎªABCµÄÊ±ºò   »áÏÔÊ¾ABC45
     ptr = put_io_buf(VAR,type - 1);
     if (type >= 1 && type <= 3)  // ÏÔÊ¾ÔÚLCDµÄÊý¾Ý¹Ì¶¨ÎªVAR1-VAR3
     {// ONLY var1-3 support MSV
+
 		if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 		{
 			//sprintf(spbuf, "%d", msv_data[0][0].msv_value);
@@ -1283,15 +1320,33 @@ void display_screen_value(uint8 type)
 		}
     }
 
+	uint8 content_length = DISPLAY_VAL_LENTH;
+
+	while (content_length > 0 && spbuf[content_length - 1] == ' ')
+	{
+		content_length--;
+	}
+
+	if (content_length < DISPLAY_VAL_LENTH)
+	{
+		memmove(spbuf + (DISPLAY_VAL_LENTH - content_length), spbuf, content_length);
+		memset(spbuf, ' ', DISPLAY_VAL_LENTH - content_length);
+	}
+
 	if(type == 1)
-		disp_str(FORM15X30, SCH_XPOS + 96, SETPOINT_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+	{
+		if(HomeScreenSetpointMode)
+			disp_str(FORM15X30, SCH_XPOS + 50, SETPOINT_POS - 30, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+		else
+			disp_str(FORM15X30, SCH_XPOS + 95, SETPOINT_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+	}
     else if (type == 2)
     {
-    	disp_str(FORM15X30, SCH_XPOS + 96, FAN_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+    	disp_str(FORM15X30, SCH_XPOS + 95, FAN_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
     }
     else if (type == 3)
     {
-    	disp_str(FORM15X30, SCH_XPOS + 96, SYS_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+    	disp_str(FORM15X30, SCH_XPOS + 95, SYS_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
     }
 }
 
@@ -1442,7 +1497,6 @@ void Refresh_scroll(void)
 
 void display_scroll(void)
 {
-	uint8 cnt;
 	uint8 i;
 
 	Refresh_scroll();
@@ -1455,8 +1509,6 @@ void display_scroll(void)
 		{
 			if(i < SCROLL_WINDOW + 1)
 				scroll_buf[i] = *(scroll+i);
-			else
-				;//Test[20]++;
 		}
 	}
 	else
