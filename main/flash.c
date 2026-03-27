@@ -307,7 +307,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u8(my_handle, FLASH_DIS_HOME_SCREEN, &Modbus.enabled_Display_HomeScreen);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		Modbus.enabled_Display_HomeScreen = 1; // Default Enable home screen display for 5 seconds when power on, user can write 0 to this register to disable home screen display, or write 1 to this register to enable home screen display. this is for customer to test LCD and also can be used for demo in store.
+		Modbus.enabled_Display_HomeScreen = 0; // Default Disable home screen display
 		nvs_set_u8(my_handle, FLASH_DIS_HOME_SCREEN, Modbus.enabled_Display_HomeScreen);
 	}
 	err = nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
