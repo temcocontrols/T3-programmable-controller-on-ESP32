@@ -1674,7 +1674,7 @@ void Initial_points(uint8_t point_type)
 			ptr.pvar->value = 0;
 			ptr.pvar->auto_manual = 0 ;
 			ptr.pvar->digital_analog = 1;
-			ptr.pvar->range = MAX_INPUT_RANGE;
+			ptr.pvar->range = Y3K_40_150DegC;
 
 			ptr = put_io_buf(VAR,1);
 			memcpy(ptr.pvar->label,"SYS",4);

@@ -34,10 +34,12 @@ Str_points_ptr Temperature_AmbientDataPtr;
 Str_points_ptr Humidity_OutdorrDataPtr;
 Str_points_ptr Humidity_AmbientDataPtr;
 
-int32_t Temperature_OutValue     = 0;
-int32_t Temperature_AmbientValue = 0;
-int32_t Humidity_OutValue        = 0;
-int32_t Humidity_AmbientValue    = 0;
+#define UNKNOWN_VALUE 0xFFFF
+
+int32_t Temperature_OutValue     = UNKNOWN_VALUE;
+int32_t Temperature_AmbientValue = UNKNOWN_VALUE;
+int32_t Humidity_OutValue        = UNKNOWN_VALUE;
+int32_t Humidity_AmbientValue    = UNKNOWN_VALUE;
 int8_t Prev_TempSign[3] = {2, 2, 2}; // index 2 is reserved for setpoint
 bool IsOutdoorTempValid = false;
 bool HomeScreenSetpointMode = false; // toggled by keypad on home screen
@@ -80,10 +82,10 @@ void DisplayHomeScreen( bool isHomeScreen )
     {
         ClearScreen(TSTAT8_BACK_COLOR);
         DisplayDrawFormat();
-        Temperature_OutValue     = 0;
-        Temperature_AmbientValue = 0;
-        Humidity_OutValue        = 0;
-        Humidity_AmbientValue    = 0;
+        Temperature_OutValue     = UNKNOWN_VALUE;
+        Temperature_AmbientValue = UNKNOWN_VALUE;
+        Humidity_OutValue        = UNKNOWN_VALUE;
+        Humidity_AmbientValue    = UNKNOWN_VALUE;
         Prev_TempSign[0]   = 2;
         Prev_TempSign[1]   = 2;
         Prev_TempSign[2]   = 2;
@@ -191,10 +193,11 @@ static void DisplayDrawFormat( void )
         disp_edge(ICON_XDOTS, ICON_YDOTS, indoorTemp, INDOOR_ICON_XPOS,	INDOOR_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
         disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
-        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS, (uint8_t*)" 0 ", SCH_COLOR, TSTAT8_BACK_COLOR);
 
         // Setpoint label replaces the outdoor title
-        disp_str_16_24(FORM15X30, HOME_SETPOINT_STR_XPOS, HOME_SETPOINT_STR_YPOS, (uint8 *)"Setpoint", SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str(FORM15X30, HOME_SETPOINT_STR_XPOS, HOME_SETPOINT_STR_YPOS, (char *)"Setpoint", SCH_COLOR, TSTAT8_BACK_COLOR);
+        draw_tangle( 57 , 112 - 30 );
     }
     else if(IsOutdoorTempValid)
     {
@@ -205,7 +208,7 @@ static void DisplayDrawFormat( void )
         disp_edge(ICON_XDOTS, ICON_YDOTS, indoorTemp, INDOOR_ICON_XPOS,	INDOOR_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
         disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
-        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS, (uint8_t*)" 0 ", SCH_COLOR, TSTAT8_BACK_COLOR);
 
         DisDraw_Square( START_XPOS_2 , START_YPOS_2 );
         disp_str_16_24(FORM15X30, OUTDOOR_STR_XPOS,  OUTDOOR_STR_YPOS, (uint8 *)"Outside",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -213,7 +216,7 @@ static void DisplayDrawFormat( void )
         disp_edge(ICON_XDOTS, ICON_YDOTS, outsideSymbol, OUT_ICON_XPOS,	OUT_ICON_YPOS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
         disp_str_16_24(FORM15X30, HUMIDITY_OUTDOOR_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
-        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_OUTDOOR_YPOS, (uint8_t*)" 0 ", SCH_COLOR, TSTAT8_BACK_COLOR);
     }
     else
     {
@@ -224,13 +227,8 @@ static void DisplayDrawFormat( void )
         disp_edge(ICON_XDOTS, ICON_YDOTS, indoorTemp, INDOOR_ICON_XPOS,	INDOOR_ICON_YPOS - 100,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
         disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS - 60, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
-        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS - 60, (uint8_t*)"-NA", SCH_COLOR, TSTAT8_BACK_COLOR);
+        disp_str_16_24(FORM15X30, HUMIDITY_VALUE_XPOS, HUMIDITY_INDOOR_YPOS - 60, (uint8_t*)" 0 ", SCH_COLOR, TSTAT8_BACK_COLOR);
     }
-
-    // Menu Dots
-    disp_null_icon(MENU_DOT_XSIZE, MENU_DOT_YSIZE, 0, MENU_DOT_XPOS_1, MENU_DOT_YPOS, SCH_COLOR, SCH_COLOR);
-    disp_null_icon(MENU_DOT_XSIZE, MENU_DOT_YSIZE, 0, MENU_DOT_XPOS_2, MENU_DOT_YPOS, SCH_COLOR, SCH_COLOR);
-    disp_null_icon(MENU_DOT_XSIZE, MENU_DOT_YSIZE, 0, MENU_DOT_XPOS_3, MENU_DOT_YPOS, SCH_COLOR, SCH_COLOR);
 }
 
 void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
@@ -308,11 +306,11 @@ void DisplayTemperature( uint8_t index , S16_T value, uint8 unit)
 
         if(unit == TOP_AREA_DISP_UNIT_C)
         {
-                disp_str(FORM15X30, xUnitPos, yUnitPos, "C",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
+            disp_str(FORM15X30, xUnitPos, yUnitPos, "C",TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
         }
         else if(unit == TOP_AREA_DISP_UNIT_F)
         {
-                disp_str(FORM15X30, xUnitPos, yUnitPos, "F", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+            disp_str(FORM15X30, xUnitPos, yUnitPos, "F", TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
         }
     }
 }
@@ -368,9 +366,10 @@ static void DisplaySetpointValue(void)
 {
     Str_points_ptr setpointPtr = put_io_buf(VAR, 0);
     // Label at the same spot as idle screen
-    disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS, (char*)setpointPtr.pvar->label, SCH_COLOR, TSTAT8_BACK_COLOR);
+    // disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS - 20, (char*)setpointPtr.pvar->label, SCH_COLOR, TSTAT8_BACK_COLOR);
     // Value with the same formatter used by idle screen
     display_screen_value(1);
+    // draw_tangle( 52 , 112 - 30 );
 }
 
 /* End of File */
