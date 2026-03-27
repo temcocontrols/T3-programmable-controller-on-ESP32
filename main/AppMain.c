@@ -62,6 +62,8 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "monitor.h"
+#include "matter_light.h"
 
 //#include "lowPower.h"
 
@@ -4587,6 +4589,11 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
+	/* Initialize Matter Light */
+	if (matter_light_init() == ESP_OK) {
+		debug_info("Matter Light initialized successfully");
+	}
+
 	uart_init(0);
 
 #if 1
@@ -4595,11 +4602,11 @@ void app_main()
     Modbus.mini_type = MINI_TSTAT10;
 #endif
 
-    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
-	{
-		Test_Array();
-		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
-	}
+    // if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
+	// {
+	// 	Test_Array();
+	// 	xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+	// }
 
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);

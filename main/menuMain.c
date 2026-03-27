@@ -1,6 +1,6 @@
 #include "define.h"
 #include "LCD_TSTAT.h"
-#include "menu.h"
+#include "Menu.h"
 #include "bacnet.h"
 #include "user_data.h"
 #include "modbus.h"

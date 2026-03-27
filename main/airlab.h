@@ -20,7 +20,8 @@
 #include "types.h"
 #include "sensirion_common.h"
 
-#define LITTLE_ENDIAN
+/* LITTLE_ENDIAN is usually defined by system headers */
+/* #define LITTLE_ENDIAN */
 
 
 // for Sensor

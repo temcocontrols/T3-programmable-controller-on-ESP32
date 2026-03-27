@@ -1,12 +1,36 @@
-# The following five lines of boilerplate have to be in your project's
-# CMakeLists in this exact order for cmake to work correctly
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
-# (Not part of the boilerplate)
-# This example uses an extra component for common functions such as Wi-Fi and Ethernet connection.
-set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
-#set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/led_strip)
-#set(EXTRA_COMPONENT_DIRS C:/Users/Administrator/eclipse-workspace/temco_app/componets)
+# 1. Set the target early
+set(IDF_TARGET esp32)
 
+# 2. Setup Matter Paths explicitly
+set(ESP_MATTER_PATH $ENV{ESP_MATTER_PATH})
+set(MATTER_SDK_PATH ${ESP_MATTER_PATH}/connectedhomeip/connectedhomeip)
+
+# 3. FIX: Hardcode the device path as a CACHE variable
+# This prevents the "/esp_matter_device.cmake" not found error
+set(ESP_MATTER_DEVICE_PATH "${ESP_MATTER_PATH}/device_hal/device/esp32_devkit_c" CACHE PATH "Matter Device Path")
+set(ENV{ESP_MATTER_DEVICE_PATH} "${ESP_MATTER_DEVICE_PATH}")
+
+# 4. Include ESP-IDF and Matter helper files
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+include(${ESP_MATTER_PATH}/examples/common/cmake_common/components_include.cmake)
+include(${ESP_MATTER_DEVICE_PATH}/esp_matter_device.cmake)
+
+# 5. Set Component Search Paths
+set(EXTRA_COMPONENT_DIRS
+    "${ESP_MATTER_PATH}/examples/common"
+    "${MATTER_SDK_PATH}/config/esp32/components"
+    "${ESP_MATTER_PATH}/components"
+    "${ESP_MATTER_PATH}/device_hal/device"
+    "${ESP_MATTER_PATH}/device_hal/led_driver"    # <--- ADD THIS
+    "${ESP_MATTER_PATH}/device_hal/button_driver" # <--- ADD THIS (just in case)
+    "${CMAKE_CURRENT_LIST_DIR}/main"
+    ${extra_components_dirs_append})
+
 project(temco_app)
+
+# Matter specific compiler flags
+idf_build_set_property(CXX_COMPILE_OPTIONS "-std=gnu++17;-Os;-DCHIP_HAVE_CONFIG_H;-Wno-overloaded-virtual" APPEND)
+idf_build_set_property(C_COMPILE_OPTIONS "-Os" APPEND)
+idf_build_set_property(COMPILE_OPTIONS "-Wno-format-nonliteral;-Wno-format-security" APPEND)

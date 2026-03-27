@@ -77,12 +77,11 @@ void LiquidCrystal_I2C::begin() {
 	home();
 
 	display();
-	wirte4bits(0x02 << 4);
-	write4bits(0x03 << 4);
-	command(LCD_FUNCTIONSET | _dispalyfunction);
+	write4bits(0x02 << 4);
+command(LCD_FUNCTIONSET | _displayfunction);
 
 	_displaycontrol = LCD_DISPLAYON;
-	expanderWrite (_blacklightval);
+expanderWrite (_backlightval);
 
 	_displaycontrol = LCD_CURSOROFF | LCD_BLINKOFF;
 	_displaymode = LCD_ENTRYSHIFTDECREMENT | LCD_ENTRYLEFT;

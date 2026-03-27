@@ -1,65 +1,30 @@
-idf_component_register(			SRCS
-							"tcp_server.c"
-							"modbus.c"
-#							"deviceparams.c"
-							"i2c_task.c"
-							"ota.c"
-#							"microphone.c"
-							"wifi.c"
-							"sgp30_featureset.c"
-							"sensirion_common.c"
-							"sgp30.c"
-							"ethernet_task.c"
-							"flash.c"
-							"pro_info.c"
-#							"scd40.c"
-							"store.c"
-							"led_pwm.c"
-							"inputs.c"
-							"outputs.c"
-							"io.c"
-							"mlx90632.c"
-							"mlx90632_extended_meas.c"
-							"rtc.c"
-							"timegm.c"
-							"sht4x.c"
-							"sht3x.c"
-							"scd4x_i2c.c"
-							"scan.c"
-							"commsub.c"
-							"ade7953.c"
-							"lcd.c"
-#							"pic.c"
-							"smtp_client.c"
-							"airlab.c"
-							"LightSwitch.c"
-							"LS_LED.c"
-							"INA228.c"
-							"mppt_task.c"
-#							"spi_master_arm.c"
-#							"ble_mesh.c"
-							"Menu.c"
-							"menuIdle.c"
-							"menuMain.c"
-						#	"Constcode.c"
-							"menuSet.c"
-						#	"menuDaySet.c"
-							"sntp_app.c"
-							"multiMeter.c"
-							"mm_spi.c"
-							"hy3131_sw.c"
-							"Light_pwm.c"
-					#		"ddns.c"
-						#	"lowPower.c"
-							"co2.c"
-							"LcdTheme.c"
-							"DisHomeScreen.c"
-							"DisFonts.c"
-							"DisSymbol.c"
-						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
-#							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
-                    		INCLUDE_DIRS ".")
-#                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
-set(COMPONENT_ADD_INCLUDEDIRS ".")
+# Get all your .c and .cpp files
+file(GLOB SOURCES "*.c" "*.cpp")
 
-target_link_libraries(${COMPONENT_TARGET} "-u pro_info")
+# Remove problematic files that cause build errors
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Adafruit_ADS1X15.cpp")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/LiquidCrystal_I2C.cpp")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/LS_LED.c")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ble_mesh.c")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ethernet_task.c")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/mppt_lcd.cpp")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/matter_light.cpp")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/veml7700.c")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/sntp.c")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ota.c")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/menuDaySet.c")
+
+idf_component_register(
+    SRCS ${SOURCES}
+    PRIV_INCLUDE_DIRS "." "${ESP_MATTER_PATH}/examples/common/utils"
+    PRIV_REQUIRES esp_matter button led_strip temco_IO_control temco_bacnet esp_http_client bt
+)
+
+if (CONFIG_ENABLE_SET_CERT_DECLARATION_API)
+    target_add_binary_data(${COMPONENT_TARGET} "certification_declaration/certification_declaration.der" BINARY)
+endif()
+
+# Keep your special link flag for pro_info
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-u pro_info")
+
+target_compile_options(${COMPONENT_LIB} PRIVATE "-DCHIP_HAVE_CONFIG_H")

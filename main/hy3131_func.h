@@ -5,7 +5,7 @@
 #define _HY3131_FUNC_H_
 
 //#include "main.h"
-#include "HY3131_Reg.h"
+#include "hy3131_reg.h"
 
 //#define  E_DCVolt  0
 //#define  E_ACVolt  1
@@ -188,7 +188,7 @@
 #define  ACmVoltR27  SAD2IP_OP1O|SAD2IN_PB3|SAD2RH_PB6|SAD2RL_AGND  // R27
 #define  ACmVoltR28  0 // R28
 #define  ACmVoltR29  ENRMS|ENLPF|LPFBW_16384|PKHSEL_AD2 //R29
-            
+
 #define  ACmVoltR2F  ENVS|SMODE0 // R2F
 #define  ACmVoltR30  SREFO_PB6 // R30
 #define  ACmVoltR31  ENREFO|ENBIAS|SAGND_0P5 // R31
@@ -253,7 +253,7 @@
 #define  TempR2E  PS8
 
 /******************************************************************************
- Constant Voltage Resistance 
+ Constant Voltage Resistance
  ******************************************************************************/
 #define  OHMCVR20  INCMP_PB0  // R20
 #define  OHMCVR21  0  // R21
@@ -305,7 +305,7 @@
 #define  OHMCV6MR2E  DS8|FS8
 
 /******************************************************************************
- Constant Current Resistance 
+ Constant Current Resistance
  ******************************************************************************/
 #define  OHMCCR20  INCMP_PB0  // R20
 #define  OHMCCR21  0  // R21
@@ -357,7 +357,7 @@
 #define  OHMCC60MR2E  0
 
 /******************************************************************************
- Constant Voltage  Capacitance 
+ Constant Voltage  Capacitance
  ******************************************************************************/
 #define  CapCVR20  INCMP_PB0|ENCMP|ENCNTI_ACPO|ENPCMPO|ENCTR  // R20
 #define  CapCVR21  VRHCMP_VDSC13|VRLCMP_VDSC5  // R21
@@ -404,7 +404,7 @@
 #define  CapCVR3R2E 0
 
 /******************************************************************************
- Constant Current Capacitance 
+ Constant Current Capacitance
  ******************************************************************************/
 #if defined(Gain1)
 #define  CapCCR20  INCMP_PB0|ENCMP|ENCNTI_ACPO|ENPCMPO|ENCTR  // R20
@@ -466,7 +466,7 @@
 #define  CapCCR3R2E 0
 
 /******************************************************************************
- Frequency 
+ Frequency
  ******************************************************************************/
 #if defined(FIN_ACPO)
 #define  FreqR20 INCMP_PB4|ENCMP|ENCNTI_ACPO|ENPCMPO|ENCTR  // R20
