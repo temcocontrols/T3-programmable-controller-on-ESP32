@@ -48,6 +48,12 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_DISCONNECTED:
         ESP_LOGD(TAG, "HTTP_EVENT_DISCONNECTED");
         break;
+    case HTTP_EVENT_REDIRECT:
+        ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
+        break;
+    default:
+        ESP_LOGD(TAG, "Other event id:%d", evt->event_id);
+        break;
     }
     return ESP_OK;
 }
@@ -66,8 +72,11 @@ void ota_task(void *pvParameter)
 				.event_handler = _http_event_handler,
 			};
 
+            esp_https_ota_config_t ota_config = {
+                .http_config = &config,
+            };
 
-			esp_err_t ret = esp_https_ota(&config);
+			esp_err_t ret = esp_https_ota(&ota_config);
 			if (ret == ESP_OK) {
 				esp_restart();
 			} else {

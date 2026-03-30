@@ -37,14 +37,13 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/error.h"
-#include "mbedtls/certs.h"
+// #include "mbedtls/certs.h"
 #include <mbedtls/base64.h>
 #include <sys/param.h>
 
 #include "lwip/sockets.h"
 #include "user_data.h"
 #include "string.h"
-
 
 #include "driver/uart.h"
 extern char debug_array[100];

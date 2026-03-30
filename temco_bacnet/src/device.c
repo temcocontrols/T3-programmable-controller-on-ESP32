@@ -37,7 +37,7 @@
 #include "version.h"
 //#include "stack.h"
 /* objects */
-#include "device.h"	
+#include "device.h"
 #include "string.h"
 #include "proplist.h"
 
@@ -113,9 +113,9 @@ static struct my_object_functions {
 		{  // device
         OBJECT_DEVICE,
 				NULL,    /* don't init - recursive! */
-				Device_Count, 
+				Device_Count,
 			  Device_Index_To_Instance,
-				Device_Valid_Object_Instance_Number, 
+				Device_Valid_Object_Instance_Number,
 				Device_Object_Name,
 				Device_Encode_Property_APDU,/*Device_Read_Property_Local*/
 				/*Device_Write_Property,*/Device_Write_Property_Local,
@@ -123,139 +123,139 @@ static struct my_object_functions {
 				NULL,
 				NULL,
 				NULL,
-				NULL}, 
-		{  // AI			
+				NULL},
+		{  // AI
 				OBJECT_ANALOG_INPUT, NULL, Analog_Input_Count,
 				Analog_Input_Index_To_Instance, Analog_Input_Valid_Instance,
 				Analog_Input_Object_Name, Analog_Input_Encode_Property_APDU,
-				NULL/*Binary_Output_Write_Property*/, 
+				NULL/*Binary_Output_Write_Property*/,
 				Analog_Input_Property_Lists,NULL,
 				Analog_Input_Encode_Value_List,
 				NULL,
 				NULL,
-				NULL  }, 
+				NULL  },
 #if BAC_BI
-		{  // BI			
+		{  // BI
 				OBJECT_BINARY_INPUT, NULL, Binary_Input_Count,
 				Binary_Input_Index_To_Instance, Binary_Input_Valid_Instance,
 				Binary_Input_Object_Name, Binary_Input_Read_Property,
-				NULL/*Binary_Output_Write_Property*/, 
+				NULL/*Binary_Output_Write_Property*/,
 				Binary_Input_Property_Lists,NULL ,
 				Binary_Input_Encode_Value_List,
 				NULL,
 				NULL,
-				NULL  		}, 
+				NULL  		},
 #endif
 		{  // AO
 				OBJECT_ANALOG_OUTPUT,  NULL,/*Analog_Output_Init,*/ Analog_Output_Count,
 				Analog_Output_Index_To_Instance, Analog_Output_Valid_Instance,
 				Analog_Output_Object_Name, Analog_Output_Encode_Property_APDU,
-				NULL/*Binary_Output_Write_Property*/, 
+				NULL/*Binary_Output_Write_Property*/,
 				Analog_Output_Property_Lists,NULL,
 				NULL,
 				NULL,
 				NULL,
-				NULL	}, 
+				NULL	},
 		{  // AV
 				OBJECT_ANALOG_VALUE, NULL, Analog_Value_Count,
 				Analog_Value_Index_To_Instance, Analog_Value_Valid_Instance,
 				Analog_Value_Object_Name, Analog_Value_Encode_Property_APDU,
-				Analog_Value_Write_Property/*Binary_Output_Write_Property*/, 
+				Analog_Value_Write_Property/*Binary_Output_Write_Property*/,
 				Analog_Value_Property_Lists,NULL,
 				Analog_Value_Encode_Value_List,
 				NULL,
 				NULL,
 				NULL	},
-#if BAC_BV		
+#if BAC_BV
 		{  // BV
 				OBJECT_BINARY_VALUE, NULL, Binary_Value_Count,
 				Binary_Value_Index_To_Instance, Binary_Value_Valid_Instance,
 				Binary_Value_Object_Name, Binary_Value_Encode_Property_APDU,
-				Binary_Value_Write_Property/*Binary_Output_Write_Property*/, 
+				Binary_Value_Write_Property/*Binary_Output_Write_Property*/,
 				Binary_Value_Property_Lists,NULL},
 #endif
 		{  // BO
 				OBJECT_BINARY_OUTPUT, NULL,/*Binary_Output_Init,*/ Binary_Output_Count,
 				Binary_Output_Index_To_Instance, Binary_Output_Valid_Instance,
 				Binary_Output_Object_Name, Binary_Output_Encode_Property_APDU,
-				NULL/*Binary_Output_Write_Property*/, 
-				Binary_Output_Property_Lists,NULL}, 
+				NULL/*Binary_Output_Write_Property*/,
+				Binary_Output_Property_Lists,NULL},
 #if BAC_CALENDAR
 		{  // CALENDAR
 				OBJECT_CALENDAR, NULL, Calendar_Count,
 				Calendar_Index_To_Instance, Calendar_Valid_Instance,
 				Calendar_Object_Name, Calendar_Encode_Property_APDU,
-				NULL/*Calendar_Write_Property*/, 
-				Calendar_Property_Lists,NULL}, 
+				NULL/*Calendar_Write_Property*/,
+				Calendar_Property_Lists,NULL},
 #endif
-				
+
 #if BAC_SCHEDULE
 		{  // OBJECT_SCHEDULE
 				OBJECT_SCHEDULE, NULL, Schedule_Count,
 				Schedule_Instance_To_Index, Schedule_Valid_Instance,
 				Schedule_Object_Name, Schedule_Encode_Property_APDU,
-				NULL/*Calendar_Write_Property*/, 
-				Schedule_Property_Lists,NULL}, 
+				NULL/*Calendar_Write_Property*/,
+				Schedule_Property_Lists,NULL},
 #endif
-				
+
 #if  BAC_TRENDLOG
     {	// OBJECT TRENDLOG
-				OBJECT_TRENDLOG, 
-				Trend_Log_Init,  
+				OBJECT_TRENDLOG,
+				Trend_Log_Init,
 				Trend_Log_Count,
-				Trend_Log_Index_To_Instance, 
+				Trend_Log_Index_To_Instance,
 				Trend_Log_Valid_Instance,
-				Trend_Log_Object_Name,   
+				Trend_Log_Object_Name,
 				Trend_Log_Encode_Property_APDU,//Trend_Log_Read_Property,
 				NULL,//Trend_Log_Write_Property,
 				Trend_Log_Property_Lists,
-				TrendLogGetRRInfo                                                                                                                                                               
-		},					
+				TrendLogGetRRInfo
+		},
 #endif
-	
+
 #if  BAC_PROPRIETARY
     {	// OBJECT PROPRIETARY
-				PROPRIETARY_BACNET_OBJECT_TYPE, 
-				NULL,//TemcoVars_Init,  
+				PROPRIETARY_BACNET_OBJECT_TYPE,
+				NULL,//TemcoVars_Init,
 				TemcoVars_Count,
-        TemcoVars_Index_To_Instance, 
+        TemcoVars_Index_To_Instance,
 				TemcoVars_Valid_Instance,
-        NULL,//TemcoVars_Name,   
+        NULL,//TemcoVars_Name,
 				TemcoVars_Encode_Property_APDU,//Trend_Log_Read_Property,
 				TemcoVars_Write_Property,
 				TemcoVars_Property_Lists,
-				NULL                                                                                                                                                               
-		},					
+				NULL
+		},
 #endif
-		
+
 #if  BAC_MSV
     {	// OBJECT PROPRIETARY
-				OBJECT_MULTI_STATE_VALUE, 
-				NULL,//TemcoVars_Init,  
+				OBJECT_MULTI_STATE_VALUE,
+				NULL,//TemcoVars_Init,
 				Multistate_Value_Count,
-        Multistate_Value_Index_To_Instance, 
+        Multistate_Value_Index_To_Instance,
 				Multistate_Value_Valid_Instance,
-        NULL,//TemcoVars_Name,   
+        NULL,//TemcoVars_Name,
 				Multistate_Value_Read_Property,//Trend_Log_Read_Property,
 				Multistate_Value_Write_Property,
 				Multistate_Value_Property_Lists,
-				NULL                                                                                                                                                               
-		},					
+				NULL
+		},
 #endif
-		
+
 #if  BAC_FILE
     {	// OBJECT FILE
-				OBJECT_FILE, 
-				NULL,//TemcoVars_Init,  
+				OBJECT_FILE,
+				NULL,//TemcoVars_Init,
 				bacfile_count,
-        bacfile_index_to_instance, 
+        bacfile_index_to_instance,
 				bacfile_valid_instance,
-        NULL,//TemcoVars_Name,   
+        NULL,//TemcoVars_Name,
 				bacfile_read_property,//Trend_Log_Read_Property,
 				bacfile_write_property,
 				BACfile_Property_Lists,
-				NULL                                                                                                                                                               
-		},					
+				NULL
+		},
 #endif
 		{
 			MAX_BACNET_OBJECT_TYPE, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL}
@@ -263,7 +263,7 @@ static struct my_object_functions {
 
 static
 #if ARM
- const 
+ const
 #endif
 int Properties_Required[] = {
     PROP_OBJECT_IDENTIFIER,
@@ -279,7 +279,7 @@ int Properties_Required[] = {
     PROP_PROTOCOL_REVISION,
     PROP_PROTOCOL_SERVICES_SUPPORTED,
     PROP_PROTOCOL_OBJECT_TYPES_SUPPORTED,
-   	PROP_OBJECT_LIST, 
+   	PROP_OBJECT_LIST,
     PROP_MAX_APDU_LENGTH_ACCEPTED,
     PROP_SEGMENTATION_SUPPORTED,
     PROP_APDU_TIMEOUT,
@@ -296,20 +296,20 @@ int Properties_Required[] = {
 
 static
 #if ARM
- const 
+ const
 #endif
 int Properties_Optional[] = {
     PROP_DESCRIPTION,
     PROP_LOCATION,
     PROP_MAX_MASTER,
-    PROP_MAX_INFO_FRAMES,	
-		
+    PROP_MAX_INFO_FRAMES,
+
     -1
 };
 
 static
 #if ARM
- const 
+ const
 #endif
 int Properties_Proprietary[] = {
 		TEMCO_REG1,
@@ -337,7 +337,7 @@ void Device_Init(
        sizeof(Object_Instance_Number),
        EEPROM_BACNET_ID_ADDR); */
 	System_Status = STATUS_OPERATIONAL;
-	
+
 #if ASIX
 	i= 0;
 	System_Status = STATUS_OPERATIONAL;
@@ -350,7 +350,7 @@ void Device_Init(
 	Object_Table[i].Object_Read_Property = Device_Encode_Property_APDU;
 	Object_Table[i].Object_Write_Property = Device_Write_Property;
 	Object_Table[i].Object_RPM_List = Device_Property_Lists;
-	
+
 	i++;
 	Object_Table[i].Object_Type = OBJECT_ANALOG_INPUT;
 	Object_Table[i].Object_Init = NULL;
@@ -372,7 +372,7 @@ void Device_Init(
 	Object_Table[i].Object_Read_Property = Binary_Input_Read_Property;//Binary_Input_Encode_Property_APDU;
 	Object_Table[i].Object_Write_Property = NULL;
 	Object_Table[i].Object_RPM_List = Binary_Input_Property_Lists;
-#endif	
+#endif
 	i++;
 	Object_Table[i].Object_Type = OBJECT_ANALOG_OUTPUT;
 	Object_Table[i].Object_Init = NULL;//Analog_Output_Init;
@@ -395,7 +395,7 @@ void Device_Init(
 	Object_Table[i].Object_Write_Property = NULL;
 	Object_Table[i].Object_RPM_List = Analog_Value_Property_Lists;
 
-#if BAC_BV	
+#if BAC_BV
 	i++;
 	Object_Table[i].Object_Type = OBJECT_BINARY_VALUE;
 	Object_Table[i].Object_Init = NULL;//Analog_Value_Init;
@@ -406,7 +406,7 @@ void Device_Init(
 	Object_Table[i].Object_Read_Property = Binary_Value_Encode_Property_APDU;
 	Object_Table[i].Object_Write_Property = NULL;
 	Object_Table[i].Object_RPM_List = Binary_Value_Property_Lists;
-#endif	
+#endif
 	i++;
 	Object_Table[i].Object_Type = OBJECT_BINARY_OUTPUT;
 	Object_Table[i].Object_Init = NULL;// Binary_Output_Init;
@@ -439,7 +439,7 @@ void Device_Init(
 	Object_Table[i].Object_Read_Property = Schedule_Encode_Property_APDU;
 	Object_Table[i].Object_Write_Property = NULL;
 	Object_Table[i].Object_RPM_List = Schedule_Property_Lists;
-	
+
 	i++;
 	Object_Table[i].Object_Type = MAX_BACNET_OBJECT_TYPE;
 	Object_Table[i].Object_Init = NULL;
@@ -474,15 +474,15 @@ void Device_Init(
 //	confirmed_service_supported[20] = SERVICE_SUPPORTED_REINITIALIZE_DEVICE;
 //	confirmed_service_supported[21] = SERVICE_SUPPORTED_VT_OPEN;
 //	confirmed_service_supported[22] = SERVICE_SUPPORTED_VT_CLOSE;
-//	confirmed_service_supported[23] = SERVICE_SUPPORTED_VT_DATA;	
+//	confirmed_service_supported[23] = SERVICE_SUPPORTED_VT_DATA;
 //	confirmed_service_supported[24] = SERVICE_SUPPORTED_AUTHENTICATE;
 //	confirmed_service_supported[25] = SERVICE_SUPPORTED_REQUEST_KEY;
 //	confirmed_service_supported[26] = SERVICE_SUPPORTED_READ_RANGE;
-//	confirmed_service_supported[27] = SERVICE_SUPPORTED_LIFE_SAFETY_OPERATION;	
+//	confirmed_service_supported[27] = SERVICE_SUPPORTED_LIFE_SAFETY_OPERATION;
 //	confirmed_service_supported[28] = SERVICE_SUPPORTED_SUBSCRIBE_COV_PROPERTY;
 //	confirmed_service_supported[29] = SERVICE_SUPPORTED_GET_EVENT_INFORMATION;
-	
-	
+
+
 //	unconfirmed_service_supported[0] = SERVICE_SUPPORTED_I_AM;
 //	unconfirmed_service_supported[1] = SERVICE_SUPPORTED_I_HAVE;
 //	unconfirmed_service_supported[2] = SERVICE_SUPPORTED_UNCONFIRMED_COV_NOTIFICATION;
@@ -551,7 +551,7 @@ unsigned Device_Object_List_Count( void)
 
     /* FIXME: add objects as needed */
     count += Analog_Value_Count();
-#if BAC_BV	
+#if BAC_BV
 		count += Binary_Value_Count();
 #endif
 		count += Analog_Input_Count();
@@ -614,7 +614,7 @@ bool Device_Object_List_Identifier(
             status = true;
         }
     }
-#if BAC_BV			
+#if BAC_BV
 		    /* binary value objects */
     if (!status) {
         /* array index starts at 1, and 1 for the device object */
@@ -626,7 +626,7 @@ bool Device_Object_List_Identifier(
             status = true;
         }
     }
-#endif		
+#endif
 	/* analog input objects */
     if (!status) {
         /* array index starts at 1, and 1 for the device object */
@@ -673,7 +673,7 @@ bool Device_Object_List_Identifier(
         }
     }
 #endif
-// SCHEDULE		
+// SCHEDULE
 #if BAC_SCHEDULE
 		if (!status) {
         /* array index starts at 1, and 1 for the device object */
@@ -687,8 +687,8 @@ bool Device_Object_List_Identifier(
     }
 #endif
 
-#if BAC_CALENDAR		
-// CALENDAR		
+#if BAC_CALENDAR
+// CALENDAR
 		if (!status) {
         /* array index starts at 1, and 1 for the device object */
         object_index -= object_count;
@@ -700,9 +700,9 @@ bool Device_Object_List_Identifier(
         }
     }
 #endif
-		
-#if BAC_TRENDLOG		
-// TRENDLOG			
+
+#if BAC_TRENDLOG
+// TRENDLOG
 		if (!status) {
         /* array index starts at 1, and 1 for the device object */
         object_index -= object_count;
@@ -714,9 +714,9 @@ bool Device_Object_List_Identifier(
         }
     }
 #endif
-		
-#if BAC_PROPRIETARY		
-// PROPRIETARY			
+
+#if BAC_PROPRIETARY
+// PROPRIETARY
 		if (!status) {
         /* array index starts at 1, and 1 for the device object */
         object_index -= object_count;
@@ -728,8 +728,8 @@ bool Device_Object_List_Identifier(
         }
     }
 #endif
-		
-#if BAC_MSV		
+
+#if BAC_MSV
 		if (!status) {
         /* array index starts at 1, and 1 for the device object */
         object_index -= object_count;
@@ -741,8 +741,8 @@ bool Device_Object_List_Identifier(
         }
     }
 #endif
-		
-#if BAC_FILE	
+
+#if BAC_FILE
 		if (!status) {
         /* array index starts at 1, and 1 for the device object */
         object_index -= object_count;
@@ -882,7 +882,7 @@ int Device_Encode_Property_APDU(
             apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
             break;
-        case PROP_VENDOR_IDENTIFIER: 
+        case PROP_VENDOR_IDENTIFIER:
             apdu_len =
                 encode_application_unsigned(&apdu[0],Device_Vendor_Identifier());
             break;
@@ -901,11 +901,11 @@ int Device_Encode_Property_APDU(
             apdu_len =
                 encode_application_character_string(&apdu[0], &char_string);
             break;
-        case PROP_PROTOCOL_VERSION:	
+        case PROP_PROTOCOL_VERSION:
             apdu_len =
                 encode_application_unsigned(&apdu[0], BACNET_PROTOCOL_VERSION);
             break;
-        case PROP_PROTOCOL_REVISION: 
+        case PROP_PROTOCOL_REVISION:
             apdu_len =
                 encode_application_unsigned(&apdu[0],
                 BACNET_PROTOCOL_REVISION);
@@ -929,7 +929,7 @@ int Device_Encode_Property_APDU(
                 /* initialize all the object types to not-supported */
                 bitstring_set_bit(&bit_string, (uint8_t) i, false);
             }
-						
+
 						pObject = Object_Table;
             while (pObject->Object_Type < MAX_BACNET_OBJECT_TYPE) {
                 if ((pObject->Object_Count) && (pObject->Object_Count() > 0)) {
@@ -938,8 +938,8 @@ int Device_Encode_Property_APDU(
                 pObject++;
             }
             apdu_len = encode_application_bitstring(&apdu[0], &bit_string);
-						
-            /* FIXME: indicate the objects that YOU support */						
+
+            /* FIXME: indicate the objects that YOU support */
 //            bitstring_set_bit(&bit_string, OBJECT_DEVICE, true);
 //            bitstring_set_bit(&bit_string, OBJECT_ANALOG_VALUE, true);
 //            bitstring_set_bit(&bit_string, OBJECT_ANALOG_INPUT, true);
@@ -948,7 +948,7 @@ int Device_Encode_Property_APDU(
 //            bitstring_set_bit(&bit_string, OBJECT_BINARY_INPUT, true);
 //            apdu_len = encode_application_bitstring(&apdu[0], &bit_string);
             break;
-        case PROP_OBJECT_LIST:	
+        case PROP_OBJECT_LIST:
             count = Device_Object_List_Count();
             /* Array element zero is the number of objects in the list */
             if (array_index == 0)
@@ -968,7 +968,7 @@ int Device_Encode_Property_APDU(
                     apdu_len += len;
                     /* assume next one is the same size as this one */
                     /* can we all fit into the APDU? */
-                    if ((apdu_len + len) >= MAX_APDU) { 
+                    if ((apdu_len + len) >= MAX_APDU) {
                         /* Abort response */
                         *error_code =
                             ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;
@@ -976,7 +976,7 @@ int Device_Encode_Property_APDU(
                         break;
                     }
                 }
-            } else { 
+            } else {
                 if (Device_Object_List_Identifier(array_index, &object_type,
                         &instance))
 								{
@@ -984,7 +984,7 @@ int Device_Encode_Property_APDU(
                         encode_application_object_id(&apdu[0], object_type,
                         instance);
 								}
-                else { 
+                else {
                     *error_class = ERROR_CLASS_PROPERTY;
                     *error_code = ERROR_CODE_INVALID_ARRAY_INDEX;
                     apdu_len = BACNET_STATUS_ERROR;
@@ -1017,7 +1017,7 @@ int Device_Encode_Property_APDU(
             apdu_len = encode_application_unsigned(&apdu[0], 0);
             break;
 #if 0//BAC_TIMESYNC
-			  case PROP_LOCAL_DATE: 
+			  case PROP_LOCAL_DATE:
 						apdu_len = encode_application_date(&apdu[0],&Local_Date);
 						break;
 				case PROP_LOCAL_TIME:
@@ -1032,7 +1032,7 @@ int Device_Encode_Property_APDU(
             break;
 
         case PROP_MAX_MASTER:
-            apdu_len = 
+            apdu_len =
                 encode_application_unsigned(&apdu[0], dlmstp_max_master());	// tbd: changed by chelsea
             break;
         case TEMCO_REG1:  // REGISTER NAME
@@ -1075,14 +1075,14 @@ int Device_Encode_Property_APDU(
 			}
             break;
         /*case TEMCO_REG2:
-            apdu_len = 
+            apdu_len =
 							encode_application_unsigned(&apdu[0], Test[1]);	// tbd: changed by chelsea
             break;*/
         case TEMCO_REG3:
-            apdu_len = 
+            apdu_len =
 							encode_application_unsigned(&apdu[0], Test[19]);   // tbd: changed by chelsea
             break;
-#endif			
+#endif
 	/*	cas#e PROP_PRESENT_VALUE:
 			apdu_len = encode_application_real(&apdu[0], 33.3);
 			break;	*/
@@ -1103,7 +1103,9 @@ int Device_Encode_Property_APDU(
 }
 
 bool Device_Write_Property_Local(
-    BACNET_WRITE_PROPERTY_DATA * wp_data)
+    BACNET_WRITE_PROPERTY_DATA *wp_data,
+    BACNET_ERROR_CLASS *error_class,
+    BACNET_ERROR_CODE *error_code)
 {
     bool status = false;        /* return value - false=error */
     int len = 0;
@@ -1168,7 +1170,7 @@ bool Device_Write_Property_Local(
                     max_master = value.type.Unsigned_Int;
                     dlmstp_set_max_master(max_master);
                     //eeprom_bytes_write(NV_EEPROM_MAX_MASTER, &max_master, 1);
-											
+
 											Store_MASTER_To_Eeprom(max_master);
 
                     status = true;
@@ -1196,7 +1198,7 @@ bool Device_Write_Property_Local(
 						status = true;
 					}
 					break;
-				
+
 				case PROP_MODEL_NAME:
 					if (value.tag == BACNET_APPLICATION_TAG_CHARACTER_STRING)
 					{
@@ -1306,7 +1308,7 @@ bool Device_Write_Property_Local(
 					{
 						status = true;
 					}
-					
+
 					break;
         default:
             wp_data->error_class = ERROR_CLASS_PROPERTY;
@@ -1341,14 +1343,14 @@ bool Device_Write_Property(
                 status = Analog_Value_Write_Property(wp_data,error_class,error_code);
             }
             break;
-#if BAC_BV	
+#if BAC_BV
 				 case OBJECT_BINARY_VALUE:
             if (Binary_Value_Valid_Instance(wp_data->object_instance)) {
                 status = Binary_Value_Write_Property(wp_data,error_class,error_code);
             }
             break;
-#endif	
-#if BAC_BI						
+#endif
+#if BAC_BI
         case OBJECT_BINARY_INPUT:
             if (Binary_Input_Valid_Instance(wp_data->object_instance)) {
                 wp_data->error_class = ERROR_CLASS_PROPERTY;
@@ -1369,10 +1371,10 @@ bool Device_Write_Property(
 
         case OBJECT_DEVICE:
             if (Device_Valid_Object_Instance_Number(wp_data->object_instance)) {
-                status = Device_Write_Property_Local(wp_data);
+                status = Device_Write_Property_Local(wp_data, error_class, error_code);
             }
             break;
-				
+
         default:
             break;
     }
@@ -1398,7 +1400,7 @@ bool Device_Object_Name(
     BACNET_CHARACTER_STRING * object_name)
 {
     bool status = false;
-		
+
     if (object_instance == Object_Instance_Number) {
 //        status = characterstring_copy(object_name,(BACNET_CHARACTER_STRING *)Get_Object_Name());
        status = characterstring_init_ansi(object_name, Get_Object_Name());
@@ -1411,9 +1413,9 @@ void Device_Property_Lists(
     const int **pOptional,
     const int **pProprietary)
 {
-	
+
 #if ASIX
-	
+
 	  Properties_Required[0] = PROP_OBJECT_IDENTIFIER;
     Properties_Required[1] = PROP_OBJECT_NAME;
     Properties_Required[2] = PROP_OBJECT_TYPE;
@@ -1445,9 +1447,9 @@ void Device_Property_Lists(
 		Properties_Optional[4] =  -1;
 
 		Properties_Proprietary[0] = -1;
-		
+
 #endif
-	
+
     if (pRequired)
         *pRequired = Properties_Required;
     if (pOptional)
@@ -1556,7 +1558,7 @@ static int Read_Property_Common(
             }
             break;
         default:
-			
+
             if (pObject->Object_Read_Property) {
                 //apdu_len = pObject->Object_Read_Property(rpdata);
 							rpdata->error_class = ERROR_CLASS_PROPERTY;
@@ -1566,50 +1568,50 @@ static int Read_Property_Common(
 							apdu_len = Device_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-					
+
 							if(pObject->Object_Type == OBJECT_ANALOG_INPUT)
 							apdu_len = Analog_Input_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-							
+
 							if(pObject->Object_Type == OBJECT_ANALOG_OUTPUT)
 							apdu_len = Analog_Output_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-							
+
 							if(pObject->Object_Type == OBJECT_ANALOG_VALUE)
 							apdu_len = Analog_Value_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-#if BAC_BV								
+#if BAC_BV
 							if(pObject->Object_Type == OBJECT_BINARY_VALUE)
 							apdu_len = Binary_Value_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-#endif							
-							
+#endif
+
 							if(pObject->Object_Type == OBJECT_BINARY_OUTPUT)
 							apdu_len = Binary_Output_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-							
+
 							if(pObject->Object_Type == OBJECT_CALENDAR)
 							apdu_len = Calendar_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-							
+
 							if(pObject->Object_Type == OBJECT_SCHEDULE)
 							apdu_len = Schedule_Encode_Property_APDU(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
                     rpdata->array_index,  &rpdata->error_class, &rpdata->error_code);
-						
+
 #endif
-							
+
 #if ARM
 							apdu_len = pObject->Object_Read_Property(&apdu[0],
                     rpdata->object_instance, rpdata->object_property,
-                    rpdata->array_index,  
-									&rpdata->error_class, 
+                    rpdata->array_index,
+									&rpdata->error_class,
 									&rpdata->error_code);
 #endif
             }
@@ -1659,56 +1661,56 @@ void Device_Objects_Property_List(
      * to populate the pointers to the individual list counters.
      */
     pObject = Device_Objects_Find_Functions(object_type);
-    if ((pObject != NULL) && (pObject->Object_RPM_List != NULL)) { 
+    if ((pObject != NULL) && (pObject->Object_RPM_List != NULL)) {
 			// FIX ME, added by chelsea
 #if ARM
         pObject->Object_RPM_List(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
+            &pPropertyList->Optional.pList,
 					&pPropertyList->Proprietary.pList);
 #endif
-	
+
 #if ASIX
 					if(pObject->Object_Type == OBJECT_DEVICE)
 							Device_Property_Lists(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
+            &pPropertyList->Optional.pList,
 					&pPropertyList->Proprietary.pList);
-					
+
 							if(pObject->Object_Type == OBJECT_ANALOG_INPUT)
 							Analog_Input_Property_Lists(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
+            &pPropertyList->Optional.pList,
 					&pPropertyList->Proprietary.pList);
-							
+
 							if(pObject->Object_Type == OBJECT_ANALOG_OUTPUT)
 							Analog_Output_Property_Lists(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
+            &pPropertyList->Optional.pList,
 					&pPropertyList->Proprietary.pList);
-							
+
 							if(pObject->Object_Type == OBJECT_ANALOG_VALUE)
 							Analog_Value_Property_Lists(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
+            &pPropertyList->Optional.pList,
 					&pPropertyList->Proprietary.pList);
-#if BAC_BV								
+#if BAC_BV
 							if(pObject->Object_Type == OBJECT_BINARY_VALUE)
 							Binary_Value_Property_Lists(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
+            &pPropertyList->Optional.pList,
 					&pPropertyList->Proprietary.pList);
-#endif							
+#endif
 							if(pObject->Object_Type == OBJECT_BINARY_OUTPUT)
 							Binary_Output_Property_Lists(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
+            &pPropertyList->Optional.pList,
 					&pPropertyList->Proprietary.pList);
-							
+
 //							if(pObject->Object_Type == OBJECT_CALENDAR)
 //							Analog_Input_Property_Lists(&pPropertyList->Required.pList,
-//            &pPropertyList->Optional.pList, 
+//            &pPropertyList->Optional.pList,
 //					&pPropertyList->Proprietary.pList);
-							
+
 							if(pObject->Object_Type == OBJECT_SCHEDULE)
 							Schedule_Property_Lists(&pPropertyList->Required.pList,
-            &pPropertyList->Optional.pList, 
-					&pPropertyList->Proprietary.pList);		
-			
-			
+            &pPropertyList->Optional.pList,
+					&pPropertyList->Proprietary.pList);
+
+
 #endif
     }
 
@@ -1777,12 +1779,12 @@ bool Device_Valid_Object_Name(
     struct my_object_functions *pObject = NULL;
 
     max_objects = Device_Object_List_Count();
-		
+
     for (i = 1; i <= max_objects; i++) {
         check_id = Device_Object_List_Identifier(i, &type, &instance);
-        if (check_id) { 				
+        if (check_id) {
             pObject = Device_Objects_Find_Functions((BACNET_OBJECT_TYPE) type);
-										
+
             if ((pObject != NULL) && (pObject->Object_Name != NULL) &&
                 (pObject->Object_Name(instance, &object_name2) &&
                     characterstring_same(object_name1, &object_name2))) {
@@ -1940,12 +1942,12 @@ bool Device_Valid_Object_Id(
     BACNET_CHARACTER_STRING *name = NULL;  /* return value */
     struct my_object_functions *pObject = NULL;
 		bool status = false;
-	
+
     pObject = Device_Objects_Find_Functions((BACNET_OBJECT_TYPE) object_type);
 //    if ((pObject) && (pObject->Object_Name)) {
 //        status = pObject->Object_Name(object_instance,name);
 //    } modify by chelsea
-	
+
 		if ((pObject) && (pObject->Object_Valid_Instance(object_instance)))
 		{
 			status = true;

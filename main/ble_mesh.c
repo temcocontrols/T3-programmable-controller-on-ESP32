@@ -379,6 +379,6 @@ void ble_mesh_task(void *arg)
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
     while (1) {
-    	vTaskDelay(1000 / portTICK_RATE_MS);
+    	vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }

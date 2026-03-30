@@ -4,6 +4,7 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "nvs.h"
+#include "esp_flash.h"
 #include "flash.h"
 #include "wifi.h"
 #include "define.h"
@@ -27,8 +28,8 @@ extern S16_T timezone;
 extern U8_T lcddisplay[7];
 void Get_AVS(void);
 
-const uint8 Var_Description[12][21];
-const uint8 Var_label[12][9];
+extern const uint8 Var_Description[16][21];
+extern const uint8 Var_label[16][9];
 
 extern uint16_t input_cal[16];
 
@@ -51,6 +52,7 @@ extern uint32_t  high_spd_counter_tempbuf[32/*HI_COMMON_CHANNEL*/];
 #define TRENDLOG_ADDR	0x10000
 #define TRENDLOG_LEN	0x10000
 
+#define SPI_FLASH_SEC_SIZE 4096
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -140,7 +142,7 @@ esp_err_t read_default_from_flash(void)
 	esp_err_t err;
 	uint8_t temp[4];
 	uint16_t temp_int[2];
-	uint32_t len;
+	size_t len;
 
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -302,6 +304,12 @@ esp_err_t read_default_from_flash(void)
 		Modbus.LcdTheme = 0;
 		nvs_set_u8(my_handle, FLASH_THEME_TYPE, Modbus.LcdTheme);
 	}
+	err = nvs_get_u8(my_handle, FLASH_DIS_HOME_SCREEN, &Modbus.enabled_Display_HomeScreen);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.enabled_Display_HomeScreen = 0; // Default Disable home screen display
+		nvs_set_u8(my_handle, FLASH_DIS_HOME_SCREEN, Modbus.enabled_Display_HomeScreen);
+	}
 	err = nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
 
 	if((Modbus.network_number == 0) || (err == ESP_ERR_NVS_NOT_FOUND))
@@ -346,7 +354,7 @@ esp_err_t read_default_from_flash(void)
 	}
 
 	nvs_get_u16(my_handle, FLASH_TIME_ZONE, (uint16 *)&timezone);
-	nvs_get_u16(my_handle, FLASH_DSL, &Daylight_Saving_Time);
+	nvs_get_u8(my_handle, FLASH_DSL, &Daylight_Saving_Time);
 
 	err = nvs_get_u8(my_handle, FLASH_MAX_VARS, &max_vars);
 	if(err == ESP_ERR_NVS_NOT_FOUND || max_vars == 0)
@@ -1606,6 +1614,7 @@ void Initial_points(uint8_t point_type)
 
 		if(Modbus.mini_type == MINI_TSTAT10)
 		{
+
 			ptr = put_io_buf(IN,8);
 			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
 			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
@@ -1665,7 +1674,7 @@ void Initial_points(uint8_t point_type)
 			ptr.pvar->value = 0;
 			ptr.pvar->auto_manual = 0 ;
 			ptr.pvar->digital_analog = 1;
-			ptr.pvar->range = MAX_INPUT_RANGE;
+			ptr.pvar->range = Y3K_40_150DegC;
 
 			ptr = put_io_buf(VAR,1);
 			memcpy(ptr.pvar->label,"SYS",4);

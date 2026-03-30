@@ -65,6 +65,75 @@
 #define BUTTON_DARK_COLOR   0X0BA7
 #define BTN_OFFSET          CH_HEIGHT+7
 
+#define TEST_USE_SAME_VALUE_FOR_AMBIENT 0
+
+#define START_XPOS          8
+#define START_YPOS          16
+
+#define BOX_HEIGHT          151
+
+// #define WEATHER_STR_XPOS    70
+// #define WEATHER_STR_YPOS    6
+
+#define START_XPOS_2        START_XPOS
+#define START_YPOS_2        START_YPOS + BOX_HEIGHT + 3
+
+// Icon Menu position
+#define MENU_DOT_XSIZE      6
+#define MENU_DOT_YSIZE      6
+#define MENU_DOT_XPOS       10
+#define MENU_DOT_XPOS_1     MENU_DOT_XPOS
+#define MENU_DOT_XPOS_2     MENU_DOT_XPOS + 10
+#define MENU_DOT_XPOS_3     MENU_DOT_XPOS + 20
+#define MENU_DOT_YPOS       8
+
+#define HUMIDITY_STR        "HUM"
+#define HUMIDITY_STR_LEN     4
+
+#define OUTDOOR_BOX_YPOS  START_YPOS
+#define INDOOR_BOX_YPOS   START_YPOS_2
+
+// Outdoor temperature position
+#define TEMP_OUTDOOR_XPOS   40
+#define TEMP_OUTDOOR_YPOS   OUTDOOR_BOX_YPOS + 48
+
+#define HUMIDITY_OUTDOOR_XPOS  30
+#define HUMIDITY_OUTDOOR_YPOS  OUTDOOR_BOX_YPOS + BOX_HEIGHT - 40
+
+#define OUTDOOR_STR_XPOS  120
+#define OUTDOOR_STR_YPOS  OUTDOOR_BOX_YPOS + 5
+
+#define OUT_ICON_XPOS     START_XPOS + 2
+#define OUT_ICON_YPOS     OUTDOOR_BOX_YPOS + 2
+
+#define HOMESCREEN_HEAT_COLD_ICON_XPOS     HUMIDITY_VALUE_XPOS + 101
+#define HOMESCREEN_HEAT_COLD_ICON_YPOS     HUMIDITY_OUTDOOR_YPOS - 1
+#define HOMESCREEN_FAN_ICON_XPOS           HOMESCREEN_HEAT_COLD_ICON_XPOS + 5
+#define HOMESCREEN_FAN_ICON_YPOS           HUMIDITY_INDOOR_YPOS - 5
+
+// Indoor temperature position
+#define TEMP_INDOOR_XPOS    TEMP_OUTDOOR_XPOS
+#define TEMP_INDOOR_YPOS    INDOOR_BOX_YPOS + 45
+
+#define HUMIDITY_INDOOR_XPOS  HUMIDITY_OUTDOOR_XPOS
+#define HUMIDITY_INDOOR_YPOS  INDOOR_BOX_YPOS + BOX_HEIGHT - 40
+
+#define INDOOR_STR_XPOS  OUTDOOR_STR_XPOS
+#define INDOOR_STR_YPOS  INDOOR_BOX_YPOS + 5
+
+#define INDOOR_ICON_XPOS  START_XPOS + 4
+#define INDOOR_ICON_YPOS  INDOOR_BOX_YPOS + 2
+
+// Humidity value X position
+#define HUMIDITY_VALUE_XPOS   HUMIDITY_INDOOR_XPOS + (HUMIDITY_STR_LEN * 12) + 4
+
+// Home-screen setpoint placement
+#define HOME_SETPOINT_STR_XPOS        OUTDOOR_STR_XPOS - 90
+#define HOME_SETPOINT_STR_YPOS        OUTDOOR_STR_YPOS + 20
+#define HOME_SETPOINT_VALUE_XPOS      TEMP_OUTDOOR_XPOS
+#define HOME_SETPOINT_VALUE_YPOS      TEMP_OUTDOOR_YPOS
+#define HOME_SETPOINT_STR_BOTTOM_YPOS INDOOR_STR_YPOS
+#define HOME_SETPOINT_VALUE_BOTTOM_YPOS TEMP_INDOOR_YPOS
 
 #define TOP_AREA_DISP_ITEM_TEMPERATURE      0
 #define TOP_AREA_DISP_ITEM_HUM              1
@@ -224,8 +293,6 @@ extern uint16 const moonicon[];
 extern uint16 const coolicon[];
 extern uint16 const heaticon[];
 extern uint16 const degree_o[];
-extern uint16 const outsideSymbol[];
-extern uint16 const indoorTemp[];
 
 /*      Display Fonts         */
 /* Declaration in DisFonts.c  */
@@ -255,8 +322,6 @@ void display_mode(uint8 heat_cool_user);
 void display_fan(void);
 void display_icon(void);
 void display_value(uint16 pos,S16_T disp_value, uint8 disp_unit);
-//void display_menu(uint16 pos, uint8 *item);
-void display_menu (uint8 *item1, uint8 *item2);
 void clear_line(uint8 linenum);
 void clear_lines(void);
 //void display_clock_date(int8 item, int16 value);

@@ -77,7 +77,7 @@ static void adc_task(void* arg);
 #define MIDDLE_RANGE     8
 #define NO_TABLE_RANGES 16
 
-EXT_RAM_ATTR holding_reg_params_t holding_reg_params = {0};
+EXT_RAM_BSS_ATTR holding_reg_params_t holding_reg_params = {0};
 const int16_t led_limit[10][2] = { { -400, 1500 }, { -400, 3020 },
                             { -400, 1200 }, { -400, 2480 },
                             { -400, 1200 }, { -400, 2480 },
@@ -235,7 +235,7 @@ static void adc_task(void* arg)
        // Test[3] = holding_reg_params.fan_module_10k_temp;
         //holding_reg_params.fan_module_10k_temp += holding_reg_params.temp_10k_offset;
         holding_reg_params.fan_module_input_voltage = (uint16_t)voltage;
-        
+
 		ptr = put_io_buf(IN,2);
         if(!ptr.pin->calibration_sign)
         	holding_reg_params.fan_module_10k_temp += (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
@@ -255,7 +255,7 @@ static void adc_task(void* arg)
 
 
 
-        vTaskDelay(1000 / portTICK_RATE_MS);//pdMS_TO_TICKS(1000));
+        vTaskDelay(1000 / portTICK_PERIOD_MS);//pdMS_TO_TICKS(1000));
     }
 }
 
@@ -570,7 +570,7 @@ static void transducer_output_task(void* arg)
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2);
 
-		vTaskDelay(50 / portTICK_RATE_MS);
+		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
 }
 static void fan_led_task(void* arg)
@@ -595,7 +595,7 @@ static void fan_led_task(void* arg)
 				gpio_set_level(LED_WIFI, 1);
 				gpio_set_level(LED_RS485_TX, 1);
 				gpio_set_level(LED_RS485_RX, 1);
-				vTaskDelay(150 / portTICK_RATE_MS);
+				vTaskDelay(150 / portTICK_PERIOD_MS);
     		}
     		/*else if(identify_cn >6)
     		{
@@ -608,7 +608,7 @@ static void fan_led_task(void* arg)
 				gpio_set_level(LED_WIFI, 0);
 				gpio_set_level(LED_RS485_TX, 0);
 				gpio_set_level(LED_RS485_RX, 0);
-				vTaskDelay(150 / portTICK_RATE_MS);
+				vTaskDelay(150 / portTICK_PERIOD_MS);
     		}
     		if(identify_count >= 50)
     		{
@@ -721,7 +721,7 @@ static void fan_led_task(void* arg)
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
 		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 
-		vTaskDelay(50 / portTICK_RATE_MS);
+		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
 }
 
@@ -744,7 +744,7 @@ static void fan_led_task(void* arg)
 void transducer_switch_init(void)
 {
 	gpio_config_t io_conf;
-	io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
 	io_conf.mode = GPIO_MODE_INPUT;
 	io_conf.pin_bit_mask = TRANSDUCER_SWTICH_1_SEL | TRANSDUCER_SWTICH_2_SEL | TRANSDUCER_SWTICH_3_SEL |
 			TRANSDUCER_SWTICH_4_SEL | TRANSDUCER_SWTICH_5_SEL | TRANSDUCER_SWTICH_6_SEL;
@@ -764,7 +764,7 @@ void led_init(void)
 {
 	gpio_config_t io_conf;
 	//disable interrupt
-	io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
 	//set as output mode
 	io_conf.mode = GPIO_MODE_OUTPUT;
 	//bit mask of the pins that you want to set
@@ -780,7 +780,7 @@ void led_init(void)
 	xTaskCreate(fan_led_task, "fan_led_task", 2048, NULL, 1, NULL);
 }
 #if 0
-static xQueueHandle gpio_evt_queue = NULL;
+static QueueHandle_t gpio_evt_queue = NULL;
 static uint32_t pulseValue = 0;
 
 static void IRAM_ATTR pulse_isr_handler(void* arg)
@@ -805,7 +805,7 @@ void pulse_couter_init(void)
 {
 	gpio_config_t io_conf;
 	//interrupt of rising edge
-	io_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
+	io_conf.intr_type = GPIO_INTR_POSEDGE;
 	//bit mask of the pins,
 	io_conf.pin_bit_mask = PULSE_COUNTER_SEL;
 	//set as input mode
@@ -831,7 +831,7 @@ void pulse_couter_init(void)
 #define PCNT_H_LIM_VAL      30000
 #define PCNT_L_LIM_VAL     -30000
 
-xQueueHandle pcnt_evt_queue;   // A queue to handle pulse counter events
+QueueHandle_t pcnt_evt_queue;   // A queue to handle pulse counter events
 pcnt_isr_handle_t user_isr_handle = NULL; //user's ISR service handle
 /* A sample structure to pass events from the PCNT
  * interrupt handler to the main program.
@@ -939,7 +939,7 @@ static void pcnt_task(void* arg)
 				ptr.pin->value = holding_reg_params.fan_module_pulse*100;
 		//}
 			//count = 0;
-			vTaskDelay(10000 / portTICK_RATE_MS);
+			vTaskDelay(10000 / portTICK_PERIOD_MS);
     }
 	if(user_isr_handle) {
 		//Free the ISR service handle.

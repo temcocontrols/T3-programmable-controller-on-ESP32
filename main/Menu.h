@@ -16,7 +16,7 @@
 
 
 
-#define MAX_MENU_NUM 4 // add sch
+#define MAX_MENU_NUM 3 // communication menu only
 
 
 typedef struct
@@ -68,7 +68,7 @@ extern MENUNAME const menu[MAX_MENU_NUM];
 
 extern uint8 menu_block_seconds;
 extern uint8 backlight_keep_seconds;
-//extern xQueueHandle xMutex,IicMutex;
+//extern QueueHandle_t xMutex,IicMutex;
 extern uint8 blink_count;
  enum
 {

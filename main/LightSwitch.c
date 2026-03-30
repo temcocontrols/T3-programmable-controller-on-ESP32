@@ -63,7 +63,7 @@ void Light_Switch_IO_Init(void)
 {
 	gpio_config_t io_conf;
 	//disable interrupt
-	io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
 	//set as output mode
 	io_conf.mode = GPIO_MODE_OUTPUT;
 	//bit mask of the pins that you want to set
@@ -74,11 +74,11 @@ void Light_Switch_IO_Init(void)
 	io_conf.pull_up_en = 0;
 	//configure GPIO with the given settings
 	gpio_config(&io_conf);
-	
+
 	gpio_set_level(LS_SENSOR_EN, 1);  // ENABLE SENSOR
 
 	//disable interrupt
-	io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+	io_conf.intr_type = GPIO_INTR_DISABLE;
 	//set as output mode
 	io_conf.mode = GPIO_MODE_INPUT;
 	//bit mask of the pins that you want to set
@@ -176,7 +176,7 @@ static void Light_adc_task(void* arg)
         adc_S1S2 /= LIGHT_NO_OF_SAMPLES;
         adc_S3S4 /= LIGHT_NO_OF_SAMPLES;
         adc_S5S6 /= LIGHT_NO_OF_SAMPLES;
-        
+
 
         vol_light = esp_adc_cal_raw_to_voltage(adc_light, lightswitch_adc_chars);
         vol_pir = esp_adc_cal_raw_to_voltage(adc_pir, lightswitch_adc_chars);
@@ -479,7 +479,7 @@ static void Light_adc_task(void* arg)
 			pir_trigger = PIR_NOTTRIGGERED;
 		}
 
-        vTaskDelay(20 / portTICK_RATE_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
 
     }
 }
@@ -599,7 +599,7 @@ uint16_t read_lightswitch_by_block(uint16_t addr)
 	  return disp_pm25_number_25;
 	}
 
-// VOC	
+// VOC
 	else if((addr >= MODBUS_AIRLAB_VOC_BASELINE1) && (addr <= MODBUS_AIRLAB_VOC_BASELINE1))
 	{
 	  return g_sensors.voc_baseline[addr - MODBUS_AIRLAB_VOC_BASELINE1];
@@ -607,7 +607,7 @@ uint16_t read_lightswitch_by_block(uint16_t addr)
 	else if(addr == MODBUS_AIRLAB_VOC_DATA)
 	{
 	  return g_sensors.voc_value;
-	}	
+	}
 	else if(addr == MODBUS_AIRLAB_PATICAL_SIZE)
 	{
 	  return 0;
@@ -626,7 +626,7 @@ uint16_t read_lightswitch_by_block(uint16_t addr)
 	  return co2_frc;
 	}
 	// DISPLAY CONFIG
-	
+
 	else
 	  return 0;
 }
@@ -655,40 +655,40 @@ void write_lightswitch_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uin
 	{
 		DEGCorF = pData[HeadLen + 5];
 	}
-	
+
 	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
-	  
+
 	}
 	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
-	  
+
 	}
 	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
-	  
+
 	}
-	
+
 	// PIR
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
-	  
+
 	}
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  PirSensorZero = pData[HeadLen + 5];
 	}
-	
+
 // PM2.5
-	
-// VOC		
-	
-	
-	// CO2	
+
+// VOC
+
+
+	// CO2
 	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 		uint16 tmp;
-		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];	
+		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];
 		sensirion_co2_cmd_ForcedCalibration[5] = pData[HeadLen + 5];
 		tmp = (uint16)(sensirion_co2_cmd_ForcedCalibration[4]<<8 )|sensirion_co2_cmd_ForcedCalibration[5];
 		if((tmp >= 0) && (tmp <= 5000))
@@ -705,9 +705,9 @@ void write_lightswitch_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uin
 					scd4x_perform_forced = 1;
 					//scd4x_perform_forced_count = 0;
 				}
-			}					
+			}
 		}
-	}	
+	}
 }
 #endif
 
@@ -723,7 +723,7 @@ static const char *TAG = "ws2812";
 
 
 
-void LS_led_task(void)
+void LS_led_task(void *pvParameters)
 {
 	uint32_t red = 0;
 	uint32_t green = 0;
@@ -793,7 +793,7 @@ void LS_led_task(void)
 		}
 		t2++;
 		if(t2 >= 8) t2 = 0;
-		vTaskDelay(1000 / portTICK_RATE_MS);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 
 	}
 

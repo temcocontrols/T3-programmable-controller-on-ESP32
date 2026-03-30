@@ -25,21 +25,24 @@ uint8 scroll_ram[5][MAX_SCOROLL];
 uint8 scroll_fan = 0;
 uint16_t scroll_index = 0;
 
-static uint8 display_around_time_ctr = NODES_POLL_PERIOD;
 static uint8 disp_index = 0;
-static uint8 set_msv = 0;
-static uint8 warming_state = TRUE;
-static uint8 force_refresh = TRUE;
-uint8 flag_left_key = 0;
+static int8_t last_icon_flag[7] = {-1,-1,-1,-1,-1,-1,-1};
+static uint8_t fanStage = 0,fanSpeed = 0;
 uint8	count_left_key = 0;
 uint8 flag_digital_top_area = 0;
 uint8 digital_top_area_type = 0;
 uint8 digital_top_area_num = 0;
 uint8 digital_top_area_changed = 0;
-void set_output_raw(uint8_t point,uint16_t value);
+
+static bool IsHomeScreen = false;
+
 extern uint16_t count_suspend_mstp;
 extern uint8_t ChangeFlash;
-static bool IsHomeScreen = false;
+extern bool IsOutdoorTempValid;
+extern bool HomeScreenSetpointMode;
+
+void set_output_raw(uint8_t point,uint16_t value);
+static void DisplayHeaderSymbol(void);
 
 void MenuIdle_init(void)
 {
@@ -47,10 +50,15 @@ void MenuIdle_init(void)
 	Str_points_ptr ptr;
 	//LCDtest();
 	ClearScreen(TSTAT8_BACK_COLOR);
+	HomeScreenSetpointMode = false;
 	flag_digital_top_area = 0;
 	digital_top_area_type = 0;
 	digital_top_area_num = 0;
 	digital_top_area_changed = 0;
+	count_left_key = 0;
+	fanStage = 0xFF;
+	fanSpeed = 0xFF;
+	memset(last_icon_flag, -1, sizeof(last_icon_flag));
 	if(Modbus.mini_type == PROJECT_AIRLAB)
 	{
 		Setting_Info.reg.display_lcd.lcd_mod_reg.npoint.point_type = IN;
@@ -64,15 +72,19 @@ void MenuIdle_init(void)
 	memset(UI_DIS_TOP,0,9);
 	digital_top_area_changed = 0;
 
-	IsHomeScreen = false;
+	if(disp_index)
+		IsHomeScreen = true;
+	else
+		IsHomeScreen = false;
 
-	if(IsHomeScreen == false)
+	if(IsHomeScreen == false && Modbus.enabled_Display_HomeScreen)
 	{
 		DisplayHomeScreen(IsHomeScreen);
 		IsHomeScreen = true;
 	}
 	else
 	{
+		IsHomeScreen = false;
 		disp_str(FORM15X30, SCH_XPOS,  0, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
 		disp_str(FORM15X30, SCH_XPOS,  IDLE_LINE2_POS, "            ",SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 		disp_str(FORM15X30, SCH_XPOS,  CH_HEIGHT, "              ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -103,14 +115,14 @@ void MenuIdle_init(void)
 			draw_tangle(102,112);
 			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 		}
-		ptr = put_io_buf(VAR,1);
+		ptr = put_io_buf(VAR,2);
 		memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);UI_DIS_LINE2[3] = 0;
 		if(ptr.pvar->range != 0)
 		{
 			draw_tangle(102,155);
 			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
 		}
-		ptr = put_io_buf(VAR,2);
+		ptr = put_io_buf(VAR,1);
 		memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);UI_DIS_LINE3[3] = 0;
 		if(ptr.pvar->range != 0)
 		{
@@ -171,8 +183,6 @@ void get_data_format(u8 loc,float num,char *s)
 
 void DisplayMenuScreen(void)
 {
-   	static u8 count_tx = 0;
-	static u8 count_rx = 0;
 	Str_points_ptr ptr;
 	ptr = put_io_buf(VAR,0);
 	if(memcmp(UI_DIS_LINE1,ptr.pvar->label,3) || ptr.pvar->range == 0)
@@ -184,14 +194,13 @@ void DisplayMenuScreen(void)
 	}
 	if(ptr.pvar->range != 0)
 	{
-
 		display_screen_value( 1);
 		draw_tangle(102,112);
 		// Display the three lines with different background colors based on disp_index
 		disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS, UI_DIS_LINE1, SCH_COLOR,(disp_index == 1) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
 
-	ptr = put_io_buf(VAR,1);
+	ptr = put_io_buf(VAR,2);
 	if(memcmp(UI_DIS_LINE2,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
 		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -207,8 +216,7 @@ void DisplayMenuScreen(void)
 		disp_str(FORM15X30, SCH_XPOS, FAN_MODE_POS, UI_DIS_LINE2, SCH_COLOR, (disp_index == 2) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
 
-
-	ptr = put_io_buf(VAR,2);
+	ptr = put_io_buf(VAR,1);
 	if(memcmp(UI_DIS_LINE3,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
 		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -223,7 +231,6 @@ void DisplayMenuScreen(void)
 		// Display the three lines with different background colors based on disp_index
 		disp_str(FORM15X30, SCH_XPOS, SYS_MODE_POS, UI_DIS_LINE3, SCH_COLOR,(disp_index == 3) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
-
 
 	if(Modbus.disable_tstat10_display == 0)
 	{
@@ -502,19 +509,62 @@ void DisplayMenuScreen(void)
 
 		}
 
-		if(count_left_key > 5)
-			disp_index = 0;
-		else
-			count_left_key++;
+	if (flag_digital_top_area == 1)
+	{
+		disp_str_16_24(FORM15X30, SCH_XPOS + 20, IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP, SCH_COLOR,
+						(disp_index == 4) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
+	}
 
-		if (flag_digital_top_area == 1)
+	if(count_left_key > 5)
+	{
+		disp_index = 0;
+		HomeScreenSetpointMode = false;
+		count_left_key = 0;
+	}
+	else
+		count_left_key++;
+}
+
+void MenuIdle_display(void)
+{
+	if(disp_index || Modbus.enabled_Display_HomeScreen == false)
+	{
+		if(IsHomeScreen)
 		{
-		    disp_str_16_24(FORM15X30, SCH_XPOS + 20, IDLE_LINE1_POS, (uint8 *)UI_DIS_TOP, SCH_COLOR,
-		                   (disp_index == 4) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
+			ClearScreen(TSTAT8_BACK_COLOR);
+			IsHomeScreen = false;
+		}
+		DisplayMenuScreen();
+	}
+	else
+	{
+		DisplayHomeScreen(IsHomeScreen);
+		if(!IsHomeScreen)
+		{
+			IsHomeScreen = true;
 		}
 
+		if(count_left_key > 50)
+		{
+			if(HomeScreenSetpointMode == true)
+			{
+				disp_index = 0;
+				HomeScreenSetpointMode = false;
+				count_left_key = 0;
+			}
+		}
+		else
+			count_left_key++;
+	}
+	DisplayHeaderSymbol();
+}
 
-
+static void DisplayHeaderSymbol(void)
+{
+	static u8 count_tx = 0;
+	static u8 count_rx = 0;
+	static bool rxActive = 0;
+	static bool txActive = 0;
 	if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL || SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)//����Ļ���Ͻ���ʾwifi��״̬
 	{
 		if(SSID_Info.rssi < -80)
@@ -540,16 +590,19 @@ void DisplayMenuScreen(void)
 	if(flagLED_sub_tx > 0)
 	{
 		if(count_tx++ % 2 == 0)
+		{
 			disp_edge(13, 26, cmnct_send, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else
+			txActive = true;
+		}
+		else if(txActive)
 			disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
 	else
 	{
 		count_tx = 0;
-		disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		if(txActive)
+			disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
-
 
 	if(flagLED_sub_rx > 0)
 	{
@@ -557,42 +610,24 @@ void DisplayMenuScreen(void)
 		if(count_tx % 2 == 1)
 			count_rx = 0;
 		if(count_rx++ % 2 == 1)
+		{
+			rxActive = true;
 			disp_edge(13, 26, cmnct_rcv, 	13,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else
+		}
+		else if(rxActive)
 			disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
 	else
 	{
 		count_rx = 0;
-		disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		if(rxActive)
+			disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	}
 
 	if(flagLED_sub_tx > 0)
 		flagLED_sub_tx = 0;
 	if(flagLED_sub_rx > 0)
 		flagLED_sub_rx = 0;
-
-}
-
-void MenuIdle_display(void)
-{
-	if(disp_index)
-	{
-		if(IsHomeScreen)
-		{
-			ClearScreen(TSTAT8_BACK_COLOR);
-			IsHomeScreen = false;
-		}
-		DisplayMenuScreen();
-	}
-	else
-	{
-		DisplayHomeScreen(IsHomeScreen);
-		if(!IsHomeScreen)
-		{
-			IsHomeScreen = true;
-		}
-	}
 }
 
 uint8_t check_msv_data_len(uint8_t index)
@@ -620,16 +655,40 @@ void MenuIdle_keycope(uint16 key_value)
 {
     uint8 i;
     uint8 temp_value = 0;
+	uint16_t ChangeValue = 1000;
     Str_points_ptr ptr;
+
 	switch(key_value /*& KEY_SPEED_MASK*/)
 	{
 		case 0:
 			break;
 		case KEY_UP_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value + 500;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 //					if (vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
@@ -673,9 +732,10 @@ void MenuIdle_keycope(uint16 key_value)
 							ptr.pvar->control = 0;
 					}
 					else
-					{Test[27]++;
-						if(ptr.pvar->value < 999 * 1000)
-							ptr.pvar->value = ptr.pvar->value + 1000;
+					{
+						Test[27]++;
+						if(ptr.pvar->value < 999 * ChangeValue)
+							ptr.pvar->value = ptr.pvar->value + ChangeValue;
 						else
 							ptr.pvar->value = 0;
 					}
@@ -720,9 +780,31 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 		case KEY_SPEED_10 | KEY_UP_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value + 500;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					char len;
@@ -757,8 +839,8 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 					else
 					{
-						if(ptr.pvar->value < 999 * 1000)
-							ptr.pvar->value = ptr.pvar->value + 10000;
+						if(ptr.pvar->value < 999 * (ChangeValue * 10))
+							ptr.pvar->value = ptr.pvar->value + (ChangeValue*10);
 						else
 							ptr.pvar->value = 0;
 					}
@@ -805,9 +887,31 @@ void MenuIdle_keycope(uint16 key_value)
 
 		case KEY_DOWN_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value - ChangeValue;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					//if(vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
@@ -853,7 +957,7 @@ void MenuIdle_keycope(uint16 key_value)
 					else
 					{
 //					if(vars[disp_index - 1].value > 1000)
-						ptr.pvar->value = ptr.pvar->value - 1000;
+						ptr.pvar->value = ptr.pvar->value - ChangeValue;
 //						else
 //							vars[disp_index - 1].value = 99 * 1000;
 					}
@@ -900,9 +1004,31 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 		case KEY_SPEED_10 | KEY_DOWN_MASK:
 			count_left_key = 0;
+			if(IsHomeScreen)
+			{
+				if(HomeScreenSetpointMode == false)
+				{
+					HomeScreenSetpointMode = true;
+					IsHomeScreen = false;
+				}
+				else
+				{
+					ptr = put_io_buf(VAR,0);
+					if(ptr.pvar->digital_analog == 0)
+						ptr.pvar->control = ((ptr.pvar->control) == 0) ? 1 : 0;
+					else
+						ptr.pvar->value = ptr.pvar->value - ChangeValue;
+					ChangeFlash = 1;
+				}
+				break;
+			}
 			if((disp_index >= 1) && (disp_index <= 3))
 			{
 				ptr = put_io_buf(VAR,disp_index - 1);
+				if(ptr.pvar->range == degC || ptr.pvar->range == degF || ptr.pvar->range == Volts || ptr.pvar->range == RH)
+				{
+					ChangeValue = 500;
+				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					char len;
@@ -936,7 +1062,7 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 					else
 					{
-						ptr.pvar->value =ptr.pvar->value - 10000;
+						ptr.pvar->value =ptr.pvar->value - (ChangeValue * 10);
 					}
 				}
 			}
@@ -980,25 +1106,40 @@ void MenuIdle_keycope(uint16 key_value)
 			break;
 
 		case KEY_LEFT_MASK:
+			count_left_key = 5; // This will update Display to Home Screen
+			disp_index = 0;
+			HomeScreenSetpointMode = false; // return to default home layout
+			IsHomeScreen = false;
+			break;
+
+		case KEY_RIGHT_MASK:
+			HomeScreenSetpointMode = false; // move away from home screen adjustments
 			// change SETP, FAN , SYS
 			if(flag_digital_top_area == 1)
 			{
-				if(disp_index < 4) disp_index++;
+				if(disp_index < 4)
+				{
+					disp_index++;
+				}
 				else
+				{
+					update_menu_state(MenuMain);
 					disp_index = 1;
+				}
 			}
 			else
 			{
-				if(disp_index < 3) disp_index++;
+				if(disp_index < 3)
+				{
+					disp_index++;
+				}
 				else
+				{
+					update_menu_state(MenuMain);
 					disp_index = 1;
+				}
 			}
-			flag_left_key = 1;
 			count_left_key = 0;
-			break;
-		case KEY_RIGHT_MASK:
-			// go into main menu
-			//vars[19].value += 1000;
 			break;
 		case KEY_LEFT_RIGHT_MASK:
 			update_menu_state(MenuMain);
@@ -1017,11 +1158,13 @@ void display_screen_value(uint8 type)
     float show_value = 0;
     uint8 str_length = 0;
 
+
     memcpy(spbuf, "     ", strlen("     "));
     spbuf[5] = 0; //³õÊ¼»¯5¸ö×Ö½ÚÎª¿Õ¸ñ ±ÜÃâ µÚÒ»´ÎÏÔÊ¾12345 Öµ±äÎªABCµÄÊ±ºò   »áÏÔÊ¾ABC45
     ptr = put_io_buf(VAR,type - 1);
     if (type >= 1 && type <= 3)  // ÏÔÊ¾ÔÚLCDµÄÊý¾Ý¹Ì¶¨ÎªVAR1-VAR3
     {// ONLY var1-3 support MSV
+
 		if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 		{
 			//sprintf(spbuf, "%d", msv_data[0][0].msv_value);
@@ -1177,15 +1320,33 @@ void display_screen_value(uint8 type)
 		}
     }
 
+	uint8 content_length = DISPLAY_VAL_LENTH;
+
+	while (content_length > 0 && spbuf[content_length - 1] == ' ')
+	{
+		content_length--;
+	}
+
+	if (content_length < DISPLAY_VAL_LENTH)
+	{
+		memmove(spbuf + (DISPLAY_VAL_LENTH - content_length), spbuf, content_length);
+		memset(spbuf, ' ', DISPLAY_VAL_LENTH - content_length);
+	}
+
 	if(type == 1)
-		disp_str(FORM15X30, SCH_XPOS + 96, SETPOINT_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+	{
+		if(HomeScreenSetpointMode)
+			disp_str(FORM15X30, SCH_XPOS + 50, SETPOINT_POS - 30, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+		else
+			disp_str(FORM15X30, SCH_XPOS + 95, SETPOINT_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+	}
     else if (type == 2)
     {
-    	disp_str(FORM15X30, SCH_XPOS + 96, FAN_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+    	disp_str(FORM15X30, SCH_XPOS + 95, FAN_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
     }
     else if (type == 3)
     {
-    	disp_str(FORM15X30, SCH_XPOS + 96, SYS_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
+    	disp_str(FORM15X30, SCH_XPOS + 95, SYS_MODE_POS, (char *)spbuf, SCH_COLOR, TSTAT8_MENU_COLOR);
     }
 }
 
@@ -1321,7 +1482,7 @@ void Refresh_scroll(void)
 				(uint8)SSID_Info.ip_addr[2],
 				(uint8)SSID_Info.ip_addr[3]);
 
-		uint8 len = strlen(&scroll_ram[0]);
+		uint8 len = strlen((char *)scroll_ram[0]);
 		scroll_ram[0][len] = ' ';
     }
 	else if(SSID_Info.IP_Wifi_Status == 5)
@@ -1336,7 +1497,6 @@ void Refresh_scroll(void)
 
 void display_scroll(void)
 {
-	uint8 cnt;
 	uint8 i;
 
 	Refresh_scroll();
@@ -1349,8 +1509,6 @@ void display_scroll(void)
 		{
 			if(i < SCROLL_WINDOW + 1)
 				scroll_buf[i] = *(scroll+i);
-			else
-				;//Test[20]++;
 		}
 	}
 	else
@@ -1376,75 +1534,134 @@ uint8_t icon_flag[9];
 
 void display_fan(void)
 {
-		uint8 stage_buf = 0;
-		uint16 const *fannum;
+	uint8 stage_buf = 0;
+	uint16 const *fannum;
+	static bool isFanDisplayisON = false;
+	static bool isScreenChanged = false;
+	uint16_t fanIcon_Xpos = 0, fanIcon_Ypos = 0;
+	uint16_t fanspeedIcon_Xpos = 0;
 
-		if(Modbus.icon_config == 0xff)
-		{// low 6 bits are xx111111, dont show all icons
-			disp_null_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, 0, FOURTH_ICON_POS,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
-			disp_null_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, 0, FIFTH_ICON_POS,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
+	if(IsHomeScreen == 0)
+	{
+		fanIcon_Xpos = FOURTH_ICON_POS;
+		fanIcon_Ypos = ICON_POS;
+		fanspeedIcon_Xpos = FIFTH_ICON_POS;
+	}
+	else
+	{
+		fanIcon_Xpos = HOMESCREEN_FAN_ICON_XPOS;
+		fanIcon_Ypos = HOMESCREEN_FAN_ICON_YPOS;
+		fanspeedIcon_Xpos = HOMESCREEN_FAN_ICON_XPOS + 35;
+	}
+
+	if(IsHomeScreen != isScreenChanged)
+	{
+		isScreenChanged = IsHomeScreen;
+		isFanDisplayisON = false;
+		fanStage = 0;
+		fanSpeed = 0;
+	}
+	if(Modbus.icon_config == 0xff)
+	{// low 6 bits are xx111111, dont show all icons
+		if(isFanDisplayisON == true)
+		{
+			isFanDisplayisON = false;
+			disp_null_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, 0, fanIcon_Xpos,fanIcon_Ypos,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
+			disp_null_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, 0, fanspeedIcon_Xpos,fanIcon_Ypos,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
+		}
+	}
+	else
+	{
+		isFanDisplayisON = true;
+		fanspeedbuf = FAN_AUTO;//FAN_OFF;
+		stage_buf = Modbus.icon_config >> 6;
+
+		if(stage_buf > 0)
+		{
+			scroll_fan = !scroll_fan;
+		}
+
+	//	stage_buf = get_cureent_stage();
+		if((fanspeedbuf == FAN_OFF)||(stage_buf == FAN_COST))
+		{
+			if(fanStage != 1)
+			{
+				fanStage = 1;
+				fanSpeed = 0;
+				fannum = fanbladeA;
+				disp_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, fannum, fanIcon_Xpos,fanIcon_Ypos,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
 		}
 		else
 		{
-			fanspeedbuf = FAN_AUTO;//FAN_OFF;
-			stage_buf = Modbus.icon_config >> 6;
-
-			if(stage_buf > 0)
+			if(scroll_fan == 1)
 			{
-				scroll_fan = !scroll_fan;
-			}
-
-		//	stage_buf = get_cureent_stage();
-			if((fanspeedbuf == FAN_OFF)||(stage_buf == FAN_COST))
-			{
-				fannum = fanbladeA;
-				disp_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, fannum, FOURTH_ICON_POS,ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+				if(fanStage != 2)
+				{
+					fanStage = 2;
+					fanSpeed = 0;
+					fannum = fanbladeA;
+					disp_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, fannum, fanIcon_Xpos,fanIcon_Ypos,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+				}
 			}
 			else
 			{
-				if(scroll_fan == 1)
+				if(fanStage != 3)
 				{
-					fannum = fanbladeA;
-					disp_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, fannum, FOURTH_ICON_POS,ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-				}
-				else
-				{
+					fanStage = 3;
+					fanSpeed = 0;
 					fannum = fanbladeB;
-					disp_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, fannum, FOURTH_ICON_POS,ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+					disp_icon(FANBLADE_XDOTS, FANBLADE_YDOTS, fannum, fanIcon_Xpos,fanIcon_Ypos,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 				}
-			}
-
-
-			if((stage_buf == FAN_COOL1) || (stage_buf == FAN_HEAT1))
-			{
-				fannum = fanspeed1a;
-				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, FIFTH_ICON_POS,ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-			}
-			else if((stage_buf == FAN_COOL2) || (stage_buf == FAN_HEAT2))
-			{
-				fannum = fanspeed2a;
-				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, FIFTH_ICON_POS,ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-			}
-			else if((stage_buf == FAN_COOL3) || (stage_buf == FAN_HEAT3))
-			{
-				fannum = fanspeed3a;
-				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, FIFTH_ICON_POS,ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-			}
-			else if(stage_buf == FAN_COST)
-			{
-				fannum = fanspeed0a;
-				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, FIFTH_ICON_POS,ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-				//disp_null_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, 0, FIFTH_ICON_POS,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
 			}
 		}
+
+		if((stage_buf == FAN_COOL1) || (stage_buf == FAN_HEAT1))
+		{
+			if(fanSpeed != 1)
+			{
+				fanSpeed = 1;
+				fannum = fanspeed1a;
+				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, fanspeedIcon_Xpos,fanIcon_Ypos,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+		}
+		else if((stage_buf == FAN_COOL2) || (stage_buf == FAN_HEAT2))
+		{
+			if(fanSpeed != 2)
+			{
+				fanSpeed = 2;
+				fannum = fanspeed2a;
+				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, fanspeedIcon_Xpos,fanIcon_Ypos,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+		}
+		else if((stage_buf == FAN_COOL3) || (stage_buf == FAN_HEAT3))
+		{
+			if(fanSpeed != 3)
+			{
+				fanSpeed = 3;
+				fannum = fanspeed3a;
+				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, fanspeedIcon_Xpos,fanIcon_Ypos,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+		}
+		else if(stage_buf == FAN_COST)
+		{
+			if(fanSpeed != 4)
+			{
+				fanSpeed = 4;
+				fannum = fanspeed0a;
+				disp_icon(FANSPEED_XDOTS, FANSPEED_YDOTS, fannum, fanspeedIcon_Xpos,fanIcon_Ypos,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			}
+		}
+	}
 }
-
-
-
 
 void display_icon(void)
 {
-
+	if(last_icon_flag[6] != IsHomeScreen)
+	{
+		memset(last_icon_flag, -1, sizeof(last_icon_flag));
+		last_icon_flag[6] = IsHomeScreen;
+	}
 	icon_flag[0] = Modbus.icon_config & 0x01;
 	icon_flag[1] = (Modbus.icon_config & 0x02) ? 1 : 0;
 	icon_flag[2] = (Modbus.icon_config & 0x04) ? 1 : 0;
@@ -1453,30 +1670,64 @@ void display_icon(void)
 	icon_flag[5] = (Modbus.icon_config & 0x20) ? 1 : 0;
 
 	//--------------day and night icon----------------
-		if((icon_flag[0] == 1) && (icon_flag[1] == 1))
-			disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, FIRST_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
-		else if(icon_flag[0] == 1)
-			disp_icon(ICON_XDOTS, ICON_YDOTS, sunicon, FIRST_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else
-			disp_icon(ICON_XDOTS, ICON_YDOTS, moonicon, FIRST_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-
+	if(icon_flag[0] != last_icon_flag[0] || icon_flag[1] != last_icon_flag[1])
+	{
+		last_icon_flag[0] = icon_flag[0];
+		last_icon_flag[1] = icon_flag[1];
+		if(IsHomeScreen == 0)
+		{
+			if((icon_flag[0] == 1) && (icon_flag[1] == 1))
+				disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, FIRST_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
+			else if(icon_flag[0] == 1)
+				disp_icon(ICON_XDOTS, ICON_YDOTS, sunicon, FIRST_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			else
+				disp_icon(ICON_XDOTS, ICON_YDOTS, moonicon, FIRST_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		}
+	}
 
 	//--------------occ and unocc icon----------------
-		if((icon_flag[2] == 1)&&(icon_flag[3] == 1))
-			disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, SECOND_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
-		else if(icon_flag[2] == 1)
-			disp_icon(ICON_XDOTS, ICON_YDOTS, athome, SECOND_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-		else
-			disp_icon(ICON_XDOTS, ICON_YDOTS, offhome, SECOND_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+	if(icon_flag[2] != last_icon_flag[2] || icon_flag[3] != last_icon_flag[3])
+	{
+		last_icon_flag[2] = icon_flag[2];
+		last_icon_flag[3] = icon_flag[3];
+		if(IsHomeScreen == 0)
+		{
+			if((icon_flag[2] == 1)&&(icon_flag[3] == 1))
+				disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, SECOND_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
+			else if(icon_flag[2] == 1)
+				disp_icon(ICON_XDOTS, ICON_YDOTS, athome, SECOND_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			else
+				disp_icon(ICON_XDOTS, ICON_YDOTS, offhome, SECOND_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		}
+	}
 
 	//---------------heat and cool-----------------
-		if((icon_flag[4] == 1)&&(icon_flag[5] == 1))
-			disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, THIRD_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
-		else if(icon_flag[4] == 1)
-			disp_icon(ICON_XDOTS, ICON_YDOTS, heaticon, THIRD_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+	if(icon_flag[4] != last_icon_flag[4] || icon_flag[5] != last_icon_flag[5])
+	{
+		last_icon_flag[4] = icon_flag[4];
+		last_icon_flag[5] = icon_flag[5];
+		if(IsHomeScreen == 0)
+		{
+			if((icon_flag[4] == 1)&&(icon_flag[5] == 1))
+				disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, THIRD_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
+			else if(icon_flag[4] == 1)
+				disp_icon(ICON_XDOTS, ICON_YDOTS, heaticon, THIRD_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			else
+				disp_icon(ICON_XDOTS, ICON_YDOTS, coolicon, THIRD_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		}
 		else
-			disp_icon(ICON_XDOTS, ICON_YDOTS, coolicon, THIRD_ICON_POS,	ICON_POS,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
-
+		{
+			uint8_t iconOffset = 0;
+			if(IsOutdoorTempValid == false)
+				iconOffset = 100;
+			if((icon_flag[4] == 1)&&(icon_flag[5] == 1))
+				disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, HOMESCREEN_HEAT_COLD_ICON_XPOS ,HOMESCREEN_HEAT_COLD_ICON_YPOS + iconOffset,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
+			else if(icon_flag[4] == 1)
+				disp_icon(ICON_XDOTS, ICON_YDOTS, heaticon, HOMESCREEN_HEAT_COLD_ICON_XPOS,	HOMESCREEN_HEAT_COLD_ICON_YPOS + iconOffset,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			else
+				disp_icon(ICON_XDOTS, ICON_YDOTS, coolicon, HOMESCREEN_HEAT_COLD_ICON_XPOS,	HOMESCREEN_HEAT_COLD_ICON_YPOS + iconOffset,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		}
+	}
 }
 
 void clear_line(uint8 linenum)

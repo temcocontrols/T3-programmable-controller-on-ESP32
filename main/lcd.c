@@ -27,7 +27,7 @@ uint32 TSTAT8_MENU_COLOR2 = 0xd6dd;
 uint32 TANGLE_COLOR = 0xd6dd;
 #endif
 
-extern U16_T Test[50];
+extern uint16_t Test[50];
 
 uint8_t display_config[5];
 uint8 EEP_DEGCorF;
@@ -98,7 +98,7 @@ void LCD_IO_Init(void)
 {
     gpio_config_t io_conf;
     //disable interrupt
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
     //set as output mode
     io_conf.mode = GPIO_MODE_OUTPUT;
     //bit mask of the pins that you want to set,e.g.GPIO18/19
@@ -127,7 +127,6 @@ void Write_Data(unsigned char DH,unsigned char DL);
 //void delay_ms(unsigned int tt);
 void  Write_Data_U16(unsigned int y);
 static void LCD_SetPos(unsigned char x0,unsigned char x1,unsigned  int y0,unsigned int y1);
-void ClearScreen(unsigned int bColor);
 void disp_ch(uint8_t form, uint16_t x, uint16_t y,uint8_t value,uint16_t dcolor,uint16_t bgcolor);
 
 void disp_icon(uint16_t cp, uint16_t pp, uint16_t const *icon_name, uint16_t x,uint16_t y,uint16_t dcolor, uint16_t bgcolor);
@@ -576,7 +575,16 @@ void disp_str(uint8_t form, uint16_t x,uint16_t y,char *str,uint16_t dcolor,uint
 		if(form == FORM32X64) //big form
 			x1+=31;
 		else
-			x1+=23;
+			if(*str == 'i')
+				x1 += 18;
+			else if(*str == 'l' || *str == 'I' || *str == 'j')
+				x1 += 21;
+			else if(*str == 'W' || *str == 'M' || *str == 'w' || *str == 'm')
+				x1 += 27;
+			else if( *str == 'U' || *str == 'O')
+				x1 += 24;
+			else
+				x1 += 23;
 		str++;
 	}
 }
@@ -656,9 +664,9 @@ void disp_str_16_24(uint8 form, uint16 x, uint16 y, uint8 *str, uint16 dcolor, u
 				x1 += 9;
 			else if(*str == 't' || *str == 'l' || *str == 'I' || *str == 'j')
 				x1 += 12;
-			else if(*str == 'W' || *str == 'M')
-				x1 += 16;
-			else if( *str == 'U' || *str == 'O')
+			else if(*str == 'W' || *str == 'M' || *str == 'w' || *str == 'm')
+				x1 += 18;
+			else if( *str == 'U' || *str == 'O' || *str == 'o')
 				x1 += 15;
 			else
 				x1 += 14;
@@ -1563,7 +1571,7 @@ void Lcd_task(void *arg)
 
 		}
 
-		vTaskDelay(1000 / portTICK_RATE_MS);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
 }
 

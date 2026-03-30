@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include "esp_err.h"
 
-#include "mbcontroller.h"
+// #include "mbcontroller.h"
 #include "define.h"
 #include "esp_log.h"            // for log_write
 #include "driver/gpio.h"
+#include "driver/uart.h"
 #include "modbus.h"
 #include "i2c_task.h"
 #include "flash.h"
@@ -24,7 +25,7 @@
 #include "LcdTheme.h"
 
 
-extern xSemaphoreHandle xSem_comport[3];
+extern SemaphoreHandle_t xSem_comport[3];
 
 #define EEPROM_VERSION	  105
 
@@ -448,7 +449,7 @@ void uart_init(uint8_t uart)
 		if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		{
 			uart_param_config(uart_num_main, &uart_config);
-			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, 0, UART_PIN_NO_CHANGE);
+			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
 			uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
 			uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
 		}
@@ -462,7 +463,7 @@ void uart_init(uint8_t uart)
 		else
 		{
 			uart_param_config(uart_num_main, &uart_config);
-			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, 0, UART_PIN_NO_CHANGE);
+			uart_set_pin(uart_num_main, GPIO_NUM_12, GPIO_NUM_15, GPIO_MAIN_EN_PIN, UART_PIN_NO_CHANGE);
 			uart_driver_install(uart_num_main, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
 			uart_set_mode(uart_num_main, UART_MODE_RS485_HALF_DUPLEX);
 		}
@@ -531,7 +532,7 @@ void check_whether_modbus_slave(uint8_t * uart_rsv, uint16_t len, uint8_t port)
 
 }
 
-void uart0_rx_task(void)
+void uart0_rx_task(void *pvParameters)
 {
 //	uint8_t modbus_send_buf[500];
 //	uint16_t modbus_send_len;
@@ -565,7 +566,7 @@ void uart0_rx_task(void)
 				else //if(Modbus.baudrate <= 6)
 					block_time = 70;
 
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_PERIOD_MS);
 
 				if(len > 0)
 				{
@@ -604,7 +605,7 @@ void uart0_rx_task(void)
 			{
 				if(system_timer / 1000 > 10)
 				{
-					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_RATE_MS);
+					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
 
 					if(len > 0)
 					{
@@ -620,13 +621,13 @@ void uart0_rx_task(void)
 					}
 				}
 				else
-					vTaskDelay(500 / portTICK_RATE_MS);
+					vTaskDelay(500 / portTICK_PERIOD_MS);
 			}
 			else
 			{
 				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
 				{
-					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_RATE_MS);
+					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 
 					if(len>0)
 					{Test[24]++;
@@ -639,14 +640,14 @@ void uart0_rx_task(void)
 
 				}
 				else
-					vTaskDelay(50 / portTICK_RATE_MS);
+					vTaskDelay(50 / portTICK_PERIOD_MS);
 			}
 
 	}
 
 }
 
-void uart2_rx_task(void)
+void uart2_rx_task(void *pvParameters)
 {
 	//uint8_t modbus_send_buf[500];
 	//uint16_t modbus_send_len;
@@ -660,7 +661,7 @@ void uart2_rx_task(void)
 		task_test.count[10]++;
 		if(Modbus.com_config[2] == MODBUS_SLAVE)
 		{
-			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_RATE_MS);
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_PERIOD_MS);
 
 			if(len>0)
 			{
@@ -696,7 +697,7 @@ void uart2_rx_task(void)
 		{
 			if(system_timer / 1000 > 10)
 			{
-				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_RATE_MS);
+				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
 
 				if(len > 0)
 				{
@@ -708,14 +709,14 @@ void uart2_rx_task(void)
 				}
 			}
 			else
-				vTaskDelay(500 / portTICK_RATE_MS);
+				vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
 		else
 		{
 			if((Modbus.com_config[2] == 0)/* || (Modbus.com_config[2] == MODBUS_MASTER) */)
 			{
 
-				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_RATE_MS);
+				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 				if(len>0)
 				{
 					led_main_rx++;
@@ -725,7 +726,7 @@ void uart2_rx_task(void)
 				}
 			}
 			else
-				vTaskDelay(500 / portTICK_RATE_MS);
+				vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
 	}
 }
@@ -1873,61 +1874,63 @@ static void write_wifi_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *
 
 uint16_t read_tstat10_data_by_block(uint16_t addr)
 {
-   uint8_t item;
-   uint16_t *block;
-   uint8_t *block1;
-   uint8_t temp;
-   Str_points_ptr ptr;
+	uint8_t item;
+	uint16_t *block;
+	uint8_t *block1;
+	uint8_t temp;
+	Str_points_ptr ptr;
 
-
-   if(addr == MODBUS_ICON_CONFIG)
-   {
-      return Modbus.icon_config;
-   }
-   else if(addr == MODBUS_DISALBE_TSTAT10_DIS)
-   {
-      return 0;//SSID_Info.IP_Auto_Manual;
-   }
-   else if(addr == MODBUS_TEMPERATURE)
-   {
-	  ptr = put_io_buf(IN,8);
-      return ptr.pin->value / 100;//SSID_Info.IP_Wifi_Status;
-   }
-   else if(addr == MODBUS_TVOC)
-   {
-	   ptr = put_io_buf(IN,9);
-	   return ptr.pin->value / 1000;
-   }
-   else if(addr == MODBUS_HUMIDY)
-   {
-	   ptr = put_io_buf(IN,10);
-	   return ptr.pin->value / 100;
-   }
-   else if(addr == MODBUS_OCCUPID)
-   {
-	   ptr = put_io_buf(IN,11);
-	   return ptr.pin->control;
-   }
-   else if(addr == MODBUS_CO2)
-   {
-	   ptr = put_io_buf(IN,12);
-	   return ptr.pin->value / 1000;
-   }
-   else if(addr == MODBUS_LIGHT)
+	if(addr == MODBUS_ICON_CONFIG)
 	{
-	   ptr = put_io_buf(IN,13);
-	   return ptr.pin->value / 1000;
+		return Modbus.icon_config;
 	}
-   else if(addr == MODBUS_VOICE)
+	else if(addr == MODBUS_DIS_HOME_SCREEN_FLAG)
 	{
-	   ptr = put_io_buf(IN,14);
-	   return ptr.pin->value / 1000;
+		return Modbus.enabled_Display_HomeScreen;
 	}
-   else
-      return 0;
+	else if(addr == MODBUS_DISALBE_TSTAT10_DIS)
+	{
+		return 0;//SSID_Info.IP_Auto_Manual;
+	}
+	else if(addr == MODBUS_TEMPERATURE)
+	{
+		ptr = put_io_buf(IN,8);
+		return ptr.pin->value / 100;//SSID_Info.IP_Wifi_Status;
+	}
+	else if(addr == MODBUS_TVOC)
+	{
+		ptr = put_io_buf(IN,9);
+		return ptr.pin->value / 1000;
+	}
+	else if(addr == MODBUS_HUMIDY)
+	{
+		ptr = put_io_buf(IN,10);
+		return ptr.pin->value / 100;
+	}
+	else if(addr == MODBUS_OCCUPID)
+	{
+		ptr = put_io_buf(IN,11);
+		return ptr.pin->control;
+	}
+	else if(addr == MODBUS_CO2)
+	{
+		ptr = put_io_buf(IN,12);
+		return ptr.pin->value / 1000;
+	}
+	else if(addr == MODBUS_LIGHT)
+	{
+		ptr = put_io_buf(IN,13);
+		return ptr.pin->value / 1000;
+	}
+	else if(addr == MODBUS_VOICE)
+	{
+		ptr = put_io_buf(IN,14);
+		return ptr.pin->value / 1000;
+	}
+	else
+		return 0;
 
 }
-
 
 static void write_tstat10_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_t *pData,uint8_t type)
 {
@@ -2303,6 +2306,14 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				Modbus.LcdTheme = *(bufadd + 5);
 				LcdThemeMarkForUpdate();
 				save_uint8_to_flash( FLASH_THEME_TYPE, Modbus.LcdTheme);
+			}
+		}
+		else if(address == MODBUS_DIS_HOME_SCREEN_FLAG)
+		{
+			if(*(bufadd + 5) == 0 || *(bufadd + 5) == 1)
+			{
+				Modbus.enabled_Display_HomeScreen = *(bufadd + 5);
+				save_uint8_to_flash( FLASH_DIS_HOME_SCREEN, Modbus.enabled_Display_HomeScreen);
 			}
 		}
 		else if(address == MODBUS_PANEL_NUMBER)

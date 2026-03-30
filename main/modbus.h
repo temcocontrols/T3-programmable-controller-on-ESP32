@@ -178,6 +178,8 @@ enum {
 	MODBUS_LIGHT,
 	MODBUS_VOICE,
 
+	MODBUS_DIS_HOME_SCREEN_FLAG = 739, // write 1 to this register to display home screen, home screen will be displayed for 5 seconds, then go back to previous screen. this is for customer to test LCD and also can be used for demo in store.
+
 	MODBUS_PULSE1 = 740,
 	MODBUS_PULSE2 ,
 	MODBUS_PULSE3 ,

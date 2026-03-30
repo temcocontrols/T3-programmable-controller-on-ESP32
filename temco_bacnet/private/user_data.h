@@ -42,7 +42,7 @@ typedef struct
 #define READ_DIS_INPUT 	0X02
 #define READ_INPUT      0x04
 #define WRITE_COIL 			0X05
-#define WRITE_MULTI_COIL 0x0f 
+#define WRITE_MULTI_COIL 0x0f
 
 #define READ_REMOTE_INPUT		0x09
 
@@ -52,9 +52,9 @@ typedef struct
 //	uint8 all[ID_SIZE];
 //	struct
 //	{
-//		uint8 id;		
+//		uint8 id;
 //		uint8 on_line; // 0: offline    1: online
-//		uint8 schedule;	
+//		uint8 schedule;
 //		uint8 flag;
 //		char name[15];
 ///*  flag formate:
@@ -75,14 +75,14 @@ typedef	union
   uint8 schedule;
   uint8 flag;
 	uint16_t reserved_reg[6];
-	 
+
   uint8 on_line; // 0: offline    1: online
   char name[15];
   uint16_t daysetpoint;
   uint16_t nightsetpoint;
   uint16_t awaysetpoint;
   uint16_t sleepsetpoint;
-  
+
   /*  flag formate:
   7   6  5  4  3   2   1  0
   a/m  output state1 -  -  -  -  -
@@ -94,7 +94,7 @@ typedef	union
 typedef	union
 	{
 		U8_T all[10];
-		struct 
+		struct
 		{
 			U8_T sec;				/* 0-59	*/
 			U8_T min;    		/* 0-59	*/
@@ -104,8 +104,8 @@ typedef	union
 			U8_T mon;     		/* 1-12	*/
 			U8_T year;      		/* 0-99	*/
 			U16_T day_of_year; 	/* 0-365	*/
-			S8_T is_dst;        /* daylight saving time on / off */		
-				
+			S8_T is_dst;        /* daylight saving time on / off */
+
 		}Clk;
 		struct
     {
@@ -116,7 +116,7 @@ typedef	union
     }NEW;
 	}UN_Time;
 #endif
-	
+
 typedef union
 {
     uint8_t lcddisplay[7];
@@ -135,15 +135,15 @@ typedef union
     }lcd_bac_reg;
 
 }lcdconfig;
-	
+
 typedef	union
 {
 	uint8_t all[400];
-	struct 
+	struct
 	{
 	 uint8_t ip_addr[4];
 	 uint8_t subnet[4];
-	 uint8_t getway[4];		 
+	 uint8_t getway[4];
 	 uint8_t mac_addr[6];
 
 	 uint8_t tcp_type;   /* 1 -- DHCP, 0 -- STATIC */
@@ -157,19 +157,19 @@ typedef	union
 	 uint8_t en_plug_n_play;
 
 	 uint8_t reset_default;	  // write 88
-	 uint8_t com_baudrate[3]; 
+	 uint8_t com_baudrate[3];
 
 	 uint8_t  en_username;  // 2-enalbe  1 - disable 0: unused
 	 uint8_t  cus_unit;
 
-	 uint8_t usb_mode; 
+	 uint8_t usb_mode;
 	 uint8_t network_number;
 	 uint8_t panel_type;
 
 	 S8_T panel_name[20];
 	 uint8_t en_panel_name;
 	 uint8_t panel_number;
-	 
+
 	uint8_t dyndns_user[32]; // no used
 	uint8_t dyndns_pass[32]; // no used
 	uint8_t dyndns_domain[32]; // no used
@@ -177,60 +177,60 @@ typedef	union
 	uint8_t dyndns_provider;  // 0- www.3322.org 1-www.dyndns.com  2 - www.no-ip.com 3 - temco server
 	uint16_t dyndns_update_time;  // xx min
 	uint8_t en_sntp;		// 0 - no  1 - disable 2 - timeserver1, 3 - timeserver2 , 4 - timeserver3 5 - customer timersverver  - 200 local PC
-	S16_T time_zone;	
+	S16_T time_zone;
 	uint32_t sn;
-	
-	UN_Time update_dyndns; 
+
+	UN_Time update_dyndns;
 	uint16_t mstp_network_number;
 	uint8_t BBMD_EN;
 	uint8_t sd_exist;
-	
+
 	uint16_t tcp_port;
 	uint8_t modbus_id;
 	uint32_t instance;
-	
+
 	uint32_t update_sntp_last_time;
 	uint8_t Daylight_Saving_Time;
-	
+
 	S8_T sntp_server[30];
-	U8_T zigbee_exist;  // 0x74 - exist 
-	
+	U8_T zigbee_exist;  // 0x74 - exist
+
 	U8_T LCD_time_off_delay;//U8_T backlight;
-	U8_T update_time_sync_pc;   //  0 - finished  1 - ask updating 
+	U8_T update_time_sync_pc;   //  0 - finished  1 - ask updating
 	U8_T en_time_sync_with_pc;  // 0 - time server 1 - pc
 	U8_T sync_with_ntp_result; // 0 - fail , 1 - ok
-	
+
 //	U8_T network_ID[3];
 	U8_T MSTP_ID;
 	U16_T zigbee_module_id;
-	U8_T MAX_MASTER;  
+	U8_T MAX_MASTER;
 	U8_T specila_flag;
 	// bit0 -> support PT1K, 0 - NO PT1K , 1- PT1K
 	// bit1 -> support PT100, 0 - NO PT100 , 1- PT100
-	
+
 	U8_T uart_parity[3];  // 2- Even  1 - Odd  0 - none
 	U8_T uart_stopbit[3];
-//	USART_StopBits_1        0             
-// 	USART_StopBits_0_5      1          
-// 	USART_StopBits_2        2           
+//	USART_StopBits_1        0
+// 	USART_StopBits_0_5      1
+// 	USART_StopBits_2        2
 // 	USART_StopBits_1_5  	3
-	
+
 	lcdconfig display_lcd;
 	U8_T start_month;
 	U8_T start_day;
 	U8_T end_month;
 	U8_T end_day;
-	
+
 	U8_T network_number_hi;
 	U8_T webview_json_flash; //value 1 old way     value 2  new way for jsaon
-	
+
 	U8_T max_var;
 	U8_T max_in;
 	U8_T max_out;
-	
+
 	U8_T fix_com_config;
 	U8_T write_flash;
-	
+
 	}reg;
 }Str_Setting_Info;
 
@@ -258,15 +258,15 @@ typedef union
 typedef	union
 {
 	uint8_t all[400];
-	struct 
-	{ 
+	struct
+	{
 	 uint16_t flag; // 0x55ff
 	 uint32_t monitor_block_num[24];
-	 uint8_t operate_time[12][4];	
-		
+	 uint8_t operate_time[12][4];
+
 	 uint8_t flag1; // network health  0x55
 	 uint32_t com_rx[3];
-	 uint32_t com_tx[3];	
+	 uint32_t com_tx[3];
 	 uint16_t collision[3];  // id collision
 	 uint16_t packet_error[3];  // bautrate not match
 	 uint16_t timeout[3];
@@ -316,14 +316,14 @@ typedef enum { WRITE_SD_OK = 0,WAIT_FOR_SD} E_OPERATE_SD;
 extern U32_T	timeCount1,timeCount2;
 //extern uint8_t invokeid_bip;
 extern uint8_t  invokeid_mstp;
-extern uint8_t  flag_receive_netp;	// network points 
+extern uint8_t  flag_receive_netp;	// network points
 extern uint8_t  flag_receive_netp_temcovar;
 //extern uint8_t  flag_receive_netp_temcoreg;
 extern uint8_t  temcovar_panel;
 //extern uint8_t  temcoreg[20];
 extern uint8_t  temcovar_panel_invoke;
 //extern uint8_t  temcoreg_panel_invoke;
-extern uint8_t  flag_receive_netp_modbus;	// network points 
+extern uint8_t  flag_receive_netp_modbus;	// network points
 extern uint8_t  flag_receive_rmbp;  // remote bacnet points
 extern U8_T Send_Whois_Flag;
 extern U8_T Send_Time_Sync;
@@ -336,7 +336,7 @@ extern U8_T  count_send_bip;
 //extern U8_T  Send_bip_address2[6];
 //extern U8_T  Send_bip_count2;
 //extern U8_T flag_get_network_point;
-extern U8_T remote_modbus_index;	
+extern U8_T remote_modbus_index;
 extern U8_T remote_bacnet_index;
 extern U8_T  network_point_index;
 extern U8_T remote_mstp_panel_index;
@@ -371,18 +371,18 @@ extern U8_T  boot;
 //extern U32_T  changed_index;
 //extern U32_T  changed_index2;
 
-extern EXT_RAM_ATTR Str_Remote_TstDB        Remote_tst_db;
-extern EXT_RAM_ATTR Str_Panel_Info 	    		Panel_Info;
-extern EXT_RAM_ATTR Str_Setting_Info     		Setting_Info;
-extern EXT_RAM_ATTR Str_MISC  						 	MISC_Info;
-extern EXT_RAM_ATTR Str_Special  Write_Special;
+extern EXT_RAM_BSS_ATTR Str_Remote_TstDB        Remote_tst_db;
+extern EXT_RAM_BSS_ATTR Str_Panel_Info 	    		Panel_Info;
+extern EXT_RAM_BSS_ATTR Str_Setting_Info     		Setting_Info;
+extern EXT_RAM_BSS_ATTR Str_MISC  						 	MISC_Info;
+extern EXT_RAM_BSS_ATTR Str_Special  Write_Special;
 
 extern Str_in_point 		*new_inputs;
 extern Str_out_point 		*new_outputs;
 extern Str_variable_point 	*new_vars;
 
-extern EXT_RAM_ATTR Str_in_point  inputs[MAX_INS];
-extern EXT_RAM_ATTR Str_out_point  	outputs[MAX_OUTS];
+extern EXT_RAM_BSS_ATTR Str_in_point  inputs[MAX_INS];
+extern EXT_RAM_BSS_ATTR Str_out_point  	outputs[MAX_OUTS];
 //extern Str_out_point   	*outputs;
 extern uint8_t				 				 no_outs;
 //extern Str_in_point    	*inputs;
@@ -396,18 +396,18 @@ extern U32_T 				time_since_1970;   /* seconds since the beginning of 2010 */
 extern In_aux					 						 in_aux[MAX_IO_POINTS];
 extern Con_aux				 							 con_aux[MAX_CONS];
 //extern Mon_aux                      mon_aux[MAX_MONITORS];
-extern EXT_RAM_ATTR Monitor_Block		 			mon_block[2 * MAX_MONITORS];
+extern EXT_RAM_BSS_ATTR Monitor_Block		 			mon_block[2 * MAX_MONITORS];
 //extern S8_T 				         mon_data_buf[sizeof(Monitor_Block) * 2 * MAX_MONITORS];
-extern EXT_RAM_ATTR Mon_Data 			 		*Graphi_data;
+extern EXT_RAM_BSS_ATTR Mon_Data 			 		*Graphi_data;
 extern S8_T 				 			Garphi_data_buf[sizeof(Mon_Data)];
 
-extern EXT_RAM_ATTR S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
-extern EXT_RAM_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
+extern EXT_RAM_BSS_ATTR S8_T   var_unit[MAX_VAR_UNIT][VAR_UNIT_SIZE];
+extern EXT_RAM_BSS_ATTR Str_Extio_point  extio_points[MAX_EXTIO];
 
 //extern S16_T                          MAX_MONITOR_BLOCKS;
 //extern U8_T                         free_mon_blocks;
 
- 
+
 extern S8_T  panelname[20];
 //extern U8_T 	client_ip[4];
 //extern U8_T newsocket;
@@ -419,22 +419,22 @@ extern U8_T 			     							 ind_alarms_set;
 extern U16_T                 alarm_id;
 extern S8_T                         new_alarm_flag;
 
-extern EXT_RAM_ATTR Units_element		     				 digi_units[MAX_DIG_UNIT];
+extern EXT_RAM_BSS_ATTR Units_element		     				 digi_units[MAX_DIG_UNIT];
 extern U8_T 					 		ind_passwords;
-extern EXT_RAM_ATTR Password_point			 			passwords[ MAX_PASSW ];
+extern EXT_RAM_BSS_ATTR Password_point			 			passwords[ MAX_PASSW ];
 
 extern Str_Email_point Email_Setting;
 
-extern EXT_RAM_ATTR Str_variable_point		 		 vars[MAX_VARS];
-extern EXT_RAM_ATTR Str_controller_point 	 			 controllers[MAX_CONS];
-extern EXT_RAM_ATTR Str_totalizer_point           totalizers[MAX_TOTALIZERS];
-extern EXT_RAM_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];   
-extern EXT_RAM_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;	
+extern EXT_RAM_BSS_ATTR Str_variable_point		 		 vars[MAX_VARS];
+extern EXT_RAM_BSS_ATTR Str_controller_point 	 			 controllers[MAX_CONS];
+extern EXT_RAM_BSS_ATTR Str_totalizer_point           totalizers[MAX_TOTALIZERS];
+extern EXT_RAM_BSS_ATTR Str_monitor_point		 				 monitors[MAX_MONITORS];
+extern EXT_RAM_BSS_ATTR Str_monitor_point		 			backup_monitors[MAX_MONITORS]/* _at_ 0x12800*/;
 //extern Aux_group_point        	 		 aux_groups[MAX_GRPS];
 //extern S8_T                     		 Icon_names[MAX_ICONS][14];
-extern EXT_RAM_ATTR Control_group_point  	 			control_groups[MAX_GRPS];
-//extern EXT_RAM_ATTR Str_grp_element			 	     	group_data[MAX_ELEMENTS];
-extern EXT_RAM_ATTR Str_grp_element_new   		group_data_new;
+extern EXT_RAM_BSS_ATTR Control_group_point  	 			control_groups[MAX_GRPS];
+//extern EXT_RAM_BSS_ATTR Str_grp_element			 	     	group_data[MAX_ELEMENTS];
+extern EXT_RAM_BSS_ATTR Str_grp_element_new   		group_data_new;
 extern S16_T 					 						total_elements;
 extern S16_T 					 						group_data_length;
 
@@ -446,21 +446,21 @@ extern S16_T 					 						group_data_length;
 extern Str_mon_element 		write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
 extern Str_mon_element      read_mon_point_buf_from_flash[MAX_MON_POINT_READ];
 
-extern EXT_RAM_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
-extern EXT_RAM_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
-extern EXT_RAM_ATTR Str_annual_routine_point	 	 annual_routines[MAX_AR];
-extern EXT_RAM_ATTR U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];	
-extern EXT_RAM_ATTR U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
+extern EXT_RAM_BSS_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
+extern EXT_RAM_BSS_ATTR Wr_one_day				 		wr_times[MAX_WR][MAX_SCHEDULES_PER_WEEK];
+extern EXT_RAM_BSS_ATTR Str_annual_routine_point	 	 annual_routines[MAX_AR];
+extern EXT_RAM_BSS_ATTR U8_T                         ar_dates[MAX_AR][AR_DATES_SIZE];
+extern EXT_RAM_BSS_ATTR U8_T	  wr_time_on_off[MAX_WR][MAX_SCHEDULES_PER_WEEK][8];
  /* Assume bit0 from octet0 = Jan 1st */
-extern EXT_RAM_ATTR Str_program_point	     			 programs[MAX_PRGS];
+extern EXT_RAM_BSS_ATTR Str_program_point	     			 programs[MAX_PRGS];
 extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
-extern EXT_RAM_ATTR U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
+extern EXT_RAM_BSS_ATTR U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
 extern Str_array_point 	     			 arrays[MAX_ARRAYS];
 extern S32_T  			    				*arrays_address[MAX_ARRAYS];
 extern long			    					arrays_data[MAX_ARRAYS_DATA];
-extern EXT_RAM_ATTR Str_table_point			 				 custom_tab[MAX_TBLS];
+extern EXT_RAM_BSS_ATTR Str_table_point			 				 custom_tab[MAX_TBLS];
 extern U16_T                         PRG_crc;
 extern U8_T  *prog;
 extern S32_T  stack[20];
@@ -484,11 +484,11 @@ extern U32_T                       miliseclast;
 extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
-extern EXT_RAM_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
+extern EXT_RAM_BSS_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
 extern Byte              			  number_of_network_points_bacnet;
 extern Byte              			  number_of_network_points_modbus;
 
-extern EXT_RAM_ATTR REMOTE_POINTS		   		  remote_points_list[MAXREMOTEPOINTS];
+extern EXT_RAM_BSS_ATTR REMOTE_POINTS		   		  remote_points_list[MAXREMOTEPOINTS];
 extern Byte              			  number_of_remote_points_bacnet;
 extern Byte              			  number_of_remote_points_modbus;
 
@@ -501,7 +501,7 @@ extern U16_T Last_Contact_Remote_points[MAXREMOTEPOINTS];
 extern U8_T remote_panel_num;
 
 #define MAX_REMOTE_PANEL_NUMBER 30
-extern EXT_RAM_ATTR STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
+extern EXT_RAM_BSS_ATTR STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
 
 //extern BACNET_DATE Local_Date;
 //extern BACNET_TIME Local_Time;

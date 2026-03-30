@@ -28,7 +28,7 @@ static const char *TAG = "example";
  * maintains its value when ESP32 wakes from deep sleep.
  */
 RTC_DATA_ATTR static int boot_count = 0;
-uint16_t Test[50];
+extern uint16_t Test[50];
 static void obtain_time(void);
 static void initialize_sntp(void);
 

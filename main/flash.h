@@ -7,7 +7,7 @@
 extern uint8_t ChangeFlash;
 extern uint16_t count_write_Flash;
 
-enum
+typedef enum
 {
 	FLASH_BLOCK1_SSID,
 	FLASH_BLOCK2_PN,
@@ -58,6 +58,7 @@ enum
 #define FLASH_SN_WRITE		"SN_WRITE"
 #define FLASH_MINI_TYPE		"MINI_TYPE"
 #define FLASH_THEME_TYPE	"THEME_TYPE"
+#define FLASH_DIS_HOME_SCREEN	"DIS_HOME_SCREEN"
 #define FLASH_NETWORK_NUMBER "NETWORK_NUMBER"
 #define FLASH_MSTP_NETWORK  "MSTP_NETWORK"
 #define FLASH_BAUD_RATE2	"BAUD_RATE2"
