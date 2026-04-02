@@ -63,7 +63,6 @@
 #include "co2.h"
 #include "LcdTheme.h"
 #include "monitor.h"
-#include "matter_light.h"
 
 //#include "lowPower.h"
 
@@ -4429,7 +4428,7 @@ void Bacnet_Control(void *pvParameters)
 #endif
 
 #if 1//DNS
-		dns_tmr();
+		// dns_tmr();
 		update_sntp();
 #endif
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
@@ -4564,7 +4563,7 @@ void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
 
 void LS_led_task(void *pvParameters);
-
+extern esp_err_t matter_light_init(void);
 extern void ethernet_check_task( void *pvParameters);
 void start_dns_server(void);
 #if 0//DDNS
@@ -4588,11 +4587,6 @@ void app_main()
 	initial_HSP();
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
-
-	/* Initialize Matter Light */
-	if (matter_light_init() == ESP_OK) {
-		debug_info("Matter Light initialized successfully");
-	}
 
 	uart_init(0);
 
@@ -4625,6 +4619,11 @@ void app_main()
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
 
+	// /* Initialize Matter Light */
+	if (matter_light_init() == ESP_OK) {
+		debug_info("Matter Light initialized successfully\r\n");
+	}
+
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
     if(Modbus.mini_type == PROJECT_MULTIMETER_NEW)
@@ -4647,7 +4646,7 @@ void app_main()
     {
     	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
     }
-
+	debug_info("i2c master successfully\r\n");
     // Check if modbus.mini_type is PROJECT_MULTIMETER
     if (Modbus.mini_type == PROJECT_MULTIMETER) {
         // Create multiMeterTask with low priority

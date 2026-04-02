@@ -17,6 +17,9 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 include(${ESP_MATTER_PATH}/examples/common/cmake_common/components_include.cmake)
 include(${ESP_MATTER_DEVICE_PATH}/esp_matter_device.cmake)
 
+# Override button_type to hollow_button after device cmake loads
+set(button_type "hollow_button" CACHE STRING "Button type" FORCE)
+
 # 5. Set Component Search Paths
 set(EXTRA_COMPONENT_DIRS
     "${ESP_MATTER_PATH}/examples/common"

@@ -290,7 +290,7 @@ void wifi_init_sta(void)
 
     s_wifi_event_group = xEventGroupCreate();
     CountHandle = xSemaphoreCreateCounting(7,7);
-#if 0
+#if 1
     /* -------- NETIF INIT (Continue if already done) -------- */
     ret = esp_netif_init();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
@@ -303,7 +303,10 @@ void wifi_init_sta(void)
         debug_info("event loop create failed");
     }
 
-    esp_netif_t *netif = esp_netif_create_default_wifi_sta();
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif == NULL) {
+        netif = esp_netif_create_default_wifi_sta();
+    }
     if (!netif) {
         debug_info("wifi netif create failed");
         return;
@@ -316,7 +319,7 @@ void wifi_init_sta(void)
     ret = esp_wifi_init(&cfg);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         debug_info("esp_wifi_init failed");
-        return;
+        //return; // don't return — Matter may have already inited it, continue
     }
 
     if(SSID_Info.MANUEL_EN != 1)

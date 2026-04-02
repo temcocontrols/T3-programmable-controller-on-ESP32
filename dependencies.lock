@@ -8,7 +8,7 @@ dependencies:
       version: '*'
     - name: idf
       require: private
-      version: '>=4.0'
+      version: '>=3.3.1'
     source:
       registry_url: https://components.espressif.com/
       type: service
@@ -165,12 +165,15 @@ dependencies:
       type: service
     version: 1.0.3
   espressif/led_strip:
-    component_hash: e8179c56057c243e80a8286c39361eb4bef33e42eb5f7fc841ea877597ca13f7
-    dependencies: []
+    component_hash: 28621486f77229aaf81c71f5e15d6fbf36c2949cf11094e07090593e659e7639
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.0.0
+    version: 3.0.3
   espressif/mdns:
     component_hash: 1ebe3bd675bb9d1c58f52bc0b609b32f74e572b01c328f9e61282040c775495c
     dependencies:

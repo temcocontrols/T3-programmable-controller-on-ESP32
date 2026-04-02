@@ -3,6 +3,10 @@
 
 #include "esp_wifi.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define DEBUG_INFO_UART0	0//1
 
 typedef enum
@@ -47,5 +51,9 @@ extern void wifi_task(void *pvParameters);
 extern void connect_wifi(void);
 bool compare_address(const uint8_t *addr1, const uint8_t *addr2);
 bool is_address_zero(const uint8_t *addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

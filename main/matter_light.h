@@ -1,82 +1,98 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #pragma once
 
 #include <esp_err.h>
-#include <stdbool.h>
-#include <stdint.h>
+#include <esp_matter.h>
 
-#ifdef __cplusplus
-extern "C" {
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
+#include "esp_openthread_types.h"
 #endif
 
-/**
- * @brief Initialize Matter Light
- *
- * @return ESP_OK on success, ESP_FAIL on error
- */
-esp_err_t matter_light_init(void);
+/** Standard max values (used for remapping attributes) */
+#define STANDARD_BRIGHTNESS 100
+#define STANDARD_HUE 360
+#define STANDARD_SATURATION 100
+#define STANDARD_TEMPERATURE_FACTOR 1000000
 
-/**
- * @brief Get Matter Light On/Off state
- *
- * @return true if light is on, false if off
- */
-bool matter_light_get_power(void);
+/** Matter max values (used for remapping attributes) */
+#define MATTER_BRIGHTNESS 254
+#define MATTER_HUE 254
+#define MATTER_SATURATION 254
+#define MATTER_TEMPERATURE_FACTOR 1000000
 
-/**
- * @brief Set Matter Light On/Off state
- *
- * Override this function in your application to control the actual light hardware.
- * Default implementation just stores the value.
- *
- * @param power true to turn on, false to turn off
- */
-void matter_light_set_power(bool power);
+/** Default attribute values used during initialization */
+#define DEFAULT_POWER true
+#define DEFAULT_BRIGHTNESS 64
+#define DEFAULT_HUE 128
+#define DEFAULT_SATURATION 254
 
-/**
- * @brief Get Matter Light brightness level (0-254)
- *
- * @return brightness level
- */
-uint8_t matter_light_get_brightness(void);
+typedef void *app_driver_handle_t;
 
-/**
- * @brief Set Matter Light brightness level
+/** Initialize the light driver
  *
- * Override this function in your application to control the actual light brightness.
- * Default implementation just stores the value.
+ * This initializes the light driver associated with the selected board.
  *
- * @param level brightness level (0-254, where 254 is maximum)
+ * @return Handle on success.
+ * @return NULL in case of failure.
  */
-void matter_light_set_brightness(uint8_t level);
+app_driver_handle_t app_driver_light_init();
 
-/**
- * @brief Update Matter Light On/Off attribute from application
+/** Initialize the button driver
  *
- * Call this from your application when the light power state changes
- * (e.g., from physical button press)
+ * This initializes the button driver associated with the selected board.
  *
- * @param power true to turn on, false to turn off
- * @return ESP_OK on success
+ * @return Handle on success.
+ * @return NULL in case of failure.
  */
-esp_err_t matter_light_update_power(bool power);
+app_driver_handle_t app_driver_button_init();
 
-/**
- * @brief Update Matter Light brightness attribute from application
+/** Driver Update
  *
- * Call this from your application when the light brightness changes
- * (e.g., from physical dimmer)
+ * This API should be called to update the driver for the attribute being updated.
+ * This is usually called from the common `app_attribute_update_cb()`.
  *
- * @param level brightness level (0-254)
- * @return ESP_OK on success
+ * @param[in] endpoint_id Endpoint ID of the attribute.
+ * @param[in] cluster_id Cluster ID of the attribute.
+ * @param[in] attribute_id Attribute ID of the attribute.
+ * @param[in] val Pointer to `esp_matter_attr_val_t`. Use appropriate elements as per the value type.
+ *
+ * @return ESP_OK on success.
+ * @return error in case of failure.
  */
-esp_err_t matter_light_update_brightness(uint8_t level);
+esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_t endpoint_id, uint32_t cluster_id,
+                                      uint32_t attribute_id, esp_matter_attr_val_t *val);
 
-#ifdef __cplusplus
-}
+/** Set defaults for light driver
+ *
+ * Set the attribute drivers to their default values from the created data model.
+ *
+ * @param[in] endpoint_id Endpoint ID of the driver.
+ *
+ * @return ESP_OK on success.
+ * @return error in case of failure.
+ */
+esp_err_t app_driver_light_set_defaults(uint16_t endpoint_id);
+
+#if CHIP_DEVICE_CONFIG_ENABLE_THREAD
+#define ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG()                                           \
+    {                                                                                   \
+        .radio_mode = RADIO_MODE_NATIVE,                                                \
+    }
+
+#define ESP_OPENTHREAD_DEFAULT_HOST_CONFIG()                                            \
+    {                                                                                   \
+        .host_connection_mode = HOST_CONNECTION_MODE_NONE,                              \
+    }
+
+#define ESP_OPENTHREAD_DEFAULT_PORT_CONFIG()                                            \
+    {                                                                                   \
+        .storage_partition_name = "nvs", .netif_queue_size = 10, .task_queue_size = 10, \
+    }
 #endif

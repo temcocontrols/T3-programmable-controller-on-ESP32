@@ -6,10 +6,6 @@
 #include "stdint.h"
 #include "esp_attr.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define BAC_MSTP 0
 #define BAC_IP 1
 #define BAC_IP_CLIENT 2  // for network points
@@ -551,10 +547,6 @@ void Count_VAR_Object_Number(uint8 base_var);
 
 
 extern unsigned char far Temp_Buf[MAX_APDU];
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 
