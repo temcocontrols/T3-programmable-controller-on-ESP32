@@ -2,14 +2,14 @@
 
 This project implements the core firmware used in TEMCO programmable HVAC and building automation controllers.
 
-It provides Ethernet, WiFi, and RS485 connectivity, and exposes sensors, I/O, and control logic through standard Modbus and Bacnet protocols. Devices running this firmware can be accessed by third-party systems via Modbus, or automatically scanned, configured, and monitored using TEMCO’s T3000 software.
+It provides Ethernet, WiFi, and RS485 connectivity, and exposes sensors, I/O, and control logic through standard Modbus and Bacnet protocols. Devices running this firmware can be accessed by third-party systems via Modbus and Bacnet, or automatically scanned, configured, and monitored using TEMCO’s T3000 software.
 
 The same codebase is shared across multiple TEMCO products to provide a consistent, fully programmable building automation platform.
 
 ## Products Using This Project
 
 ### T3 Series Programmable Bacnet & Modbus Controller
-The T3 controller is a general-purpose programmable HVAC and building automation controller.
+The T3 controllers and Tstat10 are general-purpose programmable HVAC and building automation controllers.
 
 This project provides its core communication, networking, and protocol handling, enabling multi-protocol operation (Modbus RTU/IP and Bacnet MSTP/IP) over Ethernet, WiFi, and RS485, with support for expandable I/O and advanced control logic via T3000.
 
