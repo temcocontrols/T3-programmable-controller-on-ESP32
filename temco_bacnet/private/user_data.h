@@ -443,7 +443,7 @@ extern S16_T 					 						group_data_length;
 
 //extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
 //extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
-extern Str_mon_element 		write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
+extern EXT_RAM_BSS_ATTR Str_mon_element 		write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
 extern Str_mon_element      read_mon_point_buf_from_flash[MAX_MON_POINT_READ];
 
 extern EXT_RAM_BSS_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
@@ -457,9 +457,9 @@ extern S8_T 			    	 			*program_address[MAX_PRGS]; /*pointer to code*/
 extern EXT_RAM_BSS_ATTR U8_T    	    	 				prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
 extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
-extern Str_array_point 	     			 arrays[MAX_ARRAYS];
+extern EXT_RAM_BSS_ATTR Str_array_point 	     			 arrays[MAX_ARRAYS];
 extern S32_T  			    				*arrays_address[MAX_ARRAYS];
-extern long			    					arrays_data[MAX_ARRAYS_DATA];
+extern EXT_RAM_BSS_ATTR long			    					arrays_data[MAX_ARRAYS_DATA];
 extern EXT_RAM_BSS_ATTR Str_table_point			 				 custom_tab[MAX_TBLS];
 extern U16_T                         PRG_crc;
 extern U8_T  *prog;
@@ -538,8 +538,8 @@ extern U8_T  ID_Config_Sche[254];
 #endif
 
 extern U8_T  output_pri_live[MAX_OUTS];
-extern float  output_priority[MAX_OUTS][16];
-extern float  output_relinquish[MAX_OUTS];
+extern EXT_RAM_BSS_ATTR float  output_priority[MAX_OUTS][16];
+extern EXT_RAM_BSS_ATTR float  output_relinquish[MAX_OUTS];
 
 
 U16_T convert_pointer_to_word( U8_T *iAddr );  //	 mGetPointWord

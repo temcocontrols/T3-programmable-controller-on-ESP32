@@ -25,7 +25,8 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include <store.h>
-
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #include "define.h"
 #include "modbus.h"
@@ -1839,6 +1840,7 @@ uint8_t Station_NUM;
 uint8_t MAX_MASTER;
 extern U8_T base_in;
 extern U8_T base_out;
+extern void matter_clear_commissioning(void);
 void Bacnet_Initial_Data(void);
 void Trend_Log_Init(void);
 void Initial_points(uint8_t point_type);
@@ -1856,6 +1858,7 @@ void set_default_parameters(void)
 	Initial_points(IN);
 	Initial_points(VAR);
 	save_point_info(0);
+	matter_clear_commissioning();
 
 }
 
@@ -4563,12 +4566,42 @@ void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
 
 void LS_led_task(void *pvParameters);
-extern esp_err_t matter_light_init(void);
+extern esp_err_t matter_tstat_init(void);
 extern void ethernet_check_task( void *pvParameters);
 void start_dns_server(void);
+static bool matter_started = false;
 #if 0//DDNS
 void ddns_task(void *pvParameters);
 #endif
+
+static void wifi_init_src(void)
+{
+    esp_netif_init();
+    esp_event_loop_create_default();
+    esp_netif_create_default_wifi_sta();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&cfg);
+
+    wifi_config_t wifi_config = {
+        .sta = {
+            // .ssid     = "4G-UFI",
+            // .password = "12345678",
+
+			.ssid     = "SRC",
+            .password = "39203920",
+
+			// .ssid     = "Airtel_bhav_7636",
+            // .password = "air39016",
+
+        },
+    };
+
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    esp_wifi_start();
+    esp_wifi_connect();
+}
 
 void phy_reset(void);
 void app_main()
@@ -4619,11 +4652,6 @@ void app_main()
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
 
-	// /* Initialize Matter Light */
-	if (matter_light_init() == ESP_OK) {
-		debug_info("Matter Light initialized successfully\r\n");
-	}
-
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
     if(Modbus.mini_type == PROJECT_MULTIMETER_NEW)
@@ -4652,7 +4680,7 @@ void app_main()
         // Create multiMeterTask with low priority
         xTaskCreate(multiMeterTask, "MultiMeterTask", 2048*2, NULL, tskIDLE_PRIORITY+5, NULL);
     }
-    //if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
+    // if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
     //    xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[6]);
 
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
@@ -4697,9 +4725,29 @@ void app_main()
 
 #endif
 
+	//xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
 
-//	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
+}
 
+void wifiConnectedEvent(void)
+{
+	if (!matter_started)
+	{
+		// /* Initialize Matter for tstate10 */
+		if (matter_tstat_init() == ESP_OK)
+		{
+			debug_info("Matter initialized successfully\r\n");
+			matter_started = true;
+		}
+		else
+        {
+            debug_info("Matter init FAILED");
+        }
+    }
+    else
+    {
+        debug_info("Matter already started - skipping");
+    }
 }
 
 // for bacnet lib
@@ -5205,5 +5253,4 @@ void Update_LCD_IconArray(void)
 	//E2prom_Write_Byte(EEP_T10_ICON_CONFIG,Modbus.icon_config);
 }
 #endif
-
 

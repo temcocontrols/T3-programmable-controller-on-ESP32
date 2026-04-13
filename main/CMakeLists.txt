@@ -6,15 +6,6 @@ endif()
 
 set(ESP_MATTER_PATH $ENV{ESP_MATTER_PATH})
 
-set(EXTRA_COMPONENT_DIRS
-    "${ESP_MATTER_PATH}/examples/common"
-    "${MATTER_SDK_PATH}/config/esp32/components"
-    "${ESP_MATTER_PATH}/components"
-    "${ESP_MATTER_PATH}/device_hal/device"
-    "${ESP_MATTER_PATH}/device_hal/led_driver"
-    ${extra_components_dirs_append}
-)
-
 idf_component_register(SRCS
 							"AppMain.c"
 							"modbus.c"
@@ -73,11 +64,10 @@ idf_component_register(SRCS
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
-                            "matter_light.cpp"
-							"app_driver.cpp"
     PRIV_INCLUDE_DIRS "." "${ESP_MATTER_PATH}/examples/common/utils"
     PRIV_REQUIRES
                 esp_matter
+                Matter
                 button
                 led_strip
 				led_driver

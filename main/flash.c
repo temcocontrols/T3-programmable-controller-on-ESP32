@@ -363,7 +363,7 @@ esp_err_t read_default_from_flash(void)
 	nvs_get_u8(my_handle, FLASH_EN_SNTP, &Modbus.en_sntp);
 	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.en_sntp == 0 || Modbus.en_sntp > 5)
 	{
-		Modbus.en_sntp = 1;
+		Modbus.en_sntp = 2;
 		nvs_set_u8(my_handle, FLASH_EN_SNTP, Modbus.en_sntp);
 	}
 

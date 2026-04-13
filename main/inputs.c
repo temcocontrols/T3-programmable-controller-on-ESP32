@@ -4,7 +4,7 @@
 
 #ifdef INPUT
 
-extern Str_table_point	   far		  custom_tab[MAX_TBLS];
+extern EXT_RAM_BSS_ATTR Str_table_point	   far		  custom_tab[MAX_TBLS];
 #if NEW_IO
 extern Str_in_point 		*new_inputs;
 extern Str_variable_point 	*new_vars;

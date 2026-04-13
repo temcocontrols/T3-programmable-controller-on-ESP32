@@ -15,25 +15,9 @@
 #include "esp_openthread_types.h"
 #endif
 
-/** Standard max values (used for remapping attributes) */
-#define STANDARD_BRIGHTNESS 100
-#define STANDARD_HUE 360
-#define STANDARD_SATURATION 100
-#define STANDARD_TEMPERATURE_FACTOR 1000000
 
-/** Matter max values (used for remapping attributes) */
-#define MATTER_BRIGHTNESS 254
-#define MATTER_HUE 254
-#define MATTER_SATURATION 254
-#define MATTER_TEMPERATURE_FACTOR 1000000
 
-/** Default attribute values used during initialization */
-#define DEFAULT_POWER true
-#define DEFAULT_BRIGHTNESS 64
-#define DEFAULT_HUE 128
-#define DEFAULT_SATURATION 254
 
-typedef void *app_driver_handle_t;
 
 /** Initialize the light driver
  *
@@ -42,7 +26,7 @@ typedef void *app_driver_handle_t;
  * @return Handle on success.
  * @return NULL in case of failure.
  */
-app_driver_handle_t app_driver_light_init();
+
 
 /** Initialize the button driver
  *
@@ -51,7 +35,7 @@ app_driver_handle_t app_driver_light_init();
  * @return Handle on success.
  * @return NULL in case of failure.
  */
-app_driver_handle_t app_driver_button_init();
+;
 
 /** Driver Update
  *
@@ -66,7 +50,7 @@ app_driver_handle_t app_driver_button_init();
  * @return ESP_OK on success.
  * @return error in case of failure.
  */
-esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_t endpoint_id, uint32_t cluster_id,
+esp_err_t app_driver_attribute_update(uint16_t endpoint_id, uint32_t cluster_id,
                                       uint32_t attribute_id, esp_matter_attr_val_t *val);
 
 /** Set defaults for light driver
@@ -78,7 +62,7 @@ esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_
  * @return ESP_OK on success.
  * @return error in case of failure.
  */
-esp_err_t app_driver_light_set_defaults(uint16_t endpoint_id);
+
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #define ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG()                                           \

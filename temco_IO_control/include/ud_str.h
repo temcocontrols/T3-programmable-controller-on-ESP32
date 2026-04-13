@@ -7,7 +7,7 @@
 
 
 #include "esp_attr.h"
-//#define  EXT_RAM_BSS_ATTR
+// EXT_RAM_BSS_ATTR is now defined in esp_attr.h, no need to override
 
 #define MAXFRAMEBUFFER			      490
 #define MAX_SEND_FRAMES             5

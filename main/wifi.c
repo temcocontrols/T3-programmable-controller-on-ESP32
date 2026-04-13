@@ -101,8 +101,7 @@ static void wifi_event_handler(
 
             //wifi_task_running = 0;
             SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
-            //debug_info("Wifi disconnected, try to connect ...");
-
+            debug_info("Wifi disconnected, try to connect ...");
             if(0)
             {// wifi
                 for(int i=0 ;i<7;i++)
@@ -179,8 +178,9 @@ static void wifi_event_handler(
             // debug_info("event_handler_2 SYSTEM_EVENT_STA_GOT_IP");
             wifi_retry_count = 0;
             //wifi_task_running = 1;
-            //xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+            xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
+            wifiConnectedEvent();
             break;
 
         default:

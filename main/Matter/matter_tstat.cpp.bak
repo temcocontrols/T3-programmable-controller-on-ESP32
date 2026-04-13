@@ -1,0 +1,129 @@
+// matter_test.cpp - Minimal commissioning test
+
+#include <esp_err.h>
+#include <nvs_flash.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <stdarg.h>
+
+#include <esp_matter.h>
+#include <esp_matter_endpoint.h>
+
+#include <app/server/Server.h>
+#include <app/server/CommissioningWindowManager.h>
+#include <platform/CHIPDeviceLayer.h>
+
+#include "wifi.h"
+#include "matter_tstat.h"
+
+using namespace esp_matter;
+using namespace esp_matter::endpoint;
+
+static void debug_printf(const char *format, ...)
+{
+    char buf[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buf, sizeof(buf), format, args);
+    va_end(args);
+    debug_info(buf);
+}
+
+static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
+{
+    switch (event->Type) {
+    case chip::DeviceLayer::DeviceEventType::kCommissioningSessionStarted:
+        debug_info("Commissioning started");
+        break;
+    case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
+        debug_info("Commissioning complete");
+        break;
+    case chip::DeviceLayer::DeviceEventType::kFailSafeTimerExpired:
+        debug_info("Commissioning failed - failsafe expired");
+        break;
+    case chip::DeviceLayer::DeviceEventType::kFabricRemoved:
+        debug_info("Fabric removed");
+        break;
+    default:
+        break;
+    }
+}
+
+static esp_err_t app_attribute_update_cb(attribute::callback_type_t type,
+                                         uint16_t endpoint_id,
+                                         uint32_t cluster_id,
+                                         uint32_t attribute_id,
+                                         esp_matter_attr_val_t *val,
+                                         void *priv_data)
+{
+    return ESP_OK;
+}
+
+static esp_err_t app_identification_cb(identification::callback_type_t type,
+                                       uint16_t endpoint_id,
+                                       uint8_t effect_id,
+                                       uint8_t effect_variant,
+                                       void *priv_data)
+{
+    return ESP_OK;
+}
+
+static void open_commissioning_cb(intptr_t arg)
+{
+    auto &mgr = chip::Server::GetInstance().GetCommissioningWindowManager();
+    if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0) {
+        mgr.OpenBasicCommissioningWindow(
+            chip::System::Clock::Seconds16(300),
+            chip::CommissioningWindowAdvertisement::kAllSupported);
+        debug_info("Commissioning window opened");
+    } else {
+        debug_info("Already commissioned - skipping");
+    }
+}
+
+static void matter_clear_commissioning_cb(intptr_t arg)
+{
+    chip::Server::GetInstance().ScheduleFactoryReset();
+}
+
+void matter_clear_commissioning(void)
+{
+    chip::DeviceLayer::PlatformMgr().ScheduleWork(matter_clear_commissioning_cb, 0);
+    debug_info("Factory reset scheduled");
+}
+
+esp_err_t matter_tstat_init(void)
+{
+
+    node::config_t node_config;
+    node_t *node = node::create(&node_config,
+                                app_attribute_update_cb,
+                                app_identification_cb);
+    if (!node) {
+        debug_info("Failed to create node");
+        return ESP_FAIL;
+    }
+
+    esp_matter::endpoint::on_off_light::config_t cfg;
+    cfg.on_off.on_off = false;
+    endpoint_t *ep = esp_matter::endpoint::on_off_light::create(
+                        node, &cfg, ENDPOINT_FLAG_NONE, nullptr);
+    if (!ep) {
+        debug_info("Failed to create light endpoint");
+        return ESP_FAIL;
+    }
+    debug_printf("Light EP: %d", endpoint::get_id(ep));
+
+    esp_err_t err = esp_matter::start(app_event_cb);
+    if (err != ESP_OK) {
+        debug_printf("Failed to start Matter: %d", err);
+        return err;
+    }
+    debug_info("Matter started");
+
+    chip::DeviceLayer::PlatformMgr().ScheduleWork(open_commissioning_cb, 0);
+    return ESP_OK;
+}
+
+tstat_data_t *matter_tstat_get_data(void)   { return nullptr; }
+void matter_tstat_report_point(uint8_t idx) { (void)idx; }

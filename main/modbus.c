@@ -95,6 +95,8 @@ uint8_t count_change_uart2 = 0;
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
 
+extern void matter_clear_commissioning(void);
+
 void check_modbus_slave(void)
 {
 	if(Modbus.fix_com_config == 1)
@@ -2277,6 +2279,10 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			if(*(bufadd + 5) == 88) // reset to defautl
 			{
 				set_default_parameters();Test[21]++;
+			}
+			if(*(bufadd + 5) == 99)	 // factory reset
+			{
+				matter_clear_commissioning();
 			}
 			if(*(bufadd + 5) == 111)	 // reboot
 			{

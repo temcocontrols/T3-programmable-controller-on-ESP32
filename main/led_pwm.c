@@ -845,7 +845,7 @@ typedef struct {
  * and pass this information together with the event type
  * the main program using a queue.
  */
-static void IRAM_ATTR pcnt_example_intr_handler(void *arg)
+static void pcnt_example_intr_handler(void *arg)
 {
 #if 0  // for test by chelsea
     uint32_t intr_status = PCNT.int_st.val;

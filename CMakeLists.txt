@@ -26,10 +26,13 @@ set(EXTRA_COMPONENT_DIRS
     "${MATTER_SDK_PATH}/config/esp32/components"
     "${ESP_MATTER_PATH}/components"
     "${ESP_MATTER_PATH}/device_hal/device"
-    "${ESP_MATTER_PATH}/device_hal/led_driver"    # <--- ADD THIS
-    "${ESP_MATTER_PATH}/device_hal/button_driver" # <--- ADD THIS (just in case)
+    "${ESP_MATTER_PATH}/device_hal/led_driver"
+    "${ESP_MATTER_PATH}/device_hal/button_driver"
+    "${CMAKE_CURRENT_SOURCE_DIR}/main/Matter"
     "${CMAKE_CURRENT_LIST_DIR}/main"
     ${extra_components_dirs_append})
+
+add_compile_options(-Wno-unused-result)
 
 project(temco_app)
 
