@@ -32,7 +32,7 @@ typedef struct
 	U8_T retry;
 }STR_NPM_NODE_OPERATE;
 
-extern STR_NPM_NODE_OPERATE NPM_node_write[STACK_LEN];
+extern EXT_RAM_BSS_ATTR STR_NPM_NODE_OPERATE NPM_node_write[STACK_LEN];
 
 #define MAX_NPB_NODE_WRITE 50
 typedef struct
@@ -45,7 +45,7 @@ typedef struct
 	U8_T time_to_live;
 	U8_T flag;
 }STR_NPB_NODE_OPERATE; // network backent points
-extern STR_NPB_NODE_OPERATE  NPB_node_write[MAX_NPB_NODE_WRITE];
+extern EXT_RAM_BSS_ATTR STR_NPB_NODE_OPERATE  NPB_node_write[MAX_NPB_NODE_WRITE];
 
 // ��չIOӳ��
 typedef struct
@@ -216,4 +216,3 @@ void set_baut_by_port(U8_T port,U8_T baut);   // need set real baut
 void Check_scan_db_time_to_live(void);
 
 #endif
-

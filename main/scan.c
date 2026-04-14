@@ -55,14 +55,14 @@ typedef struct
 	U8_T retry;
 	U8_T float_type;
 }STR_NODE_OPERATE;
-STR_NODE_OPERATE far node_write[STACK_LEN];
+EXT_RAM_BSS_ATTR STR_NODE_OPERATE far node_write[STACK_LEN];
 
 typedef enum { WRITE_OK = 0,WAIT_FOR_WRITE};
 
 
-STR_NPM_NODE_OPERATE NPM_node_write[STACK_LEN];
+EXT_RAM_BSS_ATTR STR_NPM_NODE_OPERATE NPM_node_write[STACK_LEN];
 
-STR_NPB_NODE_OPERATE  NPB_node_write[MAX_NPB_NODE_WRITE];
+EXT_RAM_BSS_ATTR STR_NPB_NODE_OPERATE  NPB_node_write[MAX_NPB_NODE_WRITE];
 
 
 U32_T  com_rx[3];
@@ -83,15 +83,15 @@ U16_T crc16(U8_T *p, U8_T length);
 //void uart_send_string(U8_T *p, U16_T length,U8_T port);
 
 #if 1
-U8_T far tstat_name[MAX_ID][16];
-U8_T far flag_tstat_name[MAX_ID];
-U16_T far count_read_tstat_name[MAX_ID];
-U8_T flag_rmp_ad[MAXREMOTEPOINTS];
-U8_T count_read_rmp_ad[MAXREMOTEPOINTS];
+EXT_RAM_BSS_ATTR U8_T far tstat_name[MAX_ID][16];
+EXT_RAM_BSS_ATTR U8_T far flag_tstat_name[MAX_ID];
+EXT_RAM_BSS_ATTR U16_T far count_read_tstat_name[MAX_ID];
+EXT_RAM_BSS_ATTR U8_T flag_rmp_ad[MAXREMOTEPOINTS];
+EXT_RAM_BSS_ATTR U8_T count_read_rmp_ad[MAXREMOTEPOINTS];
 #endif
-SCAN_DB  scan_db[MAX_ID] = {0};// _at_ 0x8000;
-SCAN_DB  current_db;
-S16_T far scan_db_time_to_live[MAX_ID];
+EXT_RAM_BSS_ATTR SCAN_DB  scan_db[MAX_ID] = {0};// _at_ 0x8000;
+EXT_RAM_BSS_ATTR SCAN_DB  current_db;
+EXT_RAM_BSS_ATTR S16_T far scan_db_time_to_live[MAX_ID];
 U8_T scan_db_baut[MAX_ID];
 
 U8_T db_ctr = 0;
@@ -2419,7 +2419,7 @@ void vStartScanTask(unsigned char uxPriority)
 	scan_port = 0xff;
     scan_baut = 0xff;
 
-    xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (TaskHandle_t *)&main_task_handle[5]);
+    xTaskCreate(ScanTask,"ScanTask",2048, NULL, uxPriority, (TaskHandle_t *)&main_task_handle[5]);
 
 }
 
@@ -2765,5 +2765,4 @@ void Check_scan_db_time_to_live(void)
 		}
 	}
 }
-
 

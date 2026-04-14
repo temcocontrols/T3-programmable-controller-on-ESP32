@@ -1,4 +1,11 @@
-// matter_tstat.cpp
+/**
+ * @file matter_tstat.cpp
+ * @brief Matter thermostat endpoint implementation.
+ *
+ * @author Bhavik Panchal (bhavikp@electrobittech.com)
+ * @date 14-04-2026
+ * @version 1.0
+ */
 
 #include <esp_err.h>
 #include <freertos/FreeRTOS.h>
@@ -13,24 +20,32 @@
 
 #include "wifi.h"
 #include "matter_tstat.h"
+#include "user_data.h"
+
+#ifdef u8
+#undef u8
+#endif
 
 using namespace esp_matter;
 using namespace esp_matter::endpoint;
 using namespace chip::app::Clusters::Thermostat;
 
 /* ------------------------------------------------------------------ */
-/* Internal state                                                       */
+/* static functions                                                   */
+/* ------------------------------------------------------------------ */
+static void MatterReportDataOnChange( void );
+
+/* ------------------------------------------------------------------ */
+/* Internal state                                                     */
 /* ------------------------------------------------------------------ */
 static uint16_t      s_ep_id = 0;
-static tstat_data_t  s_data  = {
+EXT_RAM_BSS_ATTR tstat_data_t  s_data  = {
     .local_temperature    = 2200,
     .outdoor_temperature  = 0,
     .heat_setpoint        = 2100,
     .cool_setpoint        = 2600,
     .system_mode          = TSTAT_MODE_OFF,
     .running_state        = TSTAT_RUNNING_IDLE,
-    .pi_heating_demand    = 0,
-    .pi_cooling_demand    = 0,
     .occupancy            = 1,
     .setpoint_hold        = 0,
     .min_heat_setpoint    = 1600,  /* 16.00 °C */
@@ -38,6 +53,27 @@ static tstat_data_t  s_data  = {
     .min_cool_setpoint    = 1600,
     .max_cool_setpoint    = 3200,  /* 32.00 °C */
 };
+
+typedef struct {
+    uint8_t point_type;
+    uint8_t point_number;
+    int32_t last_value;
+    bool valid;
+} matter_tstat_map_state_t;
+
+static constexpr uint8_t kMatterMapUnused = 0xFF;
+
+static matter_tstat_map_t s_map[MATTER_TSTAT_MAP_COUNT] = {
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_LOCAL_TEMP
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_OUTDOOR_TEMP
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_HEAT_SETPOINT
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_COOL_SETPOINT
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_MODE
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_RUNNING_STATE
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_OCCUPANCY
+};
+
+static matter_tstat_map_state_t s_map_state[MATTER_TSTAT_MAP_COUNT];
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -61,26 +97,71 @@ static esp_err_t tstat_update_attr(uint32_t attr_id, esp_matter_attr_val_t val)
                              &val);
 }
 
+static bool tstat_read_map_value(const matter_tstat_map_t &map, int32_t &value)
+{
+    if (map.point_type > VAR) {
+        return false;
+    }
+
+    Str_points_ptr ptr = put_io_buf((Point_type_equate)map.point_type, map.point_number);
+
+    switch (map.point_type)
+    {
+        case IN:
+            value = ptr.pin->value;
+            return true;
+        case OUT:
+            value = ptr.pout->value;
+            return true;
+        case VAR:
+            value = ptr.pvar->value;
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool tstat_map_value_changed(matter_tstat_map_id_t id, int32_t value)
+{
+    matter_tstat_map_state_t &state = s_map_state[id];
+    const matter_tstat_map_t &map = s_map[id];
+
+    if (!state.valid ||
+        state.point_type != map.point_type ||
+        state.point_number != map.point_number ||
+        state.last_value != value)
+    {
+        state.point_type = map.point_type;
+        state.point_number = map.point_number;
+        state.last_value = value;
+        state.valid = true;
+        return true;
+    }
+
+    return false;
+}
+
 /* ------------------------------------------------------------------ */
 /* Event / attribute callbacks                                         */
 /* ------------------------------------------------------------------ */
 static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 {
-    switch (event->Type) {
-    case chip::DeviceLayer::DeviceEventType::kCommissioningSessionStarted:
-        debug_info("Commissioning started");
-        break;
-    case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
-        debug_info("Commissioning complete");
-        break;
-    case chip::DeviceLayer::DeviceEventType::kFailSafeTimerExpired:
-        debug_info("Commissioning failed - failsafe expired");
-        break;
-    case chip::DeviceLayer::DeviceEventType::kFabricRemoved:
-        debug_info("Fabric removed");
-        break;
-    default:
-        break;
+    switch (event->Type)
+    {
+        case chip::DeviceLayer::DeviceEventType::kCommissioningSessionStarted:
+            debug_info("Commissioning started");
+            break;
+        case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
+            debug_info("Commissioning complete");
+            break;
+        case chip::DeviceLayer::DeviceEventType::kFailSafeTimerExpired:
+            debug_info("Commissioning failed - failsafe expired");
+            break;
+        case chip::DeviceLayer::DeviceEventType::kFabricRemoved:
+            debug_info("Fabric removed");
+            break;
+        default:
+            break;
     }
 }
 
@@ -159,12 +240,15 @@ static esp_err_t app_identification_cb(identification::callback_type_t type,
 static void open_commissioning_cb(intptr_t arg)
 {
     auto &mgr = chip::Server::GetInstance().GetCommissioningWindowManager();
-    if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0) {
+    if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0)
+    {
         mgr.OpenBasicCommissioningWindow(
             chip::System::Clock::Seconds16(300),
             chip::CommissioningWindowAdvertisement::kAllSupported);
         debug_info("Commissioning window opened");
-    } else {
+    }
+    else
+    {
         debug_info("Already commissioned - skipping");
     }
 }
@@ -178,6 +262,15 @@ void matter_clear_commissioning(void)
 {
     chip::DeviceLayer::PlatformMgr().ScheduleWork(matter_clear_commissioning_cb, 0);
     debug_info("Factory reset scheduled");
+}
+
+static void matter_user_task(void *pvParameters)
+{
+    while (1)
+    {
+        MatterReportDataOnChange();
+        vTaskDelay(pdMS_TO_TICKS(MATTER_SYNC_INTERVAL_MS));
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -220,6 +313,8 @@ esp_err_t matter_tstat_init(void)
                       esp_matter_int16(s_data.max_cool_setpoint));
 
     chip::DeviceLayer::PlatformMgr().ScheduleWork(open_commissioning_cb, 0);
+
+    xTaskCreate(matter_user_task, "matter_user_task", 2048, NULL, 5, NULL);
     return ESP_OK;
 }
 
@@ -247,17 +342,6 @@ esp_err_t matter_tstat_report_running_state(tstat_running_state_t state)
     tstat_log("RunningState -> 0x%02X", state);
     return tstat_update_attr(Attributes::ThermostatRunningState::Id,
                              esp_matter_bitmap16((uint16_t)state));
-}
-
-esp_err_t matter_tstat_report_pi_demand(uint8_t heat_pct, uint8_t cool_pct)
-{
-    s_data.pi_heating_demand = heat_pct;
-    s_data.pi_cooling_demand = cool_pct;
-    esp_err_t e1 = tstat_update_attr(Attributes::PIHeatingDemand::Id,
-                                     esp_matter_uint8(heat_pct));
-    esp_err_t e2 = tstat_update_attr(Attributes::PICoolingDemand::Id,
-                                     esp_matter_uint8(cool_pct));
-    return (e1 != ESP_OK) ? e1 : e2;
 }
 
 esp_err_t matter_tstat_report_occupancy(uint8_t occupied)
@@ -291,10 +375,57 @@ esp_err_t matter_tstat_report_mode(tstat_mode_t mode)
                              esp_matter_uint8((uint8_t)mode));
 }
 
+static void MatterReportDataOnChange( void )
+{
+    int32_t value = 0;
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_LOCAL_TEMP], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_LOCAL_TEMP, value))
+    {
+        matter_tstat_report_temperature((int16_t)value);
+    }
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_OUTDOOR_TEMP], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_OUTDOOR_TEMP, value))
+    {
+        matter_tstat_report_outdoor_temperature((int16_t)value);
+    }
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HEAT_SETPOINT], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_HEAT_SETPOINT, value))
+    {
+        matter_tstat_report_heat_setpoint((int16_t)value);
+    }
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_COOL_SETPOINT], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_COOL_SETPOINT, value))
+    {
+        matter_tstat_report_cool_setpoint((int16_t)value);
+    }
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_MODE], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_MODE, value))
+    {
+        matter_tstat_report_mode((tstat_mode_t)value);
+    }
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_RUNNING_STATE], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_RUNNING_STATE, value))
+    {
+        matter_tstat_report_running_state((tstat_running_state_t)value);
+    }
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_OCCUPANCY], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_OCCUPANCY, value))
+    {
+        matter_tstat_report_occupancy((uint8_t)value);
+    }
+}
 /* ------------------------------------------------------------------ */
 /* State snapshot                                                      */
 /* ------------------------------------------------------------------ */
 tstat_data_t *matter_tstat_get_data(void) { return &s_data; }
+matter_tstat_map_t *matter_tstat_get_map(void) { return s_map; }
 
 /* ------------------------------------------------------------------ */
 /* Weak default callbacks — override in your app                       */

@@ -8,7 +8,15 @@
 
 #define NEW_IO  0
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
+
+#ifdef __cplusplus
+}
+#endif
 
 #pragma pack(1)
 
@@ -481,7 +489,7 @@ extern U32_T                       miliseclast_cur;
 extern U32_T                       miliseclast;
 
 
-extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
+extern EXT_RAM_BSS_ATTR POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
 extern EXT_RAM_BSS_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
@@ -594,4 +602,3 @@ int GetPrivateBacnetToModbusData(uint32_t deviceid, uint16_t start_reg, int16_t 
 int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_t writelength, uint32_t data_in);
 void Bacnet_Initial_Data(void);
 #endif
-

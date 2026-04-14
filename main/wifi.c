@@ -18,6 +18,7 @@
 #include "esp_netif.h"
 #include "esp_netif_ip_addr.h"
 
+#define PRINT_STACK_USAGE 0
 
 static const char *TAG = "WIFI";
 extern SemaphoreHandle_t CountHandle;
@@ -481,6 +482,35 @@ void disable_wifi() {
     }
 }
 
+#if PRINT_STACK_USAGE
+void print_all_task_stack_usage()
+{
+    UBaseType_t task_count = uxTaskGetNumberOfTasks();
+    TaskStatus_t *task_array = (TaskStatus_t *)malloc(task_count * sizeof(TaskStatus_t));
+
+    debug_info("\n===== HEAP INFO =====\n");
+
+    heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
+    heap_caps_print_heap_info(MALLOC_CAP_SPIRAM);
+
+    char heap_info[128];
+    if (task_array != NULL)
+    {
+        task_count = uxTaskGetSystemState(task_array, task_count, NULL);
+
+        for (int i = 0; i < task_count; i++)
+        {
+            sprintf(heap_info, "Task: %s | Free stack: %ld bytes\r\n",
+                   task_array[i].pcTaskName,
+                   task_array[i].usStackHighWaterMark);
+            debug_info(heap_info);
+        }
+
+        free(task_array);
+    }
+}
+#endif
+
 void wifi_task(void *pvParameters)
 {
 	uint8_t temp_rssi = 0;
@@ -498,14 +528,18 @@ void wifi_task(void *pvParameters)
     ESP_LOGI(TAG, "Finish wifi init1");
     task_test.enable[1] = 1;
 	while(1)
-	{task_test.count[1]++;
+	{
+#if PRINT_STACK_USAGE
+        print_all_task_stack_usage();
+#endif
+        task_test.count[1]++;
 		//if(re_init_wifi)
 		//	wifi_init_sta();
 		//esp_random();
 		/*esp_fill_random(&temp_rssi,1);
 		temp_rssi /= 15;
 		SSID_Info.rssi = temp_rssi - 95;*/
-	get_wifi_signal_strength();
+	    get_wifi_signal_strength();
 	    //Initialize the system event handler
 		/*
 	    ESP_ERROR_CHECK(esp_event_loop_init(scan_event_handler, NULL));
@@ -516,7 +550,7 @@ void wifi_task(void *pvParameters)
 			.show_hidden = 1
 			};
 		ESP_ERROR_CHECK(esp_wifi_scan_start(&scanConf, 0));*/
-		vTaskDelay(3000 / portTICK_PERIOD_MS);
+		vTaskDelay(5000 / portTICK_PERIOD_MS);
 	}
 }
 
