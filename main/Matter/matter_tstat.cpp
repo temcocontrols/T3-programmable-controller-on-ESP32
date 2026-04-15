@@ -17,6 +17,8 @@
 #include <app/server/Server.h>
 #include <app/server/CommissioningWindowManager.h>
 #include <platform/CHIPDeviceLayer.h>
+#include <nvs_flash.h>
+#include <nvs.h>
 
 #include "wifi.h"
 #include "matter_tstat.h"
@@ -25,6 +27,9 @@
 #ifdef u8
 #undef u8
 #endif
+
+#define MATTER_TSTAT_NVS_NAMESPACE   "tstat_map"
+#define MATTER_TSTAT_NVS_KEY         "map_data"
 
 using namespace esp_matter;
 using namespace esp_matter::endpoint;
@@ -39,11 +44,15 @@ static void MatterReportDataOnChange( void );
 /* Internal state                                                     */
 /* ------------------------------------------------------------------ */
 static uint16_t      s_ep_id = 0;
-EXT_RAM_BSS_ATTR tstat_data_t  s_data  = {
+static bool          s_device_ready = false;
+static EXT_RAM_BSS_ATTR tstat_data_t  s_data  = {
     .local_temperature    = 2200,
     .outdoor_temperature  = 0,
     .heat_setpoint        = 2100,
     .cool_setpoint        = 2600,
+    .measured_humidity    = 5000,   /* 50.00% */
+    .min_humidity         = 0,
+    .max_humidity         = 10000,
     .system_mode          = TSTAT_MODE_OFF,
     .running_state        = TSTAT_RUNNING_IDLE,
     .occupancy            = 1,
@@ -63,24 +72,36 @@ typedef struct {
 
 static constexpr uint8_t kMatterMapUnused = 0xFF;
 
-static matter_tstat_map_t s_map[MATTER_TSTAT_MAP_COUNT] = {
+static EXT_RAM_BSS_ATTR matter_tstat_map_t s_map[MATTER_TSTAT_MAP_COUNT] = {
     { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_LOCAL_TEMP
     { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_OUTDOOR_TEMP
     { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_HEAT_SETPOINT
     { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_COOL_SETPOINT
+    { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_HUMIDITY
     { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_MODE
     { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_RUNNING_STATE
     { kMatterMapUnused, 0 }, // MATTER_TSTAT_MAP_OCCUPANCY
 };
 
-static matter_tstat_map_state_t s_map_state[MATTER_TSTAT_MAP_COUNT];
+static const matter_tstat_map_t s_map_defaults[MATTER_TSTAT_MAP_COUNT] = {
+    { IN,  8  }, // MATTER_TSTAT_MAP_LOCAL_TEMP
+    { IN,  6  }, // MATTER_TSTAT_MAP_OUTDOOR_TEMP
+    { IN,  10 }, // MATTER_TSTAT_MAP_HUMIDITY
+    { VAR, 0  }, // MATTER_TSTAT_MAP_HEAT_SETPOINT
+    { VAR, 0  }, // MATTER_TSTAT_MAP_COOL_SETPOINT
+    { VAR, 1  }, // MATTER_TSTAT_MAP_MODE
+    { VAR, 2  }, // MATTER_TSTAT_MAP_RUNNING_STATE
+    { IN,  12 }, // MATTER_TSTAT_MAP_OCCUPANCY
+};
+
+static EXT_RAM_BSS_ATTR matter_tstat_map_state_t s_map_state[MATTER_TSTAT_MAP_COUNT];
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 static void tstat_log(const char *fmt, ...)
 {
-    char buf[256];
+    char buf[64];
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
@@ -95,6 +116,115 @@ static esp_err_t tstat_update_attr(uint32_t attr_id, esp_matter_attr_val_t val)
                              chip::app::Clusters::Thermostat::Id,
                              attr_id,
                              &val);
+}
+
+static bool tstat_map_entry_valid(const matter_tstat_map_t &m)
+{
+    /* point_type must be IN, OUT, or VAR (0,1,2 typically) */
+    return (m.point_type <= VAR);
+}
+
+static bool tstat_map_all_valid(const matter_tstat_map_t *map)
+{
+    for (int i = 0; i < MATTER_TSTAT_MAP_COUNT; i++) {
+        if (!tstat_map_entry_valid(map[i])) return false;
+    }
+    return true;
+}
+
+esp_err_t matter_tstat_map_save(void)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(MATTER_TSTAT_NVS_NAMESPACE, NVS_READWRITE, &h);
+    if (err != ESP_OK) { tstat_log("NVS open failed: %d", err); return err; }
+
+    err = nvs_set_blob(h, MATTER_TSTAT_NVS_KEY,
+                       s_map, sizeof(s_map));
+    if (err == ESP_OK) err = nvs_commit(h);
+
+    nvs_close(h);
+    tstat_log("Map saved to NVS: %s", esp_err_to_name(err));
+    return err;
+}
+
+esp_err_t matter_tstat_map_load(void)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(MATTER_TSTAT_NVS_NAMESPACE, NVS_READONLY, &h);
+
+    if (err == ESP_OK) {
+        matter_tstat_map_t tmp[MATTER_TSTAT_MAP_COUNT];
+        size_t len = sizeof(tmp);
+
+        err = nvs_get_blob(h, MATTER_TSTAT_NVS_KEY, tmp, &len);
+        nvs_close(h);
+
+        if (err == ESP_OK &&
+            len == sizeof(s_map) &&
+            tstat_map_all_valid(tmp))
+        {
+            memcpy(s_map, tmp, sizeof(s_map));
+            debug_info("Map loaded from NVS");
+            return ESP_OK;
+        }
+
+        debug_info("NVS map invalid or wrong size — loading defaults");
+    } else {
+        tstat_log("NVS open failed (%s) — loading defaults", esp_err_to_name(err));
+    }
+
+    return matter_tstat_map_reset_defaults();
+}
+
+esp_err_t matter_tstat_map_reset_defaults(void)
+{
+    memcpy(s_map, s_map_defaults, sizeof(s_map));
+    debug_info("Map reset to defaults");
+    return matter_tstat_map_save();   /* persist immediately */
+}
+
+/* Called when Modbus master WRITES a register in range 600-615 */
+void matter_tstat_map_from_modbus(uint16_t reg, uint16_t value)
+{
+    /* Check within range */
+    if (reg < MODBUS_MATTER_MAP_REG_BASE || reg >= MODBUS_MATTER_MAP_REG_END)
+    {
+        return;
+    }
+
+    uint8_t offset = reg - MODBUS_MATTER_MAP_REG_BASE;
+    uint8_t idx    = offset / 2;       /* which map entry */
+    bool    is_type = (offset % 2 == 0); /* even = type, odd = number */
+
+    if (is_type) {
+        if (value > VAR) {
+            tstat_log("MB reg %d: invalid point_type=%d", reg, value);
+            return;
+        }
+        s_map[idx].point_type = (uint8_t)value;
+        tstat_log("MB reg %d -> map[%d].point_type = %d", reg, idx, value);
+    } else {
+        s_map[idx].point_number = (uint8_t)value;
+        tstat_log("MB reg %d -> map[%d].point_number = %d", reg, idx, value);
+    }
+
+    matter_tstat_map_save();
+}
+
+/* Called when Modbus master READS a register in range 600-615 */
+uint16_t matter_tstat_map_to_modbus(uint16_t reg)
+{
+    if (reg < MODBUS_MATTER_MAP_REG_BASE || reg >= MODBUS_MATTER_MAP_REG_END)
+    {
+        return 0xFFFF;  /* out of range */
+    }
+
+    uint8_t offset  = reg - MODBUS_MATTER_MAP_REG_BASE;
+    uint8_t idx     = offset / 2;
+    bool    is_type = (offset % 2 == 0);
+
+    return is_type ? s_map[idx].point_type
+                   : s_map[idx].point_number;
 }
 
 static bool tstat_read_map_value(const matter_tstat_map_t &map, int32_t &value)
@@ -153,12 +283,17 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
             break;
         case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
             debug_info("Commissioning complete");
+            s_device_ready = true;
             break;
         case chip::DeviceLayer::DeviceEventType::kFailSafeTimerExpired:
             debug_info("Commissioning failed - failsafe expired");
             break;
         case chip::DeviceLayer::DeviceEventType::kFabricRemoved:
             debug_info("Fabric removed");
+            s_device_ready = false;
+            break;
+        case chip::DeviceLayer::DeviceEventType::kServerReady:
+            debug_info("Matter server ready");
             break;
         default:
             break;
@@ -250,12 +385,40 @@ static void open_commissioning_cb(intptr_t arg)
     else
     {
         debug_info("Already commissioned - skipping");
+        s_device_ready = true;
     }
 }
 
 static void matter_clear_commissioning_cb(intptr_t arg)
 {
-    chip::Server::GetInstance().ScheduleFactoryReset();
+    esp_matter::factory_reset();
+    // CHIP_ERROR err = chip::DeviceLayer::PlatformMgr().ScheduleWork(
+    // [](intptr_t) {
+    //     // 1. Remove all fabrics explicitly
+    //     chip::FabricTable &fabricTable = chip::Server::GetInstance().GetFabricTable();
+    //     for (auto & fabricInfo : fabricTable) {
+    //         chip::Server::GetInstance().GetFabricTable().Delete(fabricInfo.GetFabricIndex());
+    //     }
+
+    //     // 2. Erase the Matter NVS namespace directly
+    //     nvs_handle_t handle;
+    //     if (nvs_open("chip-counters", NVS_READWRITE, &handle) == ESP_OK)
+    //     {
+    //         nvs_erase_all(handle);
+    //         nvs_commit(handle);
+    //         nvs_close(handle);
+    //     }
+
+    //     // 3. Now do the factory reset
+    //     chip::Server::GetInstance().ScheduleFactoryReset();
+    // }, 0);
+
+    // if (err != CHIP_NO_ERROR) {
+    //     debug_info("Failed to clear commissioning");
+    // }
+    // else{
+    //     debug_info("All fabrics cleared");
+    // }
 }
 
 void matter_clear_commissioning(void)
@@ -279,10 +442,13 @@ static void matter_user_task(void *pvParameters)
 esp_err_t matter_tstat_init(void)
 {
     node::config_t node_config;
+
     node_t *node = node::create(&node_config,
                                 app_attribute_update_cb,
                                 app_identification_cb);
     if (!node) { debug_info("Failed to create node"); return ESP_FAIL; }
+
+    matter_tstat_map_load();
 
     esp_matter::endpoint::thermostat::config_t cfg;
     cfg.thermostat.system_mode       = s_data.system_mode;
@@ -295,6 +461,45 @@ esp_err_t matter_tstat_init(void)
                         node, &cfg, ENDPOINT_FLAG_NONE, nullptr);
     if (!ep) { debug_info("Failed: thermostat EP"); return ESP_FAIL; }
 
+    cluster_t *tstat_cluster = cluster::get(ep, chip::app::Clusters::Thermostat::Id);
+    if (!tstat_cluster) {
+        debug_info("Failed to get thermostat cluster");
+        return ESP_FAIL;
+    }
+
+    /* Add optional attributes that are not created by default */
+    attribute_t *attr = nullptr;
+
+    attr = esp_matter::cluster::thermostat::attribute::create_outdoor_temperature(tstat_cluster, s_data.outdoor_temperature);
+    if (!attr) debug_info("Failed: outdoor_temperature attr");
+
+    attr = esp_matter::cluster::thermostat::attribute::create_thermostat_running_state(tstat_cluster, s_data.running_state);
+    if (!attr) debug_info("Failed: running_state attr");
+
+    attr = esp_matter::cluster::thermostat::attribute::create_min_heat_setpoint_limit(tstat_cluster, s_data.min_heat_setpoint);
+    if (!attr) debug_info("Failed: min_heat_setpoint attr");
+
+    attr = esp_matter::cluster::thermostat::attribute::create_max_heat_setpoint_limit(tstat_cluster, s_data.max_heat_setpoint);
+    if (!attr) debug_info("Failed: max_heat_setpoint attr");
+
+    attr = esp_matter::cluster::thermostat::attribute::create_min_cool_setpoint_limit(tstat_cluster, s_data.min_cool_setpoint);
+    if (!attr) debug_info("Failed: min_cool_setpoint attr");
+
+    attr = esp_matter::cluster::thermostat::attribute::create_max_cool_setpoint_limit(tstat_cluster, s_data.max_cool_setpoint);
+    if (!attr) debug_info("Failed: max_cool_setpoint attr");
+
+    cluster::relative_humidity_measurement::config_t hum_cfg;
+    hum_cfg.measured_value    = s_data.measured_humidity;
+    hum_cfg.min_measured_value = s_data.min_humidity;
+    hum_cfg.max_measured_value = s_data.max_humidity;
+
+    cluster_t *hum_cluster = cluster::relative_humidity_measurement::create(
+        ep, &hum_cfg, CLUSTER_FLAG_SERVER);
+    if (!hum_cluster) {
+        debug_info("Failed to create humidity cluster");
+        return ESP_FAIL;
+    }
+
     s_ep_id = endpoint::get_id(ep);
     tstat_log("Thermostat EP: %d", s_ep_id);
 
@@ -302,19 +507,9 @@ esp_err_t matter_tstat_init(void)
     if (err != ESP_OK) { tstat_log("Matter start failed: %d", err); return err; }
     debug_info("Matter started");
 
-    /* Push limits into data model after start */
-    tstat_update_attr(Attributes::MinHeatSetpointLimit::Id,
-                      esp_matter_int16(s_data.min_heat_setpoint));
-    tstat_update_attr(Attributes::MaxHeatSetpointLimit::Id,
-                      esp_matter_int16(s_data.max_heat_setpoint));
-    tstat_update_attr(Attributes::MinCoolSetpointLimit::Id,
-                      esp_matter_int16(s_data.min_cool_setpoint));
-    tstat_update_attr(Attributes::MaxCoolSetpointLimit::Id,
-                      esp_matter_int16(s_data.max_cool_setpoint));
-
     chip::DeviceLayer::PlatformMgr().ScheduleWork(open_commissioning_cb, 0);
 
-    xTaskCreate(matter_user_task, "matter_user_task", 2048, NULL, 5, NULL);
+    xTaskCreate(matter_user_task, "matter_user_task", 4096, NULL, 5, NULL);
     return ESP_OK;
 }
 
@@ -334,6 +529,20 @@ esp_err_t matter_tstat_report_outdoor_temperature(int16_t temp_001c)
     s_data.outdoor_temperature = temp_001c;
     return tstat_update_attr(Attributes::OutdoorTemperature::Id,
                              esp_matter_int16(temp_001c));
+}
+
+esp_err_t matter_tstat_report_humidity(uint16_t humidity_001pct)
+{
+    s_data.measured_humidity = humidity_001pct;
+    tstat_log("Humidity -> %.2f %%", humidity_001pct / 100.0f);
+
+    esp_matter_attr_val_t val = esp_matter_uint16(humidity_001pct);  // store first
+
+    return attribute::update(
+        s_ep_id,
+        chip::app::Clusters::RelativeHumidityMeasurement::Id,
+        chip::app::Clusters::RelativeHumidityMeasurement::Attributes::MeasuredValue::Id,
+        &val);
 }
 
 esp_err_t matter_tstat_report_running_state(tstat_running_state_t state)
@@ -377,18 +586,21 @@ esp_err_t matter_tstat_report_mode(tstat_mode_t mode)
 
 static void MatterReportDataOnChange( void )
 {
+    if(!s_device_ready) return; /* don't read map until commissioned */
+
     int32_t value = 0;
 
     if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_LOCAL_TEMP], value) &&
         tstat_map_value_changed(MATTER_TSTAT_MAP_LOCAL_TEMP, value))
     {
-        matter_tstat_report_temperature((int16_t)value);
+        tstat_log("RAW LocalTemp = %d", (int)value);
+        matter_tstat_report_temperature((int16_t)(value/10));
     }
 
     if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_OUTDOOR_TEMP], value) &&
         tstat_map_value_changed(MATTER_TSTAT_MAP_OUTDOOR_TEMP, value))
     {
-        matter_tstat_report_outdoor_temperature((int16_t)value);
+        matter_tstat_report_outdoor_temperature((int16_t)(value/10));
     }
 
     if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HEAT_SETPOINT], value) &&
@@ -400,24 +612,35 @@ static void MatterReportDataOnChange( void )
     if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_COOL_SETPOINT], value) &&
         tstat_map_value_changed(MATTER_TSTAT_MAP_COOL_SETPOINT, value))
     {
+        tstat_log("RAW LocalSP = %d", (int)value);
         matter_tstat_report_cool_setpoint((int16_t)value);
+    }
+
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HUMIDITY], value) &&
+        tstat_map_value_changed(MATTER_TSTAT_MAP_HUMIDITY, value))
+    {
+        tstat_log("RAW Localhum = %d", (int)value);
+        matter_tstat_report_humidity((uint16_t)value);
     }
 
     if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_MODE], value) &&
         tstat_map_value_changed(MATTER_TSTAT_MAP_MODE, value))
     {
+        tstat_log("RAW LocalMode= %d", (int)value);
         matter_tstat_report_mode((tstat_mode_t)value);
     }
 
     if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_RUNNING_STATE], value) &&
         tstat_map_value_changed(MATTER_TSTAT_MAP_RUNNING_STATE, value))
     {
+        tstat_log("RAW LocalState= %d", (int)value);
         matter_tstat_report_running_state((tstat_running_state_t)value);
     }
 
     if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_OCCUPANCY], value) &&
         tstat_map_value_changed(MATTER_TSTAT_MAP_OCCUPANCY, value))
     {
+        tstat_log("RAW LocalOcc= %d", (int)value);
         matter_tstat_report_occupancy((uint8_t)value);
     }
 }

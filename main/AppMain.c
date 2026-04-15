@@ -1857,8 +1857,6 @@ void set_default_parameters(void)
 	Initial_points(IN);
 	Initial_points(VAR);
 	save_point_info(0);
-	matter_clear_commissioning();
-
 }
 
 void Inital_Bacnet_Server(void)
@@ -4604,7 +4602,7 @@ void app_main()
     // if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
 	// {
 	// 	Test_Array();
-	// 	xTaskCreate(MenuTask,  "MenuTask", 2048, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+	// 	xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	// }
 
   	if (Modbus.mini_type != MINI_BIG_ARM)
@@ -4689,7 +4687,7 @@ void app_main()
     Set_Device_Stage(DEVICE_STAGE_RUNNING);
 
  #if 1
-	xTaskCreate(Bacnet_Control,"BAC_Control_task",2048, NULL, 3, &main_task_handle[14]); // Free stack: 1524 bytes
+	xTaskCreate(Bacnet_Control,"BAC_Control_task",4096, NULL, 3, &main_task_handle[14]); // Free stack: 3524 bytes
 #endif
 
  #if 1

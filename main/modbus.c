@@ -23,7 +23,7 @@
 #include "sntp_app.h"
 #include "co2.h"
 #include "LcdTheme.h"
-
+#include "Matter/matter_tstat.h"
 
 extern SemaphoreHandle_t xSem_comport[3];
 
@@ -735,72 +735,71 @@ void uart2_rx_task(void *pvParameters)
 
 void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
-   uint8_t num = 0, i, temp1, temp2;
-   uint16_t temp;
-   uint16_t send_cout = 0 ;
-   uint16_t address;
-   uint8_t headlen = 0;
-   uint16_t TransID;
-   uint8_t *uart_sendB = NULL;
-   uint8_t *uart_send = NULL;
-   //char test;
+	uint8_t num = 0, i, temp1, temp2;
+	uint16_t temp;
+	uint16_t send_cout = 0 ;
+	uint16_t address;
+	uint8_t headlen = 0;
+	uint16_t TransID;
+	uint8_t *uart_sendB = NULL;
+	uint8_t *uart_send = NULL;
+	//char test;
 
-   if(type == WIFI)
-   {
-      headlen = UIP_HEAD;
-      uart_sendB = malloc(512);
-   }
-   else
-   {
-      headlen = 0;
-      uart_send = malloc(512);
-   }
-   if(*(bufadd + 1 + headlen) == WRITE_VARIABLES)
-   {
-      if(type == WIFI){ // for wifi
-         for(i = 0; i < 6; i++)
-            uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
+	if(type == WIFI)
+	{
+		headlen = UIP_HEAD;
+		uart_sendB = malloc(512);
+	}
+	else
+	{
+		headlen = 0;
+		uart_send = malloc(512);
+	}
+	if(*(bufadd + 1 + headlen) == WRITE_VARIABLES)
+	{
+		if(type == WIFI){ // for wifi
+			for(i = 0; i < 6; i++)
+				uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
 
-         uart_sendB[0] = *bufadd;//0;         //   TransID
-         uart_sendB[1] = *(bufadd + 1);//TransID++;
-         uart_sendB[2] = 0;         //   ProtoID
-         uart_sendB[3] = 0;
-         uart_sendB[4] = 0;   //   Len
-         uart_sendB[5] = 6;
+			uart_sendB[0] = *bufadd;//0;         //   TransID
+			uart_sendB[1] = *(bufadd + 1);//TransID++;
+			uart_sendB[2] = 0;         //   ProtoID
+			uart_sendB[3] = 0;
+			uart_sendB[4] = 0;   //   Len
+			uart_sendB[5] = 6;
 
-         memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
-         *modbus_send_len = UIP_HEAD + send_cout;
-      }
-	  else
-	  {
-         //uart_write_bytes(UART_NUM_0, "WRITE_VARIABLES\r\n", sizeof("WRITE_VARIABLES\r\n"));
-         for(i = 0; i < rece_size; i++)
-            uart_send[send_cout++] = *(bufadd+i);
-         if(type == BAC_TO_MODBUS)
-         {
-        	memcpy(&bacnet_to_modbus,&bufadd[3],bufadd[5] * 2);
-         }
-         else if(type == SERIAL) // MODBUS
-         {
-            uart_send_string((const char *)uart_send, send_cout,port);
-         }
-      }
-   }
-   else if(*(bufadd + 1 + headlen) == MULTIPLE_WRITE)
-   {
-      //init_crc16();
-      for(i = 0; i < 6; i++)
-      {
-          if(type != WIFI)
-               uart_send[send_cout++] = *(bufadd+i) ;
-          else
-          {
-               uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
+			memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
+			*modbus_send_len = UIP_HEAD + send_cout;
+		}
+		else
+		{
+			//uart_write_bytes(UART_NUM_0, "WRITE_VARIABLES\r\n", sizeof("WRITE_VARIABLES\r\n"));
+			for(i = 0; i < rece_size; i++)
+				uart_send[send_cout++] = *(bufadd+i);
+			if(type == BAC_TO_MODBUS)
+			{
+				memcpy(&bacnet_to_modbus,&bufadd[3],bufadd[5] * 2);
+			}
+			else if(type == SERIAL) // MODBUS
+			{
+				uart_send_string((const char *)uart_send, send_cout,port);
+			}
+		}
+	}
+	else if(*(bufadd + 1 + headlen) == MULTIPLE_WRITE)
+	{
+		//init_crc16();
+		for(i = 0; i < 6; i++)
+		{
+			if(type != WIFI)
+				uart_send[send_cout++] = *(bufadd+i) ;
+			else
+			{
+				uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + i + headlen);
 
-          }
-         crc16_byte(*(bufadd+i));
-      }
-
+			}
+			crc16_byte(*(bufadd+i));
+		}
 
 		if(type == BAC_TO_MODBUS)
 		{
@@ -824,501 +823,501 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			 memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
 			*modbus_send_len = UIP_HEAD + send_cout;
 		}
-   }
-   else if(*(bufadd + 1 + headlen) == READ_VARIABLES)
-   {
-      num = *(bufadd+5 + headlen);
-      if(type == SERIAL || type == BAC_TO_MODBUS)
-      {
-         uart_send[send_cout++] = *(bufadd) ;
-         uart_send[send_cout++] = *(bufadd+1) ;
-         uart_send[send_cout++] = (*(bufadd+5)<<1);
+	}
+	else if(*(bufadd + 1 + headlen) == READ_VARIABLES)
+	{
+		num = *(bufadd+5 + headlen);
+		if(type == SERIAL || type == BAC_TO_MODBUS)
+		{
+			uart_send[send_cout++] = *(bufadd) ;
+			uart_send[send_cout++] = *(bufadd+1) ;
+			uart_send[send_cout++] = (*(bufadd+5)<<1);
 
-      }
-      else//WIFI
-      {
-         uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + headlen);
-         uart_sendB[UIP_HEAD + send_cout++] = *(bufadd+1 + headlen) ;
-         uart_sendB[UIP_HEAD + send_cout++] = (*(bufadd +5 + headlen)<<1);
-      }
-      crc16_byte(*(bufadd + headlen));
-      crc16_byte(*(bufadd +1 + headlen));
-      crc16_byte((*(bufadd + 5 + headlen)<<1));
-      for(i = 0; i < num; i++)
-      {
-         address = (uint16_t)((*(bufadd+2 + headlen))<<8) + (*(bufadd+3 + headlen)) + i;
+		}
+		else//WIFI
+		{
+			uart_sendB[UIP_HEAD + send_cout++] = *(bufadd + headlen);
+			uart_sendB[UIP_HEAD + send_cout++] = *(bufadd+1 + headlen) ;
+			uart_sendB[UIP_HEAD + send_cout++] = (*(bufadd +5 + headlen)<<1);
+		}
+		crc16_byte(*(bufadd + headlen));
+		crc16_byte(*(bufadd +1 + headlen));
+		crc16_byte((*(bufadd + 5 + headlen)<<1));
+		for(i = 0; i < num; i++)
+		{
+			address = (uint16_t)((*(bufadd+2 + headlen))<<8) + (*(bufadd+3 + headlen)) + i;
 
-          if((address >= MODBUS_AIRLAB_REG_START) &&
-                 		 (address <= MODBUS_AIRLAB_REG_START + 2000))
-		  {
-			if(Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+			if((address >= MODBUS_AIRLAB_REG_START) &&
+							(address <= MODBUS_AIRLAB_REG_START + 2000))
 			{
-				// run specail register
-				 U16_T temp = 0;
-				 if(Modbus.mini_type == PROJECT_AIRLAB)
-					 temp = read_airlab_by_block(address);
-				 if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
-				 	temp = read_lightswitch_by_block(address);
-				 temp1 = (temp>>8) & 0xff;
-				 temp2 = temp & 0xff;
+				if(Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+				{
+					// run specail register
+					U16_T temp = 0;
+					if(Modbus.mini_type == PROJECT_AIRLAB)
+						temp = read_airlab_by_block(address);
+					if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+						temp = read_lightswitch_by_block(address);
+					temp1 = (temp>>8) & 0xff;
+					temp2 = temp & 0xff;
+				}
+				else
+				{
+					temp1 = 0;
+					temp2 = 0;
+				}
+			}
+			else if((address >= MODBUS_CO2_REG_START) && (address < MODBUS_CO2_REG_END))
+			{
+				temp = read_co2_by_block(address);
+				temp1 = (temp>>8) & 0xff;
+				temp2 = temp & 0xff;
+			}
+			else if(address == SERIALNUMBER_LOWORD )
+			{
+				temp1 = 0 ;
+				temp2 = (uint8_t)Modbus.serialNum[0];
+			}
+			else if(address == (SERIALNUMBER_LOWORD +1))
+			{
+				temp1 = 0 ;
+				temp2 = (uint8_t)(Modbus.serialNum[1]);
+			}
+			else if(address == SERIALNUMBER_HIWORD)
+			{
+				temp1 = 0 ;
+				temp2 = Modbus.serialNum[2];
+			}
+			else if(address == (SERIALNUMBER_HIWORD +1))
+			{
+
+				temp1 = 0;
+				temp2 = Modbus.serialNum[3];
+			}
+			else if(address == VERSION_NUMBER_LO)
+			{
+				temp1 = 0;
+				temp2 = SW_REV % 100;
+			}
+			else if(address == VERSION_NUMBER_HI)
+			{
+				temp1 = 0;
+				temp2 = SW_REV / 100;
+			}
+			else if(address == MODBUS_ADDRESS)
+			{
+				temp1 = 0; ;
+				temp2 = Modbus.address & 0xff;
+			}
+			else if(address == PRODUCT_MODEL)
+			{
+				temp1 = 0 ;
+				temp2 = Modbus.product_model&0xff;
+			}
+			else if(address == HARDWARE_REV)
+			{
+				temp1 = 0 ;
+				temp2 = Modbus.hardRev ;
+			}
+			else if(address == MODBUS_ISP_VER)
+			{
+				temp1 = 0 ;
+				temp2 = Modbus.IspVer ;
+			}
+			else if(address == MODBUS_UART0_BAUDRATE)
+			{
+				temp1 = 0;
+				temp2 = Modbus.baudrate[0];
+			}
+			else if(address == MODBUS_UART2_BAUDRATE)
+			{
+				temp1 = 0;
+				temp2 = Modbus.baudrate[2];
+			}
+			else if(address == MODBUS_ETHERNET_STATUS)
+			{
+				temp1 = 0;
+				temp2 = Modbus.ethernet_status;
+			}
+			else if(address == MODBUS_ENABLE_DEBUG)
+			{
+				temp1 = 0;
+				temp2 = Modbus.enable_debug;
+			}
+			else if((address >= MODBUS_IN1_CAL)&&(address <= MODBUS_IN16_CAL))
+			{
+				temp1 = (input_cal[address - MODBUS_IN1_CAL] >> 8) & 0xff;
+				temp2 = input_cal[address - MODBUS_IN1_CAL] & 0xff;
+			}
+			else if((address >= MODBUS_TEST_1)&&(address < MODBUS_TEST_50))
+			{
+				temp1 = (Test/*holding_reg_params.testBuf*/[address-MODBUS_TEST_1]>>8)&0xff;
+				temp2 = Test/*holding_reg_params.testBuf*/[address-MODBUS_TEST_1]&0xff;
+			}
+			else if(address == MODBUS_COM0_TYPE)
+			{
+				temp1 = 0;
+				temp2 = Modbus.com_config[0];
+			}
+			/* else if(address == MODBUS_COM1_TYPE)
+			{
+				temp1 = 0;
+				temp2 = Modbus.com_config[1];
+			}*/
+			else if(address == MODBUS_COM2_TYPE)
+			{
+				temp1 = 0;
+				temp2 = Modbus.com_config[2];
+			}
+			else if(address == MODBUS_INSTANCE_LO)
+			{
+				temp1 = (U8_T)(Instance >> 8);
+				temp2 = (U8_T)Instance;
+			}
+			else if(address == MODBUS_MINI_TYPE)
+			{
+				temp1 = 0;
+				temp2 = Modbus.mini_type;
+			}
+			else if(address == MODBUS_DISPLAY_THEME)
+			{
+				temp1 = 0;
+				temp2 = Modbus.LcdTheme;
+			}
+			else if(address == MODBUS_INSTANCE_HI)
+			{
+				temp1 = (U8_T)(Instance >> 24);
+				temp2 = (U8_T)(Instance >> 16);
+			}
+			else if(address == MODBUS_PANEL_NUMBER)
+			{
+				temp1 = 0;
+				temp2 = Modbus.address;
+			}
+			else if(address == MODBUS_STATION_NUM)
+			{
+				temp1 = 0;
+				temp2 = Modbus.address;
+			}
+			else if(address == MODBUS_NETWORK_NUMBER)
+			{
+				temp1 = Modbus.network_number >> 8;
+				temp2 = Modbus.network_number;
+			}
+			else if(address == MODBUS_MSTP_NETWORK)
+			{
+				temp1 = Modbus.mstp_network >> 8;
+				temp2 = Modbus.mstp_network;
+			}
+			else if(address == MODBUS_TIME_ZONE)
+			{
+				temp1 = timezone >> 8;
+				temp2 = timezone;
+			}
+			else if(address == MODBUS_DSL)
+			{
+				temp1 = 0;
+				temp2 = Daylight_Saving_Time;
+			}
+			else if(address == MODBUS_SNTP_EN)
+			{
+				temp1 = 0;
+				temp2 =  Modbus.en_sntp;
+			}
+			else if(address == MODBUS_TCP_PORT)
+			{
+				temp1 = Modbus.tcp_port >> 8;
+				temp2 = Modbus.tcp_port;
+			}
+			else if(address == MODBUS_READ_POINT_TIMER)
+			{
+				temp1 = READ_POINT_TIMER >> 8;
+				temp2 = READ_POINT_TIMER;
+			}
+			else if(address == Modbus_Fix_Com_Config)
+			{
+				temp1 = 0;
+				temp2 = Modbus.fix_com_config;
+			}
+			else if(address == MODBUS_WRITE_FLASH)
+			{
+				temp1 = Modbus.write_flash >> 8;
+				temp2 = Modbus.write_flash;
+			}
+			else if(address == IP_MODE)
+			{
+				temp1 = 0;
+				temp2 = Modbus.tcp_type;
+			}
+			else if(address == MODBUS_DEAD_MASTER_FOR_PLC)
+			{
+				temp1 = 0;
+				temp2 = Modbus.dead_master_for_PLC;
+			}
+			else if((address >= MAC_ADDR_1) && (address <= MAC_ADDR_6))
+			{
+				temp1 = 0;
+				temp2 = Modbus.mac_addr[address - MAC_ADDR_1];
+			}
+			else if((address >= IP_ADDR_1) && (address <= IP_ADDR_4))
+			{
+				temp1 = 0;
+				temp2 = Modbus.ip_addr[address - IP_ADDR_1];
+			}
+			else if((address >= IP_SUB_MASK_1)&& (address <= IP_SUB_MASK_4))
+			{
+				temp1 = 0;
+				temp2 = Modbus.subnet[address - IP_SUB_MASK_1];
+			}
+
+			else if((address >= IP_GATE_WAY_1)&& (address <= IP_GATE_WAY_4))
+			{
+				temp1 = 0;
+				temp2 = Modbus.getway[address - IP_GATE_WAY_1];
+			}
+			else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 7)
+			{
+				if(address - MODBUS_TIMER_ADDRESS == 0)  // second
+				{
+					temp1 = 0;
+					temp2 =  rtc_date.second;
+				}
+				else if(address - MODBUS_TIMER_ADDRESS == 1)  // minute
+				{
+					temp1 = 0;
+					temp2 =  rtc_date.minute;
+				}
+				else if(address - MODBUS_TIMER_ADDRESS == 2)  // hour
+				{
+					temp1 = 0;
+					temp2 =  rtc_date.hour;
+				}
+				else if(address - MODBUS_TIMER_ADDRESS == 3)  // day
+				{
+					temp1 = 0;
+					temp2 =  rtc_date.day;
+				}
+				else if(address - MODBUS_TIMER_ADDRESS == 4)  // weekday
+				{
+					temp1 = 0;
+					temp2 =  rtc_date.weekday;
+				}
+				else if(address - MODBUS_TIMER_ADDRESS == 5)  // month
+				{
+					temp1 = 0;
+					temp2 =  rtc_date.month;
+				}
+				else if(address - MODBUS_TIMER_ADDRESS == 6)
+				{ // day of year
+					temp1 = rtc_date.year >> 8;
+					temp2 =  rtc_date.year;
+				}
+				else if(address - MODBUS_TIMER_ADDRESS == 7)//day of year
+				{ // day of year
+					temp1 = rtc_date.day_of_year >> 8;
+					temp2 =  rtc_date.day_of_year;
+				}
+			}
+			else if(address == MODBUS_RUN_TIME_LO)
+			{
+				temp1 = (run_time) >> 8;
+				temp2 = (run_time);
+			}
+			else if(address == MODBUS_RUN_TIME_HI)
+			{
+				temp1 = (run_time) >> 24;
+				temp2 = (run_time) >> 16;
+			}
+			else if(address == MODBUS_MAX_VARS)
+			{
+				temp1 = 0;
+				temp2 = max_vars;
+			}
+			else if(address == MODBUS_MAX_INS)
+			{
+				temp1 = 0;
+				temp2 = max_inputs;
+			}
+			else if(address == MODBUS_MAX_OUTS)
+			{
+				temp1 = 0;
+				temp2 = max_outputs;
+			}
+			else if(address == MODBUS_TOTAL_NO)
+			{
+				temp1 = 0;
+				temp2 = sub_no;
+			}
+			else if (address >= MODBUS_MATTER_MAP_REG_BASE &&	address < MODBUS_MATTER_MAP_REG_END)
+			{
+				temp1 = 0;
+				temp2 = matter_tstat_map_to_modbus(address);
+			}
+			else if(address >= MODBUS_SUBADDR_FIRST && address <= MODBUS_SUBADDR_LAST)
+			{
+				temp1 = (current_online[scan_db[address  - MODBUS_SUBADDR_FIRST].id / 8] & (1 << (scan_db[address  - MODBUS_SUBADDR_FIRST].id % 8))) ? 1 : 0;
+				temp2 =  scan_db[address  - MODBUS_SUBADDR_FIRST].id;
+			}
+			else if(address >= MODBUS_TASK_TEST && address < MODBUS_TASK_TEST + 64)
+			{
+				U16_T reg = (address - MODBUS_TASK_TEST) / 4;
+				U16_T index = (address - MODBUS_TASK_TEST) % 4;
+				if(index == 0)
+				{
+					temp1 = task_test.count[reg] >> 8;
+					temp2 = task_test.count[reg] & 0xff;
+				}
+				else if(index == 1)
+				{
+					temp1 = task_test.old_count[reg] >> 8;
+					temp2 = task_test.old_count[reg] & 0xff;
+				}
+				else if(index == 2)
+				{
+					temp1 = 0;
+					temp2 = task_test.enable[reg];
+				}
+				else if(index == 3)
+				{
+					temp1 = task_test.inactive_count[reg] >> 8;
+					temp2 = task_test.inactive_count[reg] & 0xff;
+				}
+			}
+			else if(address == WIFI_RSSI)
+			{
+				temp1 = 0xff;
+				temp2 = SSID_Info.rssi;
+			}
+
+			else if((address >= MODBUS_WIFI_START)&& (address <= MODBUS_WIFI_END))
+			{
+				temp = read_wifi_data_by_block(address);
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+			else if(address >= MODBUS_NG2_TEMP1 && address <= MODBUS_NG2_HUM3)
+			{
+				U16_T temp;
+				Str_points_ptr ptr;
+				ptr = put_io_buf(IN,16 + (address - MODBUS_NG2_TEMP1));
+				temp = ptr.pin->value / 100;
+				temp1 = (temp >> 8) & 0xFF;//temp & 0xFF;
+				temp2 = temp & 0xFF;//(temp >> 8) & 0xFF;
+			}
+
+			else if((address >= MODBUS_TSTAT10_START)&& (address <= MODBUS_TSTAT10_END))
+			{
+				temp = read_tstat10_data_by_block(address);
+				temp1 = (temp >> 8) & 0xFF;
+				temp2 = temp & 0xFF;
+			}
+	/******************* read IN OUT by block start ******************************************/
+			else if( address >= MODBUS_USER_BLOCK_FIRST && address <= MODBUS_USER_BLOCK_LAST)
+			{
+				U16_T temp;
+				temp = read_user_data_by_block(address);
+				temp2 = (temp >> 8) & 0xFF;//temp & 0xFF;
+				temp1 = temp & 0xFF;//(temp >> 8) & 0xFF;
+			}
+	/*********************read IN OUT by block endf ******************************************/
+			else if(( address >= MODBUS_IO_REG_START && address <= MODBUS_IO_REG_END) ||
+					(address >= MODBUS_EXIO_REG_START && address <= MODBUS_EXIO_REG_END))
+			{
+				U16_T temp;
+				temp = read_IO_reg(address);
+				temp2 = temp & 0xFF;
+				temp1 = (temp >> 8) & 0xFF;
+			}
+			else if(address == MODBUS_EX_MOUDLE_EN)
+			{
+				temp1 = 0;
+				temp2 = 0x55;
+			}
+			else if(address == MODBUS_EX_MOUDLE_FLAG12)
+			{	// tbd:
+				temp1 = 0;
+				temp2 = 0x55;
 			}
 			else
 			{
-				temp1 = 0;
+				temp1 = 0 ;
 				temp2 = 0;
 			}
-		  }
-          else if((address >= MODBUS_CO2_REG_START) && (address < MODBUS_CO2_REG_END))
-          {
-        	  temp = read_co2_by_block(address);
-        	  temp1 = (temp>>8) & 0xff;
-        	  temp2 = temp & 0xff;
-          }
-          else
-         if(address == SERIALNUMBER_LOWORD )
-         {
-            temp1 = 0 ;
-            temp2 = (uint8_t)Modbus.serialNum[0];
-         }
-         else if(address == (SERIALNUMBER_LOWORD +1))
-         {
-            temp1 = 0 ;
-            temp2 = (uint8_t)(Modbus.serialNum[1]);
-         }
-         else if(address == SERIALNUMBER_HIWORD)
-         {
-            temp1 = 0 ;
-            temp2 = Modbus.serialNum[2];
-         }
-         else if(address == (SERIALNUMBER_HIWORD +1))
-         {
 
-            temp1 = 0;
-            temp2 = Modbus.serialNum[3];
-         }
-         else if(address == VERSION_NUMBER_LO)
-         {
-            temp1 = 0;
-            temp2 = SW_REV % 100;
-         }
-         else if(address == VERSION_NUMBER_HI)
-         {
-            temp1 = 0;
-            temp2 = SW_REV / 100;
-         }
-         else if(address == MODBUS_ADDRESS)
-         {
-            temp1 = 0; ;
-            temp2 = Modbus.address & 0xff;
-         }
-         else if(address == PRODUCT_MODEL)
-         {
-            temp1 = 0 ;
-            temp2 = Modbus.product_model&0xff;
-         }
-         else if(address == HARDWARE_REV)
-         {
-            temp1 = 0 ;
-            temp2 = Modbus.hardRev ;
-         }
-         else if(address == MODBUS_ISP_VER)
-         {
-        	 temp1 = 0 ;
-        	 temp2 = Modbus.IspVer ;
-         }
-         else if(address == MODBUS_UART0_BAUDRATE)
-         {
-            temp1 = 0;
-            temp2 = Modbus.baudrate[0];
-         }
-         else if(address == MODBUS_UART2_BAUDRATE)
-		  {
-			 temp1 = 0;
-			 temp2 = Modbus.baudrate[2];
-		  }
-         else if(address == MODBUS_ETHERNET_STATUS)
-         {
-            temp1 = 0;
-            temp2 = Modbus.ethernet_status;
-         }
-         else if(address == MODBUS_ENABLE_DEBUG)
-		  {
-			 temp1 = 0;
-			 temp2 = Modbus.enable_debug;
-		  }
-         else if((address >= MODBUS_IN1_CAL)&&(address <= MODBUS_IN16_CAL))
-		 {
-			temp1 = (input_cal[address - MODBUS_IN1_CAL] >> 8) & 0xff;
-			temp2 = input_cal[address - MODBUS_IN1_CAL] & 0xff;
-		 }
-         else if((address >= MODBUS_TEST_1)&&(address < MODBUS_TEST_50))
-         {
-            temp1 = (Test/*holding_reg_params.testBuf*/[address-MODBUS_TEST_1]>>8)&0xff;
-            temp2 = Test/*holding_reg_params.testBuf*/[address-MODBUS_TEST_1]&0xff;
-         }
-         else if(address == MODBUS_COM0_TYPE)
-		{
-        	 temp1 = 0;
-        	 temp2 = Modbus.com_config[0];
-		}
-        /* else if(address == MODBUS_COM1_TYPE)
-		{
-			 temp1 = 0;
-			 temp2 = Modbus.com_config[1];
-		}*/
-         else if(address == MODBUS_COM2_TYPE)
-		{
-			 temp1 = 0;
-			 temp2 = Modbus.com_config[2];
-		}
-		else if(address == MODBUS_INSTANCE_LO)
-		{
-			temp1 = (U8_T)(Instance >> 8);
-			temp2 = (U8_T)Instance;
-		}
-		else if(address == MODBUS_MINI_TYPE)
-		{
-			temp1 = 0;
-			temp2 = Modbus.mini_type;
-		}
-		else if(address == MODBUS_DISPLAY_THEME)
-		{
-			temp1 = 0;
-			temp2 = Modbus.LcdTheme;
-		}
-		else if(address == MODBUS_INSTANCE_HI)
-		{
-			temp1 = (U8_T)(Instance >> 24);
-			temp2 = (U8_T)(Instance >> 16);
-		}
-		else if(address == MODBUS_PANEL_NUMBER)
-		{
-			temp1 = 0;
-			temp2 = Modbus.address;
-		}
-		else if(address == MODBUS_STATION_NUM)
-		{
-			temp1 = 0;
-			temp2 = Modbus.address;
-		}
-		else if(address == MODBUS_NETWORK_NUMBER)
-		{
-			temp1 = Modbus.network_number >> 8;
-			temp2 = Modbus.network_number;
-		}
-		else if(address == MODBUS_MSTP_NETWORK)
-		{
-			temp1 = Modbus.mstp_network >> 8;
-			temp2 = Modbus.mstp_network;
-		}
-		else if(address == MODBUS_TIME_ZONE)
-		{
-			temp1 = timezone >> 8;
-			temp2 = timezone;
-		}
-		else if(address == MODBUS_DSL)
-		{
-			temp1 = 0;
-			temp2 = Daylight_Saving_Time;
-		}
-		else if(address == MODBUS_SNTP_EN)
-		{
-			temp1 = 0;
-			temp2 =  Modbus.en_sntp;
-		}
-		else if(address == MODBUS_TCP_PORT)
-		{
-			temp1 = Modbus.tcp_port >> 8;
-			temp2 = Modbus.tcp_port;
-		}
-		else if(address == MODBUS_READ_POINT_TIMER)
-		{
-			temp1 = READ_POINT_TIMER >> 8;
-			temp2 = READ_POINT_TIMER;
-		}
-		else if(address == Modbus_Fix_Com_Config)
-		{
-			temp1 = 0;
-			temp2 = Modbus.fix_com_config;
-		}
-		else if(address == MODBUS_WRITE_FLASH)
-		{
-			temp1 = Modbus.write_flash >> 8;
-			temp2 = Modbus.write_flash;
-		}
-		else if(address == IP_MODE)
-		{
-			temp1 = 0;
-			temp2 = Modbus.tcp_type;
-		}
-		else if(address == MODBUS_DEAD_MASTER_FOR_PLC)
-		{
-			temp1 = 0;
-			temp2 = Modbus.dead_master_for_PLC;
-		}
-         else if((address >= MAC_ADDR_1) && (address <= MAC_ADDR_6))
-         {
-            temp1 = 0;
-            temp2 = Modbus.mac_addr[address - MAC_ADDR_1];
-         }
-         else if((address >= IP_ADDR_1) && (address <= IP_ADDR_4))
-         {
-            temp1 = 0;
-            temp2 = Modbus.ip_addr[address - IP_ADDR_1];
-         }
-         else if((address >= IP_SUB_MASK_1)&& (address <= IP_SUB_MASK_4))
-         {
-            temp1 = 0;
-            temp2 = Modbus.subnet[address - IP_SUB_MASK_1];
-         }
+			if(type == SERIAL || type == BAC_TO_MODBUS)
+			{
+				uart_send[send_cout++] = temp1 ;
+				uart_send[send_cout++] = temp2 ;
+				crc16_byte(temp1);
+				crc16_byte(temp2);
+			}
+			else
+			{
+				uart_sendB[UIP_HEAD + send_cout++] = temp1 ;
+				uart_sendB[UIP_HEAD + send_cout++] = temp2 ;
+				TransID =  (uint16_t)(*(bufadd) << 8) | (*(bufadd + 1));
+				uart_sendB[0] = TransID >> 8;         //   TransID
+				uart_sendB[1] = TransID;
+				uart_sendB[2] = 0;         //   ProtoID
+				uart_sendB[3] = 0;
+				uart_sendB[4] = (3 + num * 2) >> 8;   //   Len
+				uart_sendB[5] = (uint8_t)(3 + num * 2) ;
+			}
+      	}
 
-         else if((address >= IP_GATE_WAY_1)&& (address <= IP_GATE_WAY_4))
-         {
-            temp1 = 0;
-            temp2 = Modbus.getway[address - IP_GATE_WAY_1];
-         }
-         else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 7)
-		 {
-        	if(address - MODBUS_TIMER_ADDRESS == 0)  // second
-			{
-				temp1 = 0;
-				temp2 =  rtc_date.second;
-			}
-        	else if(address - MODBUS_TIMER_ADDRESS == 1)  // minute
-			{
-				temp1 = 0;
-				temp2 =  rtc_date.minute;
-			}
-        	else if(address - MODBUS_TIMER_ADDRESS == 2)  // hour
-			{
-				temp1 = 0;
-				temp2 =  rtc_date.hour;
-			}
-        	else if(address - MODBUS_TIMER_ADDRESS == 3)  // day
-			{
-				temp1 = 0;
-				temp2 =  rtc_date.day;
-			}
-			else if(address - MODBUS_TIMER_ADDRESS == 4)  // weekday
-			{
-				temp1 = 0;
-				temp2 =  rtc_date.weekday;
-			}
-			else if(address - MODBUS_TIMER_ADDRESS == 5)  // month
-			{
-				temp1 = 0;
-				temp2 =  rtc_date.month;
-			}
-        	else if(address - MODBUS_TIMER_ADDRESS == 6)
-			{ // day of year
-        		temp1 = rtc_date.year >> 8;
-				temp2 =  rtc_date.year;
-			}
-        	else if(address - MODBUS_TIMER_ADDRESS == 7)//day of year
-			{ // day of year
-				temp1 = rtc_date.day_of_year >> 8;
-				temp2 =  rtc_date.day_of_year;
-			}
-		}
-        else if(address == MODBUS_RUN_TIME_LO)
+		temp1 = CRChi ;
+		temp2 = CRClo;
+		if(type == BAC_TO_MODBUS)
 		{
-        	 temp1 = (run_time) >> 8;
-        	 temp2 = (run_time);
+			memcpy(&bacnet_to_modbus,&uart_send[3],num*2);
 		}
-		else if(address == MODBUS_RUN_TIME_HI)
+		else if(type == WIFI)
 		{
-			temp1 = (run_time) >> 24;
-			temp2 = (run_time) >> 16;
+			memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
+			*modbus_send_len = UIP_HEAD + send_cout;
 		}
-		else if(address == MODBUS_MAX_VARS)
+		else  // MODBUS/485
 		{
-			 temp1 = 0;
-			 temp2 = max_vars;
-		}
-		else if(address == MODBUS_MAX_INS)
-		{
-			 temp1 = 0;
-			 temp2 = max_inputs;
-		}
-		else if(address == MODBUS_MAX_OUTS)
-		{
-			 temp1 = 0;
-			 temp2 = max_outputs;
-		}
-        else if(address == MODBUS_TOTAL_NO)
-		{
-        	 temp1 = 0;
-        	 temp2 =  sub_no;
-		}
-		else if(address >= MODBUS_SUBADDR_FIRST && address <= MODBUS_SUBADDR_LAST)
-		{
-			temp1 = (current_online[scan_db[address  - MODBUS_SUBADDR_FIRST].id / 8] & (1 << (scan_db[address  - MODBUS_SUBADDR_FIRST].id % 8))) ? 1 : 0;
-			temp2 =  scan_db[address  - MODBUS_SUBADDR_FIRST].id;
-		}
-		else if(address >= MODBUS_TASK_TEST && address < MODBUS_TASK_TEST + 64)
-		{
-			U16_T reg = (address - MODBUS_TASK_TEST) / 4;
-			U16_T index = (address - MODBUS_TASK_TEST) % 4;
-			if(index == 0)
-			{
-				temp1 = task_test.count[reg] >> 8;
-				temp2 = task_test.count[reg] & 0xff;
-			}
-			else if(index == 1)
-			{
-				temp1 = task_test.old_count[reg] >> 8;
-				temp2 = task_test.old_count[reg] & 0xff;
-			}
-			else if(index == 2)
-			{
-				temp1 = 0;
-				temp2 = task_test.enable[reg];
-			}
-			else if(index == 3)
-			{
-				temp1 = task_test.inactive_count[reg] >> 8;
-				temp2 = task_test.inactive_count[reg] & 0xff;
-			}
-		}
-         else if(address == WIFI_RSSI)
-         {
-            temp1 = 0xff;
-            temp2 = SSID_Info.rssi;
-         }
-
-         else if((address >= MODBUS_WIFI_START)&& (address <= MODBUS_WIFI_END))
-		 {
-        	 temp = read_wifi_data_by_block(address);
-			 temp1 = (temp >> 8) & 0xFF;
-			 temp2 = temp & 0xFF;
-		 }
-         else if(address >= MODBUS_NG2_TEMP1 && address <= MODBUS_NG2_HUM3)
-         {
-        	 U16_T temp;
-        	 Str_points_ptr ptr;
-        	 ptr = put_io_buf(IN,16 + (address - MODBUS_NG2_TEMP1));
-        	 temp = ptr.pin->value / 100;
-        	 temp1 = (temp >> 8) & 0xFF;//temp & 0xFF;
-        	 temp2 = temp & 0xFF;//(temp >> 8) & 0xFF;
-         }
-
-		 else if((address >= MODBUS_TSTAT10_START)&& (address <= MODBUS_TSTAT10_END))
-		 {
-			 temp = read_tstat10_data_by_block(address);
-			 temp1 = (temp >> 8) & 0xFF;
-			 temp2 = temp & 0xFF;
-		 }
-/******************* read IN OUT by block start ******************************************/
-		else if( address >= MODBUS_USER_BLOCK_FIRST && address <= MODBUS_USER_BLOCK_LAST)
-		{
-			U16_T temp;
-			temp = read_user_data_by_block(address);
-			temp2 = (temp >> 8) & 0xFF;//temp & 0xFF;
-			temp1 = temp & 0xFF;//(temp >> 8) & 0xFF;
-		}
-/*********************read IN OUT by block endf ******************************************/
-		else if(( address >= MODBUS_IO_REG_START && address <= MODBUS_IO_REG_END) ||
-				(address >= MODBUS_EXIO_REG_START && address <= MODBUS_EXIO_REG_END))
-		{
-			U16_T temp;
-			temp = read_IO_reg(address);
-			temp2 = temp & 0xFF;
-			temp1 = (temp >> 8) & 0xFF;
-		}
-		else if(address == MODBUS_EX_MOUDLE_EN)
-		{
-			temp1 = 0;
-			temp2 = 0x55;
-		}
-		else if(address == MODBUS_EX_MOUDLE_FLAG12)
-		{	// tbd:
-			temp1 = 0;
-			temp2 = 0x55;
-		}
-		else
-		{
-			temp1 = 0 ;
-			temp2 = 0;
-		}
-
-         if(type == SERIAL || type == BAC_TO_MODBUS)
-         {
 			uart_send[send_cout++] = temp1 ;
 			uart_send[send_cout++] = temp2 ;
-			crc16_byte(temp1);
-			crc16_byte(temp2);
-         }
-         else
-         {
-            uart_sendB[UIP_HEAD + send_cout++] = temp1 ;
-            uart_sendB[UIP_HEAD + send_cout++] = temp2 ;
-            TransID =  (uint16_t)(*(bufadd) << 8) | (*(bufadd + 1));
-            uart_sendB[0] = TransID >> 8;         //   TransID
-            uart_sendB[1] = TransID;
-            uart_sendB[2] = 0;         //   ProtoID
-            uart_sendB[3] = 0;
-            uart_sendB[4] = (3 + num * 2) >> 8;   //   Len
-            uart_sendB[5] = (uint8_t)(3 + num * 2) ;
-         }
-      }
+			uart_send_string((const char *)uart_send, send_cout,port);
+		}
+	}
+	else if(*(bufadd+1 + headlen) == CHECKONLINE)
+	{ // only support modbus
+		if(type == SERIAL)
+		{
+			uart_send[send_cout++] = 0xff;
+			uart_send[send_cout++] = 0x19;
+			uart_send[send_cout++] = Modbus.address;
+			uart_send[send_cout++] = Modbus.serialNum[0];
+			uart_send[send_cout++] = Modbus.serialNum[1];
+			uart_send[send_cout++] = Modbus.serialNum[2];
+			uart_send[send_cout++] = Modbus.serialNum[3];
+			for(i=0;i<send_cout;i++)
+				crc16_byte(uart_send[i]);
 
-	   temp1 = CRChi ;
-	   temp2 = CRClo;
-	   if(type == BAC_TO_MODBUS)
-	   {
-		 memcpy(&bacnet_to_modbus,&uart_send[3],num*2);
-	   }
-	   else if(type == WIFI)
-	   {
-		  memcpy(resData,uart_sendB,UIP_HEAD + send_cout);
-		  *modbus_send_len = UIP_HEAD + send_cout;
-	   }
-	   else  // MODBUS/485
-	   {
-		  uart_send[send_cout++] = temp1 ;
-		  uart_send[send_cout++] = temp2 ;
-		  uart_send_string((const char *)uart_send, send_cout,port);
-	   }
-   }
-   else if(*(bufadd+1 + headlen) == CHECKONLINE)
-   { // only support modbus
-      if(type == SERIAL)
-	  {
-         uart_send[send_cout++] = 0xff;
-         uart_send[send_cout++] = 0x19;
-         uart_send[send_cout++] = Modbus.address;
-         uart_send[send_cout++] = Modbus.serialNum[0];
-         uart_send[send_cout++] = Modbus.serialNum[1];
-         uart_send[send_cout++] = Modbus.serialNum[2];
-         uart_send[send_cout++] = Modbus.serialNum[3];
-         for(i=0;i<send_cout;i++)
-            crc16_byte(uart_send[i]);
+			temp1 = CRChi ;
+			temp2 = CRClo;
 
-		   temp1 = CRChi ;
-		   temp2 = CRClo;
+			uart_send[send_cout++] = temp1 ;
+			uart_send[send_cout++] = temp2 ;
+			uart_send_string((const char *)uart_send, send_cout,port);
+		}
+	}
 
-		   uart_send[send_cout++] = temp1 ;
-		   uart_send[send_cout++] = temp2 ;
-		   uart_send_string((const char *)uart_send, send_cout,port);
-	  }
-   }
-
-
-   if(type == WIFI)
-   {
-      free(uart_sendB);
-   }
-   else
-   {
-      free(uart_send);
-   }
-
+	if(type == WIFI)
+	{
+		free(uart_sendB);
+	}
+	else
+	{
+		free(uart_send);
+	}
 }
-
 
 void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
 {
-
 	if(type == WIFI)
 	{
 		reg_num = pData[4]*256 + pData[5];
@@ -1967,93 +1966,102 @@ static void write_tstat10_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_
 extern  EventGroupHandle_t s_wifi_event_group;
 void internalDeal(uint8_t  *bufadd,uint8_t type)
 {
-   uint16_t address;
-   uint16_t  temp_i;
-   uint8_t i;
-   //uint8_t  HeadLen;
-   if(type == SERIAL || type == BAC_TO_MODBUS)  // modbus packet
-   {
-      //HeadLen = 0;
-   }
-   else    // TCP packet or wifi
-   {
-      //HeadLen = UIP_HEAD;
-      bufadd = bufadd + 6;
-   }
+	uint16_t address;
+	uint16_t  temp_i;
+	uint8_t i;
+	//uint8_t  HeadLen;
+	if(type == SERIAL || type == BAC_TO_MODBUS)  // modbus packet
+	{
+		//HeadLen = 0;
+	}
+	else    // TCP packet or wifi
+	{
+		//HeadLen = UIP_HEAD;
+		bufadd = bufadd + 6;
+	}
 
-   address = ((uint16_t)*(bufadd+2) <<8) + *(bufadd+3); //get modbus register number
+	address = ((uint16_t)*(bufadd+2) <<8) + *(bufadd+3); //get modbus register number
 
-   if(*(bufadd+1) == MULTIPLE_WRITE_VARIABLES)
-   {
-      temp_i = (uint16_t)(*(bufadd+2) << 8) + *(bufadd+3);
-      if(Modbus.mini_type == PROJECT_AIRLAB)
-      {
-    	write_airlab_by_block(temp_i,0,bufadd,0);
-      }
-      if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
-	   {
-		write_lightswitch_by_block(temp_i,0,bufadd,0);
-	   }
-      if(temp_i >= MODBUS_WIFI_START && temp_i <= MODBUS_WIFI_END)
-      {
-         write_wifi_data_by_block(temp_i,0,bufadd,0);
-      }
-
-      /******************* write IN OUT by block start ******************************************/
-	 else if(temp_i  >= MODBUS_USER_BLOCK_FIRST && temp_i  <= MODBUS_USER_BLOCK_LAST)
-	 {
-		 // dealwith_block
-		 write_user_data_by_block(temp_i,0,bufadd);
-		 save_point_info(0);
-	 }
-      /*********************read IN OUT by block endf ***************************************/
-      else if(temp_i == SERIALNUMBER_LOWORD )
-      {
-         Modbus.serialNum[0] = *(bufadd + 8);
-         Modbus.serialNum[1] = *(bufadd + 10);
-         Modbus.serialNum[2] = *(bufadd + 12);
-         Modbus.serialNum[3] = *(bufadd + 13);
-         save_uint8_to_flash(FLASH_SERIAL_NUM1,Modbus.serialNum[0]);
-         save_uint8_to_flash(FLASH_SERIAL_NUM2,Modbus.serialNum[1]);
-         save_uint8_to_flash(FLASH_SERIAL_NUM3,Modbus.serialNum[2]);
-         save_uint8_to_flash(FLASH_SERIAL_NUM4,Modbus.serialNum[3]);
-         if(Instance == 1028) // default instance
-         {
-        	Instance =  Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8) + ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24);
-			save_uint8_to_flash(FLASH_INSTANCE1,Modbus.serialNum[0]);
-			save_uint8_to_flash(FLASH_INSTANCE2,Modbus.serialNum[1]);
-			save_uint8_to_flash(FLASH_INSTANCE3,Modbus.serialNum[2]);
-			save_uint8_to_flash(FLASH_INSTANCE4,Modbus.serialNum[3]);
-
-         }
-       }
-      else if((temp_i >= MODBUS_IO_REG_START && temp_i <= MODBUS_IO_REG_END) ||
-    		  (temp_i >= MODBUS_EXIO_REG_START && temp_i <= MODBUS_EXIO_REG_END))
-      {
-    	  MulWrite_IO_reg(address,bufadd);
-      }
-   }
-   if(*(bufadd+1) == WRITE_VARIABLES)
-   {
-	   if(Modbus.mini_type == PROJECT_AIRLAB)
+	if(*(bufadd+1) == MULTIPLE_WRITE_VARIABLES)
+	{
+		temp_i = (uint16_t)(*(bufadd+2) << 8) + *(bufadd+3);
+		if(Modbus.mini_type == PROJECT_AIRLAB)
 		{
-		   write_airlab_by_block(address,0,bufadd,0);
+			write_airlab_by_block(temp_i,0,bufadd,0);
 		}
-	   if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+		if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
 		{
-		   write_lightswitch_by_block(address,0,bufadd,0);
+			write_lightswitch_by_block(temp_i,0,bufadd,0);
 		}
-	   if(Modbus.mini_type == PROJECT_CO2)
+		if(temp_i >= MODBUS_WIFI_START && temp_i <= MODBUS_WIFI_END)
 		{
-		   write_co2_by_block(address,0,bufadd,0);
+			write_wifi_data_by_block(temp_i,0,bufadd,0);
 		}
+		/******************* write IN OUT by block start ******************************************/
+		else if(temp_i  >= MODBUS_USER_BLOCK_FIRST && temp_i  <= MODBUS_USER_BLOCK_LAST)
+		{
+			// dealwith_block
+			write_user_data_by_block(temp_i,0,bufadd);
+			save_point_info(0);
+		}
+		/*********************read IN OUT by block endf ***************************************/
+		else if(temp_i == SERIALNUMBER_LOWORD )
+		{
+			Modbus.serialNum[0] = *(bufadd + 8);
+			Modbus.serialNum[1] = *(bufadd + 10);
+			Modbus.serialNum[2] = *(bufadd + 12);
+			Modbus.serialNum[3] = *(bufadd + 13);
+			save_uint8_to_flash(FLASH_SERIAL_NUM1,Modbus.serialNum[0]);
+			save_uint8_to_flash(FLASH_SERIAL_NUM2,Modbus.serialNum[1]);
+			save_uint8_to_flash(FLASH_SERIAL_NUM3,Modbus.serialNum[2]);
+			save_uint8_to_flash(FLASH_SERIAL_NUM4,Modbus.serialNum[3]);
+			if(Instance == 1028) // default instance
+			{
+				Instance =  Modbus.serialNum[0] + (U16_T)(Modbus.serialNum[1] << 8) + ((U32_T)Modbus.serialNum[2] << 16) + ((U32_T)Modbus.serialNum[3] << 24);
+				save_uint8_to_flash(FLASH_INSTANCE1,Modbus.serialNum[0]);
+				save_uint8_to_flash(FLASH_INSTANCE2,Modbus.serialNum[1]);
+				save_uint8_to_flash(FLASH_INSTANCE3,Modbus.serialNum[2]);
+				save_uint8_to_flash(FLASH_INSTANCE4,Modbus.serialNum[3]);
 
-	   if (address >= SERIALNUMBER_LOWORD && address <= SERIALNUMBER_LOWORD + 3 )
+			}
+		}
+		else if((temp_i >= MODBUS_IO_REG_START && temp_i <= MODBUS_IO_REG_END) ||
+				(temp_i >= MODBUS_EXIO_REG_START && temp_i <= MODBUS_EXIO_REG_END))
+		{
+			MulWrite_IO_reg(address,bufadd);
+		}
+		else if (temp_i >= MODBUS_MATTER_MAP_REG_BASE && temp_i <= MODBUS_MATTER_MAP_REG_END)
+		{
+			uint8_t num_regs = *(bufadd + 6);   /* number of registers from Modbus frame */
+			for (uint8_t i = 0; i < num_regs; i++)
+			{
+				uint16_t reg   = temp_i + i;
+				uint16_t value = ((uint16_t)*(bufadd + 7 + (i * 2)) << 8)
+										| *(bufadd + 8 + (i * 2));
+				matter_tstat_map_from_modbus(reg, value);
+			}
+		}
+	}
+	if(*(bufadd+1) == WRITE_VARIABLES)
+	{
+		if(Modbus.mini_type == PROJECT_AIRLAB)
+		{
+			write_airlab_by_block(address,0,bufadd,0);
+		}
+		if(Modbus.mini_type == PROJECT_LSW_BTN || Modbus.mini_type == PROJECT_LSW_SENSOR)
+		{
+			write_lightswitch_by_block(address,0,bufadd,0);
+		}
+		if(Modbus.mini_type == PROJECT_CO2)
+		{
+			write_co2_by_block(address,0,bufadd,0);
+		}
+		if (address >= SERIALNUMBER_LOWORD && address <= SERIALNUMBER_LOWORD + 3 )
 		{
 			if((address == SERIALNUMBER_LOWORD) && (SNWriteflag & 0x01) == 0)
 			{
-				 Modbus.serialNum[0] = *(bufadd + 5);
-				 Modbus.serialNum[1] = *(bufadd + 4);
+				Modbus.serialNum[0] = *(bufadd + 5);
+				Modbus.serialNum[1] = *(bufadd + 4);
 				save_uint8_to_flash(FLASH_SERIAL_NUM1,Modbus.serialNum[0]);
 				save_uint8_to_flash(FLASH_SERIAL_NUM2,Modbus.serialNum[1]);
 
@@ -2073,61 +2081,60 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			}
 			save_uint8_to_flash(FLASH_SN_WRITE,SNWriteflag);
 		}
-	   if(address >= MODBUS_WIFI_START && address <= MODBUS_WIFI_END)
+	   	if(address >= MODBUS_WIFI_START && address <= MODBUS_WIFI_END)
 		{
 			write_wifi_data_by_block(address,0,bufadd,0);
 		}
-	   if(address >= MODBUS_TSTAT10_START && address <= MODBUS_TSTAT10_END)
-	   {
-
-		   write_tstat10_data_by_block(address,0,bufadd,0);
-	   }
-	  /*if(address == MODBUS_WIFI_START)
-	  {
-		  if(*(bufadd + 5)== 2)
-		  {
-			  SSID_Info.MANUEL_EN = 2;
-			  save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
-			  SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
-			  esp_wifi_stop();
-		  }
-		  if(*(bufadd + 5)== 1)
-		  {
-			  SSID_Info.MANUEL_EN = 1;
-			  save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
-			  esp_restart();
-			 //wifi_init_sta();
-
-		  }
-	  }*/
-      if(address == MODBUS_ADDRESS)
-      {
-         if((*(bufadd + 5)!=0)&&(*(bufadd + 5)!=0xff))
-         {
-        	 Modbus.address = *(bufadd + 5);
-        	 Station_NUM = Modbus.address;
-			Setting_Info.reg.MSTP_ID = Station_NUM;
-			dlmstp_init(NULL);
-            save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
-         }
-      }
-
-      else if(address == MODBUS_INSTANCE_LO)
-      {
-		U32_T		temp;
-		temp = Instance;
-		if((U16_T)(Instance >> 16) != (*(bufadd + 5)) + (*(bufadd + 4)) * 256)
+		if(address >= MODBUS_TSTAT10_START && address <= MODBUS_TSTAT10_END)
 		{
-			temp = temp & 0xffff0000L;
-			temp |= (*(bufadd + 5)) + (*(bufadd + 4)) * 256;
-			Instance = temp;
-			save_uint8_to_flash(FLASH_INSTANCE1,*(bufadd + 5));
-			save_uint8_to_flash(FLASH_INSTANCE2,*(bufadd + 4));
-			Device_Set_Object_Instance_Number(Instance);
 
+			write_tstat10_data_by_block(address,0,bufadd,0);
 		}
-      }
-	  else if(address == MODBUS_INSTANCE_HI)
+		/*if(address == MODBUS_WIFI_START)
+		{
+			if(*(bufadd + 5)== 2)
+			{
+				SSID_Info.MANUEL_EN = 2;
+				save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
+				SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+				esp_wifi_stop();
+			}
+			if(*(bufadd + 5)== 1)
+			{
+				SSID_Info.MANUEL_EN = 1;
+				save_block(FLASH_BLOCK1_SSID);//save_wifi_info();
+				esp_restart();
+				//wifi_init_sta();
+
+			}
+		}*/
+		if(address == MODBUS_ADDRESS)
+		{
+			if((*(bufadd + 5)!=0)&&(*(bufadd + 5)!=0xff))
+			{
+				Modbus.address = *(bufadd + 5);
+				Station_NUM = Modbus.address;
+				Setting_Info.reg.MSTP_ID = Station_NUM;
+				dlmstp_init(NULL);
+				save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
+			}
+		}
+		else if(address == MODBUS_INSTANCE_LO)
+		{
+			U32_T		temp;
+			temp = Instance;
+			if((U16_T)(Instance >> 16) != (*(bufadd + 5)) + (*(bufadd + 4)) * 256)
+			{
+				temp = temp & 0xffff0000L;
+				temp |= (*(bufadd + 5)) + (*(bufadd + 4)) * 256;
+				Instance = temp;
+				save_uint8_to_flash(FLASH_INSTANCE1,*(bufadd + 5));
+				save_uint8_to_flash(FLASH_INSTANCE2,*(bufadd + 4));
+				Device_Set_Object_Instance_Number(Instance);
+
+			}
+		}
+	  	else if(address == MODBUS_INSTANCE_HI)
 		{
 			if((U16_T)(Instance >> 16) != (*(bufadd + 5)) + (*(bufadd + 4)) * 256)
 			{
@@ -2137,48 +2144,48 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				Device_Set_Object_Instance_Number(Instance);
 			}
 		}
-      else if(address == MODBUS_UART0_BAUDRATE)
-      {
-         if(*(bufadd + 5)<10)
-         {
-            Modbus.baudrate[0] = *(bufadd + 5);
-            save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate[0]);
-            //uart_init(0);
-            flag_change_uart0 = 1;
-            count_change_uart0 = 0;
-         }
-      }
-      else if(address == MODBUS_UART2_BAUDRATE)
+		else if(address == MODBUS_UART0_BAUDRATE)
 		{
-		   if(*(bufadd + 5)<10)
-		   {
-			  Modbus.baudrate[2] = *(bufadd + 5);
-			  save_uint8_to_flash( FLASH_BAUD_RATE2, Modbus.baudrate[2]);
-			  //uart_init(2);
-			  flag_change_uart2 = 1;
-			  count_change_uart2 = 0;
-		   }
+			if(*(bufadd + 5)<10)
+			{
+				Modbus.baudrate[0] = *(bufadd + 5);
+				save_uint8_to_flash( FLASH_BAUD_RATE, Modbus.baudrate[0]);
+				//uart_init(0);
+				flag_change_uart0 = 1;
+				count_change_uart0 = 0;
+			}
 		}
-      else if(address == MODBUS_ENABLE_DEBUG)
-      {
-		  Modbus.enable_debug = *(bufadd + 5);
-		  //save_uint8_to_flash( FLASH_ENABLE_DEBUG, Modbus.enable_debug);
+      	else if(address == MODBUS_UART2_BAUDRATE)
+		{
+			if(*(bufadd + 5)<10)
+			{
+				Modbus.baudrate[2] = *(bufadd + 5);
+				save_uint8_to_flash( FLASH_BAUD_RATE2, Modbus.baudrate[2]);
+				//uart_init(2);
+				flag_change_uart2 = 1;
+				count_change_uart2 = 0;
+			}
+		}
+		else if(address == MODBUS_ENABLE_DEBUG)
+		{
+			Modbus.enable_debug = *(bufadd + 5);
+			//save_uint8_to_flash( FLASH_ENABLE_DEBUG, Modbus.enable_debug);
 
-      }
-      else if(address == MODBUS_TIME_ZONE)
-	   {
-		  timezone = *(bufadd + 5) + (*(bufadd + 4)) * 256;
-		  save_uint8_to_flash( FLASH_TIME_ZONE,timezone);
+		}
+		else if(address == MODBUS_TIME_ZONE)
+		{
+			timezone = *(bufadd + 5) + (*(bufadd + 4)) * 256;
+			save_uint8_to_flash( FLASH_TIME_ZONE,timezone);
 
-	   }
-      else if(address == MODBUS_DSL)
-	   {
-    	  Daylight_Saving_Time = *(bufadd + 5);
-		  save_uint8_to_flash( FLASH_DSL, Daylight_Saving_Time);
+		}
+		else if(address == MODBUS_DSL)
+		{
+			Daylight_Saving_Time = *(bufadd + 5);
+			save_uint8_to_flash( FLASH_DSL, Daylight_Saving_Time);
 
-	   }
-      else if(address == MODBUS_SNTP_EN)
-	   {
+		}
+		else if(address == MODBUS_SNTP_EN)
+		{
 			Modbus.en_sntp =  *(bufadd + 5);
 			sntp_select_time_server(Modbus.en_sntp);
 			save_uint8_to_flash(FLASH_EN_SNTP, Modbus.en_sntp);
@@ -2187,54 +2194,54 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				flag_Update_Sntp = 0;
 				Update_Sntp_Retry = 0;
 			}
-	   }
-      else if(address == MODBUS_TCP_PORT)
-	   {
-    	  Modbus.tcp_port = *(bufadd + 5) + (*(bufadd + 4)) * 256;
-		  save_uint16_to_flash( FLASH_TCP_PORT,Modbus.tcp_port);
-	   }
-      else if(address == MODBUS_READ_POINT_TIMER)
-	   {
-		  READ_POINT_TIMER = *(bufadd + 5) + (*(bufadd + 4)) * 256;
-		  READ_POINT_TIMER_FROM_EEP = READ_POINT_TIMER;
-		  save_uint16_to_flash( FLASH_READ_POINT_TIMER,READ_POINT_TIMER);
-	   }
-      else if(address == Modbus_Fix_Com_Config)
-	  {
-		  Modbus.fix_com_config = *(bufadd + 5);
-		  save_uint8_to_flash( FLASH_FIX_COM_CONFIG,  Modbus.fix_com_config);
-	  }
-      else if(address == MODBUS_WRITE_FLASH)
-	  {
-    	  if(*(bufadd + 5) == 0 || *(bufadd + 5) >= 5)
-    	  {
-			  Modbus.write_flash = *(bufadd + 5) + (*(bufadd + 4)) * 256;
-			  save_uint16_to_flash( FLASH_WRITE_FLASH,  Modbus.write_flash);
-    	  }
-	  }
-      else if(address == MODBUS_LCD_TIME_OFF_DELAY)
-      {
-    	  Modbus.LCD_time_off_delay = *(bufadd + 5);
-    	  save_uint8_to_flash( FLASH_LCD_TIME_OFF_DELAY,  Modbus.LCD_time_off_delay);
-    	  count_lcd_time_off_delay = 0;
-      }
-      else if(address == IP_MODE)
-      {
-    	  Modbus.tcp_type = *(bufadd + 5);
-    	  save_uint8_to_flash( FLASH_TCP_TYPE, Modbus.tcp_type);
-      }
-	  else if(address == MODBUS_COM0_TYPE)
+		}
+		else if(address == MODBUS_TCP_PORT)
 		{
-		   if(*(bufadd + 5) < MAX_COM_TYPE)
-		   {
-			  Modbus.com_config[0] = *(bufadd + 5);
-			  save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
-			  //uart_init(0);
-			  flag_change_uart0 = 1;
-			  count_change_uart0 = 0;
-			  Count_com_config();
-			  if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
-			  {
+			Modbus.tcp_port = *(bufadd + 5) + (*(bufadd + 4)) * 256;
+			save_uint16_to_flash( FLASH_TCP_PORT,Modbus.tcp_port);
+		}
+		else if(address == MODBUS_READ_POINT_TIMER)
+		{
+			READ_POINT_TIMER = *(bufadd + 5) + (*(bufadd + 4)) * 256;
+			READ_POINT_TIMER_FROM_EEP = READ_POINT_TIMER;
+			save_uint16_to_flash( FLASH_READ_POINT_TIMER,READ_POINT_TIMER);
+		}
+		else if(address == Modbus_Fix_Com_Config)
+		{
+			Modbus.fix_com_config = *(bufadd + 5);
+			save_uint8_to_flash( FLASH_FIX_COM_CONFIG,  Modbus.fix_com_config);
+		}
+		else if(address == MODBUS_WRITE_FLASH)
+		{
+			if(*(bufadd + 5) == 0 || *(bufadd + 5) >= 5)
+			{
+				Modbus.write_flash = *(bufadd + 5) + (*(bufadd + 4)) * 256;
+				save_uint16_to_flash( FLASH_WRITE_FLASH,  Modbus.write_flash);
+			}
+		}
+		else if(address == MODBUS_LCD_TIME_OFF_DELAY)
+		{
+			Modbus.LCD_time_off_delay = *(bufadd + 5);
+			save_uint8_to_flash( FLASH_LCD_TIME_OFF_DELAY,  Modbus.LCD_time_off_delay);
+			count_lcd_time_off_delay = 0;
+		}
+		else if(address == IP_MODE)
+		{
+			Modbus.tcp_type = *(bufadd + 5);
+			save_uint8_to_flash( FLASH_TCP_TYPE, Modbus.tcp_type);
+		}
+		else if(address == MODBUS_COM0_TYPE)
+		{
+			if(*(bufadd + 5) < MAX_COM_TYPE)
+			{
+				Modbus.com_config[0] = *(bufadd + 5);
+				save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+				//uart_init(0);
+				flag_change_uart0 = 1;
+				count_change_uart0 = 0;
+				Count_com_config();
+				if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
+				{
 					//Send_Whois_Flag = 1;
 					Recievebuf_Initialize(0);
 
@@ -2242,30 +2249,35 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 //					count_show_mstp_err = 0;
 //					flag_mstp_err[0] = 1;
 					//Set_TXEN(0);// set mstp prot to RECEIVE
-			  }
-			  com_config_back[0] = Modbus.com_config[0];
-		   }
+				}
+				com_config_back[0] = Modbus.com_config[0];
+			}
 		}
 		else if(address == MODBUS_COM2_TYPE)
 		{
-		   if(*(bufadd + 5) < MAX_COM_TYPE)
-		   {
-			  Modbus.com_config[2] = *(bufadd + 5);
-			  save_uint8_to_flash( FLASH_UART2_CONFIG, Modbus.com_config[2]);
-			  flag_change_uart2 = 1;
-			  count_change_uart2 = 0;
-			  //uart_init(2);
-			  Count_com_config();
-			  if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
-			  {
+			if(*(bufadd + 5) < MAX_COM_TYPE)
+			{
+				Modbus.com_config[2] = *(bufadd + 5);
+				save_uint8_to_flash( FLASH_UART2_CONFIG, Modbus.com_config[2]);
+				flag_change_uart2 = 1;
+				count_change_uart2 = 0;
+				//uart_init(2);
+				Count_com_config();
+				if(Modbus.com_config[2] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER)
+				{
 					Recievebuf_Initialize(2);
 
 //					count_mstp_err[2] = 0;
 //					flag_mstp_err[2] = 1;
 					//Set_TXEN(0);// set mstp prot to RECEIVE
-			  }
-			  com_config_back[2] = Modbus.com_config[2];
-		   }
+				}
+				com_config_back[2] = Modbus.com_config[2];
+			}
+		}
+		else if (address >= MODBUS_MATTER_MAP_REG_BASE && address <= MODBUS_MATTER_MAP_REG_END)
+		{
+			uint16_t value = ((uint16_t)*(bufadd + 4) << 8) | *(bufadd + 5);
+			matter_tstat_map_from_modbus(address, value);
 		}
 		else if(address == MODBUS_TEST_CMD)
 		{
@@ -2293,9 +2305,6 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			{
 				clear_scan_db();
 			}
-
-
-
 		}
 		else if(address == MODBUS_MINI_TYPE)
 		{
@@ -2376,22 +2385,22 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
       {
     	 update_flash = *(bufadd + 5);
 		 if (update_flash == 0x7f)
-		 {
+		{
 			 if(Modbus.mini_type == PROJECT_CO2)
-			 {
+			{
 				 flag_updating = 1;
 				 delay_ms(2000);
-			 }
+			}
 			 start_fw_update();
-		 }
-		 else if((update_flash == 0x8E) || (update_flash == 0x8F))
-		 {
+		}
+		else if((update_flash == 0x8E) || (update_flash == 0x8F))
+		{
 			if(update_flash == 0x8e)
 			{
 				SNWriteflag = 0x00;
 				//E2prom_Write_Byte(EEP_SERIALNUMBER_WRITE_FLAG, SNWriteflag);
 			}
-		 }
+		}
       }
       else if(address >= MODBUS_IN1_CAL && address <= MODBUS_IN16_CAL)
       {
@@ -2693,15 +2702,15 @@ uint16_t read_IO_reg(uint16_t addr)
 		U8_T index;
 		U16_T base;
 		 if(addr >= MODBUS_VAR_FIRST && addr <= MODBUS_VAR_LAST)
-		 {
+		{
 			 base = MODBUS_VAR_FIRST;
 			 index = (addr - base) / 2;
-		 }
-		 else
-		 {
+		}
+		else
+		{
 			 base = MODBUS_EXVAR_FIRST;
 			 index = (addr - base) / 2 + 128;
-		 }
+		}
 
 		ptr = put_io_buf(VAR,index);
 		if((addr - base) % 2 == 0)   // high word
