@@ -100,7 +100,7 @@ void DisplayHomeScreen( bool isHomeScreen )
             // disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
         }
 #if TEST_USE_SAME_VALUE_FOR_AMBIENT
-        Temperature_OutdorrDataPtr.pin->value = -Temperature_AmbientDataPtr.pin->value; // For testing only, remove this line in actual code
+        Temperature_OutdorrDataPtr.pin->value = 25000-Temperature_AmbientDataPtr.pin->value; // For testing only, remove this line in actual code
         Temperature_OutdorrDataPtr.pin->range = Temperature_AmbientDataPtr.pin->range; // For testing only, remove this line in actual code
 #endif
         if(!HomeScreenSetpointMode && Temperature_OutValue != Temperature_OutdorrDataPtr.pin->value)

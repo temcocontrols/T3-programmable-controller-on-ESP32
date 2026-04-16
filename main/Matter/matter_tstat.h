@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define MATTER_SYNC_INTERVAL_MS 5000
+#define MATTER_SYNC_INTERVAL_MS 500
 
 /* System modes (matches Matter spec) */
 typedef enum {
@@ -121,12 +121,6 @@ esp_err_t matter_tstat_report_occupancy(uint8_t occupied);
 esp_err_t matter_tstat_report_heat_setpoint(int16_t sp_001c);
 esp_err_t matter_tstat_report_cool_setpoint(int16_t sp_001c);
 esp_err_t matter_tstat_report_mode(tstat_mode_t mode);
-
-/* ------------------------------------------------------------------ */
-/* Get current state snapshot                                         */
-/* ------------------------------------------------------------------ */
-tstat_data_t *matter_tstat_get_data(void);
-matter_tstat_map_t *matter_tstat_get_map(void);
 
 /* ------------------------------------------------------------------ */
 /* Commissioning                                                      */

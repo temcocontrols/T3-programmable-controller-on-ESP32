@@ -1148,7 +1148,7 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 				temp1 = 0;
 				temp2 = sub_no;
 			}
-			else if (address >= MODBUS_MATTER_MAP_REG_BASE &&	address < MODBUS_MATTER_MAP_REG_END)
+			else if (address >= MODBUS_MATTER_MAP_REG_BASE &&	address <= MODBUS_MATTER_MAP_REG_END)
 			{
 				temp1 = 0;
 				temp2 = matter_tstat_map_to_modbus(address);

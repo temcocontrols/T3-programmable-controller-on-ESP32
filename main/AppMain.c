@@ -4599,11 +4599,11 @@ void app_main()
     Modbus.mini_type = MINI_TSTAT10;
 #endif
 
-    // if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
-	// {
-	// 	Test_Array();
-	// 	xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
-	// }
+    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
+	{
+		Test_Array();
+		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+	}
 
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
