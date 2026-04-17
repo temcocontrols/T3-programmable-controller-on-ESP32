@@ -9,6 +9,14 @@ extern "C" {
 
 #define MATTER_SYNC_INTERVAL_MS 500
 
+#define TSTAT_FEATURE_HEATING        0x01
+#define TSTAT_FEATURE_COOLING        0x02
+#define TSTAT_FEATURE_OCCUPANCY      0x04
+#define TSTAT_FEATURE_AUTO_MODE      0x08
+#define TSTAT_FEATURE_LOCAL_TEMP_NOT_EXPOSED 0x10
+#define TSTAT_FEATURE_SETBACK        0x20
+#define TSTAT_FEATURE_SCHEDULE       0x40
+
 /* System modes (matches Matter spec) */
 typedef enum {
     TSTAT_MODE_OFF      = 0,

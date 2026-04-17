@@ -20,6 +20,11 @@
 #include <nvs_flash.h>
 #include <nvs.h>
 
+#include <app/AttributeAccessInterface.h>
+#include <app/ConcreteAttributePath.h>
+#include <app/AttributeValueEncoder.h>
+#include <app/AttributeAccessInterfaceRegistry.h>
+
 #include "wifi.h"
 #include "matter_tstat.h"
 #include "user_data.h"
@@ -39,6 +44,7 @@ using namespace chip::app::Clusters::Thermostat;
 /* static functions                                                   */
 /* ------------------------------------------------------------------ */
 static void matter_report_data_on_change( void );
+static bool tstat_read_map_value(const matter_tstat_map_t &map, int32_t &value);
 
 /* ------------------------------------------------------------------ */
 /* Internal state                                                     */
@@ -53,7 +59,7 @@ static EXT_RAM_BSS_ATTR tstat_data_t  s_data  = {
     .measured_humidity    = 5000,   /* 50.00% */
     .min_humidity         = 0,
     .max_humidity         = 10000,
-    .system_mode          = TSTAT_MODE_OFF,
+    .system_mode          = TSTAT_MODE_COOL,
     .running_state        = TSTAT_RUNNING_IDLE,
     .occupancy            = 1,
     .setpoint_hold        = 0,
@@ -116,10 +122,68 @@ static void tstat_log(const char *fmt, ...)
     debug_info(buf);
 }
 
+using namespace chip;
+using namespace chip::app;
+
+class ThermostatAttrOverride : public AttributeAccessInterface
+{
+public:
+    ThermostatAttrOverride() :
+        AttributeAccessInterface(Optional<EndpointId>::Missing(), Clusters::Thermostat::Id) {}
+
+    CHIP_ERROR Read(const ConcreteReadAttributePath & path,
+                    AttributeValueEncoder & encoder) override
+    {
+        if (path.mClusterId == Clusters::Thermostat::Id)
+        {
+            if(path.mAttributeId == Clusters::Thermostat::Attributes::LocalTemperature::Id)
+            {
+                int32_t temp = 0;
+                if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_LOCAL_TEMP], temp))
+                {
+                    ESP_LOGI("TSTAT", "Providing LocalTemperature: %d", temp);
+                    int16_t temp_16 = static_cast<int16_t>(temp/10);
+                    return encoder.Encode(temp);
+                }
+            }
+            else if(path.mAttributeId == Clusters::Thermostat::Attributes::OutdoorTemperature::Id)
+            {
+                int32_t temp = 0;
+                if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_OUTDOOR_TEMP], temp))
+                {
+                    ESP_LOGI("TSTAT", "Providing OutdorrTemperature: %d", temp);
+                    int16_t temp_16 = static_cast<int16_t>(temp/10);
+                    return encoder.Encode(temp);
+                }
+            }
+        }
+        else if(path.mClusterId == Clusters::RelativeHumidityMeasurement::Id)
+        {
+            if(path.mAttributeId == Clusters::RelativeHumidityMeasurement::Attributes::MeasuredValue::Id)
+            {
+                int32_t temp = 0;
+                if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HUMIDITY], temp))
+                {
+                    ESP_LOGI("TSTAT", "Providing Humidity: %d", temp);
+                    int16_t temp_16 = static_cast<int16_t>(temp/10);
+                    return encoder.Encode(temp);
+                }
+            }
+        }
+
+        ESP_LOGW("TSTAT", "Attribute read for cluster %d attr %d not overridden, using default handler",
+                         path.mClusterId, path.mAttributeId);
+
+        return CHIP_NO_ERROR; // fallback to default handler
+    }
+};
+
+static ThermostatAttrOverride g_tstat_override;
+
 static void tstat_attr_update_cb(intptr_t arg)
 {
     attr_update_ctx_t *ctx = (attr_update_ctx_t *)arg;
-    attribute::set_val(ctx->ep_id, ctx->cluster_id, ctx->attr_id, &ctx->val);
+    attribute::update(ctx->ep_id, ctx->cluster_id, ctx->attr_id, &ctx->val);
     delete ctx;
 }
 
@@ -350,48 +414,57 @@ static esp_err_t app_attribute_update_cb(attribute::callback_type_t type,
     if (endpoint_id != s_ep_id || cluster_id != chip::app::Clusters::Thermostat::Id)
         return ESP_OK;
 
-    if (type == attribute::PRE_UPDATE) {
-        if (attribute_id == Attributes::OccupiedHeatingSetpoint::Id) {
-            if (val->val.i16 < s_data.min_heat_setpoint) val->val.i16 = s_data.min_heat_setpoint;
-            if (val->val.i16 > s_data.max_heat_setpoint) val->val.i16 = s_data.max_heat_setpoint;
-        }
-        if (attribute_id == Attributes::OccupiedCoolingSetpoint::Id) {
-            if (val->val.i16 < s_data.min_cool_setpoint) val->val.i16 = s_data.min_cool_setpoint;
-            if (val->val.i16 > s_data.max_cool_setpoint) val->val.i16 = s_data.max_cool_setpoint;
+    if (type == attribute::PRE_UPDATE)
+    {
+        if (attribute_id == chip::app::Clusters::Thermostat::Attributes::LocalTemperature::Id)
+        {
+            debug_info("Intercept LocalTemperature update\n");
+            // Inject your real sensor value
+            val->val.i16 = 2200;
+            return ESP_OK;
         }
         return ESP_OK;
     }
+    if (type == attribute::POST_UPDATE)
+    {
+        switch (attribute_id)
+        {
 
-    if (type == attribute::POST_UPDATE) {
-        switch (attribute_id) {
+            case Attributes::OccupiedHeatingSetpoint::Id:
+                s_data.heat_setpoint = val->val.i16;
+                tstat_log("Heat setpoint <- %.2f C", val->val.i16 / 100.0f);
+                /* write back to mapped point (Matter is *100, point is *1000) */
+                tstat_write_map_value(MATTER_TSTAT_MAP_HEAT_SETPOINT, (int32_t)val->val.i16);
+                break;
 
-        case Attributes::OccupiedHeatingSetpoint::Id:
-            s_data.heat_setpoint = val->val.i16;
-            tstat_log("Heat setpoint <- %.2f C", val->val.i16 / 100.0f);
-            /* write back to mapped point (Matter is *100, point is *1000) */
-            tstat_write_map_value(MATTER_TSTAT_MAP_HEAT_SETPOINT, (int32_t)val->val.i16);
-            break;
+            case Attributes::OccupiedCoolingSetpoint::Id:
+                s_data.cool_setpoint = val->val.i16;
+                tstat_log("Cool setpoint <- %.2f C", val->val.i16 / 100.0f);
+                tstat_write_map_value(MATTER_TSTAT_MAP_COOL_SETPOINT, (int32_t)val->val.i16);
+                break;
 
-        case Attributes::OccupiedCoolingSetpoint::Id:
-            s_data.cool_setpoint = val->val.i16;
-            tstat_log("Cool setpoint <- %.2f C", val->val.i16 / 100.0f);
-            tstat_write_map_value(MATTER_TSTAT_MAP_COOL_SETPOINT, (int32_t)val->val.i16);
-            break;
+            case Attributes::SystemMode::Id:
+                s_data.system_mode = val->val.u8;
+                tstat_log("System mode <- %d", val->val.u8);
+                tstat_write_map_value(MATTER_TSTAT_MAP_MODE, (int32_t)val->val.u8);
+                break;
 
-        case Attributes::SystemMode::Id:
-            s_data.system_mode = val->val.u8;
-            tstat_log("System mode <- %d", val->val.u8);
-            tstat_write_map_value(MATTER_TSTAT_MAP_MODE, (int32_t)val->val.u8);
-            break;
+            case Attributes::TemperatureSetpointHold::Id:
+                s_data.setpoint_hold = val->val.u8;
+                tstat_log("Setpoint hold <- %d", val->val.u8);
+                break;
 
-        case Attributes::TemperatureSetpointHold::Id:
-            s_data.setpoint_hold = val->val.u8;
-            tstat_log("Setpoint hold <- %d", val->val.u8);
-            break;
-
-        default:
-            break;
+            default:
+                break;
         }
+    }
+    else if (type == attribute::READ)
+    {
+       debug_info("attribute_update_cb type : READ \n");
+    }
+    else if (type == attribute::WRITE)
+    {
+       debug_info("attribute_update_cb type : WRITE \n");
     }
 
     return ESP_OK;
@@ -439,6 +512,10 @@ void matter_clear_commissioning(void)
 
 static void matter_user_task(void *pvParameters)
 {
+    while (!s_device_ready) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    matter_tstat_map_load();
     while (1)
     {
         matter_report_data_on_change();
@@ -458,14 +535,14 @@ esp_err_t matter_tstat_init(void)
                                 app_identification_cb);
     if (!node) { debug_info("Failed to create node"); return ESP_FAIL; }
 
-    matter_tstat_map_load();
+    AttributeAccessInterfaceRegistry::Instance().Register(&g_tstat_override);
 
     esp_matter::endpoint::thermostat::config_t cfg;
     cfg.thermostat.system_mode       = s_data.system_mode;
     cfg.thermostat.local_temperature = s_data.local_temperature;
-    cfg.thermostat.feature_flags     = 0x03; /* Heat + Cool */
-    cfg.thermostat.features.heating.occupied_heating_setpoint = s_data.heat_setpoint;
-    cfg.thermostat.features.cooling.occupied_cooling_setpoint = s_data.cool_setpoint;
+    cfg.thermostat.feature_flags = cluster::thermostat::feature::heating::get_id() |
+                                  cluster::thermostat::feature::cooling::get_id() ;
+    cfg.thermostat.control_sequence_of_operation = 4; // heat-cool auto
 
     endpoint_t *ep = esp_matter::endpoint::thermostat::create(
                         node, &cfg, ENDPOINT_FLAG_NONE, nullptr);
@@ -476,27 +553,6 @@ esp_err_t matter_tstat_init(void)
         debug_info("Failed to get thermostat cluster");
         return ESP_FAIL;
     }
-
-    /* Add optional attributes that are not created by default */
-    attribute_t *attr = nullptr;
-
-    attr = esp_matter::cluster::thermostat::attribute::create_outdoor_temperature(tstat_cluster, s_data.outdoor_temperature);
-    if (!attr) debug_info("Failed: outdoor_temperature attr");
-
-    attr = esp_matter::cluster::thermostat::attribute::create_thermostat_running_state(tstat_cluster, s_data.running_state);
-    if (!attr) debug_info("Failed: running_state attr");
-
-    attr = esp_matter::cluster::thermostat::attribute::create_min_heat_setpoint_limit(tstat_cluster, s_data.min_heat_setpoint);
-    if (!attr) debug_info("Failed: min_heat_setpoint attr");
-
-    attr = esp_matter::cluster::thermostat::attribute::create_max_heat_setpoint_limit(tstat_cluster, s_data.max_heat_setpoint);
-    if (!attr) debug_info("Failed: max_heat_setpoint attr");
-
-    attr = esp_matter::cluster::thermostat::attribute::create_min_cool_setpoint_limit(tstat_cluster, s_data.min_cool_setpoint);
-    if (!attr) debug_info("Failed: min_cool_setpoint attr");
-
-    attr = esp_matter::cluster::thermostat::attribute::create_max_cool_setpoint_limit(tstat_cluster, s_data.max_cool_setpoint);
-    if (!attr) debug_info("Failed: max_cool_setpoint attr");
 
     cluster::relative_humidity_measurement::config_t hum_cfg;
     hum_cfg.measured_value    = s_data.measured_humidity;
@@ -519,7 +575,8 @@ esp_err_t matter_tstat_init(void)
 
     chip::DeviceLayer::PlatformMgr().ScheduleWork(open_commissioning_cb, 0);
 
-    xTaskCreate(matter_user_task, "matter_user_task", 4096, NULL, 3, NULL);
+   xTaskCreate(matter_user_task, "matter_user_task", 4096, NULL, 3, NULL);
+
     return ESP_OK;
 }
 
@@ -606,36 +663,34 @@ esp_err_t matter_tstat_report_mode(tstat_mode_t mode)
 
 static void matter_report_data_on_change(void)
 {
-    if (!s_device_ready) return;
-
     int32_t value = 0;
 
-    /* Temperature: raw *1000, Matter needs *100, valid -20C to 80C */
-    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_LOCAL_TEMP], value) &&
-        tstat_map_value_changed(MATTER_TSTAT_MAP_LOCAL_TEMP, value))
-    {
-        tstat_log("Raw local temp: %d", (int)value);
-        if (value >= -20000 && value <= 80000) {
-            matter_tstat_report_temperature((int16_t)(value / 10));
-        } else {
-            tstat_log("LocalTemp invalid: %d", (int)value);
-        }
-    }
+    // /* Temperature: raw *1000, Matter needs *100, valid -20C to 80C */
+    // if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_LOCAL_TEMP], value) &&
+    //     tstat_map_value_changed(MATTER_TSTAT_MAP_LOCAL_TEMP, value))
+    // {
+    //     tstat_log("Raw local temp: %d", (int)value);
+    //     if (value >= -20000 && value <= 80000) {
+    //         matter_tstat_report_temperature((int16_t)(value / 10));
+    //     } else {
+    //         tstat_log("LocalTemp invalid: %d", (int)value);
+    //     }
+    // }
 
-    /* Outdoor temp: same scale as local */
-    else if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_OUTDOOR_TEMP], value) &&
-        tstat_map_value_changed(MATTER_TSTAT_MAP_OUTDOOR_TEMP, value))
-    {
-        tstat_log("Raw outdoor temp: %d", (int)value);
-        if (value >= -20000 && value <= 80000) {
-            matter_tstat_report_outdoor_temperature((int16_t)(value / 10));
-        } else {
-            tstat_log("OutdoorTemp invalid: %d", (int)value);
-        }
-    }
+    // /* Outdoor temp: same scale as local */
+    // else if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_OUTDOOR_TEMP], value) &&
+    //     tstat_map_value_changed(MATTER_TSTAT_MAP_OUTDOOR_TEMP, value))
+    // {
+    //     tstat_log("Raw outdoor temp: %d", (int)value);
+    //     if (value >= -20000 && value <= 80000) {
+    //         matter_tstat_report_outdoor_temperature((int16_t)(value / 10));
+    //     } else {
+    //         tstat_log("OutdoorTemp invalid: %d", (int)value);
+    //     }
+    // }
 
     /* Heat setpoint: VAR point is already *100 (no divide needed) */
-    else if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HEAT_SETPOINT], value) &&
+    if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HEAT_SETPOINT], value) &&
         tstat_map_value_changed(MATTER_TSTAT_MAP_HEAT_SETPOINT, value))
     {
         tstat_log("Raw heat setpoint: %d", (int)value);
@@ -662,17 +717,17 @@ static void matter_report_data_on_change(void)
         }
     }
 
-    /* Humidity: raw *1000, Matter needs *100, valid 0-100% */
-    else if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HUMIDITY], value) &&
-        tstat_map_value_changed(MATTER_TSTAT_MAP_HUMIDITY, value))
-    {
-        tstat_log("Raw humidity: %d", (int)value);
-        if (value >= 0 && value <= 100000) {
-            matter_tstat_report_humidity((uint16_t)(value));
-        } else {
-            tstat_log("Humidity invalid: %d", (int)value);
-        }
-    }
+    // /* Humidity: raw *1000, Matter needs *100, valid 0-100% */
+    // else if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_HUMIDITY], value) &&
+    //     tstat_map_value_changed(MATTER_TSTAT_MAP_HUMIDITY, value))
+    // {
+    //     tstat_log("Raw humidity: %d", (int)value);
+    //     if (value >= 0 && value <= 100000) {
+    //         matter_tstat_report_humidity((uint16_t)(value));
+    //     } else {
+    //         tstat_log("Humidity invalid: %d", (int)value);
+    //     }
+    // }
 
     /* Mode: valid 0-9 (Matter SystemMode enum) */
     else if (tstat_read_map_value(s_map[MATTER_TSTAT_MAP_MODE], value) &&
