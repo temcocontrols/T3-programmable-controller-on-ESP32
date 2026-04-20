@@ -126,14 +126,14 @@ uint8_t protocal)
 //	{		
 //		ret = bvlc_send_pdu(dest,npdu_data,pdu,pdu_len);
 //	}
-#if 0//BAC_MASTER
+#if 1//BAC_MASTER
 	else if(protocal == BAC_IP_CLIENT)
 	{
 		ret = bip_send_pdu_client(dest,npdu_data,pdu,pdu_len,protocal);  // client
 	}
 	else if(protocal == BAC_IP_CLIENT2)
 	{
-		ret = bip_send_pdu_client2(dest,npdu_data,pdu,pdu_len,protocal);  // client
+		//ret = bip_send_pdu_client2(dest,npdu_data,pdu,pdu_len,protocal);  // client
 	}
 #endif
 
@@ -150,7 +150,7 @@ uint16_t datalink_receive (BACNET_ADDRESS * src, uint8_t * pdu,
 	{
 		ret = dlmstp_receive(src,pdu,max_pdu,0);
 	}
-	else if(protocal == BAC_IP )
+	else if(protocal == BAC_IP || protocal == BAC_IP_CLIENT)
 	{
 		ret = bip_receive(src,pdu,max_pdu,protocal);
 	}

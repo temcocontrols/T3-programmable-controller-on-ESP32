@@ -87,7 +87,7 @@ uint8_t Send_Read_Property_Request_Address(
     if (!dest) {
         return 0;
     }
-	
+
     /* is there a tsm available? */
     invoke_id = tsm_next_free_invokeID();
     if(invoke_id == 0)
@@ -125,7 +125,7 @@ uint8_t Send_Read_Property_Request_Address(
 						memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len);
 						MSTP_Transfer_Len = pdu_len;
 					}
-				
+
 					bytes_sent =
                 datalink_send_pdu(dest, &npdu_data,
                 &Handler_Transmit_Buffer[protocal][0], pdu_len,protocal);
@@ -176,7 +176,7 @@ uint8_t Send_Read_Property_Request(
     bool status = false;
 		invoke_id = 0;
     /* is the device bound? */
-	
+
     status = address_get_by_device(device_id, &max_apdu, &dest);
     if (status) {
         invoke_id =

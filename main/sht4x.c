@@ -43,6 +43,7 @@
 #include "sensirion_common.h"
 //#include "sensirion_i2c.h"
 //#include "sensirion_i2c_hal.h"
+#include "esp_rom_sys.h"
 
 /* all measurement commands return T (CRC) RH (CRC) */
 #define SHT4X_CMD_MEASURE_HPM 0xFD
@@ -56,7 +57,11 @@
 static uint8_t sht4x_cmd_measure = SHT4X_CMD_MEASURE_HPM;
 static uint16_t sht4x_cmd_measure_delay_us = SHT4X_MEASUREMENT_DURATION_USEC;
 
-extern void sensirion_sleep_usec(uint32_t useconds);
+void sensirion_sleep_usec(uint32_t useconds)
+{
+	esp_rom_delay_us(useconds);
+}
+
 extern esp_err_t sensirion_i2c_write(uint8_t address, const uint8_t *data,
                            uint16_t count);
 

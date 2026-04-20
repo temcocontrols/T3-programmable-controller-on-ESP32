@@ -267,7 +267,8 @@ extern "C" {
     void handler_ucov_notification(
         uint8_t * service_request,
         uint16_t service_len,
-        BACNET_ADDRESS * src);
+        BACNET_ADDRESS * src,
+		uint8_t protocal);
     void handler_ccov_notification(
         uint8_t * service_request,
         uint16_t service_len,

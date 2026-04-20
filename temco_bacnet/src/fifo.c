@@ -254,6 +254,7 @@ unsigned FIFO_Pull(
 *
 * @return true on successful add, false if not added
 */
+void Recievebuf_Initialize(uint8_t port);
 bool FIFO_Put(
     FIFO_BUFFER * b,
     uint8_t data_byte)
@@ -269,6 +270,10 @@ bool FIFO_Put(
             b->head++;
             status = true;
         }
+		else
+		{
+			Recievebuf_Initialize(0);	
+		}
     }
 
     return status;

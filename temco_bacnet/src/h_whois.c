@@ -57,7 +57,6 @@ void handler_who_is(
     int32_t far high_limit = 0;
     int32_t far target_device;
 //    (void) src;
-	Test[14]++;
     len =
         whois_decode_service_request(service_request, service_len, &low_limit,
         &high_limit);

@@ -84,7 +84,9 @@ static int notify_encode_apdu(
            approach like the rpm.c where the values are encoded with
            a separate function */
         value = data->listOfValues;
-        while (value != NULL) {
+
+       // while (value != NULL)
+        {
             /* tag 0 - propertyIdentifier */
             len =
                 encode_context_enumerated(&apdu[apdu_len], 0,
@@ -102,12 +104,12 @@ static int notify_encode_apdu(
             len = encode_opening_tag(&apdu[apdu_len], 2);
             apdu_len += len;
             app_data = &value->value;
-						while (app_data != NULL)
+						//while (app_data != NULL)
 						{
                 len =
                 bacapp_encode_application_data(&apdu[apdu_len], app_data);
                 apdu_len += len;
-								app_data = app_data->next;
+								//app_data = app_data->next;
             }
 
             len = encode_closing_tag(&apdu[apdu_len], 2);
@@ -121,9 +123,10 @@ static int notify_encode_apdu(
             }
             /* is there another one to encode? */
             /* FIXME: check to see if there is room in the APDU */
-            value = NULL;//value->next;  changed by chelsea???????????????
-						
+            //value = value->next;  //changed by chelsea???????????????
+            value = NULL;
         }
+
         len = encode_closing_tag(&apdu[apdu_len], 4);
         apdu_len += len;
     }

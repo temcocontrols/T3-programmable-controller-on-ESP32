@@ -58,7 +58,7 @@ void handler_i_am_add(
 	
 		uint8_t panel;
 //    (void) service_len;
-	
+
     len =
         iam_decode_service_request(service_request, &device_id, &max_apdu,
         &segmentation, &vendor_id);
@@ -85,23 +85,23 @@ void handler_i_am_add(
             (unsigned long) device_id, src->mac[0], src->mac[1], src->mac[2],
             src->mac[3], src->mac[4], src->mac[5]);
 #endif
-	
+
         address_add(device_id, max_apdu, src);			
-				//add_remote_panel_db(device_id,src,src->mac[0],protocal);
-				if(src->mac_len == 1)  // mstp
-				{
-					if(vendor_id == 148) // Temco panel 
-						add_remote_panel_db(device_id,src,src->mac[0],service_request,service_len,BAC_MSTP,1);
-					else
-						add_remote_panel_db(device_id,src,src->mac[0],service_request,service_len,BAC_MSTP,0);
-				}
-				else if(src->mac_len == 6) // bip
-				{
-					if(vendor_id == 148) // Temco panel 
-						add_remote_panel_db(device_id,src,panel,service_request,service_len,BAC_IP,1);
-					else
-						add_remote_panel_db(device_id,src,panel,service_request,service_len,BAC_IP,0);
-				}
+		//add_remote_panel_db(device_id,src,src->mac[0],protocal);
+		if(src->mac_len == 1)  // mstp
+		{
+			if(vendor_id == 148) // Temco panel 
+				add_remote_panel_db(device_id,src,src->mac[0],service_request,service_len,BAC_MSTP,1);
+			else
+				add_remote_panel_db(device_id,src,src->mac[0],service_request,service_len,BAC_MSTP,0);
+		}
+		else if(src->mac_len == 6) // bip
+		{
+			if(vendor_id == 148) // Temco panel 
+				add_remote_panel_db(device_id,src,panel,service_request,service_len,BAC_IP,1);
+			else
+				add_remote_panel_db(device_id,src,panel,service_request,service_len,BAC_IP,0);
+		}
 				
     } else {
 #if PRINT_ENABLED

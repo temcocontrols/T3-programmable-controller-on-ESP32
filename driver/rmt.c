@@ -77,7 +77,7 @@ typedef struct {
     bool loop_autostop; // mark whether loop auto-stop is enabled
     rmt_channel_t channel;
     const rmt_item32_t *tx_data;
-    xSemaphoreHandle tx_sem;
+    SemaphoreHandle_t tx_sem;
 #if CONFIG_SPIRAM_USE_MALLOC
     int intr_alloc_flags;
     StaticSemaphore_t tx_sem_buffer;
@@ -1015,11 +1015,12 @@ esp_err_t rmt_driver_uninstall(rmt_channel_t channel)
 
 esp_err_t rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr_alloc_flags)
 {
+
     ESP_RETURN_ON_FALSE(channel < RMT_CHANNEL_MAX, ESP_ERR_INVALID_ARG, TAG, RMT_CHANNEL_ERROR_STR);
 
     esp_err_t err = ESP_OK;
 
-    if (p_rmt_obj[channel]) {
+    if (p_rmt_obj[channel]) {//Test[18] = 2;
         ESP_LOGD(TAG, "RMT driver already installed");
         return ESP_ERR_INVALID_STATE;
     }
@@ -1041,7 +1042,7 @@ esp_err_t rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr
     }
 #endif
 
-    if (p_rmt_obj[channel] == NULL) {
+    if (p_rmt_obj[channel] == NULL) {//Test[18] = 3;
         ESP_LOGE(TAG, "RMT driver malloc error");
         return ESP_ERR_NO_MEM;
     }
@@ -1055,7 +1056,7 @@ esp_err_t rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr
     p_rmt_obj[channel]->loop_autostop = false;
     p_rmt_obj[channel]->translator = false;
     p_rmt_obj[channel]->sample_to_rmt = NULL;
-    if (p_rmt_obj[channel]->tx_sem == NULL) {
+    if (p_rmt_obj[channel]->tx_sem == NULL) {//Test[18] = 4;
 #if !CONFIG_SPIRAM_USE_MALLOC
         p_rmt_obj[channel]->tx_sem = xSemaphoreCreateBinary();
 #else

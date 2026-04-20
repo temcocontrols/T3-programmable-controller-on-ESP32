@@ -78,7 +78,7 @@ typedef struct
 {
 	U16_T		noused;   // new  
 	Byte		command;
-	Byte    index;		   // monitor table index
+	Byte    	index;		   // monitor table index
 	Byte		sample_type;	//  
 	Comm_Args    comm_arg;            /* command's arguments */
 //	Ret_Param    para;                /* used to return parameters */

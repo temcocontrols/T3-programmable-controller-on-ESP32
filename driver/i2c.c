@@ -152,13 +152,13 @@ typedef struct {
     int intr_alloc_flags;            /*!< Used to allocate the interrupt */
     StaticQueue_t evt_queue_buffer;  /*!< The buffer that will hold the queue structure*/
 #endif
-    xSemaphoreHandle cmd_mux;        /*!< semaphore to lock command process */
+    SemaphoreHandle_t cmd_mux;        /*!< semaphore to lock command process */
 #ifdef CONFIG_PM_ENABLE
     esp_pm_lock_handle_t pm_lock;
 #endif
 
-    xSemaphoreHandle slv_rx_mux;     /*!< slave rx buffer mux */
-    xSemaphoreHandle slv_tx_mux;     /*!< slave tx buffer mux */
+    SemaphoreHandle_t slv_rx_mux;     /*!< slave rx buffer mux */
+    SemaphoreHandle_t slv_tx_mux;     /*!< slave tx buffer mux */
     size_t rx_buf_length;            /*!< rx buffer length */
     RingbufHandle_t rx_ring_buf;     /*!< rx ringbuffer handler of slave mode */
     size_t tx_buf_length;            /*!< tx buffer length */

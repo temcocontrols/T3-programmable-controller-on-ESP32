@@ -63,7 +63,7 @@
 //#endif
 
 #define MAX_APDU 600
-	   
+
 
 /* for confirmed messages, this is the number of transactions */
 /* that we hold in a queue waiting for timeout. */
@@ -73,7 +73,7 @@
 #if ASIX
 #define MAX_TSM_TRANSACTIONS  20
 #else
-#define MAX_TSM_TRANSACTIONS  20//255
+#define MAX_TSM_TRANSACTIONS  255
 #endif
 //#if !defined(MAX_TSM_TRANSACTIONS)
 //#define MAX_TSM_TRANSACTIONS  255 //????????????? changed by chelsea
@@ -84,7 +84,7 @@
 /* If your device is a simple server and does not need to bind, */
 /* then you don't need to use this. */
 #if !defined(MAX_ADDRESS_CACHE)
-#define MAX_ADDRESS_CACHE 10//255
+#define MAX_ADDRESS_CACHE 255
 #endif
 
 /* some modules have debugging enabled using PRINT_ENABLED */
@@ -214,13 +214,13 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_PRIVATE 		1
 #define BAC_TIMESYNC 		1
 #define BAC_TRENDLOG		1
-#define BAC_RANGE			1 // dont need range 
+#define BAC_RANGE			1 // dont need range
 #define BAC_BI				1
 #define BAC_BV				1
 #define BAC_DCC				0
 #define BAC_PROPRIETARY 1
 
-#define BAC_MSV					1
+#define BAC_MSV				0//	1
 
 
 #define BAC_MASTER 			1
@@ -232,18 +232,18 @@ extern U8_T flag_send_get_panel_number;
 
 
 #define BIP   // TSTAT dont have it
- 
+
 
 /*#define BACNET_VENDOR_NETIX 	"NETIX Controls"
 #define BACNET_VENDOR_JET			"JetControls"
 #define BACNET_VENDOR_TEMCO	 	"TemcoControls"
-#define BACNET_VENDOR_NEWRON	"Newron Solutions"		
+#define BACNET_VENDOR_NEWRON	"Newron Solutions"
 
 #define BACNET_PRODUCT_NETIX 	"NCCB"
 #define BACNET_PRODUCT_JET		"Jet Product"
 #define BACNET_PRODUCT_TEMCO	"Temco Product"
-#define BACNET_PRODUCT_NEWRON	"NewroNode"		
-		
+#define BACNET_PRODUCT_NEWRON	"NewroNode"
+
 #define BACNET_VENDOR_ID_NETIX 1007
 #define BACNET_VENDOR_ID_JET 997
 #define BACNET_VENDOR_ID_TEMCO 148
@@ -257,7 +257,7 @@ extern U8_T flag_send_get_panel_number;
 
 #ifdef BIP
 #include "bip.h"
-//#include "tcpip.h" 
+//#include "tcpip.h"
 #define BBMD_ENABLED 1
 #define BACDL_BIP
 #endif
@@ -267,8 +267,8 @@ extern U8_T flag_send_get_panel_number;
 void uart1_init(U32_T bound);
 
 
-#define far  
-#define xdata 
+#define far
+#define xdata
 
 int Get_Number_by_Bacnet_Index(U8_T type,U8_T index);
 int Get_Bacnet_Index_by_Number(U8_T type,U8_T number);
@@ -278,7 +278,7 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number);
 //#define TXEN0_MINI PCout(2)
 //#define TXEN2_MINI PEout(11)
 
-extern U16_T far Test[50];
+extern uint16_t far Test[50];
 //extern u8 uart_send[512] ;
 //extern uint16_t send_count;
 
@@ -327,7 +327,11 @@ void write_Output_Relinguish(uint8_t type,uint8_t i,float value);
 float Get_Output_Relinguish(uint8_t type,uint8_t i);
 
 bool Analog_Input_Change_Of_Value(unsigned int instance);
+bool Binary_Input_Change_Of_Value(uint32_t object_instance);
 bool Analog_Value_Change_Of_Value(unsigned int instance);
+bool Binary_Value_Change_Of_Value(unsigned int object_instance);
+bool Analog_Output_Change_Of_Value(unsigned int object_instance);
+bool Binary_Output_Change_Of_Value(unsigned int object_instance);
 // for TIMESYNC
 #if BAC_TIMESYNC
 #include "timesync.h"
@@ -340,7 +344,7 @@ int add_Trend_Log(uint8_t type,uint8_t instance);
 typedef	union
 	{
 		U8_T all[10];
-		struct 
+		struct
 		{
 			U8_T sec;				/* 0-59	*/
 			U8_T min;    		/* 0-59	*/
@@ -350,8 +354,8 @@ typedef	union
 			U8_T mon;     		/* 1-12	*/
 			U8_T year;      		/* 0-99	*/
 			U16_T day_of_year; 	/* 0-365	*/
-			S8_T is_dst;        /* daylight saving time on / off */		
-				
+			S8_T is_dst;        /* daylight saving time on / off */
+
 		}Clk;
 		struct
     {
@@ -361,8 +365,8 @@ typedef	union
         U8_T reserved[4];
     }NEW;
 }UN_Time;
-extern UN_Time Rtc;//ʱ�ӽṹ�� 
-#endif	
+extern UN_Time Rtc;//ʱ�ӽṹ��
+#endif
 //U32_T Rtc_Set(U16_T syear, U8_T smon, U8_T sday, U8_T hour, U8_T min, U8_T sec, U8_T flag);
 uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8_t min, uint8_t sec, uint8_t flag);
 extern  BACNET_DATE Local_Date;
@@ -380,7 +384,7 @@ bool write_Local_Time(BACNET_TIME* date);
 #if BAC_SCHEDULE
 #include "schedule.h"
 #include "bactimevalue.h"
-	
+
 extern uint8_t  SCHEDULES;
 extern U8_T far wr_time_on_off[8][9][8];
 
@@ -475,6 +479,10 @@ U8_T Get_current_panel(void);
 void chech_mstp_collision(void);
 void check_mstp_packet_error(void);
 void check_mstp_timeout(void);
+//extern uint8_t flag_mstp_err[3];
+//extern uint16_t count_mstp_err[3];
+//void check_mstp_traffic(void);
+//void check_mstp_packet(uint8_t * uart_rsv, uint16_t len, uint8_t port);
 
 void Send_SUB_I_Am(uint8_t index);
 void add_remote_panel_db(uint32_t device_id,BACNET_ADDRESS* src,uint8_t panel,uint8 * pdu,uint8_t pdu_len,uint8_t protocal,uint8_t temcoproduct);
@@ -497,8 +505,8 @@ void handler_conf_private_trans_ack(
     int apdu_len,      /* total length of the apdu */
 		uint8_t protocal
     );
-		
-uint8_t Send_Mstp(uint8_t flag,uint8_t *type);		
+
+uint8_t Send_Mstp(uint8_t flag,uint8_t *type);
 
 
 

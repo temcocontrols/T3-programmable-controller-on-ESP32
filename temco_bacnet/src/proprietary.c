@@ -160,13 +160,13 @@ int TemcoVars_Encode_Property_APDU(
             apdu_len = encode_application_enumerated(&apdu[0], PROPRIETARY_BACNET_OBJECT_TYPE);
             break;
         case PROP_PRESENT_VALUE:         
-						if(object_index < 4)
+					//if(object_index < 4)
 							apdu_len = encode_application_real(&apdu[0], TemcoVars_Present_Value(object_index));						
-						else if(object_index == 4)
+						/*else if(object_index == 4)
 						{
 							characterstring_init_ansi(&char_string, Get_temcovars_string_from_buf(object_index));
 							apdu_len = encode_application_character_string(&apdu[0], &char_string);	
-						}
+						}*/
 						break;
         default:
             *error_class = ERROR_CLASS_PROPERTY;
@@ -227,7 +227,7 @@ bool TemcoVars_Write_Property(
 		
     switch (wp_data->object_property) {
         case PROP_PRESENT_VALUE:
-						if(object_index < 4)
+						//if(object_index < 4)
 						{						
 							if (value.tag == BACNET_APPLICATION_TAG_REAL) {
 									
@@ -242,7 +242,7 @@ bool TemcoVars_Write_Property(
 									*error_code = ERROR_CODE_INVALID_DATA_TYPE;
 							}
 						}
-						if(object_index == 4)
+						/*if(object_index == 4)
 						{						
 							if (value.tag == BACNET_APPLICATION_TAG_CHARACTER_STRING) {
 									
@@ -256,7 +256,7 @@ bool TemcoVars_Write_Property(
 									*error_class = ERROR_CLASS_PROPERTY;
 									*error_code = ERROR_CODE_INVALID_DATA_TYPE;
 							}
-						}
+						}*/
             break;
 				case PROP_OBJECT_NAME:
 					if (value.tag == BACNET_APPLICATION_TAG_CHARACTER_STRING) {

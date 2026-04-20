@@ -23,9 +23,15 @@
 #define uint8		unsigned char
 #define uint32		unsigned long
 
-//#define u16		unsigned int
-//#define u8		unsigned char
-//#define u32		unsigned long
+#define int16		short int
+
+/*#define uint16_t	unsigned short int
+#define uint8_t		unsigned char
+#define uint32_t	unsigned long*/
+
+#define u16		unsigned int
+#define u8		unsigned char
+#define u32		unsigned long
 
 
 #define BOOL		unsigned short int

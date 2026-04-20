@@ -1,0 +1,335 @@
+
+#ifndef    __LCD_TSTAT_H__
+#define    __LCD_TSTAT_H__
+
+#include "types.h"
+#include "LcdTheme.h"
+
+
+#ifndef	TRUE
+#define TRUE	1
+#endif
+
+#ifndef FALSE
+#define FALSE    0
+#endif
+
+
+//#define FORM48X120        0
+#define FORM32X64           0
+#define FORM15X30           1
+#define FORM16X24           2
+
+
+#define CH_HEIGHT           36
+
+#define THERM_METER_POS     5
+
+#define IDLE_LINE1_POS      0
+#define IDLE_LINE2_POS      50
+
+#define SETPOINT_POS        115
+#define FAN_MODE_POS        SETPOINT_POS+CH_HEIGHT+7
+#define SYS_MODE_POS        FAN_MODE_POS+CH_HEIGHT+7
+
+#define MENU_ITEM1          SETPOINT_POS+0
+#define MENU_ITEM2          FAN_MODE_POS+0
+
+#define TIME_POS            SYS_MODE_POS + CH_HEIGHT + 7
+#define MENU_ITEM_POS       130
+#define MENU_VALUE_POS      SYS_MODE_POS//MENU_ITEM_POS + CH_HEIGHT
+#define ICON_POS            274
+#define ICON_XPOS           2
+
+#define FIRST_ICON_POS      ICON_XPOS
+#define SECOND_ICON_POS     FIRST_ICON_POS + 60
+#define THIRD_ICON_POS      SECOND_ICON_POS + 60
+#define FOURTH_ICON_POS     THIRD_ICON_POS + 60
+#define FIFTH_ICON_POS      FOURTH_ICON_POS + 40
+
+#define ICON_XDOTS          55
+#define ICON_YDOTS          45
+
+#define FANBLADE_XDOTS      40
+#define FANBLADE_YDOTS      45
+
+#define FANSPEED_XDOTS      15
+#define FANSPEED_YDOTS      45
+
+#define THERM_METER_XPOS    39
+#define TEMP_FIRST_BLANK    0//30  //+= blank width
+#define FIRST_CH_POS        TEMP_FIRST_BLANK + THERM_METER_XPOS
+#define SECOND_CH_POS       FIRST_CH_POS+48
+#define THIRD_CH_POS        SECOND_CH_POS+48+16
+#define UNIT_POS            THIRD_CH_POS + 48+ 15
+#define BUTTON_DARK_COLOR   0X0BA7
+#define BTN_OFFSET          CH_HEIGHT+7
+
+#define TEST_USE_SAME_VALUE_FOR_AMBIENT 0
+
+#define START_XPOS          8
+#define START_YPOS          16
+
+#define BOX_HEIGHT          151
+
+// #define WEATHER_STR_XPOS    70
+// #define WEATHER_STR_YPOS    6
+
+#define START_XPOS_2        START_XPOS
+#define START_YPOS_2        START_YPOS + BOX_HEIGHT + 3
+
+// Icon Menu position
+#define MENU_DOT_XSIZE      6
+#define MENU_DOT_YSIZE      6
+#define MENU_DOT_XPOS       10
+#define MENU_DOT_XPOS_1     MENU_DOT_XPOS
+#define MENU_DOT_XPOS_2     MENU_DOT_XPOS + 10
+#define MENU_DOT_XPOS_3     MENU_DOT_XPOS + 20
+#define MENU_DOT_YPOS       8
+
+#define HUMIDITY_STR        "HUM"
+#define HUMIDITY_STR_LEN     4
+
+#define OUTDOOR_BOX_YPOS  START_YPOS
+#define INDOOR_BOX_YPOS   START_YPOS_2
+
+// Outdoor temperature position
+#define TEMP_OUTDOOR_XPOS   40
+#define TEMP_OUTDOOR_YPOS   OUTDOOR_BOX_YPOS + 48
+
+#define HUMIDITY_OUTDOOR_XPOS  30
+#define HUMIDITY_OUTDOOR_YPOS  OUTDOOR_BOX_YPOS + BOX_HEIGHT - 40
+
+#define OUTDOOR_STR_XPOS  120
+#define OUTDOOR_STR_YPOS  OUTDOOR_BOX_YPOS + 5
+
+#define OUT_ICON_XPOS     START_XPOS + 2
+#define OUT_ICON_YPOS     OUTDOOR_BOX_YPOS + 2
+
+#define HOMESCREEN_HEAT_COLD_ICON_XPOS     HUMIDITY_VALUE_XPOS + 101
+#define HOMESCREEN_HEAT_COLD_ICON_YPOS     HUMIDITY_OUTDOOR_YPOS - 1
+#define HOMESCREEN_FAN_ICON_XPOS           HOMESCREEN_HEAT_COLD_ICON_XPOS + 5
+#define HOMESCREEN_FAN_ICON_YPOS           HUMIDITY_INDOOR_YPOS - 5
+
+// Indoor temperature position
+#define TEMP_INDOOR_XPOS    TEMP_OUTDOOR_XPOS
+#define TEMP_INDOOR_YPOS    INDOOR_BOX_YPOS + 45
+
+#define HUMIDITY_INDOOR_XPOS  HUMIDITY_OUTDOOR_XPOS
+#define HUMIDITY_INDOOR_YPOS  INDOOR_BOX_YPOS + BOX_HEIGHT - 40
+
+#define INDOOR_STR_XPOS  OUTDOOR_STR_XPOS
+#define INDOOR_STR_YPOS  INDOOR_BOX_YPOS + 5
+
+#define INDOOR_ICON_XPOS  START_XPOS + 4
+#define INDOOR_ICON_YPOS  INDOOR_BOX_YPOS + 2
+
+// Humidity value X position
+#define HUMIDITY_VALUE_XPOS   HUMIDITY_INDOOR_XPOS + (HUMIDITY_STR_LEN * 12) + 4
+
+// Home-screen setpoint placement
+#define HOME_SETPOINT_STR_XPOS        OUTDOOR_STR_XPOS - 90
+#define HOME_SETPOINT_STR_YPOS        OUTDOOR_STR_YPOS + 20
+#define HOME_SETPOINT_VALUE_XPOS      TEMP_OUTDOOR_XPOS
+#define HOME_SETPOINT_VALUE_YPOS      TEMP_OUTDOOR_YPOS
+#define HOME_SETPOINT_STR_BOTTOM_YPOS INDOOR_STR_YPOS
+#define HOME_SETPOINT_VALUE_BOTTOM_YPOS TEMP_INDOOR_YPOS
+
+#define TOP_AREA_DISP_ITEM_TEMPERATURE      0
+#define TOP_AREA_DISP_ITEM_HUM              1
+#define TOP_AREA_DISP_ITEM_CO2              2
+//#define TOP_AREA_DISP_ITEM_OFFON          3
+
+#define TOP_AREA_DISP_UNIT_C                0
+#define TOP_AREA_DISP_UNIT_F                1
+#define TOP_AREA_DISP_UNIT_PPM              2
+#define TOP_AREA_DISP_UNIT_PERCENT          3
+#define TOP_AREA_DISP_UNIT_Pa               4
+#define TOP_AREA_DISP_UNIT_kPa              5
+#define TOP_AREA_DISP_UNIT_RH               6
+
+#define TOP_AREA_DISP_UNIT_NONE             100
+
+#define FAN_OFF    0
+#define FAN_AUTO   4
+#define FAN_ON     1
+#define FAN_SPEED1 1
+#define FAN_SPEED2 2
+#define FAN_SPEED3 3
+
+#define FAN_COST    0
+#define FAN_COOL1   1
+#define FAN_COOL2   2
+#define FAN_COOL3   3
+#define FAN_HEAT1   4
+#define FAN_HEAT2   5
+#define FAN_HEAT3   6
+
+#define SCH_XPOS    10
+
+#define HC_CFG_AUTO    0
+#define HC_CFG_COOL    1
+#define HC_CFG_HEAT    2
+
+
+#define    LONG_PRESS_TIMER_SPEED_100  200
+#define    LONG_PRESS_TIMER_SPEED_50   100
+#define    LONG_PRESS_TIMER_SPEED_10   30
+#define    LONG_PRESS_TIMER_SPEED_1    20
+
+
+#define KEY_SPEED_1         (0x0000)
+#define KEY_SPEED_10        (0x0100)
+#define KEY_SPEED_50        (0x0200)
+#define KEY_SPEED_100       (0x0300)
+#define KEY_SPEED_MASK      (0x00ff)
+#define KEY_FUNCTION_MASK   (0xff00)
+
+#define    KEY_UP_MASK          2//(1 << 1)
+#define    KEY_DOWN_MASK        4//(1 << 2)
+#define    KEY_LEFT_MASK        8//(1 << 3)
+#define    KEY_RIGHT_MASK       1//(1 << 0)
+#define    KEY_LEFT_RIGHT_MASK  9//(1 << 0)
+
+#define SMALL_SIZE_HIGH     24
+
+#define TSTAT10_SCH_DAY_X   80
+#define TSTAT10_SCH_DAY_Y   24//0
+
+
+
+#define TSTAT10_SCH_ON1_X    0
+#define TSTAT10_SCH_ON1_Y    24*2
+#define TSTAT10_SCH_OFF1_X   0
+#define TSTAT10_SCH_OFF1_Y   (24*3)
+
+#define TSTAT10_SCH_ON2_X    0
+#define TSTAT10_SCH_ON2_Y    (24*4)
+#define TSTAT10_SCH_OFF2_X   0
+#define TSTAT10_SCH_OFF2_Y   (24*5)
+
+#define TSTAT10_SCH_ON3_X    0
+#define TSTAT10_SCH_ON3_Y    (24*6)
+#define TSTAT10_SCH_OFF3_X   0
+#define TSTAT10_SCH_OFF3_Y   (24*7)
+
+#define TSTAT10_SCH_ON4_X    0
+#define TSTAT10_SCH_ON4_Y    (24*8)
+#define TSTAT10_SCH_OFF4_X   0
+#define TSTAT10_SCH_OFF4_Y   (24*9)
+
+
+#define TSTAT10_SCH_ON1_TIME_X    100
+#define TSTAT10_SCH_ON1_TIME_Y    TSTAT10_SCH_ON1_Y
+#define TSTAT10_SCH_OFF1_TIME_X   100
+#define TSTAT10_SCH_OFF1_TIME_Y   TSTAT10_SCH_OFF1_Y
+
+#define TSTAT10_SCH_ON2_TIME_X    100
+#define TSTAT10_SCH_ON2_TIME_Y    TSTAT10_SCH_ON2_Y
+#define TSTAT10_SCH_OFF2_TIME_X   100
+#define TSTAT10_SCH_OFF2_TIME_Y   TSTAT10_SCH_OFF2_Y
+
+#define TSTAT10_SCH_ON3_TIME_X    100
+#define TSTAT10_SCH_ON3_TIME_Y    TSTAT10_SCH_ON3_Y
+#define TSTAT10_SCH_OFF3_TIME_X   100
+#define TSTAT10_SCH_OFF3_TIME_Y   TSTAT10_SCH_OFF3_Y
+
+#define TSTAT10_SCH_ON4_TIME_X    100
+#define TSTAT10_SCH_ON4_TIME_Y    TSTAT10_SCH_ON4_Y
+#define TSTAT10_SCH_OFF4_TIME_X   100
+#define TSTAT10_SCH_OFF4_TIME_Y   TSTAT10_SCH_OFF4_Y
+
+
+typedef struct my_point
+{
+    unsigned short x_pos;
+    unsigned short y_pos;
+}str_my_point;
+
+
+
+void vStartKeyTasks( unsigned char uxPriority);
+void vStartMenuTask(unsigned char uxPriority);
+
+
+#define MAX_SCOROLL      20
+#define SCROLL_WINDOW    14     // visible window (characters shown)
+
+extern uint8 *scroll;
+extern uint8 scroll_ram[5][MAX_SCOROLL];
+extern uint8 fan_flag;
+extern uint8 display_flag;
+extern uint8 schedule_hour_minute; //indicate current display item is "hour" or "minute"
+extern uint8 blink_parameter;
+extern uint8 clock_blink_flag;
+
+/*      Display Symbols       */
+/* Declaration in DisSymbol.c */
+
+extern uint16 const leftup[];
+extern uint16 const leftdown[];
+extern uint16 const rightdown[];
+extern uint16 const rightup[];
+extern uint16 const cmnct_send[];
+extern uint16 const cmnct_rcv[];
+extern uint16 const wifi_0[];
+extern uint16 const wifi_1[];
+extern uint16 const wifi_2[];
+extern uint16 const wifi_3[];
+extern uint16 const wifi_4[];
+extern uint16 const wifi_none[];
+extern uint16 const athome[];
+extern uint16 const offhome[];
+extern uint16 const outsideSymbol[];
+extern uint16 const indoorTemp[];
+extern uint16 const fanspeed0a[];
+extern uint16 const fanspeed1a[];
+extern uint16 const fanspeed2a[];
+extern uint16 const fanspeed3a[];
+extern uint16 const fanbladeA[];
+extern uint16 const fanbladeB[];
+extern uint16 const sunicon[];
+extern uint16 const moonicon[];
+extern uint16 const coolicon[];
+extern uint16 const heaticon[];
+extern uint16 const degree_o[];
+
+/*      Display Fonts         */
+/* Declaration in DisFonts.c  */
+extern uint8 const char_16_24[];
+extern uint8 const chlibsmall[];
+extern uint8 const chlib[];
+extern uint8 const chlib_48x64[];
+extern uint8 const ArialBlack_18x26[];
+extern uint8 const ch_ArialBlack_16x24[];
+
+/*      Function Declaration   */
+
+void LCD_Intial(void);
+void draw_tangle(uint8 xpos, uint16 ypos);
+void ClearScreen(unsigned int bColor);
+void disp_ch(uint8 form, uint16 x, uint16 y,uint8 value,uint16 dcolor,uint16 bgcolor);
+void disp_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
+void disp_edge(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
+void disp_null_icon(uint16 cp, uint16 pp, uint16 const *icon_name, uint16 x,uint16 y,uint16 dcolor, uint16 bgcolor);
+void disp_str(uint8 form, uint16 x,uint16 y,char *str,uint16 dcolor,uint16 bgcolor);
+void disp_str_16_24(uint8 form, uint16 x, uint16 y, uint8 *str, uint16 dcolor, uint16 bgcolor);
+void disp_ch_16_24(uint8 form, uint16 x, uint16 y, uint8 value, uint16 dcolor, uint16 bgcolor);
+void display_SP(S16_T setpoint);
+void display_screen_value(uint8 type);
+void display_fanspeed(S16_T speed);
+void display_mode(uint8 heat_cool_user);
+void display_fan(void);
+void display_icon(void);
+void display_value(uint16 pos,S16_T disp_value, uint8 disp_unit);
+void clear_line(uint8 linenum);
+void clear_lines(void);
+//void display_clock_date(int8 item, int16 value);
+//void display_clock_time(int8 item, int16 value);
+void display_scroll(void);
+void scroll_warning(uint8 item);
+void display_schedule_time(S8_T schedule_time_sel, uint8 hour_minute);
+void Top_area_display(uint8 item, S16_T value, uint8 unit);
+
+
+#endif /* __LCD_TSTAT_H__ */

@@ -152,6 +152,7 @@ static void day_of_year_into_md(
     return;
 }
 
+/*
 void datetime_day_of_year_into_date(
     uint32_t days,
     uint16_t year,
@@ -175,7 +176,7 @@ uint32_t datetime_day_of_year(
 
     return days;
 }
-
+*/
 static uint32_t days_since_epoch(
     uint16_t year,
     uint8_t month,

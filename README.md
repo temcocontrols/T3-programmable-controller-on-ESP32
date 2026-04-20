@@ -1,10 +1,122 @@
+# TEMCO ESP32 Main Application CODE
 
-Once the device is configured T3000 is not required, you can use your usual modbus and bacnet tools to read & write data through the various communications ports. T3000 can also be used to write programs running on the ESP as well as set up alarms, floorplans, data logging, emailed alarms and more. If you want to use the ESP32 as a router only that is fine as well, it will transparently route messages from one network to the other using 'transparent mode'. 
-## How to compile
-Please refer to this documentation:
-[How to compile.txt](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/How%20to%20compile.txt)
-## How to load the firmware to T3-nano
-Please refer to the documentation in the following path.
-[Bootloader update guide.pdf](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/Bootloader%20update%20guide%20for%20T3.pdf)
-## Schematic of T3-nano
-[T3 Nano schematic](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/blob/master/Documents/T3_Nano_Schematic.pdf)
+This project implements the core firmware used in TEMCO programmable HVAC and building automation controllers.
+
+It provides Ethernet, WiFi, and RS485 connectivity, and exposes sensors, I/O, and control logic through standard Modbus and Bacnet protocols. Devices running this firmware can be accessed by third-party systems via Modbus and Bacnet, or automatically scanned, configured, and monitored using TEMCO’s T3000 software.
+
+The same codebase is shared across multiple TEMCO products to provide a consistent, fully programmable building automation platform.
+
+## Products Using This Project
+
+### T3 Series Programmable Bacnet & Modbus Controller
+The T3 controllers and Tstat10 are general-purpose programmable HVAC and building automation controllers.
+
+This project provides its core communication, networking, and protocol handling, enabling multi-protocol operation (Modbus RTU/IP and Bacnet MSTP/IP) over Ethernet, WiFi, and RS485, with support for expandable I/O and advanced control logic via T3000.
+
+#### Highlights
+- Programmable HVAC and building automation controller
+- Ethernet, WiFi, RS485 connectivity supported by this firmware
+- Modbus RTU / IP and Bacnet MSTP / IP protocol support
+- Expandable I/O architecture for scalable systems
+- Discovered, configured, and maintained using T3000 software
+- No licenses or recurring cloud fees
+<img width="300" height="300" alt="image" src="https://github.com/user-attachments/assets/02d0c008-cab8-4b8d-affa-06749dae8a4f" />
+
+### TSTAT10 Fully Programmable Thermostat
+TSTAT10 is a programmable thermostat and room controller with a local color LCD display and universal I/O.
+
+This project enables its ESP32 networking stack, RS485 communication, and protocol integration, allowing the device to operate as part of a larger building automation system while remaining configurable through T3000 or direct register access.
+
+#### Highlights
+
+- Fully programmable thermostat and room controller
+- Universal I/O configurable by software
+- RS485 communication with Modbus and Bacnet support
+- Local color LCD display with real-time data visualization
+- Well-documented register map for esay integration
+- Seamless integration with T3000 software
+<img width="251" height="302" alt="image" src="https://github.com/user-attachments/assets/71783a7f-a768-449a-9d47-e842e204bb5c" />
+
+## Compiling
+
+### ESP32 code
+Please download the ESP idf integrated development environment from Espressif to compile the code, the version is **5.5.3**.
+> #### 1.	Install the ESP-IDF tool installer
+> Go to the
+> <https://github.com/espressif/idf-installer/releases/download/offline-5.5.3/esp-idf-tools-setup-offline-5.5.3.exe>
+>
+> page where you can download the esp - idf - tools - setup.  The IDE should be installed in a path that does not contain spaces in the name.
+> #### 2.  Run esp-idf-tools-setup-offline-5.5.3.exe
+> You can change the default ESP IDF installation path, which will be used later.
+> #### 3.  Once installed, you should get an ESP-IDF Eclipse, which is the compiler we used to compile ESP32 code.
+> #### 4.  Move the two folders, temco_bacnet and temco_IO_control, from the code download on Github to the components directory in esp-idf, replacing the original driver folder. This is the change we made to the IDF.
+> #### 5.  Open the ESP-IDF Eclipse program, File ->Import, Espressif ->Existing IDF Project, select the project directory downloaded from github, and click Finish to load the project into the compiler.
+> #### 6.  Right click the project name and select Build Project to compile. This will take a while the first time.
+> #### 7.  Once the compile is complete, you will see the 'temco_app.bin' file in the 'build' directory within your imported project.
+> #### 6.  You can get more help from
+> <https://esp32.com/index.php><br>
+> <https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.html>
+
+### T3-NANO's STM32 code
+> Typically, Keil V5 ARM is used to compile and generate firmware.
+> The project file is located at \T3-nano-stm\MDK-ARM
+> Much of the code is generated using the STM32CubeMX software.
+
+
+# Load the firmware to TEMCO product
+***In general, there is no need to personally load the Bootloader firmware to the product, it is already done before the factory.***
+***In special cases, follow the steps below to reload the Bootloader firmware.***
+
+## Update the main firmware
+Download T3000 software,<https://assets.temcocontrols.com/products/t3_series_programmable_bacnet__amp_modbus_controller/software_file/09T3000Software-4.zip>.
+Connect the device to PC with RS485, open T3000, click the icon to search for the device, if the connection is normal, the device will appear in the list.
+Select the device you want to update and click *Tools->Load firmware for a single* device to start the update.
+
+## Load the bootloader firmware to T3-nano
+> #### 1.   Software tools and firmware
+> -	ESP32 download firmware tool and ESP32 firmware
+> <https://temcocontrols.com/ftp/file/flash_download_tool_v3.8.5.zip>
+> <https://temcocontrols.com/ftp/file/BootloaderT3NanoRev27.zip>
+> - CH340SerSetup  for  USB-to-TTL debug board
+> <https://temcocontrols.com/ftp/file/CH340SerSetup.zip>
+> - UartAssist.exe  print debug messages via USB-to-TTL board
+> <https://temcocontrols.com/ftp/file/UartAssist.zip>
+> #### 2.	Print Debugging Information
+> - Plug USB-to-TTL debug board to your PC , Download and install CH341 driver , you will find a new USB-SERIAL CH340(COMXX) under device manager->Ports .
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/1c67dae8-bc83-470c-940e-e6e1dba100cd)
+> - Connect the USB-to-TTL debugging board and motherboard J4 through the male and female connector , pay attention to keep MARK point in the same position .
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/7e101795-dc9a-4673-ab69-f3667590027c)
+> - Power on and open commUart  Assistant which print some messages about sensors.
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/11cca132-0fdd-4670-80b8-12f559312a07)
+> #### 3.	ESP32 update firmware .
+> - Hardware connection
+> USB-to-TTL connect to J3 , Short J5 and J6 by a jumper until the end of the download firmware ,  turn on 24V power .
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/a60356b1-6843-4d7d-aa69-0e7f4aacd3a7)
+> - Set ESP32 firmware download tool configurations.
+> Run flash_download_tool_3.8.5.exe , Tools -> Developer Mode -> ESP32 Download Tool,
+Set some options as shown .
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/2aa8f1dc-f473-4498-927c-82357f223b45)<br>
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/70dfe252-9187-4045-881f-ad3d6964674e)<br>
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/2d929262-56f1-4480-ac61-6af4511a1dcc)<br>
+> ***ESP32 firmware contains four parts***
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/de20fa72-f5bd-45fb-a4f4-dc92149bb7c3)<br>
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/0b1a1d3d-ad20-4f99-938c-8b1571960f26)<br>
+> - Click the Start button to download the latest firmware .
+When it show Finish , please remove jumper on J5 & J6 and power on again,
+If UartAssist.exe is running  , you can see debugging messages .
+
+
+## Load the bootloader firmware to TSTAT10
+> #### 1.	Connect TSTAT10 J3 to USB with a USB to TTL debug board
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/744a23a8-de2a-4e09-bdf4-6485398a0600)<br>
+> Jumper J1, so that after restarting, it will enter flash download mode, momentarily jumper J2, and TSTAT10 will restart and prepare to download the bootloader.
+> USB to TTL dongle has a 3.3V power supply, and if power supply is insufficient, you can connect 24V power to the TSTAT10.
+> ![image](https://github.com/temcocontrols/T3-programmable-controller-on-ESP32/assets/4134931/44669f4a-0bf3-4905-bd3a-ad740fa5ec61)
+> #### 2. The steps to use the ESP32 flash downloader software are the same as the T3-nano.
+> #### 3. Keep in mind that the ESP32 flash downloader tool is only used to install the bootloaders and partition information.
+> #### 4. On a TSTAT10 with its RS485 port, a USB to RS485 adapter can be used by the flash download tool embedded within the T3000 software
+> Power the TSTat10 with 24V AC or DC
+> Connect the USB to RS485 adapter to your computer and the jack on the TSTAT10.
+> Launch the T3000 software and select Tools -> Load firmware to a single device
+> Then select the com port of your adapter, the baud rate as 115200 and the temco_app.bin file from your build path
+> Press the flash button and the device will be programmed with your binary before rebooting to launch

@@ -28,6 +28,8 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode ,U8_T flag);
 //void WritePrivateData(Point_Net point,S32_T value);
 //S8_T put_timer_value(U8_T pro_index,U8_T type,U32_T time,char *messgae); 
 //U32_T check_pro_timer_count(U8_T index,U32_T time,U8_T type,U8_T time_sign);
+S16_T find_local_point( Point *point );
+S16_T insert_local_point( Point *point, S16_T index );
 void initial_graphic_point(void);
 //void clear_pro_timer(U8_T prg_index,U32_T time,U8_T type);
 

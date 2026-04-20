@@ -34,6 +34,7 @@
 #include "datetime.h"
 
 
+#pragma pack(1)
 
 struct BACnet_Application_Data_Value;
 typedef struct BACnet_Application_Data_Value {

@@ -1333,14 +1333,8 @@ int uart_read_bytes(uart_port_t uart_num, void *buf, uint32_t length, TickType_t
 		{
 			uint16_t i;
 			uint8_t * tmp_ptr;			
-			tmp_ptr = p_uart_obj[uart_num]->rx_ptr;				
-			if(len_tmp == 1 && *tmp_ptr == 0)
-			{
-				Test[35]++;
-				Test[36] = *tmp_ptr;
-				Test[37] = 100;
-			}
-			
+			tmp_ptr = p_uart_obj[uart_num]->rx_ptr;
+
 			for(i = 0; i < len_tmp;i++)
 			{
 				FIFO_Put(&Receive_Buffer2, *tmp_ptr++);	

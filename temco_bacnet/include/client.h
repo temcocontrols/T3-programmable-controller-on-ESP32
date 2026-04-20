@@ -107,17 +107,23 @@ extern "C" {
 
     int Send_UCOV_Notify(
         uint8_t * buffer,
-        BACNET_COV_DATA * cov_data);
+        BACNET_COV_DATA * cov_data,
+				uint8_t protocal);
     int ucov_notify_encode_pdu(
         uint8_t * buffer,
         BACNET_ADDRESS * dest,
         BACNET_NPDU_DATA * npdu_data,
-        BACNET_COV_DATA * cov_data);
+        BACNET_COV_DATA * cov_data,
+				uint8_t protocal);
     uint8_t Send_COV_Subscribe(
         uint32_t device_id,
-        BACNET_SUBSCRIBE_COV_DATA * cov_data);
+        BACNET_SUBSCRIBE_COV_DATA * cov_data,
+				uint8_t protocal);
 
-
+	void cov_data_value_list_link(
+    BACNET_COV_DATA *data,
+    BACNET_PROPERTY_VALUE *value_list,
+    size_t count);
 
 /* returns the invoke ID for confirmed request, or 0 if failed */
     uint8_t Send_Read_Property_Request_Address(

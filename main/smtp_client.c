@@ -28,7 +28,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
-#include "protocol_examples_common.h"
+//#include "protocol_examples_common.h"
 
 #include "mbedtls/platform.h"
 #include "mbedtls/net_sockets.h"
@@ -37,26 +37,41 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/error.h"
-#include "mbedtls/certs.h"
+// #include "mbedtls/certs.h"
 #include <mbedtls/base64.h>
 #include <sys/param.h>
 
 #include "lwip/sockets.h"
-
+#include "user_data.h"
+#include "string.h"
 
 #include "driver/uart.h"
 extern char debug_array[100];
 
-#if 0
+#if 1 // no ssl
 /* Constants that are configurable in menuconfig */
-#define MAIL_SERVER         "192.168.0.7"//CONFIG_SMTP_SERVER ��192.168.0.7��
-#define MAIL_PORT           "25"//CONFIG_SMTP_PORT_NUMBER
-#define SENDER_MAIL         "chelsea@temcocontrols.com"//CONFIG_SMTP_SENDER_MAIL ��chelsea@temcocontrols.com��
-#define SENDER_PASSWORD     "GhyR$d@!@" //CONFIG_SMTP_SENDER_PASSWORD
-#define RECIPIENT_MAIL      "chelsea@temcocontrols.com"//CONFIG_SMTP_RECIPIENT_MAIL
+//#define MAIL_SERVER         "192.168.0.7"//CONFIG_SMTP_SERVER ��192.168.0.7��
+//#define MAIL_PORT           "25"//CONFIG_SMTP_PORT_NUMBER
+//#define SENDER_MAIL         "chelsea@temcocontrols.com"//CONFIG_SMTP_SENDER_MAIL ��chelsea@temcocontrols.com��
+//#define SENDER_PASSWORD     "u6flh?lO"//"GhyR$d@!@" //CONFIG_SMTP_SENDER_PASSWORD
+//#define RECIPIENT_MAIL      "chelsea@temcocontrols.com"//CONFIG_SMTP_RECIPIENT_MAIL
+
+char mail_server[20];
+char mail_port[10];
+char sender_password[20];
+char sender_mail[60];
+char recipient_mail1[60];
+char recipient_mail2[60];
+
+U8_T flag_sendemail;
+char send_message[200];
+
 #endif
 
+#define BUF_SIZE            512
+void debug_info(char *string);
 
+#if 0 // SSL
 #define MAIL_SERVER1         "mail.smtp2go.com"//CONFIG_SMTP_SERVER ��192.168.0.7��
 #define MAIL_PORT1           "2525"//CONFIG_SMTP_PORT_NUMBER
 #define SENDER_MAIL1         "T3@temcocontrols.com"//CONFIG_SMTP_SENDER_MAIL ��chelsea@temcocontrols.com��
@@ -64,12 +79,12 @@ extern char debug_array[100];
 #define RECIPIENT_MAIL1      "chelsea@temcocontrols.com"//CONFIG_SMTP_RECIPIENT_MAIL
 
 
-#define SERVER_USES_STARTSSL 	1
+#define SERVER_USES_STARTSSL 	0//1
 
 static const char *TAG = "smtp_example";
 
 #define TASK_STACK_SIZE     (8 * 1024)
-#define BUF_SIZE            512
+
 
 extern unsigned int Test[50];
 void debug_info(char *string);
@@ -97,7 +112,7 @@ extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_
 
 //extern const uint8_t esp_logo_png_start[] asm("_binary_esp_logo_png_start");
 //extern const uint8_t esp_logo_png_end[]   asm("_binary_esp_logo_png_end");
-#if 1
+
 static int write_and_get_response(mbedtls_net_context *sock_fd, unsigned char *buf, size_t len)
 {
     int ret;
@@ -156,7 +171,6 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     unsigned char data[DATA_SIZE];
     char code[4];
     size_t i, idx = 0;
-    Test[10]++;
     if (len) {
         ESP_LOGD(TAG, "%s", buf);
         printf("%s",buf);
@@ -165,7 +179,6 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     while (len && (ret = mbedtls_ssl_write(ssl, buf, len)) <= 0) {
         if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
         	debug_info("mbedtls_ssl_write failed with error");
-            Test[11]++;
             goto exit;
         }
     }
@@ -195,7 +208,7 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
 
             if (idx == 4 && code[0] >= '0' && code[0] <= '9' && code[3] == ' ') {
                 code[3] = '\0';
-                ret = atoi(code);Test[13]++;
+                ret = atoi(code);
                 goto exit;
             }
 
@@ -204,8 +217,8 @@ static int write_ssl_and_get_response(mbedtls_ssl_context *ssl, unsigned char *b
     } while (1);
 
 exit:
-	Test[14]++;
-	Test[15] = ret;
+	//Test[14]++;
+	//Test[15] = ret;
 	debug_info("write_ssl_and_get_response end");
     return ret;
 }
@@ -271,11 +284,11 @@ exit:
     return ret;
 }
 
-#if 1
+#if 0
 void debug_info2(char *str)
 {
-    sprintf(debug_array,str/*"mbedtls_ssl_init\r\n"*/);
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+    //sprintf(debug_array,str/*"mbedtls_ssl_init\r\n"*/);
+    //uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
 }
 #endif
 
@@ -544,7 +557,7 @@ exit:
     mbedtls_ctr_drbg_free(&ctr_drbg);
     mbedtls_entropy_free(&entropy);
 
-#if 1
+#if 0
     sprintf(debug_array,"exit %d,%d",ret,Test[40]);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
 #endif
@@ -562,8 +575,8 @@ exit:
 #endif
 
 
-#if 0
-void smtp_client_task_nossl(void)
+#if 1
+void smtp_client_task_nossl(char *message)
 {
 	char rx_buffer[200];
 	int addr_family;
@@ -579,10 +592,32 @@ void smtp_client_task_nossl(void)
 	mbedtls_net_init(&server_fd);
 	buf = (char *) calloc(1, BUF_SIZE);
 
-	debug_info("Connecting to ....");
+	debug_info("Connecting to email server...");
 
-	if ((ret = mbedtls_net_connect(&server_fd, MAIL_SERVER,
-								   MAIL_PORT, MBEDTLS_NET_PROTO_TCP)) != 0) {
+
+	snprintf(mail_server,40,"%s",Email_Setting.reg.smtp_domain);
+	snprintf(mail_port,10,"%u",Email_Setting.reg.smtp_port);
+	snprintf(sender_mail,60,"%s",Email_Setting.reg.email_address);
+	snprintf(recipient_mail1,60,"%s",Email_Setting.reg.To1Addr);
+	snprintf(recipient_mail2,60,"%s",Email_Setting.reg.To2Addr);
+	snprintf(sender_password,60,"%s",Email_Setting.reg.password);
+
+	//snprintf(mail_server,20,"192.168.0.7");
+	//snprintf(mail_port,5,"502");
+	//snprintf(sender_mail,60,"chelsea@temcocontrols.com");
+	//snprintf(recipient_mail,60,"chelsea@temcocontrols.com");
+	//snprintf(sender_password,60,"u6flh?lO");
+
+
+
+	debug_info(mail_server);
+	debug_info(mail_port);
+	debug_info(sender_mail);
+	debug_info(recipient_mail1);
+	debug_info(sender_password);
+
+
+	if ((ret = mbedtls_net_connect(&server_fd, mail_server, mail_port, MBEDTLS_NET_PROTO_TCP)) != 0) {
 		debug_info("mbedtls_net_connect returned");
 		goto exit;
 	}
@@ -595,11 +630,11 @@ void smtp_client_task_nossl(void)
 	if (err < 0)
 		goto exit;
 
-	len = snprintf((char *) buf, BUF_SIZE, "STARTTLS\r\n");
+/*	len = snprintf((char *) buf, BUF_SIZE, "STARTTLS\r\n");
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
-		goto exit;
+		goto exit;*/
 
 
 	len = snprintf( (char *) buf, BUF_SIZE, "AUTH LOGIN\r\n" );
@@ -616,7 +651,7 @@ void smtp_client_task_nossl(void)
 
 
 	ret = mbedtls_base64_encode((unsigned char *) base64_buffer, sizeof(base64_buffer),
-	                                &base64_len, (unsigned char *) SENDER_MAIL, strlen(SENDER_MAIL));
+	                                &base64_len, (unsigned char *) sender_mail, strlen(sender_mail));
 	if (ret != 0) {
 		goto exit;
 	}
@@ -635,7 +670,7 @@ void smtp_client_task_nossl(void)
 
 
 	ret = mbedtls_base64_encode((unsigned char *) base64_buffer, sizeof(base64_buffer),
-								&base64_len, (unsigned char *) SENDER_PASSWORD, strlen(SENDER_PASSWORD));
+								&base64_len, (unsigned char *) sender_password, strlen(sender_password));
 	if (ret != 0){
 		goto exit;
 	}
@@ -653,7 +688,7 @@ void smtp_client_task_nossl(void)
 
 	    /* Compose email */
 
-	len = snprintf((char *) buf, BUF_SIZE, "MAIL FROM:<%s>\r\n", SENDER_MAIL);
+	len = snprintf((char *) buf, BUF_SIZE, "MAIL FROM:<%s>\r\n", sender_mail);
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
@@ -665,7 +700,18 @@ void smtp_client_task_nossl(void)
 		debug_info(rx_buffer);
 	}
 
-	len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", RECIPIENT_MAIL);
+	len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", recipient_mail1);
+	debug_info(buf);
+	err = send(sock, buf,len, 0);
+	if (err < 0)
+		goto exit;
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	if(len > 0)
+	{
+		debug_info(rx_buffer);
+	}
+
+	len = snprintf((char *) buf, BUF_SIZE, "RCPT TO:<%s>\r\n", recipient_mail2);
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
@@ -692,22 +738,22 @@ void smtp_client_task_nossl(void)
 
 	/* We do not take action if message sending is partly failed. */
 	len = snprintf((char *) buf, BUF_SIZE,
-				   "From: %s\r\nSubject: chelsea mail test3333\r\n"
-				   "To: %s\r\n"
-				   "MIME-Version: 1.0 (mime-construct 1.9)\n",
-				   "ESP32 SMTP Client", RECIPIENT_MAIL);
-
+				   "From: %s\r\n"
+				   "To: %s,%s\r\n"
+					"Subject: %s\r\n"
+					"\r\n%s\r\n",
+				   sender_mail, recipient_mail1,recipient_mail2,"EMAIL ALARM",message);
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
 		goto exit;
 
-	/*len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
 	if(len > 0)
 	{
 		debug_info(rx_buffer);
-	}*/
-
+	}
+#if 0
 	/* Multipart boundary */
 	len = snprintf((char *) buf, BUF_SIZE,
 				   "Content-Type: multipart/mixed;boundary=XYZabcd1234\n"
@@ -722,19 +768,14 @@ void smtp_client_task_nossl(void)
 		debug_info(rx_buffer);
 	}*/
 
-	/* Text */
+
+/* Text
 	len = snprintf((char *) buf, BUF_SIZE,
 				   "--This is a test3333 by Chelsea. \n");
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
-		goto exit;
-	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
-	if(len > 0)
-	{
-		debug_info(rx_buffer);
-	}
-
+		goto exit;*/
 	/* Attachment
 	len = snprintf((char *) buf, BUF_SIZE,
 				   "Content-Type: image/png;name=esp_logo.png\n"
@@ -747,12 +788,14 @@ void smtp_client_task_nossl(void)
 	{
 		debug_info(rx_buffer);
 	}*/
+#endif
 
 	len = snprintf((char *) buf, BUF_SIZE, "\r\n.\r\n");
 	debug_info(buf);
 	err = send(sock, buf,len, 0);
 	if (err < 0)
 		goto exit;
+
 
 	len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
 	if(len > 0)

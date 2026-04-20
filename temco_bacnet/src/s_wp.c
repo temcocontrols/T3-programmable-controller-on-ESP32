@@ -87,6 +87,7 @@ uint8_t Send_Write_Property_Request_Data(
         pdu_len =
             npdu_encode_pdu(&Handler_Transmit_Buffer[protocal][0], &dest, &my_address,
             &npdu_data);
+
         /* encode the APDU portion of the packet */
         dat.object_type = object_type;
         dat.object_instance = object_instance;
@@ -105,24 +106,27 @@ uint8_t Send_Write_Property_Request_Data(
            us and the destination, we won't know unless
            we have a way to check for that and update the
            max_apdu in the address binding table. */
-        if ((unsigned) pdu_len < max_apdu) { 
+        if (pdu_len < max_apdu) {
             tsm_set_confirmed_unsegmented_transaction(invoke_id, &dest,
                 &npdu_data, &Handler_Transmit_Buffer[protocal][0], (uint16_t) pdu_len);
 					
 #if ARM
           // added by chelsea
-					if(protocal == BAC_MSTP)
-					{
-						memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len); 
-						MSTP_Transfer_Len = pdu_len;
-					}
-#endif					
+			if(protocal == BAC_MSTP)
+			{
+				memcpy(&TransmitPacket,&Handler_Transmit_Buffer[protocal][0],pdu_len);
+				MSTP_Transfer_Len = pdu_len;
+			}
+#endif
+
 					bytes_sent =
                 datalink_send_pdu(&dest, &npdu_data,
-                &Handler_Transmit_Buffer[protocal][0], pdu_len,protocal);
+                &Handler_Transmit_Buffer[protocal][0], pdu_len,protocal);//?????????????????
+
 #if PRINT_ENABLED
             if (bytes_sent <= 0)
                 fprintf(stderr, "Failed to Send WriteProperty Request (%s)!\n",
+
                     strerror(errno));
 #endif
         } else {
@@ -166,6 +170,7 @@ uint8_t Send_Write_Property_Request(
 		uint8_t porotcal)
 {
     uint8_t application_data[MAX_APDU] = { 0 };
+
     int apdu_len = 0, len = 0;
 //		uint32_t array_index = BACNET_ARRAY_ALL;
 
@@ -178,6 +183,8 @@ uint8_t Send_Write_Property_Request(
 		{
 			object_value->tag = BACNET_APPLICATION_TAG_ENUMERATED;
 			object_value->type.Enumerated = val ? 1 : 0;
+			object_value->context_specific = 0;
+			object_value->context_tag = 4;
 		}
 		else
 		{

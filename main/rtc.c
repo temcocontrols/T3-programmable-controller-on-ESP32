@@ -13,7 +13,10 @@
 
 extern uint16_t Test[50];
 int16_t  timezone;
-uint8_t  Daylight_Saving_Time;
+extern uint8_t  Daylight_Saving_Time;
+U32_T RTC_GetCounter(void);
+void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag);
+U32_T get_current_time_with_timezone(void);
 
 const uint8_t	Month[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
 const uint8_t	AddMonth[12] = {31,29,31,30,31,30,31,31,30,31,30,31};
@@ -225,6 +228,14 @@ int PCF_GetDateTime(PCF_DateTime *dateTime) {
 		return 1;
 	}
 
+	Rtc.Clk.hour = dateTime->hour;
+	Rtc.Clk.min = dateTime->minute;
+	Rtc.Clk.sec = dateTime->second;
+	Rtc.Clk.day = dateTime->day;
+	Rtc.Clk.week = dateTime->weekday;
+	Rtc.Clk.mon = dateTime->month;
+	Rtc.Clk.year = dateTime->year;
+
 	return 0;
 }
 PCF_DateTime rtc_date = {0};
@@ -235,7 +246,7 @@ int PCF_hctosys(){
 	struct timeval tv = {0};
 
 	ret = PCF_Init(0);
-	printf("PCF_Init %d\n", ret);
+//	printf("PCF_Init %d\n", ret);
 	debug_info("PCF_Init");
 	if(ret == 0)
 	{
@@ -246,7 +257,7 @@ int PCF_hctosys(){
 		goto fail;
 	}
     ret = PCF_GetDateTime(&rtc_date);
-	printf("PCF_GetDateTime %d\n", ret);
+//	printf("PCF_GetDateTime %d\n", ret);
     if (ret != 0) {
 		goto fail;
     }
@@ -308,11 +319,12 @@ int PCF_systohc(){
 	rtc_date.year = tm.tm_year + 1900;
 	rtc_date.weekday = RTC_Get_Week(rtc_date.year,rtc_date.month,rtc_date.day);//tm.tm_wday;
 	ret = PCF_SetDateTime(&rtc_date);
+	Test[37]++;
 
 fail:
 	return ret;
 }
-void update_timers( void );
+
 
 
 void update_timers( void )
@@ -385,10 +397,18 @@ void update_timers( void )
 	}
 
 	time_since_1970 += timestart;
+	Get_Time_by_sec(get_current_time_with_timezone(),&Rtc,1);
 
 }
 
-U32_T get_current_time(void)
+U32_T get_current_time(void)  // orignal data
+{
+//	Test[20]++;
+//	memcpy(&Test[22],time_since_1970,4);
+	return time_since_1970 + system_timer / 1000;
+}
+
+U32_T get_current_time_with_timezone(void)
 {
 	if(Daylight_Saving_Time)  // timezone : +8 ---> 800
 	{
@@ -404,7 +424,7 @@ U32_T get_current_time(void)
 		return time_since_1970 + system_timer / 1000 - (S16_T)timezone * 36;
 
 	return 0;
-	//return time_since_1970 + system_timer / 1000;//timezone ?????????????
+
 }
 
 U32_T RTC_GetCounter(void)
@@ -501,17 +521,17 @@ void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag)
 	rtc->Clk.min = (temp % 3600) / 60;
 	rtc->Clk.sec = (temp % 3600) % 60;
 	rtc->Clk.week = RTC_Get_Week(2000 + rtc->Clk.year, rtc->Clk.mon,rtc->Clk.day);
-
+	Test[36]++;
 	if(flag == 1)
 	{
-	Local_Date.year = rtc->Clk.year + 2000;
-	Local_Date.month = rtc->Clk.mon;
-	Local_Date.day = rtc->Clk.day;
-	Local_Date.wday = rtc->Clk.week;
+	Local_Date.year = rtc_date.year;
+	Local_Date.month = rtc_date.month;
+	Local_Date.day = rtc_date.day;
+	Local_Date.wday = rtc_date.weekday;
 
-	Local_Time.hour = rtc->Clk.hour;
-	Local_Time.min = rtc->Clk.min;
-	Local_Time.sec = rtc->Clk.sec;
+	Local_Time.hour = rtc_date.hour;
+	Local_Time.min = rtc_date.minute;
+	Local_Time.sec = rtc_date.second;
 	}
 }
 
@@ -528,12 +548,19 @@ uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8
 		rtc_date.day = sday;
 		system_timer = 0;
 		PCF_SetDateTime(&rtc_date);
+		Test[38]++;
 	}
-
+	// if no rtc chip
+	Test[39]++;
 	update_timers();
+
 	return time_since_1970 + system_timer / 1000;
 }
 
+
+
+
+// source -- 0: timer server(since 1900)	1: T3000 timesync
 void Get_RTC_by_timestamp(U32_T timestamp,UN_Time* rtc,U8_T source)
 {
 	S8_T	signhour, signmin;
@@ -665,7 +692,7 @@ void Calculate_DSL_Time(void)
 	}
 	start_day += Modbus.start_day;
 	end_day += Modbus.end_day;
-	if(Is_Leap_Year(Rtc.Clk.year + 2000))
+	if(Is_Leap_Year(rtc_date.year + 2000))
 	{
 		start_day++;
 		end_day++;
@@ -678,14 +705,24 @@ void Calculate_DSL_Time(void)
 void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS)
 {
 	U32_T current;
+	UN_Time rtc;
 
 	current = get_current_time();
 	current += (newTZ - oldTZ) * 36;
-	if((Rtc.Clk.day_of_year >= start_day) && (Rtc.Clk.day_of_year <= end_day))
+	if((rtc_date.day_of_year >= start_day) && (rtc_date.day_of_year <= end_day))
 		current += (newDLS - oldDLS) * 3600;
-	Get_RTC_by_timestamp(current,&Rtc,1);
+	rtc.Clk.year = rtc_date.year;
+	rtc.Clk.mon = rtc_date.month;
+	rtc.Clk.day = rtc_date.day;
+	rtc.Clk.hour = rtc_date.hour;
+	rtc.Clk.min = rtc_date.minute;
+	rtc.Clk.sec = rtc_date.second;
+	rtc.Clk.day_of_year = rtc_date.day_of_year;
 
-	Rtc_Set(Rtc.Clk.year,Rtc.Clk.mon,Rtc.Clk.day,Rtc.Clk.hour,Rtc.Clk.min,Rtc.Clk.sec,0);
+
+	Get_RTC_by_timestamp(current,&rtc,1);
+
+	Rtc_Set(rtc_date.year,rtc_date.month,rtc_date.day,rtc_date.hour,rtc_date.minute,rtc_date.second,0);
 
 }
 
@@ -727,7 +764,7 @@ void app_main(void)
 
         printf("ret %d time %ld\n ", ret, time(NULL));
 
-        vTaskDelay(5000 / portTICK_RATE_MS);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
 
     }
 

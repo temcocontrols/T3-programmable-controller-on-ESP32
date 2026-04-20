@@ -3,6 +3,9 @@
 
 #include "types.h"
 #pragma pack(1)
+
+
+
 typedef struct
 {
 	U8_T serialNum[4];
@@ -18,10 +21,10 @@ typedef struct
 	U8_T update_status;
 	U8_T  base_addr;
 	U8_T  tcp_type;   /* 0 -- DHCP, 1-- STATIC */
-	U8_T  ip_addr[4];
-	U8_T  mac_addr[6];
+	U8_T  ip_addr[4];	
 	U8_T  	subnet[4];
 	U8_T  	getway[4];
+	U8_T  mac_addr[6];
 	U8_T  ethernet_status;
 	U16_T 	tcp_port;
 	U8_T  mini_type;
@@ -46,6 +49,7 @@ typedef struct
 	U16_T vcc_adc; // 
 	U8_T network_master;
 	
+
 	U8_T fix_com_config;
 //	U8_T backlight;
 	U8_T LCD_time_off_delay;
@@ -57,7 +61,7 @@ typedef struct
 	U16_T zigbee_module_id;
 	U8_T dead_master;
 	U8_T disable_tstat10_display;  // display icons and scrolling string
-//	lcdconfig display_lcd;
+	//lcdconfig display_lcd;
 	U8_T start_month;
 	U8_T start_day;
 	U8_T end_month;
@@ -65,6 +69,13 @@ typedef struct
 
 	U8_T led_rx485_tx;
 	U8_T led_rx485_rx;
+	
+	U8_T enable_debug;
+	U16_T mstp_network;
+
+	U8_T icon_config;
+	U8_T mstp_master;
+	U16_T write_flash;
 
 }STR_MODBUS;
 

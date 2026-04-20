@@ -426,7 +426,7 @@ static void internalDeal(uint8_t  *bufadd,uint8_t type)
 				start_fw_update();
 			}
 		}
-		
+
 	}
 }
 
@@ -1089,7 +1089,7 @@ static void udp_server_task(void *pvParameters)
 					break;
 				}
 				// Data received
-				else 
+				else
 				{
 					// Get the sender's ip address as string
 					if (source_addr.sin6_family == PF_INET) {
@@ -1215,7 +1215,7 @@ static void tcp_server_task(void *pvParameters)
 						break;
 					}
 					// Data received
-					else 
+					else
 					{
 						// Get the sender's ip address as string
 						if (source_addr.sin6_family == PF_INET) {
@@ -1282,7 +1282,7 @@ static void tcp_server_task(void *pvParameters)
 // 			if(SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)
 // 				xTaskCreate(tcp_server_task, "tcp_server", 4096, NULL, 5, NULL);
 // 		}
-// 		vTaskDelay(300 / portTICK_RATE_MS);
+// 		vTaskDelay(300 / portTICK_PERIOD_MS);
 // 	}
 // }
 

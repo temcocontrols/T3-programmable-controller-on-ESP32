@@ -49,6 +49,10 @@
 
 #if COV
 /** @file h_cov.c  Handles Change of Value (COV) services. */
+void Set_broadcast_bip_address(uint32_t net_address);
+extern uint32_t multicast_addr;
+void udp_client_send(uint16 time);
+void Update_Value_List(uint8_t type, uint32_t instance);
 
 typedef struct BACnet_COV_Address{
     bool valid:1;
@@ -82,6 +86,7 @@ static BACNET_COV_SUBSCRIPTION COV_Subscriptions[MAX_COV_SUBCRIPTIONS];
 #define MAX_COV_ADDRESSES 16
 #endif
 static BACNET_COV_ADDRESS COV_Addresses[MAX_COV_ADDRESSES];
+extern BACNET_PROPERTY_VALUE value_list;
 
 /**
 * Gets the address from the list of COV addresses
@@ -341,8 +346,8 @@ void handler_cov_init(
         COV_Subscriptions[index].dest_index = -1;
         COV_Subscriptions[index].subscriberProcessIdentifier = 0;
         COV_Subscriptions[index].monitoredObjectIdentifier.type =
-            OBJECT_ANALOG_INPUT;
-        COV_Subscriptions[index].monitoredObjectIdentifier.instance = 0;
+            OBJECT_ANALOG_VALUE;
+        COV_Subscriptions[index].monitoredObjectIdentifier.instance = index;
         COV_Subscriptions[index].flag.issueConfirmedNotifications = false;
         COV_Subscriptions[index].invokeID = 0;
         COV_Subscriptions[index].lifetime = 0;
@@ -465,9 +470,10 @@ static bool cov_send_request(
 #if PRINT_ENABLED
     fprintf(stderr, "COVnotification: requested\n");
 #endif
+
     if (!cov_subscription) {
         return status;
-    }
+    }		
     dest = cov_address_get(cov_subscription->dest_index);
     if (!dest) {
 #if PRINT_ENABLED
@@ -490,6 +496,10 @@ static bool cov_send_request(
         cov_subscription->monitoredObjectIdentifier.instance;
     cov_data.timeRemaining = cov_subscription->lifetime;
     cov_data.listOfValues = value_list;
+
+    Update_Value_List(cov_data.monitoredObjectIdentifier.type,
+    		cov_data.monitoredObjectIdentifier.instance);
+
     if (cov_subscription->flag.issueConfirmedNotifications) { 
         npdu_data.data_expecting_reply = true;
         invoke_id = tsm_next_free_invokeID();
@@ -502,6 +512,7 @@ static bool cov_send_request(
             goto COV_FAILED;
         }
     } else {	
+
         len =
             ucov_notify_encode_apdu(&Handler_Transmit_Buffer[protocal][pdu_len],
             &cov_data);
@@ -512,15 +523,13 @@ static bool cov_send_request(
             dest, &npdu_data, &Handler_Transmit_Buffer[protocal][0],
             (uint16_t) pdu_len);
     }
-				
-		Send_bip_count2 = 5;
-		Send_bip_Flag2 = 1;
-		count_send_bip2 = 0;
-		
-		memcpy(&Send_bip_address2,dest->mac,dest->mac_len);
+    Test[28]++;
+    Set_broadcast_bip_address(multicast_addr);
+   
     bytes_sent =
         datalink_send_pdu(dest, &npdu_data,
         &Handler_Transmit_Buffer[protocal][0], pdu_len,protocal);
+    udp_client_send(5);
     if (bytes_sent > 0) {
         status = true;
 #if PRINT_ENABLED
@@ -605,6 +614,53 @@ void handler_cov_timer_seconds(
         /* handle the subscription timeouts */
         for (index = 0; index < MAX_COV_SUBCRIPTIONS; index++) {
             if (COV_Subscriptions[index].flag.valid) {
+				
+				if (COV_Subscriptions[index].monitoredObjectIdentifier.type == OBJECT_ANALOG_VALUE) {
+                uint32_t instance = COV_Subscriptions[index].monitoredObjectIdentifier.instance;
+                if (Analog_Value_Change_Of_Value(instance)) {
+					
+                    cov_send_request(&COV_Subscriptions[index], &value_list,BAC_IP_CLIENT);
+                }
+            }							
+						
+				if (COV_Subscriptions[index].monitoredObjectIdentifier.type == OBJECT_ANALOG_INPUT) {
+                uint32_t instance = COV_Subscriptions[index].monitoredObjectIdentifier.instance;
+                if (Analog_Input_Change_Of_Value(instance)) {
+									
+                    cov_send_request(&COV_Subscriptions[index], &value_list,BAC_IP_CLIENT);
+                }
+            }							
+						
+				if (COV_Subscriptions[index].monitoredObjectIdentifier.type == OBJECT_ANALOG_OUTPUT) {
+                uint32_t instance = COV_Subscriptions[index].monitoredObjectIdentifier.instance;
+                if (Analog_Output_Change_Of_Value(instance)) {
+                    cov_send_request(&COV_Subscriptions[index], &value_list,BAC_IP_CLIENT);
+                }
+            }							
+						
+				if (COV_Subscriptions[index].monitoredObjectIdentifier.type == OBJECT_BINARY_VALUE) {
+                uint32_t instance = COV_Subscriptions[index].monitoredObjectIdentifier.instance;
+                if (Binary_Value_Change_Of_Value(instance)) {
+                    cov_send_request(&COV_Subscriptions[index], &value_list,BAC_IP_CLIENT);
+                }
+            }
+							
+						
+				if (COV_Subscriptions[index].monitoredObjectIdentifier.type == OBJECT_BINARY_INPUT) {
+                uint32_t instance = COV_Subscriptions[index].monitoredObjectIdentifier.instance;
+                if (Binary_Input_Change_Of_Value(instance)) {
+                    cov_send_request(&COV_Subscriptions[index], &value_list,BAC_IP_CLIENT);
+                }
+            }
+							
+						
+				if (COV_Subscriptions[index].monitoredObjectIdentifier.type == OBJECT_BINARY_OUTPUT) {
+                uint32_t instance = COV_Subscriptions[index].monitoredObjectIdentifier.instance;
+                if (Binary_Output_Change_Of_Value(instance)) {
+                    cov_send_request(&COV_Subscriptions[index], &value_list,BAC_IP_CLIENT);
+                }
+            }
+				
                 lifetime_seconds = COV_Subscriptions[index].lifetime;
                 if (lifetime_seconds) {
                     /* only expire COV with definite lifetimes */
@@ -623,7 +679,7 @@ void handler_cov_task(uint8_t protocal)
     uint32_t object_instance = 0;
     bool status = false;
     bool send = false;
-    BACNET_PROPERTY_VALUE value_list[2];
+  //  BACNET_PROPERTY_VALUE value_list[2];
 		int i;
     /* states for transmitting */
     static enum {
@@ -633,7 +689,7 @@ void handler_cov_task(uint8_t protocal)
         COV_STATE_FREE,
         COV_STATE_SEND
     } cov_task_state = COV_STATE_IDLE;
-
+		
     switch (cov_task_state) {
         case COV_STATE_IDLE:
             index = 0;
@@ -699,8 +755,7 @@ void handler_cov_task(uint8_t protocal)
             }
             break;
         case COV_STATE_SEND:
-            /* send any COVs that are requested */
-						
+            /* send any COVs that are requested */						
             if ((COV_Subscriptions[index].flag.valid) &&
                 (COV_Subscriptions[index].flag.send_requested)) {
                 send = true;
@@ -725,17 +780,20 @@ void handler_cov_task(uint8_t protocal)
                     fprintf(stderr, "COVtask: Sending...\n");
 #endif
                     /* configure the linked list for the two properties */
-                    value_list[0].next = &value_list[1];
-                    value_list[1].next = NULL;
+                   // value_list[0].next = &value_list[1];
+                   // value_list[1].next = NULL;
                     (void) Device_Encode_Value_List(object_type,
-                        object_instance, &value_list[0]);
+                        object_instance, &value_list);
+
                     status =
                         cov_send_request(&COV_Subscriptions[index],
-                        &value_list[0],protocal);
-										delay_ms(1000);
+                        &value_list,protocal);
+
+										//delay_ms(1000);
                     if (status) {
                         COV_Subscriptions[index].flag.send_requested = false;
                     }
+
                 }
             }
             index++;
@@ -767,10 +825,11 @@ static bool cov_subscribe(
         (BACNET_OBJECT_TYPE) cov_data->monitoredObjectIdentifier.type;
     object_instance = cov_data->monitoredObjectIdentifier.instance;
     status = Device_Valid_Object_Id(object_type, object_instance);
+		
     if (status) {
         status = Device_Value_List_Supported(object_type);
         if (status) {
-            status =
+          status =
                 cov_list_subscribe(src, cov_data, error_class, error_code);
         } else {
             *error_class = ERROR_CLASS_OBJECT;
@@ -801,7 +860,7 @@ static bool cov_subscribe(
  * @param service_data [in] The BACNET_CONFIRMED_SERVICE_DATA information
  *                          decoded from the APDU header of this message.
  */
-void handler_cov_subscribe(
+void handler_cov_subscribe (
     uint8_t * service_request,
     uint16_t service_len,
     BACNET_ADDRESS * src,
@@ -818,6 +877,7 @@ void handler_cov_subscribe(
     BACNET_ADDRESS my_address;
     bool error = false;
     /* initialize a common abort code */
+
     cov_data.error_code = ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;
     /* encode the NPDU portion of the packet */
     datalink_get_my_address(&my_address,protocal);
@@ -834,9 +894,11 @@ void handler_cov_subscribe(
         error = true;
         goto COV_ABORT;
     }
+
     len =
         cov_subscribe_decode_service_request(service_request, service_len,
         &cov_data);
+
 #if PRINT_ENABLED
     if (len <= 0)
         fprintf(stderr, "SubscribeCOV: Unable to decode Request!\n");
@@ -847,9 +909,11 @@ void handler_cov_subscribe(
     }
     cov_data.error_class = ERROR_CLASS_OBJECT;
     cov_data.error_code = ERROR_CODE_UNKNOWN_OBJECT;
+
     success =
         cov_subscribe(src, &cov_data, &cov_data.error_class,
         &cov_data.error_code);
+
     if (success) {
         apdu_len =
             encode_simple_ack(&Handler_Transmit_Buffer[protocal][npdu_len],

@@ -4,6 +4,7 @@
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
@@ -17,6 +18,9 @@
 #include "modbus.h"
 #include "i2c_task.h"
 #include "user_data.h"
+
+#include "wifi.h"
+#include "LCD_TSTAT.h"
 
 
 extern STR_Task_Test task_test;
@@ -61,7 +65,7 @@ uint16 typical_partical_size = 0;
 
 u8 uart_sendC[11];
 
-//CDM FORMAT: Start, Adr, Cmd, Length, DataL, Check, Stop 
+//CDM FORMAT: Start, Adr, Cmd, Length, DataL, Check, Stop
 uint8 const PM25_CMD_START_MEASUREMENT[8] = 	{0x7E, 0x00, 0x00, 0x02, 0x01, 0x03, 0xF9, 0x7E};
 uint8 const PM25_CMD_STOP_MEASUREMENT[6] = 		{0x7E, 0x00, 0x01, 0x00, 0xFE, 0x7E};
 uint8 const PM25_CMD_READ_MEASUREMENT[6] =	 	{0x7E, 0x00, 0x03, 0x00, 0xFC, 0x7E};
@@ -72,14 +76,16 @@ uint8 const PM25_CMD_RESET[6] = 				{0x7E, 0x00, 0xD3, 0x00, 0x2C, 0x7E};
 
 uint8 sensirion_co2_cmd_ForcedCalibration[8] = {0x61,0x06,0x00,0x39,0x00,0x00,0x00,0x00};
 
-
-const uint8 Var_label[13][9] = {
-	
+// AL-BTN 增加3个AV 由13变为16
+const uint8 Var_label[16][9] = {
+	"AV1",
+	"AV2",
+	"AV3",
 	"Baudrate",   //0
 	"StnNumer",   //1
 	"Protocol", //2
 	"Instance",//3
-	"Unit", //10 
+	"Unit", //10
 	"Trgger_S",
 	"Timer_S",
 	"Trgger_L",
@@ -90,8 +96,10 @@ const uint8 Var_label[13][9] = {
 	"Timer_C",
 
 };
-const uint8 Var_Description[13][21] = {
-	
+const uint8 Var_Description[16][21] = {
+	"AV 1",
+	"AV 2",
+	"AV 3",
 	"baudrate select",   	//0
 	"station number",   	//1
 	"modbus/bacnet switch",    //2
@@ -120,31 +128,31 @@ uint8 flag_refresh_PM25;
 uint8 update_flag;
 
 uint8 isBlankScreen;
-uint8_t display_config[5];
+extern uint8_t display_config[5];
 uint8 pir_trigger;
 uint8 sound_level;
 
 
 //uint16 voc_value_raw;
 
-uint32_t PirSensorZero = 2000;
+uint32_t PirSensorZero = 1800;
 uint32_t Pir_Sensetivity = 500;
 uint16 pir_value = 0;
 
 
 uint16 aqi_table_customer[5] = {12, 35, 55, 150, 250};
 
-uint16 const aqi_table_china[501] =  { 0, 3 , 4 , 6 , 7 , 9 , 10 , 11 , 13 , 14 , 16 , 17 , 19 , 20 , 21 , 23 , 24 , 26 , 27 , 29 , 30 , 31 , 33 , 34 , 36 , 37 , 39 , 40 , 41 , 43 , 44 , 46 , 47 , 49 , 50, 51 , 53 , 54 , 55 , 56 , 58 , 59 , 60 , 61 , 63 , 64 , 65 , 66 , 68 , 69 , 70 , 71 , 73 , 74 , 75 , 76 , 78 , 79 , 80 , 81 , 83 , 84 , 85 , 86 , 88 , 89 , 90 , 91 , 93 , 94 , 95 , 96 , 98 , 99 , 100 , 101 , 103 , 104 , 105 , 106 , 108 , 109 , 110 , 111 , 113 , 114 , 115 , 116 , 118 , 119 , 120 , 121 , 123 , 124 , 125 , 126 , 128 , 129 , 130 , 131 , 133 , 134 , 135 , 136 , 138 , 139 , 140 , 141 , 143 , 144 , 145 , 146 , 148 , 149 , 150 , 151 , 153 , 154 , 156 , 157 , 159 , 160 , 161 , 163 , 164 , 166 , 167 , 169 , 170 , 171 , 173 , 174 , 176 , 177 , 179 , 180 , 181 , 183 , 184 , 186 , 187 , 189 , 190 , 191 , 193 , 194 , 196 , 197 , 199 , 200 , 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 };	  
+uint16 const aqi_table_china[501] =  { 0, 3 , 4 , 6 , 7 , 9 , 10 , 11 , 13 , 14 , 16 , 17 , 19 , 20 , 21 , 23 , 24 , 26 , 27 , 29 , 30 , 31 , 33 , 34 , 36 , 37 , 39 , 40 , 41 , 43 , 44 , 46 , 47 , 49 , 50, 51 , 53 , 54 , 55 , 56 , 58 , 59 , 60 , 61 , 63 , 64 , 65 , 66 , 68 , 69 , 70 , 71 , 73 , 74 , 75 , 76 , 78 , 79 , 80 , 81 , 83 , 84 , 85 , 86 , 88 , 89 , 90 , 91 , 93 , 94 , 95 , 96 , 98 , 99 , 100 , 101 , 103 , 104 , 105 , 106 , 108 , 109 , 110 , 111 , 113 , 114 , 115 , 116 , 118 , 119 , 120 , 121 , 123 , 124 , 125 , 126 , 128 , 129 , 130 , 131 , 133 , 134 , 135 , 136 , 138 , 139 , 140 , 141 , 143 , 144 , 145 , 146 , 148 , 149 , 150 , 151 , 153 , 154 , 156 , 157 , 159 , 160 , 161 , 163 , 164 , 166 , 167 , 169 , 170 , 171 , 173 , 174 , 176 , 177 , 179 , 180 , 181 , 183 , 184 , 186 , 187 , 189 , 190 , 191 , 193 , 194 , 196 , 197 , 199 , 200 , 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 };
 
-uint16 const aqi_table_usa[501] =  { 0, 4, 8, 13, 17, 21, 25, 29, 33, 38, 42, 46, 50, 53, 55, 57, 59, 61, 63, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 95, 97, 99, 102, 105, 107, 110, 112, 115, 117, 119, 122, 124, 127, 129, 132, 134, 137, 139, 142, 144, 147, 149, 151, 152, 152, 153, 153, 154, 154, 155, 155, 156, 156, 157, 157, 158, 158, 159, 160, 160, 161, 161, 162, 162, 163, 163, 164, 164, 165, 165, 166, 166, 167, 167, 168, 168, 169, 169, 170, 170, 171, 171, 172, 172, 173, 173, 174, 174, 175, 176, 176, 177, 177, 178, 178, 179, 179, 180, 180, 181, 181, 182, 182, 183, 183, 184, 184, 185, 185, 186, 186, 187, 187, 188, 188, 189, 189, 190, 190, 191, 192, 192, 193, 193, 194, 194, 195, 195, 196, 196, 197, 197, 198, 198, 199, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 }; 
+uint16 const aqi_table_usa[501] =  { 0, 4, 8, 13, 17, 21, 25, 29, 33, 38, 42, 46, 50, 53, 55, 57, 59, 61, 63, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 87, 89, 91, 93, 95, 97, 99, 102, 105, 107, 110, 112, 115, 117, 119, 122, 124, 127, 129, 132, 134, 137, 139, 142, 144, 147, 149, 151, 152, 152, 153, 153, 154, 154, 155, 155, 156, 156, 157, 157, 158, 158, 159, 160, 160, 161, 161, 162, 162, 163, 163, 164, 164, 165, 165, 166, 166, 167, 167, 168, 168, 169, 169, 170, 170, 171, 171, 172, 172, 173, 173, 174, 174, 175, 176, 176, 177, 177, 178, 178, 179, 179, 180, 180, 181, 181, 182, 182, 183, 183, 184, 184, 185, 185, 186, 186, 187, 187, 188, 188, 189, 189, 190, 190, 191, 192, 192, 193, 193, 194, 194, 195, 195, 196, 196, 197, 197, 198, 198, 199, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 403, 404, 405, 405, 406, 407, 407, 408, 409, 409, 410, 411, 411, 412, 413, 413, 414, 415, 415, 416, 417, 417, 418, 419, 419, 420, 420, 421, 422, 422, 423, 424, 424, 425, 426, 426, 427, 428, 428, 429, 430, 430, 431, 432, 432, 433, 434, 434, 435, 436, 436, 437, 438, 438, 439, 440, 440, 441, 442, 442, 443, 444, 444, 445, 446, 446, 447, 448, 448, 449, 450, 450, 451, 452, 452, 453, 454, 454, 455, 455, 456, 457, 457, 458, 459, 459, 460, 461, 461, 462, 463, 463, 464, 465, 465, 466, 467, 467, 468, 469, 469, 470, 471, 471, 472, 473, 473, 474, 475, 475, 476, 477, 477, 478, 479, 479, 480, 481, 481, 482, 483, 483, 484, 485, 485, 486, 487, 487, 488, 489, 489, 490, 490, 491, 492, 492, 493, 494, 494, 495, 496, 496, 497, 498, 498, 499, 500	 };
 
 void uart_send_string(U8_T *p, U16_T length,U8_T port);
 
-#define AQI_INDEX_RNG				500 
+#define AQI_INDEX_RNG				500
 
 #define LEVEL0			50		//AQI:   0 ~ 50
 #define LEVEL1			100		//AQI:  50 ~ 99
-#define LEVEL2			150		//AQI:  99 ~ 149	
+#define LEVEL2			150		//AQI:  99 ~ 149
 #define LEVEL3			200		//AQI: 149 ~ 200
 #define LEVEL4			300		//AQI: 200 ~ 300
 #define LEVEL5			500		//AQI: 300 ~ 500
@@ -152,7 +160,7 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port);
 
 
 float Datasum(uint8 FloatByte1, uint8 FloatByte2, uint8 FloatByte3, uint8 FloatByte4)
-{   
+{
 	float aa;
 //	uint8 Sflag;
 	uint16 Evalue;
@@ -161,31 +169,31 @@ float Datasum(uint8 FloatByte1, uint8 FloatByte2, uint8 FloatByte3, uint8 FloatB
 	float mfloat = 0;
 	uint32 Etemp;
 	uint8 i;
-	
+
 //	Sflag = 0x01& (FloatByte1 >> 7);//indicate it is positive or negative value
-	
+
 	Evalue = FloatByte1 & 0x7f;
 	Evalue = Evalue<<1;
 	if((FloatByte2 & 0x80) == 0x80)
 		Evalue = Evalue | 0x01 ;
 	else
 		Evalue = Evalue & 0xfe ;
-	
+
 	Mvalue = FloatByte2 & 0x7f;
 	Mvalue = (Mvalue << 16);
 	Mvalue |= ((uint16)FloatByte3 << 8);
 	Mvalue |= FloatByte4;
-	
+
 
 	for(i=0;i<23;i++)
 	{
 		Mtemp = (Mvalue >> i) & 0x01;
 		if(Mtemp != 0)
-			mfloat += (float)1/(Mtemp << (23-i));		
+			mfloat += (float)1/(Mtemp << (23-i));
 	}
 
 	Etemp =  0x01 << (Evalue - 127);
-	
+
 	aa = (float)Etemp * (1 + mfloat);
 	return aa;
 }
@@ -196,34 +204,34 @@ void pm25_send_cmd(uint8 command)
 	{
 		case SENSIRION_START_MEASUREMENT:
 			uart_send_string(PM25_CMD_START_MEASUREMENT,8,2);
-			break;		
+			break;
 		case SENSIRION_STOP_MEASUREMENT:
 			uart_send_string(PM25_CMD_STOP_MEASUREMENT,6,2);
-			break;			
+			break;
 		case SENSIRION_READ_MEASUREMENT:
 			uart_send_string(PM25_CMD_READ_MEASUREMENT,6,2);
-			break;		
+			break;
 		case SENSIRION_READ_AUTO_CLEAN:
 			uart_send_string(PM25_CMD_READ_AUTO_CLEAN,8,2);
-			break;		
+			break;
 		case SENSIRION_DISABLE_AUTO_CLEAN:
 			uart_send_string(PM25_CMD_DISABLE_AUTO_CLEAN,11,2);
-			break;		
+			break;
 		case SENSIRION_START_FAN_CLEAN:
 			uart_send_string(PM25_CMD_START_FAN_CLEAN,6,2);
-			break;		
-		case SENSIRION_RESET:	
+			break;
+		case SENSIRION_RESET:
 			uart_send_string(PM25_CMD_RESET,6,2);
 			break;
 		default:
 		break;
-	
-	}	
+
+	}
 }
 
 void get_aqi_value(uint16 PM_val, uint16 *AQI_val,uint8 *AQI_level)
 {
-	if(PM_val < AQI_INDEX_RNG) 
+	if(PM_val < AQI_INDEX_RNG)
 	{
 		if(AQI_area == 1)
 			*AQI_val = aqi_table_china[PM_val];
@@ -257,7 +265,7 @@ void get_aqi_value(uint16 PM_val, uint16 *AQI_val,uint8 *AQI_level)
 		else
 			*AQI_val = aqi_table_usa[PM_val];
 	}
-	else 
+	else
 		*AQI_val = PM_val;
 
 	if(*AQI_val < LEVEL0) *AQI_level = GOOD;
@@ -265,7 +273,7 @@ void get_aqi_value(uint16 PM_val, uint16 *AQI_val,uint8 *AQI_level)
 	else if(*AQI_val < LEVEL2 ) *AQI_level = POOL_FOR_SOME;
 	else if(*AQI_val < LEVEL3 ) *AQI_level = UNHEALTHY;
 	else if(*AQI_val < LEVEL4) *AQI_level = MORE_UNHEALTHY;
-	else   *AQI_level = HAZARDOUS; 
+	else   *AQI_level = HAZARDOUS;
 
 
 }
@@ -276,12 +284,12 @@ uint8 Process_Rece_Data(uint8 *p,uint8 rece_count)
 	u8 check_sum;
 	u8 i = 0;
 	uint16 pm25_org, pm100_org;
-	
+	Str_points_ptr ptr;
 	if(pm25_current_cmd == SENSIRION_READ_MEASUREMENT)
 	{
 		if(p[0] != 0x7E || p[2] != 0x03)
 			return 0;
-		
+
 		if(pm25_unit == NUM_CM3)
 		{
 			pm25_org = (uint16)Datasum(p[DATA_OFFSET + 24],p[DATA_OFFSET + 25],p[DATA_OFFSET + 26],p[DATA_OFFSET + 27]);
@@ -332,16 +340,16 @@ uint8 Process_Rece_Data(uint8 *p,uint8 rece_count)
 //				pm25_number_25 -= pm25_number_10;
 //				pm25_number_10 -= pm25_number_05;
 
-				inputs[4].value = pm25_weight_10 * 1000;
-				inputs[5].value = pm25_weight_25 * 1000;
-				inputs[6].value = pm25_weight_40 * 1000;
-				inputs[7].value = pm25_weight_100 * 1000;
-				inputs[8].value = pm25_number_05 * 1000;
-				inputs[9].value = pm25_number_10 * 1000;
-				inputs[10].value = pm25_number_25 * 1000;
-				inputs[11].value = pm25_number_40 * 1000;
-				inputs[12].value = pm25_number_100 * 1000;
-				inputs[13].value = typical_partical_size * 1000;
+				ptr = put_io_buf(IN,4);ptr.pin->value = pm25_weight_10 * 1000;
+				ptr = put_io_buf(IN,5);ptr.pin->value = pm25_weight_25 * 1000;
+				ptr = put_io_buf(IN,6);ptr.pin->value = pm25_weight_40 * 1000;
+				ptr = put_io_buf(IN,7);ptr.pin->value = pm25_weight_100 * 1000;
+				ptr = put_io_buf(IN,8);ptr.pin->value = pm25_number_05 * 1000;
+				ptr = put_io_buf(IN,9);ptr.pin->value = pm25_number_10 * 1000;
+				ptr = put_io_buf(IN,10);ptr.pin->value = pm25_number_25 * 1000;
+				ptr = put_io_buf(IN,11);ptr.pin->value = pm25_number_40 * 1000;
+				ptr = put_io_buf(IN,12);ptr.pin->value = pm25_number_100 * 1000;
+				ptr = put_io_buf(IN,13);ptr.pin->value = typical_partical_size * 1000;
 			}
 		}
 
@@ -350,54 +358,190 @@ uint8 Process_Rece_Data(uint8 *p,uint8 rece_count)
 	return 0;
 }
 
+#if LSW_ON_OFF
+#define GPIO_EN_SENSOR 32
+#define IO32_PIN_SEL (1ULL << GPIO_EN_SENSOR)
 
-// UART
+void Light_SW_Init()
+{
+// 配置 IO13 为输出模式
+   gpio_config_t io_conf = {
+	   .pin_bit_mask = IO32_PIN_SEL,  // 选择 IO32
+	   .mode = GPIO_MODE_OUTPUT,     // 设置为输出模式
+	   .pull_up_en = GPIO_PULLUP_DISABLE,  // 禁用上拉
+	   .pull_down_en = GPIO_PULLDOWN_DISABLE,  // 禁用下拉
+	   .intr_type = GPIO_INTR_DISABLE  // 禁用中断
+   };
+   gpio_config(&io_conf);
+
+   // 设置 IO32默认高电平
+   gpio_set_level(GPIO_EN_SENSOR, 1);
+   Test[35]++;
+}
+
+#define LSW_SENSOR_ENABLE() 	gpio_set_level(GPIO_EN_SENSOR, 1)
+#define LSW_SENSOR_DISABLE() 	gpio_set_level(GPIO_EN_SENSOR, 0)
+
+uint16_t LSW_on_time;
+uint16_t LSW_off_time;
+
+void ENALBE_LSW_Ethernet(void)
+{
+	LSW_SENSOR_ENABLE();
+}
+
+void LSW_Control_Sensor(uint16_t on_time, uint16_t off_time)
+{
+	static uint16_t counter = 0; // 计数器，用于跟踪时间
+	static bool sensor_state = true; // 当前传感器状态，false 表示关闭，true 表示开启
+
+	// 如果 off_time 为 0，则始终启用传感器
+	if (off_time == 0) {
+		if (!sensor_state) {
+			LSW_SENSOR_ENABLE(); // 启用传感器
+			pm25_current_cmd = SENSIRION_NULL;
+			sensor_state = true; // 更新状态为开启
+		}
+		return; // 直接返回，不再处理其他逻辑
+	}
+
+
+	counter++; // 每秒调用一次该函数，计数器递增
+
+	if (sensor_state) {
+		// 当前传感器处于开启状态
+		if(counter == on_time / 2)
+		{
+//	send out COV
+
+		}
+		if (counter >= on_time) {
+			LSW_SENSOR_DISABLE(); // 执行关闭操作
+			sensor_state = false; // 更新状态为关闭
+			counter = 0; // 重置计数器
+		}
+	} else {
+		// 当前传感器处于关闭状态
+		if (counter >= off_time) {
+			LSW_SENSOR_ENABLE(); // 执行开启操作
+			pm25_current_cmd = SENSIRION_NULL;
+			sensor_state = true; // 更新状态为开启
+			counter = 0; // 重置计数器
+		}
+	}
+
+}
+#endif
+
+#define GPIO_EN_SCD40   21
+#define GPIO_EN_PM25 	2
+
+// for Sensor
+#define GPIO_EN_SCD40_SEL  (1ULL<<GPIO_EN_SCD40)
+#define GPIO_EN_PM25_SEL	(1ULL<<GPIO_EN_PM25)
+
+
+#define SCD40_ENABLE gpio_set_level(GPIO_EN_SCD40, 1)
+#define SCD40_DISABLE gpio_set_level(GPIO_EN_SCD40, 0)
+#define PM25_ENABLE  gpio_set_level(GPIO_EN_PM25, 1)
+#define PM25_DISABLE  gpio_set_level(GPIO_EN_PM25, 0)
+uint8_t flag_pm25 = 0;
+
+void SCD40_Reset(void)
+{
+	SCD40_DISABLE;
+	delay_ms(500);
+	SCD40_ENABLE;
+	//delay_ms(500);
+}
+
+void Aialab_IO_Init(void)
+{
+    gpio_config_t io_conf;
+    //disable interrupt
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    //set as output mode
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //bit mask of the pins that you want to set,e.g.GPIO18/19
+
+    io_conf.pin_bit_mask = GPIO_EN_SCD40_SEL | GPIO_EN_PM25_SEL;
+    //disable pull-down mode
+    io_conf.pull_down_en = 0;
+    //disable pull-up mode
+    io_conf.pull_up_en = 0;
+    //configure GPIO with the given settings
+
+    gpio_config(&io_conf);
+
+    SCD40_ENABLE;  // ENABLE SCD40
+    PM25_ENABLE; // ENALBLE PM25
+}
+
 void vPM25Task(void *pvParameters )
 {
-	uint8 count;
+	uint8 err_count = 0;
 	uint8_t uart_rsv[60];
-	//uart3_init(115200);
 	pm25_current_cmd = SENSIRION_NULL;
 	//	pm25_send_cmd(SENSIRION_START_MEASUREMENT);
-	pm25_unit = NUM_CM3; // only for test, need to store it 
+	pm25_unit = NUM_CM3; // only for test, need to store it
 	task_test.enable[15] = 1;
+	flag_pm25 = 0;
+
+	Aialab_IO_Init();
+
+
+#if LSW_ON_OFF
+	if(Modbus.mini_type == PROJECT_LSW_SENSOR)
+	{
+		Light_SW_Init();
+	}
+#endif
 	for( ;; )
 	{
 		task_test.count[15]++;
-		int len = uart_read_bytes(UART_NUM_2, uart_rsv, 50, 20 / portTICK_RATE_MS);
-		
-		if(len > 0)
 		{
-			if(pm25_current_cmd == SENSIRION_START_MEASUREMENT)
+			int len = uart_read_bytes(UART_NUM_2, uart_rsv, 50, 20 / portTICK_PERIOD_MS);
+			if(len > 0)
 			{
-				if((uart_rsv[0] == 0x7e) && (uart_rsv[5] == 0xff))
+				err_count = 0;
+				if(pm25_current_cmd == SENSIRION_START_MEASUREMENT)
 				{
-					pm25_current_cmd = SENSIRION_READ_MEASUREMENT;
+					if((uart_rsv[0] == 0x7e) && (uart_rsv[5] == 0xff))
+					{
+						pm25_current_cmd = SENSIRION_READ_MEASUREMENT;
+					}
+					else if((uart_rsv[3] == 0x43) && (uart_rsv[5] == 0xbc))
+					{
+						pm25_current_cmd = SENSIRION_READ_MEASUREMENT;
+					}
 				}
-				else if((uart_rsv[3] == 0x43) && (uart_rsv[5] == 0xbc))
+				else if(pm25_current_cmd == SENSIRION_READ_MEASUREMENT)
 				{
-					pm25_current_cmd = SENSIRION_READ_MEASUREMENT;								
+					flag_pm25 = 1;
+					Test[48]++;
+					Process_Rece_Data(uart_rsv,len - 1);
 				}
+
+			}
+			else
+			{
+				if(err_count++ >= 5)
+					flag_pm25 = 0;
+			}
+			if((pm25_current_cmd == SENSIRION_NULL)||(pm25_current_cmd == SENSIRION_START_MEASUREMENT))
+			{
+				pm25_current_cmd = SENSIRION_START_MEASUREMENT;
+				pm25_send_cmd(SENSIRION_START_MEASUREMENT);
 			}
 			else if(pm25_current_cmd == SENSIRION_READ_MEASUREMENT)
-			{				
-				Process_Rece_Data(uart_rsv,len - 1);
+			{
+				pm25_send_cmd(SENSIRION_READ_MEASUREMENT);
 			}
-			
 		}
-		if((pm25_current_cmd == SENSIRION_NULL)||(pm25_current_cmd == SENSIRION_START_MEASUREMENT))
-		{
-			pm25_current_cmd = SENSIRION_START_MEASUREMENT;
-			pm25_send_cmd(SENSIRION_START_MEASUREMENT);
-		}
-		else if(pm25_current_cmd == SENSIRION_READ_MEASUREMENT)
-		{
-			pm25_send_cmd(SENSIRION_READ_MEASUREMENT);
-		}		
-		
+
 		vTaskDelay(3000 / portTICK_PERIOD_MS);
 	}
-	
+
 }
 
 
@@ -407,9 +551,10 @@ void vPM25Task(void *pvParameters )
 // 2. RS485—VOC
 // 3. LIGHT
 // 4. PIC sensor
+#if 0
 void vInputTask( void *pvParameters )
 {
-	static uint16 i = 0;
+	//static uint16 i = 0;
 	uint8 j = 0;
 /*	static uint8 occ_trigged = 0;
 
@@ -425,7 +570,7 @@ void vInputTask( void *pvParameters )
 */
 	task_test.enable[7] = 1;
 	for(;;)
-	{			
+	{
 		//CalInput();
 		//control_input();
 		task_test.count[7]++;
@@ -435,9 +580,9 @@ void vInputTask( void *pvParameters )
 		}
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
-		
-}
 
+}
+#endif
 
 uint16 voice_table[10][2] =
 {
@@ -474,19 +619,32 @@ static const adc_channel_t Airlab_transducer_channel_3 = ADC_CHANNEL_7;  // voic
 static const adc_channel_t Airlab_transducer_channel_4 = ADC_CHANNEL_4;  // rs485_vol
 
 static void Airlab_adc_task(void* arg);
-void Airlab_adc_init(void)
+extern QueueHandle_t qKey;
+static void Key_Process(void* arg);
+
+void Airlab_init(void)
 {
+	uint8_t retry = 0;
+
     //Configure ADC
-   // if (Airlab_unit == ADC_UNIT_1)
-    {
-        adc1_config_width(ADC_WIDTH_BIT_12);
-        adc1_config_channel_atten(Airlab_transducer_channel_1, Airlab_atten);
-        adc1_config_channel_atten(Airlab_transducer_channel_2, Airlab_atten);
-        adc1_config_channel_atten(Airlab_transducer_channel_3, Airlab_atten);
-        adc1_config_channel_atten(Airlab_transducer_channel_4, Airlab_atten);
-    }
+
+	adc1_config_width(ADC_WIDTH_BIT_12);
+	adc1_config_channel_atten(Airlab_transducer_channel_1, Airlab_atten);
+	adc1_config_channel_atten(Airlab_transducer_channel_2, Airlab_atten);
+	adc1_config_channel_atten(Airlab_transducer_channel_3, Airlab_atten);
+	adc1_config_channel_atten(Airlab_transducer_channel_4, Airlab_atten);
+
+    if(qKey == NULL)
+       	qKey = xQueueCreate(2, 2);
+
+    while( (pca9536_init() != ESP_OK) && (retry++ < 5)) {
+    	Test[27]++;
+       }
+    Test[28] = retry;
 
     xTaskCreate(Airlab_adc_task, "adc_task", 2048*2, NULL, 2, NULL);
+   	xTaskCreate(Key_Process, "key_task",2048, NULL, 5, NULL);
+
 }
 
 static void Airlab_adc_task(void* arg)
@@ -498,75 +656,169 @@ static void Airlab_adc_task(void* arg)
 	uint32_t adc_pir = 0;
 	uint32_t adc_voice = 0;
 	uint32_t adc_rs485 = 0;
-	
+	Str_points_ptr ptr;
 	uint32_t temp_adc_voice;
-
+	uint8_t count = 0;
 
 
 	uint32_t vol_light =0;
 	uint32_t vol_pir =0;
 	uint32_t vol_voice =0;
 	uint32_t vol_rs485 =0;
-	
+
 	int i = 0;
     //Continuously sample ADC1//Characterize ADC
 	Airlab_adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
 	esp_adc_cal_value_t val_type = esp_adc_cal_characterize(Airlab_unit, Airlab_atten, ADC_WIDTH_BIT_12, AIR_DEFAULT_VREF, Airlab_adc_chars);
 
+
+	Test[16] = i2c_master_init() + 10;
+
     while (1) {
         //Multisampling
-        for (i = 0; i < AIR_NO_OF_SAMPLES; i++) {
-            if (Airlab_unit == ADC_UNIT_1) {
-            	adc_light += adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_1);
-            	adc_pir += adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_2);
+    	// ADC 1s 执行一次
+    	if(count++ % 5 == 0)
+    	{
+			for (i = 0; i < AIR_NO_OF_SAMPLES; i++) {
+				if (Airlab_unit == ADC_UNIT_1) {
+					adc_light += adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_1);
+					adc_pir += adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_2);
 
-            	temp_adc_voice = adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_3);
-            	if(temp_adc_voice > MIC_CARRIER_HI)
-				{
-					//count++;
-					temp_adc_voice = temp_adc_voice - MIC_CARRIER_HI;
+					temp_adc_voice = adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_3);
+					if(temp_adc_voice > MIC_CARRIER_HI)
+					{
+						//count++;
+						temp_adc_voice = temp_adc_voice - MIC_CARRIER_HI;
+					}
+					else if(temp_adc_voice < MIC_CARRIER_LO)
+					{
+						//count++;
+						temp_adc_voice = MIC_CARRIER_LO - temp_adc_voice;
+					}
+					else
+					{
+						temp_adc_voice = 0;
+					}
+					adc_voice += temp_adc_voice;
+
+
+					adc_rs485 += adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_4);
 				}
-				else if(temp_adc_voice < MIC_CARRIER_LO)
-				{
-					//count++;
-					temp_adc_voice = MIC_CARRIER_LO - temp_adc_voice;
-				}
-				else
-				{
-					temp_adc_voice = 0;
-				}
-            	adc_voice += temp_adc_voice;
+			}
+
+			adc_light /= AIR_NO_OF_SAMPLES;
+			adc_pir /= AIR_NO_OF_SAMPLES;
+			adc_voice /= AIR_NO_OF_SAMPLES;
+			adc_rs485 /= AIR_NO_OF_SAMPLES;
+
+			vol_light = esp_adc_cal_raw_to_voltage(adc_light, Airlab_adc_chars);
+			vol_pir = esp_adc_cal_raw_to_voltage(adc_pir, Airlab_adc_chars);
+			vol_voice = esp_adc_cal_raw_to_voltage(adc_voice, Airlab_adc_chars);
+			vol_rs485 = esp_adc_cal_raw_to_voltage(adc_rs485, Airlab_adc_chars);
+			Test[25] = vol_pir;
+			if(abs(vol_pir - PirSensorZero) > Pir_Sensetivity) //occupied
+			{
+				pir_trigger = PIR_TRIGGERED;
+				Test[26] = 1;
+			}
+			else
+			{
+				pir_trigger = PIR_NOTTRIGGERED;
+				Test[26] = 0;
+			}
+
+			sound_level = check_voice_table(adc_voice);
+			ptr = put_io_buf(IN,14);
+			ptr.pin->value = sound_level * 1000;
+			ptr = put_io_buf(IN,16);
+			ptr.pin->value = pir_trigger * 1000;
+			ptr.pin->control = pir_trigger;
+    	}
 
 
-            	adc_rs485 += adc1_get_raw((adc1_channel_t)Airlab_transducer_channel_4);
-            }
-        }
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+    }
+}
 
-        adc_light /= AIR_NO_OF_SAMPLES;
-        adc_pir /= AIR_NO_OF_SAMPLES;
-        adc_voice /= AIR_NO_OF_SAMPLES;
-        adc_rs485 /= AIR_NO_OF_SAMPLES;
-        
-        vol_light = esp_adc_cal_raw_to_voltage(adc_light, Airlab_adc_chars);
-        vol_pir = esp_adc_cal_raw_to_voltage(adc_pir, Airlab_adc_chars);
-        vol_voice = esp_adc_cal_raw_to_voltage(adc_voice, Airlab_adc_chars);
-        vol_rs485 = esp_adc_cal_raw_to_voltage(adc_rs485, Airlab_adc_chars);
+uint16_t AL_Key_Scan(void)
+{
+	uint8_t key_1st;
+	u16 key_val = 0;
+	// check 按键
+	if (pca9536_read_inputs(&input_state) == ESP_OK) {
+	key_1st = ~ input_state;
+	key_val = key_1st;
+	Test[13]++;
+	Test[14] = key_val;
+	} else {
 
-        if(abs(vol_pir - PirSensorZero) > Pir_Sensetivity) //occupied
+	}
+	return key_val;
+}
+
+
+
+static void Key_Process(void* arg)
+{
+	u16 key_temp;
+	u16 count;
+	u16 pre_key = 0;
+	static U8_T long_press_key_start = 0;
+
+	for( ;; )
+	{
+		if((key_temp = AL_Key_Scan()) != pre_key)
 		{
-			pir_trigger = PIR_TRIGGERED;
+			if(pre_key == 0)
+			{
+				Test[30]++;
+				Test[31] = key_temp;
+				xQueueSend(qKey, &key_temp, 0);
+			}
+			pre_key = key_temp;
+			long_press_key_start = 0;
 		}
 		else
 		{
-			pir_trigger = PIR_NOTTRIGGERED;
-		}
-        
-        sound_level = check_voice_table(adc_voice);
-        inputs[14].value = sound_level * 1000;
-        inputs[17].value = pir_trigger;
+			if(key_temp != 0)
+			{
+				if(long_press_key_start >= LONG_PRESS_TIMER_SPEED_10)
+					key_temp |= KEY_SPEED_10;
+				else if(long_press_key_start >= LONG_PRESS_TIMER_SPEED_1)
+					key_temp |= KEY_SPEED_1;
 
-        vTaskDelay(1000 / portTICK_RATE_MS);
-    }
+				if(long_press_key_start >= LONG_PRESS_TIMER_SPEED_1)
+				{
+					//g_key = key_temp;//
+					Test[32]++;
+					Test[33] = key_temp;
+					xQueueSend(qKey, &key_temp, 0);
+				}
+
+				if(long_press_key_start < LONG_PRESS_TIMER_SPEED_100)
+					long_press_key_start++;
+			}
+			else
+			{
+				//xQueueSend(qKey, &key_temp, 0);
+			}
+		}
+		vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
+}
+
+void vStartKeyTasks( unsigned char uxPriority)
+{
+	uint8_t retry = 0;
+	while( (pca9536_init() != ESP_OK) && (retry++ < 5)) {
+		Test[27]++;
+
+	   }
+	Test[28] = retry;
+	if(qKey == NULL)
+		qKey = xQueueCreate(2, 2);
+	xTaskCreate(Key_Process, "key_task",2048, NULL, uxPriority, NULL);
+
 }
 
 
@@ -576,112 +828,112 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	uint16_t *block;
 	uint8_t *block1;
 	uint8_t temp;
-	
-	if(addr == DEGC_OR_F)
+
+	if(addr == MODBUS_AIRLAB_DEGC_OR_F)
 	{
 	  return DEGCorF;
 	}
-	else if(addr == TEMPRATURE_CHIP)
+	else if(addr == MODBUS_AIRLAB_TEMPRATURE_CHIP)
 	{
 	  return g_sensors.temperature;
 	}
-	else if(addr == EXTERNAL_SENSOR1)  // CO2
+	else if(addr == MODBUS_AIRLAB_EXTERNAL_SENSOR1)  // CO2
 	{
 	  return g_sensors.co2;
 	}
-	else if(addr == EXTERNAL_SENSOR2) // HUM
+	else if(addr == MODBUS_AIRLAB_EXTERNAL_SENSOR2) // HUM
 	{
 	  return g_sensors.humidity;
 	}
-	else if(addr == CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
 	  return 0;
 	}
-	else if(addr == CO2_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
 	  return 0;
 	}
-	else if(addr == HUM_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
 	  return 0;
 	}
 	// LIGHT
-	else if(addr == LIGHT_SENSOR)
+	else if(addr == MODBUS_AIRLAB_LIGHT_SENSOR)
 	{
 	  return 0;
 	}
 	// PIR
-	else if(addr == PIR_SENSOR_VALUE)
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
 	  return pir_value;
 	}
-	else if(addr == PIR_SENSOR_ZERO) 
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  return PirSensorZero;
 	}
-	else if(addr == PIR_SPARE)
+	else if(addr == MODBUS_AIRLAB_PIR_SPARE)
 	{
 	  return pir_trigger;
 	}
 	// PM2.5
-	else if(addr == MODBUS_PM25_WEIGHT_1_0)
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_1_0)
 	{
 	  return pm25_weight_10;
 	}
-	else if(addr == MODBUS_PM25_WEIGHT_2_5)
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_2_5)
 	{
 	  return pm25_weight_25;
-	}	
-	else if(addr == MODBUS_PM25_WEIGHT_4_0)
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_4_0)
 	{
 	  return pm25_weight_40;
 	}
-	else if(addr == MODBUS_PM25_WEIGHT_10)
+	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_10)
 	{
 	  return pm25_weight_100;
 	}
-	else if(addr == MODBUS_PM25_NUMBER_0_5)
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_0_5)
 	{
 	  return pm25_number_05;
 	}
-	else if(addr == MODBUS_PM25_NUMBER_1_0)
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_1_0)
 	{
 	  return pm25_number_10;
-	}	
-	else if(addr == MODBUS_PM25_NUMBER_2_5)
+	}
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_2_5)
 	{
 	  return pm25_number_25;
 	}
-	else if(addr == MODBUS_PM25_NUMBER_4_0)
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_4_0)
 	{
 	  return pm25_number_40;
 	}
-	else if(addr == MODBUS_PM25_NUMBER_10)
+	else if(addr == MODBUS_AIRLAB_PM25_NUMBER_10)
 	{
 	  return pm25_number_100;
 	}
-	else if(addr == MODBUS_PM25_TOTAL)
+	else if(addr == MODBUS_AIRLAB_PM25_TOTAL)
 	{
 	  return disp_pm25_weight_25;
 	}
-	else if(addr == MODBUS_PM10_TOTAL)
+	else if(addr == MODBUS_AIRLAB_PM10_TOTAL)
 	{
 	  return disp_pm25_number_25;
 	}
-// VOC	
-	else if((addr >= VOC_BASELINE1) && (addr <= VOC_BASELINE1))
+// VOC
+	else if((addr >= MODBUS_AIRLAB_VOC_BASELINE1) && (addr <= MODBUS_AIRLAB_VOC_BASELINE1))
 	{
-	  return g_sensors.voc_baseline[addr - VOC_BASELINE1];
+	  return g_sensors.voc_baseline[addr - MODBUS_AIRLAB_VOC_BASELINE1];
 	}
-	else if(addr == VOC_DATA)
+	else if(addr == MODBUS_AIRLAB_VOC_DATA)
 	{
 	  return g_sensors.voc_value;
-	}	
-	else if(addr == MODBUS_PATICAL_SIZE)
+	}
+	else if(addr == MODBUS_AIRLAB_PATICAL_SIZE)
 	{
 	  return 0;
 	}
-	else if(addr == MODBUS_WBGT)
+	else if(addr == MODBUS_AIRLAB_WBGT)
 	{
 	  return 0;
 	}
@@ -702,49 +954,49 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	{
 	  return air_cal_point[3];
 	}*/
-	else if(addr == MODBUS_AQ_LEVEL0)
+	else if(addr == MODBUS_AIRLAB_AQ_LEVEL0)
 	{
 	  return aq_level_value[0];
 	}
-	else if(addr == MODBUS_AQ_LEVEL1)
+	else if(addr == MODBUS_AIRLAB_AQ_LEVEL1)
 	{
 	  return aq_level_value[1];
 	}
-	else if(addr == MODBUS_AQ_LEVEL2)
+	else if(addr == MODBUS_AIRLAB_AQ_LEVEL2)
 	{
 	  return aq_level_value[2];
 	}
-	else if(addr == MODBUS_MAX_AQ_VAL)
+	else if(addr == MODBUS_AIRLAB_MAX_AQ_VAL)
 	{
 	  return aq_level_value[3];
 	}
-	else if(addr == MODBUS_CALIBRATION_AQ)
+	else if(addr == MODBUS_AIRLAB_CALIBRATION_AQ)
 	{
 	  return aq_calibration;
 	}
-	else if(addr == MODBUS_AQI)
+	else if(addr == MODBUS_AIRLAB_AQI)
 	{
 	  return AQI_value;
 	}
-	else if(addr == MODBUS_AQI_LEVEL)
+	else if(addr == MODBUS_AIRLAB_AQI_LEVEL)
 	{
 	  return AQI_level;
 	}
-	else if(addr == MODBUS_AQI_AREA)
+	else if(addr == MODBUS_AIRLAB_AQI_AREA)
 	{
 	  return AQI_area;
 	}
-	else if((addr >= MODBUS_AQI_FIRST_LINE) && (addr <= MODBUS_AQI_FIFTH_LINE))
+	else if((addr >= MODBUS_AIRLAB_AQI_FIRST_LINE) && (addr <= MODBUS_AIRLAB_AQI_FIFTH_LINE))
 	{
-	  return aqi_table_customer[addr - MODBUS_AQI_FIRST_LINE];
+	  return aqi_table_customer[addr - MODBUS_AIRLAB_AQI_FIRST_LINE];
 	}
-	
+
 	// CO2
-	else if(addr == CO2_ASC_ENABLE)
+	else if(addr == MODBUS_AIRLAB_CO2_ASC_ENABLE)
 	{
 	  return co2_asc;
 	}
-	else if(addr == CO2_FRC_VALUE)
+	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 	  return co2_frc;
 	}
@@ -777,11 +1029,11 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	  return co2_lowest_value;
 	}*/
 	// DISPLAY CONFIG
-	else if((addr >= MODBUS_DISPLAY_CONFIG1) && (addr <= MODBUS_DISPLAY_CONFIG5))
+	else if((addr >= MODBUS_AIRLAB_DISPLAY_CONFIG1) && (addr <= MODBUS_AIRLAB_DISPLAY_CONFIG5))
 	{
-	  return display_config[addr - MODBUS_DISPLAY_CONFIG1];
+	  return display_config[addr - MODBUS_AIRLAB_DISPLAY_CONFIG1];
 	}
-	else if(addr == MODBUS_IS_BLANK_SCREEN)
+	else if(addr == MODBUS_AIRLAB_IS_BLANK_SCREEN)
 	{
 	  return isBlankScreen;
 	}
@@ -793,64 +1045,64 @@ uint16_t read_airlab_by_block(uint16_t addr)
 
 void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t type)
 {
-	if(addr == DEGC_OR_F)
+	if(addr == MODBUS_AIRLAB_DEGC_OR_F)
 	{
 		DEGCorF = pData[HeadLen + 5];
 	}
-	
-	else if(addr == CALIBRATION)
+
+	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
-	  
+
 	}
-	else if(addr == CO2_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
-	  
+
 	}
-	else if(addr == HUM_CALIBRATION)
+	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
-	  
+
 	}
-	
+
 	// PIR
-	else if(addr == PIR_SENSOR_VALUE)
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
-	  
+
 	}
-	else if(addr == PIR_SENSOR_ZERO) 
+	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  PirSensorZero = pData[HeadLen + 5];
 	}
-	
+
 // PM2.5
-	
-// VOC	
-	
+
+// VOC
+
 	// AQI
-	else if(addr >= MODBUS_AQ_LEVEL0 && addr <= MODBUS_MAX_AQ_VAL)
+	else if(addr >= MODBUS_AIRLAB_AQ_LEVEL0 && addr <= MODBUS_AIRLAB_MAX_AQ_VAL)
 	{
-	  aq_level_value[addr - MODBUS_AQ_LEVEL0] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
+	  aq_level_value[addr - MODBUS_AIRLAB_AQ_LEVEL0] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	}
-	else if(addr == MODBUS_CALIBRATION_AQ)
+	else if(addr == MODBUS_AIRLAB_CALIBRATION_AQ)
 	{
 	  aq_calibration = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	}
-	else if(addr == MODBUS_AQI_AREA)
+	else if(addr == MODBUS_AIRLAB_AQI_AREA)
 	{
 	  AQI_area = pData[HeadLen + 5];
 	}
-	else if((addr >= MODBUS_AQI_FIRST_LINE) && (addr <= MODBUS_AQI_FIFTH_LINE))
+	else if((addr >= MODBUS_AIRLAB_AQI_FIRST_LINE) && (addr <= MODBUS_AIRLAB_AQI_FIFTH_LINE))
 	{
 	  if((pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8)) < 500)
 	  {
-		aqi_table_customer[addr -MODBUS_AQI_FIRST_LINE] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
+		aqi_table_customer[addr - MODBUS_AIRLAB_AQI_FIRST_LINE] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	  }
 	}
-	
-	// CO2	
-	else if(addr == CO2_FRC_VALUE)
+
+	// CO2
+	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 		uint16 tmp;
-		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];	
+		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];
 		sensirion_co2_cmd_ForcedCalibration[5] = pData[HeadLen + 5];
 		tmp = (uint16)(sensirion_co2_cmd_ForcedCalibration[4]<<8 )|sensirion_co2_cmd_ForcedCalibration[5];
 		if((tmp >= 0) && (tmp <= 5000))
@@ -867,19 +1119,19 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 					scd4x_perform_forced = 1;
 					//scd4x_perform_forced_count = 0;
 				}
-			}					
+			}
 		}
 	}
 	// DISPLAY CONFIG
-	else if((addr >= MODBUS_DISPLAY_CONFIG1) && (addr <= MODBUS_DISPLAY_CONFIG5))
+	else if((addr >= MODBUS_AIRLAB_DISPLAY_CONFIG1) && (addr <= MODBUS_AIRLAB_DISPLAY_CONFIG5))
 	{
-		display_config[addr - MODBUS_DISPLAY_CONFIG1] = pData[HeadLen + 5];		
+		display_config[addr - MODBUS_AIRLAB_DISPLAY_CONFIG1] = pData[HeadLen + 5];
 	}
-	else if(addr == MODBUS_IS_BLANK_SCREEN)
+	else if(addr == MODBUS_AIRLAB_IS_BLANK_SCREEN)
 	{
 		if((pData[HeadLen + 5] == 0) || (pData[HeadLen + 5]==1))
 		{
-			isBlankScreen= pData[HeadLen + 5];	
+			isBlankScreen= pData[HeadLen + 5];
 			//SoftReset();
 		}
 	}
@@ -888,6 +1140,8 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 
 void Get_AVS(void)
 {
+	Str_points_ptr ptr;
+	uint8_t base = 3; // AL_BTN 增加3个AV
 	uint32 baud;
 	switch(Modbus.baudrate[0])
 	{
@@ -931,11 +1185,94 @@ void Get_AVS(void)
 		baud = 115200;
 		break;
 	}
-	
-	vars[0].value = baud;
-	vars[1].value = Station_NUM;
-	vars[2].value = Modbus.com_config[0];
-	vars[3].value = (uint32)Instance;
-	vars[4].value = DEGCorF;
-	  
+	ptr = put_io_buf(VAR,base + 0);ptr.pvar->value = baud;
+	ptr = put_io_buf(VAR,base + 1);ptr.pvar->value = Station_NUM;
+	ptr = put_io_buf(VAR,base + 2);ptr.pvar->value = Modbus.com_config[0];
+	ptr = put_io_buf(VAR,base + 3);ptr.pvar->value = (uint32)Instance;
+	ptr = put_io_buf(VAR,base + 4);ptr.pvar->value = DEGCorF;
+
+
 }
+
+
+// for buttons
+
+
+#include "i2c_task.h"
+#include "driver/i2c.h"
+// PCA9536 I2C 配置
+#define TCA9537_ADDR 0x49             // TCA9537 默认 I²C 地址
+//#define I2C_MASTER_SCL_IO 14    // SCL 引脚
+//#define I2C_MASTER_SDA_IO 4     // SDA 引脚
+//#define I2C_MASTER_FREQ_HZ1 100000 // I2C 时钟频率
+#define I2C_MASTER_PORT I2C_NUM_1 // 使用 I2C0
+
+// TCA9537 寄存器地址
+#define TCA9537_INPUT_PORT 0x00
+#define TCA9537_OUTPUT_PORT 0x01
+#define TCA9537_CONFIG 0x03
+
+
+uint8_t input_state;
+
+// 写入 PCA9536 寄存器
+esp_err_t pca9536_write_register(uint8_t reg_addr, uint8_t data) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (TCA9537_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_write_byte(cmd, data, true);
+    i2c_master_stop(cmd);
+    esp_err_t err = i2c_master_cmd_begin(I2C_MASTER_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+    Test[19] = err;
+    i2c_cmd_link_delete(cmd);
+    return err;
+}
+
+// 读取 PCA9536 寄存器
+esp_err_t pca9536_read_register(uint8_t reg_addr, uint8_t *data) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (TCA9537_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (TCA9537_ADDR << 1) | I2C_MASTER_READ, true);
+    i2c_master_read_byte(cmd, data, I2C_MASTER_NACK);
+    i2c_master_stop(cmd);
+    esp_err_t err = i2c_master_cmd_begin(I2C_MASTER_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    Test[29] = err;
+    return err;
+}
+
+// 初始化 PCA9536
+esp_err_t pca9536_init() {
+    uint8_t config_data = 0xFF; // 配置所有引脚为输入模式
+    return pca9536_write_register(TCA9537_CONFIG, config_data);
+}
+
+// 读取按键状态
+esp_err_t pca9536_read_inputs(uint8_t *input_state) {
+    return pca9536_read_register(TCA9537_INPUT_PORT, input_state);
+}
+
+/*
+void i2c_scan() {
+	char debug_buffer[100];
+	debug_info("Scanning I2C bus111...\n");
+    for (uint8_t addr = 1; addr < 127; addr++) {
+        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+        i2c_master_start(cmd);
+        i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
+        i2c_master_stop(cmd);
+        esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+        i2c_cmd_link_delete(cmd);
+
+        if (ret == ESP_OK) {
+        	sprintf(debug_buffer,"Found device at address: 0x%02X\n", addr);
+        	debug_info(debug_buffer);
+        }
+    }
+    debug_info("I2C scan complete.\n");
+}
+*/
