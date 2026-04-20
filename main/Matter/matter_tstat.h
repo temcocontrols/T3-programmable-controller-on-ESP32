@@ -17,6 +17,51 @@ extern "C" {
 #define TSTAT_FEATURE_SETBACK        0x20
 #define TSTAT_FEATURE_SCHEDULE       0x40
 
+/* Temperature values are in 0.01°C (centi-degrees) */
+
+/* Local Temperature */
+#define TSTAT_MIN_LOCAL_TEMP            (-4000)   // -40.00°C
+#define TSTAT_MAX_LOCAL_TEMP            (12500)   // 125.00°C
+
+/* Outdoor Temperature */
+#define TSTAT_MIN_OUTDOOR_TEMP          (-4000)
+#define TSTAT_MAX_OUTDOOR_TEMP          (12500)
+
+/* Occupied Heating Setpoint */
+#define TSTAT_MIN_HEAT_SETPOINT         (700)     // 7.00°C
+#define TSTAT_MAX_HEAT_SETPOINT         (3000)    // 30.00°C
+
+/* Occupied Cooling Setpoint */
+#define TSTAT_MIN_COOL_SETPOINT         (1600)    // 16.00°C
+#define TSTAT_MAX_COOL_SETPOINT         (3200)    // 32.00°C
+
+/* Absolute limits (hard safety range) */
+#define TSTAT_ABS_MIN_HEAT_SETPOINT     (700)
+#define TSTAT_ABS_MAX_HEAT_SETPOINT     (3000)
+
+#define TSTAT_ABS_MIN_COOL_SETPOINT     (1600)
+#define TSTAT_ABS_MAX_COOL_SETPOINT     (3200)
+
+/* Deadband (difference between heat & cool) */
+#define TSTAT_MIN_SETPOINT_DEADBAND     (25)      // 0.25°C
+#define TSTAT_MAX_SETPOINT_DEADBAND     (1000)    // 10.00°C
+
+/* System Mode */
+#define TSTAT_MIN_SYSTEM_MODE           (0)       // OFF
+#define TSTAT_MAX_SYSTEM_MODE           (4)       // AUTO
+
+/* Control Sequence */
+#define TSTAT_MIN_CONTROL_SEQUENCE      (0)
+#define TSTAT_MAX_CONTROL_SEQUENCE      (5)
+
+/* Humidity is in 0.01% (centi-percent) */
+
+#define HUMIDITY_MIN_MEASURED_VALUE     (0)       // 0%
+#define HUMIDITY_MAX_MEASURED_VALUE     (10000)   // 100%
+
+#define HUMIDITY_MIN_LIMIT              (0)
+#define HUMIDITY_MAX_LIMIT              (10000)
+
 /* System modes (matches Matter spec) */
 typedef enum {
     TSTAT_MODE_OFF      = 0,
