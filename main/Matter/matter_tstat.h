@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define MATTER_SYNC_INTERVAL_MS 500
+#define MATTER_SYNC_INTERVAL_MS      1000
 
 #define TSTAT_FEATURE_HEATING        0x01
 #define TSTAT_FEATURE_COOLING        0x02
@@ -22,10 +22,6 @@ extern "C" {
 /* Local Temperature */
 #define TSTAT_MIN_LOCAL_TEMP            (-4000)   // -40.00°C
 #define TSTAT_MAX_LOCAL_TEMP            (12500)   // 125.00°C
-
-/* Outdoor Temperature */
-#define TSTAT_MIN_OUTDOOR_TEMP          (-4000)
-#define TSTAT_MAX_OUTDOOR_TEMP          (12500)
 
 /* Occupied Heating Setpoint */
 #define TSTAT_MIN_HEAT_SETPOINT         (700)     // 7.00°C
@@ -83,16 +79,12 @@ typedef enum {
 /* Full thermostat state snapshot */
 typedef struct {
     int16_t  local_temperature;      /* 0.01 °C  — from your sensor      */
-    int16_t  outdoor_temperature;    /* 0.01 °C  — optional              */
     int16_t  heat_setpoint;          /* 0.01 °C                          */
     int16_t  cool_setpoint;          /* 0.01 °C                          */
     uint16_t measured_humidity;      /* e.g. 5000 = 50.00 %              */
     uint16_t min_humidity;           /* e.g. 0                           */
     uint16_t max_humidity;           /* e.g. 10000 = 100.00 %            */
     uint8_t  system_mode;            /* tstat_mode_t                     */
-    uint8_t  running_state;          /* tstat_running_state_t bitmask    */
-    uint8_t  occupancy;              /* 1 = occupied, 0 = unoccupied     */
-    uint8_t  setpoint_hold;          /* 0 = off, 1 = hold indefinitely   */
     int16_t  min_heat_setpoint;      /* 0.01 °C                          */
     int16_t  max_heat_setpoint;      /* 0.01 °C                          */
     int16_t  min_cool_setpoint;      /* 0.01 °C                          */
@@ -101,13 +93,10 @@ typedef struct {
 
 typedef enum {
     MATTER_TSTAT_MAP_LOCAL_TEMP = 0,
-    MATTER_TSTAT_MAP_OUTDOOR_TEMP,
     MATTER_TSTAT_MAP_HUMIDITY,
     MATTER_TSTAT_MAP_HEAT_SETPOINT,
     MATTER_TSTAT_MAP_COOL_SETPOINT,
     MATTER_TSTAT_MAP_MODE,
-    MATTER_TSTAT_MAP_RUNNING_STATE,
-    MATTER_TSTAT_MAP_OCCUPANCY,
     MATTER_TSTAT_MAP_COUNT
 } matter_tstat_map_id_t;
 
@@ -120,7 +109,7 @@ typedef struct {
 /* Modbus details                                                     */
 /* ------------------------------------------------------------------ */
 
-#define MATTER_TSTAT_MB_REG_COUNT    (MATTER_TSTAT_MAP_COUNT * 2)  /* 16 registers */
+#define MATTER_TSTAT_MB_REG_COUNT    (MATTER_TSTAT_MAP_COUNT * 2)  /* 12 registers */
 
 #define	MODBUS_MATTER_MAP_REG_END    (MODBUS_MATTER_MAP_REG_BASE + MATTER_TSTAT_MB_REG_COUNT - 1)
 
@@ -131,20 +120,14 @@ typedef struct {
 /* Named register addresses for convenience */
 #define MB_REG_LOCAL_TEMP_TYPE       MB_REG_TYPE(MATTER_TSTAT_MAP_LOCAL_TEMP)      /* 600 */
 #define MB_REG_LOCAL_TEMP_NUM        MB_REG_NUM(MATTER_TSTAT_MAP_LOCAL_TEMP)       /* 601 */
-#define MB_REG_OUTDOOR_TEMP_TYPE     MB_REG_TYPE(MATTER_TSTAT_MAP_OUTDOOR_TEMP)    /* 602 */
-#define MB_REG_OUTDOOR_TEMP_NUM      MB_REG_NUM(MATTER_TSTAT_MAP_OUTDOOR_TEMP)     /* 603 */
-#define MB_REG_HUMIDITY_TYPE         MB_REG_TYPE(MATTER_TSTAT_MAP_HUMIDITY)        /* 604 */
-#define MB_REG_HUMIDITY_NUM          MB_REG_NUM(MATTER_TSTAT_MAP_HUMIDITY)         /* 605 */
-#define MB_REG_HEAT_SETPOINT_TYPE    MB_REG_TYPE(MATTER_TSTAT_MAP_HEAT_SETPOINT)   /* 606 */
-#define MB_REG_HEAT_SETPOINT_NUM     MB_REG_NUM(MATTER_TSTAT_MAP_HEAT_SETPOINT)    /* 607 */
-#define MB_REG_COOL_SETPOINT_TYPE    MB_REG_TYPE(MATTER_TSTAT_MAP_COOL_SETPOINT)   /* 608 */
-#define MB_REG_COOL_SETPOINT_NUM     MB_REG_NUM(MATTER_TSTAT_MAP_COOL_SETPOINT)    /* 609 */
-#define MB_REG_MODE_TYPE             MB_REG_TYPE(MATTER_TSTAT_MAP_MODE)            /* 610 */
-#define MB_REG_MODE_NUM              MB_REG_NUM(MATTER_TSTAT_MAP_MODE)             /* 611 */
-#define MB_REG_RUNNING_STATE_TYPE    MB_REG_TYPE(MATTER_TSTAT_MAP_RUNNING_STATE)   /* 612 */
-#define MB_REG_RUNNING_STATE_NUM     MB_REG_NUM(MATTER_TSTAT_MAP_RUNNING_STATE)    /* 613 */
-#define MB_REG_OCCUPANCY_TYPE        MB_REG_TYPE(MATTER_TSTAT_MAP_OCCUPANCY)       /* 614 */
-#define MB_REG_OCCUPANCY_NUM         MB_REG_NUM(MATTER_TSTAT_MAP_OCCUPANCY)        /* 615 */
+#define MB_REG_HUMIDITY_TYPE         MB_REG_TYPE(MATTER_TSTAT_MAP_HUMIDITY)        /* 602 */
+#define MB_REG_HUMIDITY_NUM          MB_REG_NUM(MATTER_TSTAT_MAP_HUMIDITY)         /* 603 */
+#define MB_REG_HEAT_SETPOINT_TYPE    MB_REG_TYPE(MATTER_TSTAT_MAP_HEAT_SETPOINT)   /* 604 */
+#define MB_REG_HEAT_SETPOINT_NUM     MB_REG_NUM(MATTER_TSTAT_MAP_HEAT_SETPOINT)    /* 605 */
+#define MB_REG_COOL_SETPOINT_TYPE    MB_REG_TYPE(MATTER_TSTAT_MAP_COOL_SETPOINT)   /* 606 */
+#define MB_REG_COOL_SETPOINT_NUM     MB_REG_NUM(MATTER_TSTAT_MAP_COOL_SETPOINT)    /* 607 */
+#define MB_REG_MODE_TYPE             MB_REG_TYPE(MATTER_TSTAT_MAP_MODE)            /* 608 */
+#define MB_REG_MODE_NUM              MB_REG_NUM(MATTER_TSTAT_MAP_MODE)             /* 609 */
 
 /* ------------------------------------------------------------------ */
 /* Public APIs                                                        */
