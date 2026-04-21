@@ -62,6 +62,7 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "lora.h"
 
 //#include "lowPower.h"
 
@@ -4603,6 +4604,9 @@ void app_main()
 
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
+
+	(void)lora_start();
+
     flag_ethernet_initial = ethernet_init();
 
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
