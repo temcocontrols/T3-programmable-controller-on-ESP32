@@ -4593,7 +4593,6 @@ void app_main()
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    Modbus.mini_type = MINI_TSTAT10;
 #endif
 
     if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
@@ -4605,7 +4604,10 @@ void app_main()
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
 
-	(void)lora_start();
+	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
+	{
+		(void)lora_start();
+	}
 
     flag_ethernet_initial = ethernet_init();
 

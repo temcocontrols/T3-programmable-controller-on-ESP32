@@ -72,6 +72,7 @@ void Comm_Tstat_Initial_Data(void)
 	else if(Modbus.mini_type == PROJECT_NG2_NEW) {	base_in = 24;		base_out = 12;}
 	else if(Modbus.mini_type == PROJECT_LSW_BTN) {base_in = 16;		base_out = 4;}
 	else if(Modbus.mini_type == PROJECT_LSW_SENSOR) {base_in = 16;		base_out = 4;} // ?????????
+	else if(Modbus.mini_type == PROJECT_LORA_GATEWAY) {base_in = 32;		base_out = 0;}
 	else if(Modbus.mini_type == MINI_NANO) 		{	base_in = 0;		base_out = 0;}
 	else if(Modbus.mini_type == PROJECT_LIGHT_PWM) 		{	base_in = 0;		base_out = 4;}
 	base_var = 0;
@@ -984,6 +985,7 @@ void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start
 			ptr->reg.input_start = 0;		ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 4;		}
 	else if(Modbus.mini_type == PROJECT_RMC1216) {ptr->reg.input_end = 16;		ptr->reg.output_end = 7;}
 	else if(Modbus.mini_type == PROJECT_NG2_NEW) {ptr->reg.input_end = 24;		ptr->reg.output_end = 12;}
+	else if(Modbus.mini_type == PROJECT_LORA_GATEWAY) {ptr->reg.input_end = 32;		ptr->reg.output_end = 0;}
 
 
 	j = 0;

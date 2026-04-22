@@ -60,6 +60,17 @@ static void lora_init_input_points(void)
         "L_SNR"
     };
 
+    static const uint8_t range[LORA_IN_COUNT] = {
+        N0_2_32counts,      /* UID numeric */
+        R10K_40_120DegC,    /* temperature */
+        Humidty,            /* relative humidity */
+        V0_5,               /* capacitor voltage */
+        CO2_PPM,            /* CO2 */
+        TVOC_PPB,           /* TVOC */
+        DB,                 /* RSSI */
+        DB                  /* SNR */
+    };
+
     if (lora_points_initialized) {
         return;
     }
@@ -71,7 +82,8 @@ static void lora_init_input_points(void)
 
     for (int i = 0; i < LORA_IN_COUNT; i++) {
         Str_points_ptr ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + i));
-        ptr.pin->range = AC_PWM + 1;
+        ptr.pin->digital_analog = 1;
+        ptr.pin->range = range[i];
         memcpy(ptr.pin->description, desc[i], strlen(desc[i]) + 1);
         memcpy(ptr.pin->label, label[i], strlen(label[i]) + 1);
         ptr.pin->value = 0;
@@ -114,6 +126,19 @@ static void lora_publish_points(const lora_sensor_data_t *s)
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 7));
     ptr.pin->value = s->snr;
+
+    ESP_LOGI(TAG,
+             "IN%u..IN%u updated uid=%08lX t=%ld rh=%lu vcap=%lu co2=%lu tvoc=%lu rssi=%ld snr=%ld",
+             (unsigned)(LORA_IN_BASE + 1),
+             (unsigned)(LORA_IN_BASE + LORA_IN_COUNT),
+             (unsigned long)uid_num,
+             (long)s->t_x100,
+             (unsigned long)s->rh_x100,
+             (unsigned long)s->vcap_mV,
+             (unsigned long)s->co2_ppm,
+             (unsigned long)s->tvoc_ppb,
+             (long)s->rssi,
+             (long)s->snr);
 }
 
 static uint16_t crc16_ccitt(const uint8_t *data, size_t len)
