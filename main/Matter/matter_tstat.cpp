@@ -46,6 +46,8 @@ using namespace chip::app::Clusters::Thermostat;
 /* ------------------------------------------------------------------ */
 /* static functions                                                   */
 /* ------------------------------------------------------------------ */
+volatile bool g_matter_commissioning_active = false;
+
 static bool tstat_read_map_value(const matter_tstat_map_t &map, int32_t &value);
 
 /* ------------------------------------------------------------------ */
@@ -348,13 +350,16 @@ static void app_event_cb(const ChipDeviceEvent *event, intptr_t arg)
         case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
             ESP_LOGI(TAG,"Commissioning complete");
             s_device_ready = true;
+            g_matter_commissioning_active = false;
             break;
         case chip::DeviceLayer::DeviceEventType::kFailSafeTimerExpired:
             ESP_LOGI(TAG,"Commissioning failed - failsafe expired");
+            g_matter_commissioning_active = false;
             break;
         case chip::DeviceLayer::DeviceEventType::kFabricRemoved:
             ESP_LOGI(TAG,"Fabric removed");
             s_device_ready = false;
+            g_matter_commissioning_active = false;
             break;
         case chip::DeviceLayer::DeviceEventType::kServerReady:
             ESP_LOGI(TAG,"Matter server ready");
@@ -459,8 +464,10 @@ static void open_commissioning_cb(intptr_t arg)
     auto &mgr = chip::Server::GetInstance().GetCommissioningWindowManager();
     if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0)
     {
+        g_matter_commissioning_active = true;
+        esp_wifi_disconnect();
         mgr.OpenBasicCommissioningWindow(
-            chip::System::Clock::Seconds16(300),
+            chip::System::Clock::Seconds16(900),
             chip::CommissioningWindowAdvertisement::kAllSupported);
         ESP_LOGI(TAG,"Commissioning window opened");
     }

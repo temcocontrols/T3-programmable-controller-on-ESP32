@@ -37,6 +37,8 @@ extern unsigned short int Test[50];
 static int s_retry_num = 0;
 TaskHandle_t Wifi_Task_handle[7];
 extern int task_sock[7];
+extern volatile bool g_matter_commissioning_active;
+
 void debug_print(char *string,char task_index)
 {
 #if 0
@@ -102,6 +104,10 @@ static void wifi_event_handler(
 
             //wifi_task_running = 0;
             SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+            if (g_matter_commissioning_active) {
+                ESP_LOGI(TAG, "Commissioning active, skipping Wi-Fi reconnect");
+                break;
+            }
             debug_info("Wifi disconnected, try to connect ...");
             if(0)
             {// wifi

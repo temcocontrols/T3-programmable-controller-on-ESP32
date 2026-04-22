@@ -65,7 +65,7 @@
 #define BUTTON_DARK_COLOR   0X0BA7
 #define BTN_OFFSET          CH_HEIGHT+7
 
-#define TEST_USE_SAME_VALUE_FOR_AMBIENT 1
+#define TEST_USE_SAME_VALUE_FOR_AMBIENT 0
 
 #define START_XPOS          8
 #define START_YPOS          16
