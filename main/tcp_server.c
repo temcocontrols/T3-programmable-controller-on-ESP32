@@ -4711,6 +4711,11 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 	// mstp error, dont send out data
 	return;
 	}*/
+	if((Modbus.mini_type == PROJECT_LORA_GATEWAY) && (port == 2))
+	{
+		return;
+	}
+
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		holding_reg_params.led_rx485_tx = 2;
 

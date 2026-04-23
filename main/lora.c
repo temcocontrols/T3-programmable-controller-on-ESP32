@@ -12,10 +12,13 @@
 #include "esp_log.h"
 #include "controls.h"
 
+/* Debug logging - use printf directly to ensure output */
+#define LORA_LOG(fmt, ...) do { printf("[LORA] " fmt "\n", ##__VA_ARGS__); fflush(stdout); } while(0)
+
 #define UART_PORT_NUM      UART_NUM_1
 #define UART_BAUD_RATE     115200
-#define UART_TX_PIN        17
-#define UART_RX_PIN        16
+#define UART_TX_PIN        12
+#define UART_RX_PIN        15
 #define UART_BUF_SIZE      1024
 
 #define LORA_STACK_SIZE    4096
@@ -23,7 +26,7 @@
 #define MAX_SENSORS        16
 
 /* IN point mapping for AT+SENSOR fields (ordered) */
-#define LORA_IN_BASE       24
+#define LORA_IN_BASE       0
 #define LORA_IN_COUNT      8
 
 static const char *TAG = "lora";
@@ -72,13 +75,16 @@ static void lora_init_input_points(void)
     };
 
     if (lora_points_initialized) {
+        LORA_LOG("Input points already initialized");
         return;
     }
 
     if ((LORA_IN_BASE + LORA_IN_COUNT) > MAX_INS) {
-        //ESP_LOGW(TAG, "LoRa IN mapping out of range: base=%d count=%d", LORA_IN_BASE, LORA_IN_COUNT);
+        LORA_LOG("ERROR: LoRa IN mapping OUT OF RANGE: base=%d count=%d MAX=%d", LORA_IN_BASE, LORA_IN_COUNT, MAX_INS);
         return;
     }
+
+    LORA_LOG("Initializing LoRa input points IN%u-IN%u", LORA_IN_BASE, LORA_IN_BASE + LORA_IN_COUNT - 1);
 
     for (int i = 0; i < LORA_IN_COUNT; i++) {
         Str_points_ptr ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + i));
@@ -107,28 +113,27 @@ static void lora_publish_points(const lora_sensor_data_t *s)
     ptr.pin->value = (int32_t)uid_num;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 1));
-    ptr.pin->value = s->t_x100;
+    ptr.pin->value = s->t_x100 * 10;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 2));
-    ptr.pin->value = (int32_t)s->rh_x100;
+    ptr.pin->value = (int32_t)s->rh_x100 * 10;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 3));
     ptr.pin->value = (int32_t)s->vcap_mV;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 4));
-    ptr.pin->value = (int32_t)s->co2_ppm;
+    ptr.pin->value = (int32_t)s->co2_ppm * 1000;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 5));
-    ptr.pin->value = (int32_t)s->tvoc_ppb;
+    ptr.pin->value = (int32_t)s->tvoc_ppb * 1000;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 6));
-    ptr.pin->value = s->rssi;
+    ptr.pin->value = s->rssi * 1000;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 7));
-    ptr.pin->value = s->snr;
+    ptr.pin->value = s->snr * 1000;
 
-    ESP_LOGI(TAG,
-             "IN%u..IN%u updated uid=%08lX t=%ld rh=%lu vcap=%lu co2=%lu tvoc=%lu rssi=%ld snr=%ld",
+    LORA_LOG("IN%u..IN%u updated uid=%08lX t=%ld rh=%lu vcap=%lu co2=%lu tvoc=%lu rssi=%ld snr=%ld",
              (unsigned)(LORA_IN_BASE + 1),
              (unsigned)(LORA_IN_BASE + LORA_IN_COUNT),
              (unsigned long)uid_num,
@@ -139,6 +144,28 @@ static void lora_publish_points(const lora_sensor_data_t *s)
              (unsigned long)s->tvoc_ppb,
              (long)s->rssi,
              (long)s->snr);
+}
+
+static void lora_publish_boot_signature(void)
+{
+    lora_sensor_data_t s;
+
+    memset(&s, 0, sizeof(s));
+    memcpy(s.uid, "A1B2C3D4", 8);
+    s.uid[8] = '\0';
+    s.t_x100 = 2234;
+    s.rh_x100 = 5566;
+    s.vcap_mV = 3300;
+    s.co2_ppm = 888;
+    s.tvoc_ppb = 123;
+    s.rssi = -70;
+    s.snr = 9;
+    s.valid = true;
+
+    lora_publish_points(&s);
+    LORA_LOG("Boot signature written to IN%u..IN%u for Modbus mapping check",
+             (unsigned)(LORA_IN_BASE + 1),
+             (unsigned)(LORA_IN_BASE + LORA_IN_COUNT));
 }
 
 static uint16_t crc16_ccitt(const uint8_t *data, size_t len)
@@ -168,17 +195,35 @@ static esp_err_t uart_init_at(void)
         .source_clk = UART_SCLK_DEFAULT,
     };
 
+    if (uart_is_driver_installed(UART_PORT_NUM)) {
+        (void)uart_driver_delete(UART_PORT_NUM);
+    }
+
     esp_err_t ret = uart_param_config(UART_PORT_NUM, &cfg);
     if (ret != ESP_OK) {
+        LORA_LOG("uart_param_config failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
     ret = uart_set_pin(UART_PORT_NUM, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     if (ret != ESP_OK) {
+        LORA_LOG("uart_set_pin failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
     ret = uart_driver_install(UART_PORT_NUM, UART_BUF_SIZE * 2, 0, 0, NULL, 0);
+    if (ret != ESP_OK) {
+        LORA_LOG("uart_driver_install failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ret = uart_set_mode(UART_PORT_NUM, UART_MODE_UART);
+    if (ret != ESP_OK) {
+        LORA_LOG("uart_set_mode failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    LORA_LOG("UART%d ready on TX=%d RX=%d baud=%d", UART_PORT_NUM, UART_TX_PIN, UART_RX_PIN, UART_BAUD_RATE);
     return ret;
 }
 
@@ -189,8 +234,11 @@ static bool at_send_and_wait(const char *cmd, const char *wait_for, uint32_t tim
     }
 
     uart_flush(UART_PORT_NUM);
-    uart_write_bytes(UART_PORT_NUM, cmd, strlen(cmd));
-    uart_write_bytes(UART_PORT_NUM, "\r\n", 2);
+    int wrote = uart_write_bytes(UART_PORT_NUM, cmd, strlen(cmd));
+    int wrote_crlf = uart_write_bytes(UART_PORT_NUM, "\r\n", 2);
+    if ((wrote < 0) || (wrote_crlf < 0)) {
+        LORA_LOG("uart_write_bytes failed for '%s': wrote=%d crlf=%d", cmd, wrote, wrote_crlf);
+    }
 
     uint8_t buf[UART_BUF_SIZE];
     uint32_t elapsed = 0;
@@ -224,7 +272,7 @@ static bool at_send_cmd_retry(const char *cmd, const char *wait_for, uint32_t ti
 static bool configure_ra08(void)
 {
     if (!at_send_cmd_retry("AT", "OK", 1000, 3)) {
-        ESP_LOGW(TAG, "RA08 not responding to AT");
+        LORA_LOG("WARNING: RA08 not responding to AT");
         return false;
     }
 
@@ -280,6 +328,7 @@ static bool uid_is_valid_hex8(const char *uid)
  */
 static void parse_at_sensor_frame(const char *line)
 {
+    LORA_LOG("parse_at_sensor_frame called with: %.50s", line);
     /* skip "AT+SENSOR=" prefix (10 chars) */
     const char *p = line + 10;
 
@@ -299,9 +348,10 @@ static void parse_at_sensor_frame(const char *line)
     strncpy(uid, tok, sizeof(uid) - 1);
     uid[sizeof(uid) - 1] = '\0';
     if (!uid_is_valid_hex8(uid)) {
-        ESP_LOGW(TAG, "Invalid UID in AT+SENSOR: %s", uid);
+        LORA_LOG("ERROR: INVALID UID (not 8 hex chars): %s", uid);
         return;
     }
+    LORA_LOG("UID valid: %s, starting parse of 8 fields", uid);
 
     tok = strtok(NULL, ","); if (!tok) return;
     int32_t t_x100 = (int32_t)strtol(tok, NULL, 10);
@@ -497,7 +547,7 @@ esp_err_t lora_start(void)
 
     esp_err_t ret = uart_init_at();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "uart_init_at failed: %s", esp_err_to_name(ret));
+        LORA_LOG("ERROR: uart_init_at failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -509,6 +559,7 @@ esp_err_t lora_start(void)
     }
 
     lora_init_input_points();
+    //lora_publish_boot_signature();
 
     vTaskDelay(pdMS_TO_TICKS(200));
     (void)configure_ra08();
@@ -519,6 +570,10 @@ esp_err_t lora_start(void)
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "LoRa RX started on UART1 (TX=17, RX=16, 115200)");
+    LORA_LOG("LoRa RX started on UART%d (TX=%d, RX=%d, %d)",
+             UART_PORT_NUM,
+             UART_TX_PIN,
+             UART_RX_PIN,
+             UART_BAUD_RATE);
     return ESP_OK;
 }
