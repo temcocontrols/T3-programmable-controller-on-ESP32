@@ -32,6 +32,11 @@ jobs:
           git clone --depth 1 --branch v5.5.3 --recursive \
             https://github.com/espressif/esp-idf.git $IDF_PATH
 
+      - name: Copy custom components to IDF
+        run: |
+          cp -r ${{ github.workspace }}/temco_bacnet $IDF_PATH/components/
+          cp -r ${{ github.workspace }}/temco_IO_control $IDF_PATH/components/
+
       # ✅ Cache IDF tools (~/.espressif)
       - name: Cache IDF tools
         uses: actions/cache@v4
