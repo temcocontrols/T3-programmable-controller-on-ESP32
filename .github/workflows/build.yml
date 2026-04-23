@@ -8,16 +8,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # future-proof
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # 🔹 Clone ESP-Matter (required for your paths)
+      - name: Clone ESP-Matter
+        run: |
+          git clone --recursive https://github.com/espressif/esp-matter.git components/esp-matter
+
+      # 🔹 Set ESP_MATTER_PATH
+      - name: Set ESP_MATTER_PATH
+        run: echo "ESP_MATTER_PATH=$GITHUB_WORKSPACE/components/esp-matter" >> $GITHUB_ENV
+
       - name: Setup ESP-IDF
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v5.5.3
+
+      # 🔹 (Optional but safer)
+      - name: Set target
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py set-target esp32
 
       - name: Build
         run: |
@@ -28,4 +46,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: build/*.bin
+          path: |
+            build/*.bin
+            build/*.elf
+            build/*.map
