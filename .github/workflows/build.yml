@@ -40,6 +40,7 @@ jobs:
       - name: Build
         run: |
           . $IDF_PATH/export.sh
+          idf.py -DESP_MATTER_PATH="${{ github.workspace }}/components/esp-matter" build
           idf.py build
 
       - name: Upload artifacts

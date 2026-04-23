@@ -4,7 +4,14 @@ cmake_minimum_required(VERSION 3.16)
 set(IDF_TARGET esp32)
 
 # 2. Setup Matter Paths explicitly
-set(ESP_MATTER_PATH $ENV{ESP_MATTER_PATH})
+if(NOT DEFINED ESP_MATTER_PATH)
+    set(ESP_MATTER_PATH $ENV{ESP_MATTER_PATH})
+endif()
+
+if(NOT ESP_MATTER_PATH)
+    message(FATAL_ERROR "ESP_MATTER_PATH not found. Please set it via -DESP_MATTER_PATH=... or environment variable.")
+endif()
+message(STATUS "Using ESP_MATTER_PATH: ${ESP_MATTER_PATH}")
 set(MATTER_SDK_PATH ${ESP_MATTER_PATH}/connectedhomeip/connectedhomeip)
 
 # 3. FIX: Hardcode the device path as a CACHE variable
@@ -14,7 +21,7 @@ set(ENV{ESP_MATTER_DEVICE_PATH} "${ESP_MATTER_DEVICE_PATH}")
 
 # 4. Include ESP-IDF and Matter helper files
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-include(${ESP_MATTER_PATH}/examples/common/cmake_common/components_include.cmake)
+include(${ESP_MATTER_PATH}/examples/common/cmake_common/components_include.cmake OPTIONAL)
 include(${ESP_MATTER_DEVICE_PATH}/esp_matter_device.cmake)
 
 # Override button_type to hollow_button after device cmake loads
