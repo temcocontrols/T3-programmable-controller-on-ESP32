@@ -808,11 +808,12 @@ The Matter QR code contains device commissioning information and is used to add 
 
 Add your Matter device QR code image here:
 
+<div style="text-align: center;">
+  <img src="./image.png" alt="alt text" width="180"/>
+</div>
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                                                                │
-│                   ![alt text](image.png)                       │
-│                                                                │
 │  Device Setup PIN:            3497 011 2332                    │
 │  This QR code is used for Matter commissioning with Alexa,     │
 │  Google Home, or other Matter-compatible controllers.          │
@@ -905,11 +906,12 @@ Once integrated, you can use voice commands:
 
 Space for screenshot demonstrating successful Matter integration with Alexa:
 
+<div style="text-align: center;">
+  <img src="./image-1.png" alt="alt text" width="180"/>
+</div>
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                                                                │
-│        ![alt text](image-1.png)                                │
-│                                                                │
 │    This demonstrates that the device has been successfully     │
 │    commissioned to Matter and is communicating with Alexa.     │
 │    Shows thermostat in device list with temperature controls.  │

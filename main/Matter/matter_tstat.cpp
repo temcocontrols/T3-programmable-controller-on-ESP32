@@ -11,6 +11,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <stdarg.h>
+#include <esp_log.h>
 
 #include <esp_matter.h>
 #include <esp_matter_endpoint.h>
