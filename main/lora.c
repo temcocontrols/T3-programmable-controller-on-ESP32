@@ -39,6 +39,8 @@ static uint16_t next_seq = 1;
 static TaskHandle_t rx_task_handle;
 static bool lora_points_initialized;
 
+static void parse_at_sensor_frame(const char *line);
+
 static void lora_init_input_points(void)
 {
     static const char *desc[LORA_IN_COUNT] = {
@@ -146,7 +148,7 @@ static void lora_publish_points(const lora_sensor_data_t *s)
              (long)s->snr);
 }
 
-static void lora_publish_boot_signature(void)
+static void __attribute__((unused)) lora_publish_boot_signature(void)
 {
     lora_sensor_data_t s;
 
@@ -321,6 +323,69 @@ static bool uid_is_valid_hex8(const char *uid)
     return true;
 }
 
+static void lora_handle_rx_line(char *line)
+{
+    if (!line) {
+        return;
+    }
+
+    while (*line == '\r' || *line == '\n' || *line == ' ') {
+        line++;
+    }
+
+    size_t len = strlen(line);
+    while (len > 0 && (line[len - 1] == '\r' || line[len - 1] == '\n' || line[len - 1] == ' ')) {
+        line[--len] = '\0';
+    }
+
+    if (len == 0) {
+        return;
+    }
+
+    /* Some RA08 firmwares wrap payloads; accept AT+SENSOR anywhere in line. */
+    char *sensor = strstr(line, "AT+SENSOR=");
+    if (sensor) {
+        parse_at_sensor_frame(sensor);
+        return;
+    }
+
+    /* Fallback for payloads that start directly from SENSOR=. */
+    sensor = strstr(line, "SENSOR=");
+    if (sensor) {
+        char tmp[160];
+        int n = snprintf(tmp, sizeof(tmp), "AT+%s", sensor);
+        if (n > 0 && n < (int)sizeof(tmp)) {
+            parse_at_sensor_frame(tmp);
+        }
+        return;
+    }
+
+    LORA_LOG("RX line: %.80s", line);
+
+    /* All other frames use trailing :crc field */
+    char *last_colon = strrchr(line, ':');
+    if (!last_colon) {
+        return;
+    }
+
+    uint16_t rx_crc = (uint16_t)atoi(last_colon + 1);
+    *last_colon = '\0';
+    uint16_t calc_crc = crc16_ccitt((const uint8_t *)line, strlen(line));
+    if (calc_crc != rx_crc) {
+        return;
+    }
+
+    char *ack = strstr(line, "ACK:");
+    if (ack) {
+        ack_seq = (uint16_t)atoi(ack + 4);
+        if (ack_sem) {
+            xSemaphoreGive(ack_sem);
+        }
+    } else {
+        ESP_LOGI(TAG, "RA08 frame: %s", line);
+    }
+}
+
 /*
  * Parse:
  * AT+SENSOR=UID,T_x100,RH_x100,Vcap_mV,CO2_ppm,TVOC_ppb,RSSI,SNR\r\n
@@ -490,46 +555,34 @@ static void rx_task(void *arg)
             memcpy(accum + idx, rbuf, (size_t)r);
             idx += (size_t)r;
 
-            for (size_t j = 0; j < idx; j++) {
-                if (accum[j] != '\n') {
-                    continue;
-                }
+            while (idx > 0) {
+                size_t j;
+                bool found = false;
 
-                accum[j] = '\0';
-                char *line = (char *)accum;
-
-                if (line[0] != '\0') {
-                    /* AT+SENSOR frames have no CRC — handle them first */
-                    if (strncmp(line, "AT+SENSOR=", 10) == 0) {
-                        parse_at_sensor_frame(line);
-                    } else {
-                        /* All other frames use trailing :crc field */
-                        char *last_colon = strrchr(line, ':');
-                        if (last_colon) {
-                            uint16_t rx_crc = (uint16_t)atoi(last_colon + 1);
-                            *last_colon = '\0';
-                            uint16_t calc_crc = crc16_ccitt((const uint8_t *)line, strlen(line));
-
-                            if (calc_crc == rx_crc) {
-                                if (strncmp(line, "ACK:", 4) == 0) {
-                                    ack_seq = (uint16_t)atoi(line + 4);
-                                    if (ack_sem) {
-                                        xSemaphoreGive(ack_sem);
-                                    }
-                                } else {
-                                    ESP_LOGI(TAG, "RA08 frame: %s", line);
-                                }
-                            }
-                        }
+                for (j = 0; j < idx; j++) {
+                    if (accum[j] == '\n' || accum[j] == '\r') {
+                        found = true;
+                        break;
                     }
                 }
 
-                size_t rem = idx - (j + 1);
+                if (!found) {
+                    break;
+                }
+
+                accum[j] = '\0';
+                lora_handle_rx_line((char *)accum);
+
+                size_t skip = 1;
+                while ((j + skip) < idx && (accum[j + skip] == '\n' || accum[j + skip] == '\r')) {
+                    skip++;
+                }
+
+                size_t rem = idx - (j + skip);
                 if (rem > 0) {
-                    memmove(accum, accum + j + 1, rem);
+                    memmove(accum, accum + j + skip, rem);
                 }
                 idx = rem;
-                break;
             }
         }
 
