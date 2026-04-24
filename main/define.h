@@ -185,6 +185,7 @@ typedef	enum
 #define PROJECT_MULTIMETER_NEW	25
 #define PROJECT_CO2 		26
 #define PROJECT_LSW_SENSOR	27
+#define PROJECT_LORA_GATEWAY	28
 
 #define MAX_MINI_TYPE 		28
 

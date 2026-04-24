@@ -52,6 +52,7 @@ idf_component_register(			SRCS
 					#		"ddns.c"
 						#	"lowPower.c"
 							"co2.c"
+							"lora.c"
 							"LcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"

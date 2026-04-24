@@ -62,6 +62,7 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "lora.h"
 
 //#include "lowPower.h"
 
@@ -4592,7 +4593,6 @@ void app_main()
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    Modbus.mini_type = MINI_TSTAT10;
 #endif
 
     if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
@@ -4603,6 +4603,12 @@ void app_main()
 
   	if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
+
+	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
+	{
+		(void)lora_start();
+	}
+
     flag_ethernet_initial = ethernet_init();
 
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
@@ -4705,6 +4711,11 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 	// mstp error, dont send out data
 	return;
 	}*/
+	if((Modbus.mini_type == PROJECT_LORA_GATEWAY) && (port == 2))
+	{
+		return;
+	}
+
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		holding_reg_params.led_rx485_tx = 2;
 

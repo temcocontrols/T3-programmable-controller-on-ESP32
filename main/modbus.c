@@ -380,6 +380,11 @@ static void setup_reg_data()
 void uart_init(uint8_t uart)
 {
 	int baud;
+	if((Modbus.mini_type == PROJECT_LORA_GATEWAY) && (uart == 2))
+	{
+		return;
+	}
+
 	switch(Modbus.baudrate[uart])
 	{
 	case UART_1200:
