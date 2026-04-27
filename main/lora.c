@@ -27,7 +27,7 @@
 
 /* IN point mapping for AT+SENSOR fields (ordered) */
 #define LORA_IN_BASE       0
-#define LORA_IN_COUNT      8
+#define LORA_IN_COUNT      9
 
 static const char *TAG = "lora";
 
@@ -50,19 +50,21 @@ static void lora_init_input_points(void)
         "LORA VCAP mV",
         "LORA CO2 ppm",
         "LORA TVOC ppb",
+        "LORA LUX",
         "LORA RSSI",
         "LORA SNR"
     };
 
     static const char *label[LORA_IN_COUNT] = {
-        "L_UID",
-        "L_TX100",
-        "L_RHX100",
-        "L_VCAP",
-        "L_CO2",
-        "L_TVOC",
-        "L_RSSI",
-        "L_SNR"
+        "UID",
+        "TEMP",
+        "HUMIDITY",
+        "VOLTAGE",
+        "CO2",
+        "TVOC",
+        "LUX",
+        "RSSI",
+        "SNR"
     };
 
     static const uint8_t range[LORA_IN_COUNT] = {
@@ -72,6 +74,7 @@ static void lora_init_input_points(void)
         V0_5,               /* capacitor voltage */
         CO2_PPM,            /* CO2 */
         TVOC_PPB,           /* TVOC */
+        LUX,                /* illuminance */
         DB,                 /* RSSI */
         DB                  /* SNR */
     };
@@ -130,12 +133,15 @@ static void lora_publish_points(const lora_sensor_data_t *s)
     ptr.pin->value = (int32_t)s->tvoc_ppb * 1000;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 6));
-    ptr.pin->value = s->rssi * 1000;
+    ptr.pin->value = (int32_t)s->lux * 1000;
 
     ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 7));
+    ptr.pin->value = s->rssi * 1000;
+
+    ptr = put_io_buf(IN, (uint8_t)(LORA_IN_BASE + 8));
     ptr.pin->value = s->snr * 1000;
 
-    LORA_LOG("IN%u..IN%u updated uid=%08lX t=%ld rh=%lu vcap=%lu co2=%lu tvoc=%lu rssi=%ld snr=%ld",
+    LORA_LOG("IN%u..IN%u updated uid=%08lX t=%ld rh=%lu vcap=%lu co2=%lu tvoc=%lu lux=%lu rssi=%ld snr=%ld",
              (unsigned)(LORA_IN_BASE + 1),
              (unsigned)(LORA_IN_BASE + LORA_IN_COUNT),
              (unsigned long)uid_num,
@@ -144,6 +150,7 @@ static void lora_publish_points(const lora_sensor_data_t *s)
              (unsigned long)s->vcap_mV,
              (unsigned long)s->co2_ppm,
              (unsigned long)s->tvoc_ppb,
+             (unsigned long)s->lux,
              (long)s->rssi,
              (long)s->snr);
 }
@@ -388,7 +395,7 @@ static void lora_handle_rx_line(char *line)
 
 /*
  * Parse:
- * AT+SENSOR=UID,T_x100,RH_x100,Vcap_mV,CO2_ppm,TVOC_ppb,RSSI,SNR\r\n
+ * AT+SENSOR=UID,T_x100,RH_x100,Vcap_mV,CO2_ppm,TVOC_ppb,LUX,RSSI,SNR\r\n
  * The line passed in has already had trailing '\n' stripped.
  */
 static void parse_at_sensor_frame(const char *line)
@@ -416,7 +423,7 @@ static void parse_at_sensor_frame(const char *line)
         LORA_LOG("ERROR: INVALID UID (not 8 hex chars): %s", uid);
         return;
     }
-    LORA_LOG("UID valid: %s, starting parse of 8 fields", uid);
+    LORA_LOG("UID valid: %s, starting parse of 9 fields", uid);
 
     tok = strtok(NULL, ","); if (!tok) return;
     int32_t t_x100 = (int32_t)strtol(tok, NULL, 10);
@@ -434,6 +441,9 @@ static void parse_at_sensor_frame(const char *line)
     uint32_t tvoc_ppb = (uint32_t)strtoul(tok, NULL, 10);
 
     tok = strtok(NULL, ","); if (!tok) return;
+    uint32_t lux = (uint32_t)strtoul(tok, NULL, 10);
+
+    tok = strtok(NULL, ","); if (!tok) return;
     int32_t rssi = (int32_t)strtol(tok, NULL, 10);
 
     tok = strtok(NULL, ","); if (!tok) return;
@@ -449,6 +459,7 @@ static void parse_at_sensor_frame(const char *line)
             sensors[i].vcap_mV     = vcap_mV;
             sensors[i].co2_ppm     = co2_ppm;
             sensors[i].tvoc_ppb    = tvoc_ppb;
+            sensors[i].lux         = lux;
             sensors[i].rssi        = rssi;
             sensors[i].snr         = snr;
             sensors[i].temperature_c = (float)t_x100 / 100.0f;
@@ -457,13 +468,14 @@ static void parse_at_sensor_frame(const char *line)
             sensors[i].valid       = true;
             lora_publish_points(&sensors[i]);
             ESP_LOGI(TAG,
-                     "SENSOR uid=%s T=%.2fC RH=%.2f%% Vcap=%.3fV CO2=%u TVOC=%u RSSI=%ld SNR=%ld",
+                     "SENSOR uid=%s T=%.2fC RH=%.2f%% Vcap=%.3fV CO2=%u TVOC=%u LUX=%u RSSI=%ld SNR=%ld",
                      uid,
                      sensors[i].temperature_c,
                      sensors[i].humidity_rh,
                      sensors[i].vcap_v,
                      (unsigned)sensors[i].co2_ppm,
                      (unsigned)sensors[i].tvoc_ppb,
+                     (unsigned)sensors[i].lux,
                      (long)sensors[i].rssi,
                      (long)sensors[i].snr);
             break;

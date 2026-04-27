@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /* Parsed data from:
- * AT+SENSOR=UID,T_x100,RH_x100,Vcap_mV,CO2_ppm,TVOC_ppb,RSSI,SNR\r\n
+ * AT+SENSOR=UID,T_x100,RH_x100,Vcap_mV,CO2_ppm,TVOC_ppb,LUX,RSSI,SNR\r\n
  */
 typedef struct {
     char     uid[9];        /* 8 hex chars + NUL */
@@ -19,6 +19,7 @@ typedef struct {
     uint32_t vcap_mV;       /* capacitor voltage in mV */
     uint32_t co2_ppm;       /* CO2 ppm */
     uint32_t tvoc_ppb;      /* TVOC ppb */
+    uint32_t lux;           /* illuminance lux */
     int32_t  rssi;          /* dBm */
     int32_t  snr;           /* dB */
     float    temperature_c; /* derived: t_x100 / 100.0 */
