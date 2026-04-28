@@ -3,5 +3,6 @@
     "idf.toolsPathWin": "D:\\Espressif",
     "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.8.7\\python.exe",
     "idf.currentSetup": "D:\\esp_idf\\.espressif\\v5.5.3\\esp-idf",
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "idf.port": "/dev/ttyUSB0"
 }

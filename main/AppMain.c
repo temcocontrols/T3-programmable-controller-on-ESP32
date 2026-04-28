@@ -25,7 +25,8 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include <store.h>
-
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #include "define.h"
 #include "modbus.h"
@@ -62,6 +63,7 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "monitor.h"
 
 //#include "lowPower.h"
 
@@ -74,7 +76,7 @@
 
 TaskHandle_t main_task_handle[20];
 extern TaskHandle_t Handle_Scan;
-char debug_array[100];
+EXT_RAM_BSS_ATTR char debug_array[100];
 //static const char *TAG = "Example";
 static const char *TCP_TASK_TAG = "TCP_TASK";
 static const char *UDP_TASK_TAG = "UDP_TASK";
@@ -181,6 +183,7 @@ const int TASK7_BIT		= BIT7;
 int task_sock[MAX_SOC_COUNT] = {0};
 void ENALBE_LSW_Ethernet(void);
 void Save_SPD_CNT(void);
+
 void start_fw_update(void)
 {
    const esp_partition_t *factory = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
@@ -196,10 +199,8 @@ void start_fw_update(void)
    esp_retboot();
 }
 
-
 void esp_retboot(void)
 {
-
    esp_restart();
 }
 
@@ -856,11 +857,11 @@ void Set_transaction_ID(U8_T *str, U16_T id, U16_T num)
 EXT_RAM_BSS_ATTR int sock[MAX_TCP_CONN];
 EXT_RAM_BSS_ATTR int Sock_table[MAX_TCP_CONN];
 //char len;
-U8_T rx_buffer[MAX_TCP_CONN][512];
+EXT_RAM_BSS_ATTR U8_T rx_buffer[MAX_TCP_CONN][512];
 extern SemaphoreHandle_t xSem_comport[3];
 
 U16_T modbus_send_len;
-u8 modbus_send_buf[500];
+EXT_RAM_BSS_ATTR u8 modbus_send_buf[500];
 int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 {
 	memset(modbus_send_buf,0,500);
@@ -1838,6 +1839,7 @@ uint8_t Station_NUM;
 uint8_t MAX_MASTER;
 extern U8_T base_in;
 extern U8_T base_out;
+extern void matter_clear_commissioning(void);
 void Bacnet_Initial_Data(void);
 void Trend_Log_Init(void);
 void Initial_points(uint8_t point_type);
@@ -1855,7 +1857,6 @@ void set_default_parameters(void)
 	Initial_points(IN);
 	Initial_points(VAR);
 	save_point_info(0);
-
 }
 
 void Inital_Bacnet_Server(void)
@@ -4427,7 +4428,7 @@ void Bacnet_Control(void *pvParameters)
 #endif
 
 #if 1//DNS
-		dns_tmr();
+		// dns_tmr();
 		update_sntp();
 #endif
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
@@ -4562,9 +4563,10 @@ void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
 
 void LS_led_task(void *pvParameters);
-
+extern esp_err_t matter_tstat_init(void);
 extern void ethernet_check_task( void *pvParameters);
 void start_dns_server(void);
+static bool matter_started = false;
 #if 0//DDNS
 void ddns_task(void *pvParameters);
 #endif
@@ -4583,11 +4585,13 @@ void app_main()
 	Set_Device_Stage(DEVICE_STAGE_INIT);
 	Bacnet_Initial_Data();
 	read_default_from_flash();
+
+	uart_init(0);
+
 	initial_HSP();
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
-	uart_init(0);
 
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
@@ -4605,15 +4609,15 @@ void app_main()
     	uart_init(2);
     flag_ethernet_initial = ethernet_init();
 
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
+    xTaskCreate(wifi_task, "wifi_task", 3072, NULL, 5, &main_task_handle[1]);  //Free stack: 700 bytes
 
     network_EventHandle = xEventGroupCreate();
-    xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server
+    xTaskCreate(tcp_server_task, "tcp_server", 3072, NULL, 5, &main_task_handle[2]); // Free stack: 1584 bytes
     // dealing with network modbus point
-    xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 1, &main_task_handle[3]); // tcp client
-    xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
-    xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
-    xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
+    xTaskCreate(tcp_client_task, "tcp_client", 2048, NULL, 1, &main_task_handle[3]); // Free stack: 1392 bytes
+    xTaskCreate(udp_scan_task, "udp_scan", 3072, NULL, 1, &main_task_handle[4]); // udp server 1234 // Free stack: 1464 bytes
+    xTaskCreate(bip_task, "bacnet ip", 3072, NULL, 1, &main_task_handle[0]); // udp server 47808    // Free stack: 1152 bytes
+    xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 3072, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808 // Free stack: 1948 bytes
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
@@ -4638,21 +4642,22 @@ void app_main()
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
     {
-    	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
+    	xTaskCreate(i2c_master_task,"i2c_master_task", 3072, NULL, 10, &main_task_handle[10]); // Free stack: 2228 bytes
+		debug_info("i2c master successfully\r\n");
     }
-
     // Check if modbus.mini_type is PROJECT_MULTIMETER
     if (Modbus.mini_type == PROJECT_MULTIMETER) {
         // Create multiMeterTask with low priority
         xTaskCreate(multiMeterTask, "MultiMeterTask", 2048*2, NULL, tskIDLE_PRIORITY+5, NULL);
     }
-    //if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
+    // if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
     //    xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[6]);
 
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
     		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LSW_SENSOR))
+	{
        xTaskCreate(i2c_sensor_task,"i2c_task", 2048*2, NULL, 5, NULL);
-
+	}
 
     if(Modbus.mini_type == PROJECT_AIRLAB)
     {
@@ -4666,10 +4671,10 @@ void app_main()
     	xTaskCreate(vPM25Task,"PM25Task",2048, NULL, tskIDLE_PRIORITY + 1,&main_task_handle[15]);
     }
     else
-    	vStartScanTask(5);
+    	vStartScanTask(5); // Free stack: 1596 bytes
 
-    xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
-    xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
+    xTaskCreate(Master0_Node_task,"mstp0_task",2048, NULL, 4, &main_task_handle[8]); // Free stack: 1556 bytes
+    xTaskCreate(uart0_rx_task,"uart0_rx_task",4096, NULL, 11, &main_task_handle[9]); // Free stack: 1868 bytes
 
     if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
     	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW)
@@ -4681,19 +4686,38 @@ void app_main()
 
     Set_Device_Stage(DEVICE_STAGE_RUNNING);
 
-
  #if 1
-	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
+	xTaskCreate(Bacnet_Control,"BAC_Control_task",4096, NULL, 3, &main_task_handle[14]); // Free stack: 3524 bytes
 #endif
 
  #if 1
- 	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
+ 	xTaskCreate(Timer_task,"timer_task",2048, NULL, 13, &main_task_handle[13]); // Free stack: 1180 bytes
 
 #endif
 
+	//xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
 
-//	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
+}
 
+void wifiConnectedEvent(void)
+{
+	if (!matter_started)
+	{
+		// /* Initialize Matter for tstate10 */
+		if (matter_tstat_init() == ESP_OK)
+		{
+			debug_info("Matter initialized successfully\r\n");
+			matter_started = true;
+		}
+		else
+        {
+            debug_info("Matter init FAILED");
+        }
+    }
+    else
+    {
+        debug_info("Matter already started - skipping");
+    }
 }
 
 // for bacnet lib
@@ -5199,5 +5223,4 @@ void Update_LCD_IconArray(void)
 	//E2prom_Write_Byte(EEP_T10_ICON_CONFIG,Modbus.icon_config);
 }
 #endif
-
 

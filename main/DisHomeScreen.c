@@ -102,7 +102,7 @@ void DisplayHomeScreen( bool isHomeScreen )
             // disp_str_16_24(FORM15X30, HUMIDITY_INDOOR_XPOS, HUMIDITY_INDOOR_YPOS, (uint8 *)HUMIDITY_STR, SCH_COLOR, TSTAT8_BACK_COLOR);
         }
 #if TEST_USE_SAME_VALUE_FOR_AMBIENT
-        Temperature_OutdorrDataPtr.pin->value = -Temperature_AmbientDataPtr.pin->value; // For testing only, remove this line in actual code
+        Temperature_OutdorrDataPtr.pin->value = 25000-Temperature_AmbientDataPtr.pin->value; // For testing only, remove this line in actual code
         Temperature_OutdorrDataPtr.pin->range = Temperature_AmbientDataPtr.pin->range; // For testing only, remove this line in actual code
 #endif
         if(!HomeScreenSetpointMode && Temperature_OutValue != Temperature_OutdorrDataPtr.pin->value)
@@ -116,19 +116,19 @@ void DisplayHomeScreen( bool isHomeScreen )
         }
 
 #if TEST_USE_SAME_VALUE_FOR_AMBIENT
-        Humidity_OutdorrDataPtr.pin->value = 55; // For testing only, remove this line in actual code
-        Humidity_AmbientDataPtr.pin->value = 45; // For testing only, remove this line in actual code
+        Humidity_OutdorrDataPtr.pin->value = 55000; // For testing only, remove this line in actual code
+        Humidity_AmbientDataPtr.pin->value = 45000; // For testing only, remove this line in actual code
 #endif
 
         if(Humidity_AmbientValue != Humidity_AmbientDataPtr.pin->value)
         {
             Humidity_AmbientValue = Humidity_AmbientDataPtr.pin->value;
-            DisplayHumidity(0, Humidity_AmbientDataPtr.pin->value ); // Display indoor humidity at position 0
+            DisplayHumidity(0, Humidity_AmbientDataPtr.pin->value/1000 ); // Display indoor humidity at position 0
         }
         if(!HomeScreenSetpointMode && Humidity_OutValue != Humidity_OutdorrDataPtr.pin->value)
         {
             Humidity_OutValue = Humidity_OutdorrDataPtr.pin->value;
-            DisplayHumidity(1, Humidity_OutdorrDataPtr.pin->value ); // Display outdoor humidity at position 1
+            DisplayHumidity(1, Humidity_OutdorrDataPtr.pin->value/1000 ); // Display outdoor humidity at position 1
         }
         if(HomeScreenSetpointMode)
         {

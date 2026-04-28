@@ -207,8 +207,8 @@ EXT_RAM_BSS_ATTR U8_T                   		     ar_dates[MAX_AR][AR_DATES_SIZE];/
 //UN_ID  ID_Config[254];
 //U8_T  ID_Config_Sche[254];
 
-float  output_priority[MAX_OUTS][16];
-float  output_relinquish[MAX_OUTS];
+EXT_RAM_BSS_ATTR float  output_priority[MAX_OUTS][16];
+EXT_RAM_BSS_ATTR float  output_relinquish[MAX_OUTS];
 
 //Date_block	ora_current;
  /* Assume bit0 from octet0 = Jan 1st */
@@ -216,10 +216,10 @@ float  output_relinquish[MAX_OUTS];
 EXT_RAM_BSS_ATTR U8_T    	    					prg_code[MAX_PRGS][CODE_ELEMENT * MAX_CODE];// _at_ 0x8000;
 //U16_T				far	 			Code_len[MAX_PRGS];
 U16_T 			    				Code_total_length;
-Str_array_point 	    			 arrays[MAX_ARRAYS];
+EXT_RAM_BSS_ATTR Str_array_point 	    			 arrays[MAX_ARRAYS];
 S32_T  			    				*arrays_address[MAX_ARRAYS];
-long			    					arrays_data[MAX_ARRAYS_DATA];
-Str_table_point							 custom_tab[MAX_TBLS];  // defined in io_control.lib
+EXT_RAM_BSS_ATTR long			    					arrays_data[MAX_ARRAYS_DATA];
+EXT_RAM_BSS_ATTR Str_table_point							 custom_tab[MAX_TBLS];  // defined in io_control.lib
 U16_T                   		PRG_crc;
 //U8_T                         free_mon_blocks;
 //U16_T  total_send_length;
@@ -2313,7 +2313,7 @@ S32_T my_honts_arm(S32_T val)
 	return temp_32;
 }
 
-POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
+EXT_RAM_BSS_ATTR POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 // check if remote bacent points and network points online or not
 void Check_bacnet_points_online(void)
@@ -3678,10 +3678,10 @@ U8_T Read_Picture_from_SD(U8_T file,U16_T index);
 
 //Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
 //Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
-Str_mon_element 		 write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
+EXT_RAM_BSS_ATTR Str_mon_element 		 write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
 Str_mon_element          read_mon_point_buf_from_flash[MAX_MON_POINT_READ];
 
-Monitor_Block					mon_block[2 * MAX_MONITORS];
+EXT_RAM_BSS_ATTR Monitor_Block					mon_block[2 * MAX_MONITORS];
 
 //void monitor_reboot(void);
 U8_T Get_start_end_packet_by_time(U8_T file_index,uint32_t start_time,uint32_t end_time, uint32_t * start_seg, uint32_t * total_seg,uint32_t block_no)

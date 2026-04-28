@@ -1,0 +1,110 @@
+name: ESP-Matter Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      ESP_MATTER_PATH: ${{ github.workspace }}/esp-matter
+      IDF_PATH: ${{ github.workspace }}/esp-idf  # ✅ use workspace, /opt/esp/idf is Docker-only
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ✅ Cache ESP-IDF repo itself
+      - name: Cache ESP-IDF
+        id: cache-idf
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/esp-idf
+          key: esp-idf-v5.5.3
+
+      - name: Clone ESP-IDF (only if cache miss)
+        if: steps.cache-idf.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch v5.5.3 --recursive \
+            https://github.com/espressif/esp-idf.git $IDF_PATH
+
+      - name: Copy custom components to IDF
+        run: |
+          cp -r ${{ github.workspace }}/temco_bacnet $IDF_PATH/components/
+          cp -r ${{ github.workspace }}/temco_IO_control $IDF_PATH/components/
+
+      # ✅ Cache IDF tools (~/.espressif)
+      - name: Cache IDF tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.espressif
+          key: idf-tools-v5.5.3-${{ runner.os }}-v2
+
+      - name: Install IDF tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            git wget flex bison gperf \
+            python3 python3-pip python3-venv python3-setuptools \
+            cmake ninja-build ccache \
+            libffi-dev libssl-dev \
+            dfu-util libusb-1.0-0 \
+            libglib2.0-dev libglib2.0-dev-bin \
+            libdbus-1-dev pkg-config \
+            libncurses-dev \
+            curl zip unzip
+
+          # verify gdbus-codegen is available (it ships inside libglib2.0-dev-bin)
+          which gdbus-codegen
+
+          $IDF_PATH/install.sh esp32
+
+      # ✅ Cache ESP-Matter repo
+      - name: Cache ESP-Matter
+        id: cache-esp-matter
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/esp-matter
+          key: esp-matter-${{ hashFiles('**/idf_component.yml') }}-v2
+
+      - name: Clone ESP-Matter (only if cache miss)
+        if: steps.cache-esp-matter.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --shallow-submodules --recursive \
+            https://github.com/espressif/esp-matter.git $ESP_MATTER_PATH
+
+      # ✅ Cache ESP-Matter's own installed dependencies
+      - name: Cache ESP-Matter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/esp-matter/connectedhomeip/connectedhomeip/.environment
+            ${{ github.workspace }}/esp-matter/connectedhomeip/connectedhomeip/out
+          key: esp-matter-deps-${{ hashFiles('**/idf_component.yml') }}-v2
+
+      - name: Install ESP-Matter dependencies
+        run: |
+          . $IDF_PATH/export.sh
+          cd $ESP_MATTER_PATH
+          bash install.sh
+
+      - name: Build
+        run: |
+          . $IDF_PATH/export.sh
+          export ESP_MATTER_PATH=${{ github.workspace }}/esp-matter
+          cd ${{ github.workspace }}
+          idf.py set-target esp32
+          idf.py build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            build/*.bin
+            build/*.elf
+            build/*.map

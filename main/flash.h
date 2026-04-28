@@ -112,9 +112,12 @@ typedef enum
 #define FLASH_LSW_ONTIME	"LSW_ON_T"
 #define FLASH_LSW_OFFTIME	"LSW_OFF_T"
 
-
-
-
+#define FLASH_CO2_CAL_DAYS	"CO2_CAL_DAYS"
+#define FLASH_CO2_NATURE_LEVEL	"CO2_NATURE_LEVEL"
+#define FLASH_CO2_LOWVALUE_REMAIN_TIME	"CO2_LOWVALUE_REMAIN_TIME"
+#define FLASH_CO2_MIN_ADJ	"CO2_MIN_ADJ"
+#define FLASH_CO2_BKCAL_ONOFF	"CO2_BKCAL_ONOFF"
+#define FLASH_CO2_BKCAL_VALUE	"CO2_BKCAL_VALUE"
 
 #define FLASH_CURRENT_TLG_PAGE	"TLG_PAGE"
 
@@ -171,6 +174,7 @@ extern esp_err_t save_uint8_to_flash(const char* key, uint8_t value);
 extern esp_err_t save_uint16_to_flash(const char* key, uint16_t value);
 extern esp_err_t read_uint8_from_falsh(const char* key, uint8_t* value);
 extern esp_err_t read_uint16_from_falsh(const char* key, uint16_t* value);
+extern esp_err_t read_int16_from_falsh(const char* key, int16_t* value);
 extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_int16_to_flash(const char* key, int16_t value);

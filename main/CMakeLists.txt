@@ -1,5 +1,13 @@
-idf_component_register(			SRCS
-							"tcp_server.c"
+# Get all your .c and .cpp files
+
+if(NOT DEFINED ENV{ESP_MATTER_PATH})
+    message(FATAL_ERROR "ESP_MATTER_PATH is not set")
+endif()
+
+set(ESP_MATTER_PATH $ENV{ESP_MATTER_PATH})
+
+idf_component_register(SRCS
+							"AppMain.c"
 							"modbus.c"
 #							"deviceparams.c"
 							"i2c_task.c"
@@ -52,14 +60,34 @@ idf_component_register(			SRCS
 					#		"ddns.c"
 						#	"lowPower.c"
 							"co2.c"
-							"LcdTheme.c"
+							"lcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
-						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
-#							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
-                    		INCLUDE_DIRS ".")
-#                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
-set(COMPONENT_ADD_INCLUDEDIRS ".")
+    PRIV_INCLUDE_DIRS "." "${ESP_MATTER_PATH}/examples/common/utils"
+    PRIV_REQUIRES
+                esp_matter
+                Matter
+                button
+                led_strip
+				led_driver
+                temco_IO_control
+                temco_bacnet
+                esp_https_ota
+                esp_http_client
+                app_update
+                esp_eth
+                esp_netif
+                lwip
+                bt
+				app_reset
+)
 
-target_link_libraries(${COMPONENT_TARGET} "-u pro_info")
+if (CONFIG_ENABLE_SET_CERT_DECLARATION_API)
+    target_add_binary_data(${COMPONENT_TARGET} "certification_declaration/certification_declaration.der" BINARY)
+endif()
+
+# Keep your special link flag for pro_info
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-u pro_info")
+
+target_compile_options(${COMPONENT_LIB} PRIVATE "-DCHIP_HAVE_CONFIG_H")

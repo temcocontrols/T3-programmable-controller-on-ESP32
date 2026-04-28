@@ -8,7 +8,15 @@
 
 #define NEW_IO  0  // 要同步修改bacnet库里的定义
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
+
+#ifdef __cplusplus
+}
+#endif
 
 #pragma pack(1)
 
@@ -395,7 +403,7 @@ extern U32_T 				time_since_1970;   /* seconds since the beginning of 2010 */
 extern In_aux					 						 in_aux[MAX_IO_POINTS];
 extern Con_aux				 							 con_aux[MAX_CONS];
 //extern Mon_aux                      mon_aux[MAX_MONITORS];
-extern Monitor_Block		 			mon_block[2 * MAX_MONITORS];
+extern EXT_RAM_BSS_ATTR Monitor_Block		 			mon_block[2 * MAX_MONITORS];
 //extern S8_T 				         mon_data_buf[sizeof(Monitor_Block) * 2 * MAX_MONITORS];
 extern Mon_Data 			 		*Graphi_data;
 extern S8_T 				 			Garphi_data_buf[sizeof(Mon_Data)];
@@ -442,7 +450,7 @@ extern U32_T 				 		SD_block_num[MAX_MONITORS * 2];
 
 //extern Str_mon_element          read_mon_point_buf[MAX_MON_POINT];
 //extern Str_mon_element          write_mon_point_buf[MAX_MONITORS * 2][MAX_MON_POINT];
-extern Str_mon_element 		write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
+extern EXT_RAM_BSS_ATTR Str_mon_element          write_mon_point_buf_to_flash[MAX_MON_POINT_FLASH];
 extern Str_mon_element      read_mon_point_buf_from_flash[MAX_MON_POINT_READ];
 
 extern EXT_RAM_BSS_ATTR Str_weekly_routine_point  		 weekly_routines[MAX_WR] ;
@@ -458,8 +466,8 @@ extern U16_T			 	 			Code_len[MAX_PRGS];
 extern U16_T 			 				Code_total_length;
 extern Str_array_point 	     			 arrays[MAX_ARRAYS];
 extern S32_T  			    				*arrays_address[MAX_ARRAYS];
-extern long			    					arrays_data[MAX_ARRAYS_DATA];
-extern Str_table_point			 				 custom_tab[MAX_TBLS];
+extern EXT_RAM_BSS_ATTR long				arrays_data[MAX_ARRAYS_DATA];
+extern EXT_RAM_BSS_ATTR Str_table_point	    custom_tab[MAX_TBLS];
 extern U16_T                         PRG_crc;
 extern U8_T  *prog;
 extern S32_T  stack[20];
@@ -480,7 +488,7 @@ extern U32_T                       miliseclast_cur;
 extern U32_T                       miliseclast;
 
 
-extern POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
+extern EXT_RAM_BSS_ATTR POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 
 extern EXT_RAM_BSS_ATTR NETWORK_POINTS      		 network_points_list[MAXNETWORKPOINTS];	 /* points wanted by others */
@@ -499,7 +507,7 @@ extern U16_T Last_Contact_Remote_points[MAXREMOTEPOINTS];
 extern U8_T remote_panel_num;
 
 #define MAX_REMOTE_PANEL_NUMBER 30
-extern STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
+extern EXT_RAM_BSS_ATTR STR_REMOTE_PANEL_DB  remote_panel_db[MAX_REMOTE_PANEL_NUMBER];
 
 //extern BACNET_DATE Local_Date;
 //extern BACNET_TIME Local_Time;
@@ -541,8 +549,8 @@ extern U8_T  ID_Config_Sche[254];
 #endif
 
 extern U8_T  output_pri_live[MAX_OUTS];
-extern float  output_priority[MAX_OUTS][16];
-extern float  output_relinquish[MAX_OUTS];
+extern EXT_RAM_BSS_ATTR float  output_priority[MAX_OUTS][16];
+extern EXT_RAM_BSS_ATTR float  output_relinquish[MAX_OUTS];
 
 
 U16_T convert_pointer_to_word( U8_T *iAddr );  //	 mGetPointWord
@@ -612,4 +620,3 @@ U8_T Get_address_by_panel(uint8 panel,U8_T *addr);
 U8_T Get_address_by_instacne(uint32_t instnace,U8_T *addr);
 
 #endif
-

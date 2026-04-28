@@ -34,6 +34,10 @@
 #include "rd.h"
 #include "rp.h"
 #include "rpm.h"
+
+/* Forward declare to break circular dependency */
+typedef struct BACnet_Write_Property_Data BACNET_WRITE_PROPERTY_DATA;
+
 #include "wp.h"
 #include "readrange.h"
 #include "getevent.h"

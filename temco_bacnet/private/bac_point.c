@@ -595,7 +595,7 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 }
 #endif
 
-POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
+EXT_RAM_BSS_ATTR POINTS_HEADER			      points_header[MAXREMOTEPOINTS];
 
 // check if remote bacent points and network points online or not
 void Check_bacnet_points_online(void)

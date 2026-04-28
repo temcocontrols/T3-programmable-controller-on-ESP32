@@ -18,6 +18,7 @@
 #include "esp_netif.h"
 #include "esp_netif_ip_addr.h"
 
+#define PRINT_STACK_USAGE 0
 
 static const char *TAG = "WIFI";
 extern SemaphoreHandle_t CountHandle;
@@ -36,6 +37,8 @@ extern unsigned short int Test[50];
 static int s_retry_num = 0;
 TaskHandle_t Wifi_Task_handle[7];
 extern int task_sock[7];
+extern volatile bool g_matter_commissioning_active;
+
 void debug_print(char *string,char task_index)
 {
 #if 0
@@ -101,8 +104,11 @@ static void wifi_event_handler(
 
             //wifi_task_running = 0;
             SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
-            //debug_info("Wifi disconnected, try to connect ...");
-
+            if (g_matter_commissioning_active) {
+                ESP_LOGI(TAG, "Commissioning active, skipping Wi-Fi reconnect");
+                break;
+            }
+            debug_info("Wifi disconnected, try to connect ...");
             if(0)
             {// wifi
                 for(int i=0 ;i<7;i++)
@@ -179,8 +185,9 @@ static void wifi_event_handler(
             // debug_info("event_handler_2 SYSTEM_EVENT_STA_GOT_IP");
             wifi_retry_count = 0;
             //wifi_task_running = 1;
-            //xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+            xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
+            wifiConnectedEvent();
             break;
 
         default:
@@ -290,7 +297,7 @@ void wifi_init_sta(void)
 
     s_wifi_event_group = xEventGroupCreate();
     CountHandle = xSemaphoreCreateCounting(7,7);
-#if 0
+#if 1
     /* -------- NETIF INIT (Continue if already done) -------- */
     ret = esp_netif_init();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
@@ -303,7 +310,10 @@ void wifi_init_sta(void)
         debug_info("event loop create failed");
     }
 
-    esp_netif_t *netif = esp_netif_create_default_wifi_sta();
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif == NULL) {
+        netif = esp_netif_create_default_wifi_sta();
+    }
     if (!netif) {
         debug_info("wifi netif create failed");
         return;
@@ -316,7 +326,7 @@ void wifi_init_sta(void)
     ret = esp_wifi_init(&cfg);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         debug_info("esp_wifi_init failed");
-        return;
+        //return; // don't return — Matter may have already inited it, continue
     }
 
     if(SSID_Info.MANUEL_EN != 1)
@@ -478,6 +488,35 @@ void disable_wifi() {
     }
 }
 
+#if PRINT_STACK_USAGE
+void print_all_task_stack_usage()
+{
+    UBaseType_t task_count = uxTaskGetNumberOfTasks();
+    TaskStatus_t *task_array = (TaskStatus_t *)malloc(task_count * sizeof(TaskStatus_t));
+
+    debug_info("\n===== HEAP INFO =====\n");
+
+    heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
+    heap_caps_print_heap_info(MALLOC_CAP_SPIRAM);
+
+    char heap_info[128];
+    if (task_array != NULL)
+    {
+        task_count = uxTaskGetSystemState(task_array, task_count, NULL);
+
+        for (int i = 0; i < task_count; i++)
+        {
+            sprintf(heap_info, "Task: %s | Free stack: %ld bytes\r\n",
+                   task_array[i].pcTaskName,
+                   task_array[i].usStackHighWaterMark);
+            debug_info(heap_info);
+        }
+
+        free(task_array);
+    }
+}
+#endif
+
 void wifi_task(void *pvParameters)
 {
 	uint8_t temp_rssi = 0;
@@ -495,14 +534,18 @@ void wifi_task(void *pvParameters)
     ESP_LOGI(TAG, "Finish wifi init1");
     task_test.enable[1] = 1;
 	while(1)
-	{task_test.count[1]++;
+	{
+#if PRINT_STACK_USAGE
+        print_all_task_stack_usage();
+#endif
+        task_test.count[1]++;
 		//if(re_init_wifi)
 		//	wifi_init_sta();
 		//esp_random();
 		/*esp_fill_random(&temp_rssi,1);
 		temp_rssi /= 15;
 		SSID_Info.rssi = temp_rssi - 95;*/
-	get_wifi_signal_strength();
+	    get_wifi_signal_strength();
 	    //Initialize the system event handler
 		/*
 	    ESP_ERROR_CHECK(esp_event_loop_init(scan_event_handler, NULL));
@@ -513,7 +556,7 @@ void wifi_task(void *pvParameters)
 			.show_hidden = 1
 			};
 		ESP_ERROR_CHECK(esp_wifi_scan_start(&scanConf, 0));*/
-		vTaskDelay(3000 / portTICK_PERIOD_MS);
+		vTaskDelay(5000 / portTICK_PERIOD_MS);
 	}
 }
 
