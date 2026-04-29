@@ -226,6 +226,8 @@ esp_err_t ethernet_init(void)
     // else
     //  ;//Test[5]++;
 
+#if CONFIG_IDF_TARGET_ESP32
+
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 
@@ -310,6 +312,7 @@ esp_err_t ethernet_init(void)
     {
         debug_info("Ethernet not started (handle NULL)");
     }
+#endif
 
 #if 1//DNS
 //  dns_init();

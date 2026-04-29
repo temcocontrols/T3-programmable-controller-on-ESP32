@@ -62,6 +62,7 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "LCD_Driver/lcd_drv.h"
 #include "lora.h"
 
 //#include "lowPower.h"
@@ -4561,6 +4562,7 @@ void TEST_FLASH(void);
 void vStartScanTask(unsigned char uxPriority);
 void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
+void Lcd_Task(void *pvParameters);
 
 void LS_led_task(void *pvParameters);
 
@@ -4593,15 +4595,21 @@ void app_main()
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+	Modbus.mini_type = MINI_TSTAT10;
 #endif
 
-    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
+	if(Modbus.mini_type == MINI_TSTAT10)
+	{
+		LCD_Init();
+		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+	}
+    else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
 	{
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
 
-  	if (Modbus.mini_type != MINI_BIG_ARM)
+  	if (Modbus.mini_type == MINI_BIG_ARM)
     	uart_init(2);
 
 	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
@@ -4641,10 +4649,11 @@ void app_main()
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
 	}
 
+	// TODO: Need to update i2c communication with display and other i2c sensor
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
     {
-    	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
+    	// xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
     }
 
     // Check if modbus.mini_type is PROJECT_MULTIMETER
@@ -4692,7 +4701,7 @@ void app_main()
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
 #endif
 
- #if 1
+ #if 0
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
 
 #endif
@@ -4759,7 +4768,7 @@ U8_T Get_Mini_Type(void)
 
 void I2C_sensor_Init(void)
 {
-	i2c_master_init();
+	// i2c_master_init();
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 	{
 		holding_reg_params.fan_module_pwm2 = 0;

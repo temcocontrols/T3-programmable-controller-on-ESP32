@@ -18,7 +18,7 @@
 #include "scan.h"
 
 #define LEDC_HS_TIMER          LEDC_TIMER_0
-#define LEDC_HS_MODE           LEDC_HIGH_SPEED_MODE
+#define LEDC_HS_MODE           LEDC_LOW_SPEED_MODE
 #define LEDC_HS_CH0_GPIO       (25)
 #define LEDC_HS_CH0_CHANNEL    LEDC_CHANNEL_0
 #define LEDC_HS_CH1_GPIO       (26)
@@ -489,9 +489,9 @@ static void transducer_output_task(void* arg)
 		holding_reg_params.fan_module_pwm3 = g_sensors.co2*125/1000;
 		if(gSwtich_output_mode == OUT_0_10_V)
 		{
-			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
-			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, holding_reg_params.fan_module_pwm2);
-			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, holding_reg_params.fan_module_pwm3);
+			ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
+			ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, holding_reg_params.fan_module_pwm2);
+			ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, holding_reg_params.fan_module_pwm3);
 		}
 		if(gSwtich_output_mode == OUT_4_20_MA)
 		{
@@ -562,13 +562,13 @@ static void transducer_output_task(void* arg)
 			//Test[8] = target_temp_ad;
 			//Test[9] = co2Dac;
 			//Test[11]= target_co2_ad;
-			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, tempDac/16);
-			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, humDac/16);
-			ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2, co2Dac/16);
+			ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, tempDac/16);
+			ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, humDac/16);
+			ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, co2Dac/16);
 		}
-		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
-		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_2);
+		ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+		ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
+		ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
 
 		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
@@ -716,10 +716,10 @@ static void fan_led_task(void* arg)
         //Test[1] = holding_reg_params.fan_module_pwm2;
 //        Test[2] = ptr.pout->switch_status;
 //        Test[3] = ptr.pout->switch_status;
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
-		ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, (255-holding_reg_params.fan_module_pwm2));
-		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-		ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, holding_reg_params.fan_module_pwm1);//LEDC_TEST_DUTY);//
+		ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, (255-holding_reg_params.fan_module_pwm2));
+		ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+		ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
 
 		vTaskDelay(50 / portTICK_PERIOD_MS);
 	}
