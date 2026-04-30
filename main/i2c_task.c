@@ -514,26 +514,42 @@ void sensirion_sleep_usec(uint32_t useconds) {
 esp_err_t i2c_master_init()
 {
 //	print_mux = xSemaphoreCreateMutex();
+    static bool i2c_master_initialized = false;
+	if(i2c_master_initialized)
+	{
+		return ESP_OK;
+	}
     int i2c_master_port = I2C_MASTER_NUM;
     static i2c_config_t conf;
     Str_points_ptr ptr;
     conf.mode = I2C_MODE_MASTER;
-    if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER)||((Modbus.mini_type == PROJECT_POWER_METER)))
-    	conf.sda_io_num = 12;//4;//I2C_MASTER_SDA_IO;
-    else  // PROJECT_LIGHT_SWITCH
-    	conf.sda_io_num = 4;
+	if(Modbus.mini_type == MINI_TSTAT11)
+	{
+		conf.sda_io_num = GPIO_NUM_1;
+		conf.scl_io_num = GPIO_NUM_0;
+	}
+	else
+	{
+		if((Modbus.mini_type == PROJECT_FAN_MODULE)||(Modbus.mini_type == PROJECT_TRANSDUCER)||((Modbus.mini_type == PROJECT_POWER_METER)))
+			conf.sda_io_num = 12;//4;//I2C_MASTER_SDA_IO;
+		else  // PROJECT_LIGHT_SWITCH
+			conf.sda_io_num = 4;
+
+		conf.scl_io_num = 14;//I2C_MASTER_SCL_IO;
+	}
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.scl_io_num = 14;//I2C_MASTER_SCL_IO;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
     conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
     i2c_param_config(i2c_master_port, &conf);
-    return i2c_driver_install(i2c_master_port, conf.mode,
+    if(i2c_driver_install(i2c_master_port, conf.mode,
                               I2C_MASTER_RX_BUF_DISABLE,
-                              I2C_MASTER_TX_BUF_DISABLE, 0);
-    memset(&g_sensors, 0, sizeof(g_sensor_t));
-    ptr = put_io_buf(IN,0);
-    memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
-    memcpy(ptr.pin->description,"Temperature",strlen("Temperature"));
+                              I2C_MASTER_TX_BUF_DISABLE, 0) == ESP_OK)
+	{
+		i2c_master_initialized = true;
+		return ESP_OK;
+	}
+	else
+		return ESP_FAIL;
 }
 
 uint8_t hum_sensor_type = 0; // SHT3X exist

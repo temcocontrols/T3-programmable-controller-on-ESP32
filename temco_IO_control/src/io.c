@@ -8,28 +8,28 @@ void Set_Input_Type(uint8_t point)
 		if((Modbus.mini_type == MINI_BIG)  || (Modbus.mini_type == MINI_BIG_ARM)
 		|| (Modbus.mini_type == MINI_SMALL)	|| (Modbus.mini_type == MINI_SMALL_ARM))
 		{
-			InputLed[point] &= 0x0f;		
+			InputLed[point] &= 0x0f;
 			if(input_type[point] >= 1)
-				InputLed[point] |= ((input_type[point] - 1) << 4);			
+				InputLed[point] |= ((input_type[point] - 1) << 4);
 			else
 				InputLed[point] |= (input_type[point] << 4);
-			
+
 		}
-	  
-		if((Modbus.mini_type == MINI_TINY && Modbus.hardRev < STM_TINY_REV)|| Modbus.mini_type == MINI_CM5)  
+
+		if((Modbus.mini_type == MINI_TINY && Modbus.hardRev < STM_TINY_REV)|| Modbus.mini_type == MINI_CM5)
 		{
-#if (ASIX_MINI || ASIX_CM5)	
+#if (ASIX_MINI || ASIX_CM5)
 			if(input_type[point] > 0)
 			{
 				push_cmd_to_picstack(SET_INPUT1_TYPE + point,input_type[point] - 1);  // only for tiny
 			}
 			else
-			{					
+			{
 				push_cmd_to_picstack(SET_INPUT1_TYPE + point,3);  // only for tiny
 			}
 #endif
 		}
-#endif		
+#endif
 }
 
 uint16_t get_input_raw(uint8_t point)
@@ -49,15 +49,15 @@ uint16_t get_output_raw(uint8_t point)
 
 
 uint32_t conver_by_unit_5v(uint32_t sample)
-{	
-	
-	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))	
+{
+
+	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 	{
-		if(Modbus.hardRev >= 22)  // rev22  use input moudle			
+		if(Modbus.hardRev >= 22)  // rev22  use input moudle
 			return  (5000L * sample ) >> 10;
 		else
 			return  (3000L * sample) >> 10;
-	}							
+	}
 	else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
 	{
 		if(Modbus.hardRev >= 4)
@@ -70,63 +70,63 @@ uint32_t conver_by_unit_5v(uint32_t sample)
 		if(Modbus.hardRev >= STM_TINY_REV)
 			return  (5000L * sample ) >> 10;
 		else
-			return (8300L * sample ) >> 10;	// input Ä£¿éÓÐÄÚ×è£¬±ØÐë¼Óµ÷Õû		 
-	}	
+			return (8300L * sample ) >> 10;	// input Ä£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è£¬ï¿½ï¿½ï¿½ï¿½Óµï¿½ï¿½ï¿½
+	}
 	else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM) || (Modbus.mini_type == MINI_TINY_11I)  )
 	{
-		return (5000L * sample ) >> 10;	 
-	}	
+		return (5000L * sample ) >> 10;
+	}
 	else //if(Modbus.mini_type == MINI_CM5) // rev4  use input moudle
 	{
 		return ( 5000L *  sample) >> 10;
-	}			
+	}
 }
 
 uint32_t conver_by_unit_10v(uint32_t sample)
 {
-					
+
 		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 		{
 			if(Modbus.hardRev >= 22)
 				return (10000l * sample) >> 10;
-			else 
+			else
 				return  (9000L * sample) >> 10;
-		}							
+		}
 		else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
 		{
 			if(Modbus.hardRev >= 6)
-				return (10000l * sample) >> 10;	
-			else 
-				return (9000L * sample) >> 10;	
+				return (10000l * sample) >> 10;
+			else
+				return (9000L * sample) >> 10;
 		}
 		else if(Modbus.mini_type == MINI_TINY) // rev6  use input moudle
 		{
 			if(Modbus.hardRev >= STM_TINY_REV)
-				return (10000l * sample) >> 10;	
-			else 
-				return ( 9000L * sample ) >> 10;	
+				return (10000l * sample) >> 10;
+			else
+				return ( 9000L * sample ) >> 10;
 		}
 		else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM)|| (Modbus.mini_type == MINI_TINY_11I) )
 		{
-			return (10000L * sample ) >> 10;	 
-		}	
-		else //if(Modbus.mini_type == MINI_CM5) 
+			return (10000L * sample ) >> 10;
+		}
+		else //if(Modbus.mini_type == MINI_CM5)
 		{
 			return  ( 10000L * sample) >> 10;
 		}
 }
 
 uint32_t conver_by_unit_custable(uint8_t point,uint32_t sample)
-{		
+{
 	if(input_type[point] == INPUT_V0_5)
 	{
-		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))	
+		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 		{
 			if(Modbus.hardRev >= 22)  // rev22  use input moudle
 				return  ( 5000L * sample) >> 10;
 			else
 				return  ( 3000L  * sample ) >> 10;
-		}							
+		}
 		else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
 		{
 			if(Modbus.hardRev >= 4)
@@ -139,49 +139,49 @@ uint32_t conver_by_unit_custable(uint8_t point,uint32_t sample)
 			if(Modbus.hardRev >= STM_TINY_REV)
 				return  ( 5000L * sample  ) >> 10;
 			else
-				return ( 8300L * sample  ) >> 10;	// input Ä£¿éÓÐÄÚ×è£¬±ØÐë¼Óµ÷Õû		 
+				return ( 8300L * sample  ) >> 10;	// input Ä£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½è£¬ï¿½ï¿½ï¿½ï¿½Óµï¿½ï¿½ï¿½
 		}
 		else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM)|| (Modbus.mini_type == MINI_TINY_11I))
 		{
-			return (5000L * sample ) >> 10;	 
-		}	
+			return (5000L * sample ) >> 10;
+		}
 		else //if(Modbus.mini_type == MINI_CM5)
 		{
 			return  ( 5000L * sample ) >> 10;
 		}
-		
+
 	}
 	else if(input_type[point] == INPUT_I0_20ma)
 	{
-		return ( 20000L * sample ) >> 10; 
+		return ( 20000L * sample ) >> 10;
 	}
 	else if(input_type[point] == INPUT_0_10V)
 	{
-		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))	
+		if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 		{
 			if(Modbus.hardRev >= 22)
 				return ( 10000l * sample) >> 10;
-			else 
+			else
 				return  (  9000L * sample) >> 10;
-		}							
+		}
 		else if((Modbus.mini_type == MINI_SMALL) || (Modbus.mini_type == MINI_SMALL_ARM)) // rev4  use input moudle
 		{
 			if(Modbus.hardRev >= 6)
-				return (10000l * sample ) >> 10;	
-			else 
-				return (9000L *   sample) >> 10;	
+				return (10000l * sample ) >> 10;
+			else
+				return (9000L *   sample) >> 10;
 		}
 		else if(Modbus.mini_type == MINI_TINY) // rev6  use input moudle
 		{
 			if(Modbus.hardRev >= STM_TINY_REV)
-				return (10000l * sample  ) >> 10;	
-			else 
-				return (9000L * sample  ) >> 10;	
-		} 
+				return (10000l * sample  ) >> 10;
+			else
+				return (9000L * sample  ) >> 10;
+		}
 		else if((Modbus.mini_type == MINI_NEW_TINY) || (Modbus.mini_type == MINI_TINY_ARM) || (Modbus.mini_type == MINI_TINY_11I))
 		{
-			return (10000L * sample ) >> 10;	 
-		}	
+			return (10000L * sample ) >> 10;
+		}
 		else //if(Modbus.mini_type == MINI_CM5)
 		{
 			return  (10000L * sample) >> 10;
@@ -192,21 +192,21 @@ uint32_t conver_by_unit_custable(uint8_t point,uint32_t sample)
 	{
 		return ( 3000L  * sample ) >> 10;//get_input_value_by_range( inputs[point].range, sample );
 	}
-		
+
 }
 
 uint8_t get_max_input(void)
-{	
+{
 	return base_in;
 }
 
 uint8_t get_max_output(void)
-{	
+{
 	return base_out;
 }
 
 uint8_t get_max_internal_input(void)
-{	
+{
 	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 	{
 		return BIG_MAX_AIS;
@@ -235,7 +235,7 @@ uint8_t get_max_internal_input(void)
 	{
 	  return TINY_11I_MAX_AIS;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 	  return TSTAT10_MAX_AIS;
 	}
@@ -247,7 +247,7 @@ uint8_t get_max_internal_input(void)
 }
 
 uint8_t get_max_internal_output(void)
-{	
+{
 	if((Modbus.mini_type == MINI_BIG) || (Modbus.mini_type == MINI_BIG_ARM))
 	{
 		return BIG_MAX_AOS + BIG_MAX_DOS;
@@ -276,7 +276,7 @@ uint8_t get_max_internal_output(void)
 	{
 	  return TINY_11I_MAX_AOS + TINY_11I_MAX_DOS;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 		return TSTAT10_MAX_AOS + TSTAT10_MAX_DOS;
 	}
@@ -344,7 +344,7 @@ void Store_Pulse_Counter(uint8 flag)
 {
 	static u32 old_pulse[HI_COMMON_CHANNEL];
 	char i;
-	if((run_time % 3600 == 0) || (flag == 1))  // Ã¿Ð¡Ê±¼ì²éÒ»´ÎÊÇ·ñÐèÒª±£´æpulse counter
+	if((run_time % 3600 == 0) || (flag == 1))  // Ã¿Ð¡Ê±ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½pulse counter
 	{
 		for(i = 0;i < HI_COMMON_CHANNEL;i++)
 		{
@@ -354,56 +354,56 @@ void Store_Pulse_Counter(uint8 flag)
 				if(old_pulse[i] != (high_spd_counter[i] + high_spd_counter_tempbuf[i]))
 				{
 					old_pulse[i] = (high_spd_counter[i] + high_spd_counter_tempbuf[i]);
-					write_page_en[1] = 1; // ±£´æinput
+					write_page_en[1] = 1; // ï¿½ï¿½ï¿½ï¿½input
 					ChangeFlash = 2;
 				}
-					
+
 			}
 		}
 	}
 }
-// 10s µ÷ÓÃÒ»´Î
+// 10s ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
 void calculate_RPM(void)
 {
 	static u32 old_count[HI_COMMON_CHANNEL];
 	static u32 runtime[HI_COMMON_CHANNEL];
-	static u16 count[HI_COMMON_CHANNEL]; 
-	// ³ÖÐøÊäÈë¼ÆÊý1·ÖÖÓÖØÐÂÇåµôrpmµÄÊ±¼äºÍcount
+	static u16 count[HI_COMMON_CHANNEL];
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½rpmï¿½ï¿½Ê±ï¿½ï¿½ï¿½count
 	char i;
 	char channel;
-	
+
 	for(i = 0;i < HI_COMMON_CHANNEL;i++)
-	{			
+	{
 //		if((inputs[i].range == HI_spd_count) || (inputs[i].range == N0_2_32counts)
 //			|| (inputs[i].range == RPM))
 		if(inputs[i].range == RPM)
 		{
 			if(old_count[i] <= high_spd_counter_tempbuf[i])
-			{	
-				Input_RPM[i] = (high_spd_counter_tempbuf[i] - old_count[i]) * 60L / (run_time - runtime[i]);	
-				
-				if(count[i]++ >= 5)  // 1·ÖÖÓÖØÐÂ¼ÆËã
+			{
+				Input_RPM[i] = (high_spd_counter_tempbuf[i] - old_count[i]) * 60L / (run_time - runtime[i]);
+
+				if(count[i]++ >= 5)  // 1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½
 				{
-					runtime[i] = run_time;	
+					runtime[i] = run_time;
 					old_count[i] = high_spd_counter_tempbuf[i];
 					count[i] = 0;
-				}	
-			}		
+				}
+			}
 			else
 			{
 				count[i] = 0;
-				runtime[i] = run_time;	
+				runtime[i] = run_time;
 				old_count[i] = high_spd_counter_tempbuf[i];
 			}
-		}		
-	}		
+		}
+	}
 }
 
 
 
 
 uint32_t get_rpm(uint8_t point)
-{	
+{
 		return Input_RPM[point] * 1000;
 }
 
@@ -414,22 +414,22 @@ void Check_spd_count_led(void)
 	char i;
 	static u32 old_count2[HI_COMMON_CHANNEL];
 	for(i = 0;i < HI_COMMON_CHANNEL;i++)
-	{		
-		if((inputs[i].range == HI_spd_count) 
-			|| (inputs[i].range == N0_2_32counts) 
+	{
+		if((inputs[i].range == HI_spd_count)
+			|| (inputs[i].range == N0_2_32counts)
 			|| (inputs[i].range == RPM))
 		{
 			if(old_count2[i] < high_spd_counter_tempbuf[i])
-			{	
+			{
 				flag_count_in[i] = 1;
 				old_count2[i] = high_spd_counter_tempbuf[i];
-			}		
+			}
 			else
-			{	
+			{
 				flag_count_in[i] = 0;
-			}	
+			}
 		}
-	}	
+	}
 }
 #endif
 // old io.lib run it
@@ -449,10 +449,10 @@ S8_T check_external_in_on_line(U8_T index)
 			break;
 		}
 	}
-	
+
 	if(i == sub_no)
 		return -1;
-	else 
+	else
 	{
 		return (current_online[scan_db[i].id / 8] & (1 << (scan_db[i].id % 8))) ? 1 : 0;
 	}
@@ -477,10 +477,10 @@ S8_T check_external_out_on_line(U8_T index)
 			break;
 		}
 	}
-	
+
 	if(i == sub_no)
 		return -1;
-	else 
+	else
 	{
 		return (current_online[scan_db[i].id / 8] & (1 << (scan_db[i].id % 8))) ? 1 : 0;
 	}

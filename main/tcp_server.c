@@ -1964,7 +1964,7 @@ void Inital_Bacnet_Server(void)
 		BOS = 4;
 		TemcoVars = 3;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 		AIS = MAX_INS + 1;
 		AOS = MAX_AOS + 1;
@@ -2634,7 +2634,7 @@ void Timer_task(void *pvParameters)
 	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
 			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
 	{
-
+		i2c_master_init();
 		PCF_hctosys();
 		PCF_systohc();
 	}
@@ -2919,7 +2919,7 @@ void Update_Led(void)
 		max_out = 7;
 		max_digout = 7;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 		max_in = 8;
 		max_out = 7;
@@ -3381,8 +3381,10 @@ void i2c_master_task(void *pvParameters)
 			LED_i2c_write(0x74,led_buf,4);
 			vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_RMC1216
-				|| Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
+		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == MINI_BIG_ARM ||
+				Modbus.mini_type == PROJECT_RMC1216	|| Modbus.mini_type == MINI_TSTAT10 ||
+				Modbus.mini_type == MINI_TSTAT11    || Modbus.mini_type == PROJECT_NG2_NEW ||
+				Modbus.mini_type == PROJECT_CO2)
 		{
 			// send
 			// led
@@ -4368,7 +4370,7 @@ void Bacnet_Control(void *pvParameters)
 	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
 		max_dos = 7; max_aos = 0;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
 		max_dos = 5; max_aos = 2;
 	}
@@ -4590,15 +4592,16 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
+	Modbus.mini_type = MINI_TSTAT11;
+
 	uart_init(0);
 
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-	Modbus.mini_type = MINI_TSTAT10;
 #endif
 
-	if(Modbus.mini_type == MINI_TSTAT10)
+	if(Modbus.mini_type == MINI_TSTAT11)
 	{
 		LCD_Init();
 		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
@@ -4608,9 +4611,6 @@ void app_main()
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
-
-  	if (Modbus.mini_type == MINI_BIG_ARM)
-    	uart_init(2);
 
 	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
 	{
@@ -4653,7 +4653,7 @@ void app_main()
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
     {
-    	// xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
+    	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
     }
 
     // Check if modbus.mini_type is PROJECT_MULTIMETER
@@ -4661,7 +4661,7 @@ void app_main()
         // Create multiMeterTask with low priority
         xTaskCreate(multiMeterTask, "MultiMeterTask", 2048*2, NULL, tskIDLE_PRIORITY+5, NULL);
     }
-    //if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
+    // if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
     //    xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[6]);
 
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
@@ -4701,9 +4701,8 @@ void app_main()
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
 #endif
 
- #if 0
+ #if 1
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
-
 #endif
 
 

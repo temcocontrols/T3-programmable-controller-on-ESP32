@@ -51,6 +51,7 @@ extern SemaphoreHandle_t xSem_comport[3];
 
 #define MB_BUF_SIZE (512)
 
+#define GPIO_MODBUS_EN_PIN	GPIO_NUM_15
 #define GPIO_SUB_EN_PIN		GPIO_NUM_13
 #define GPIO_MAIN_EN_PIN 	GPIO_NUM_2
 
@@ -445,8 +446,13 @@ void uart_init(uint8_t uart)
 	if(uart == 0) // sub port
 	{
 		uart_param_config(uart_num_sub, &uart_config);
-		uart_set_pin(uart_num_sub, GPIO_NUM_1, GPIO_NUM_3, GPIO_SUB_EN_PIN, UART_PIN_NO_CHANGE);
+		if(Modbus.mini_type == MINI_TSTAT11)
+			uart_set_pin(uart_num_sub, GPIO_NUM_43, GPIO_NUM_44, GPIO_MODBUS_EN_PIN, UART_PIN_NO_CHANGE);
+		else
+			uart_set_pin(uart_num_sub, GPIO_NUM_1, GPIO_NUM_3, GPIO_SUB_EN_PIN, UART_PIN_NO_CHANGE);
+
 		uart_driver_install(uart_num_sub, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+
 		uart_set_mode(uart_num_sub, UART_MODE_RS485_HALF_DUPLEX);
 	}
 	else if(uart == 2)//  (uart == 1) main port
