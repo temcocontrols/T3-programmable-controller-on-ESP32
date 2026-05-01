@@ -31,7 +31,8 @@ EventGroupHandle_t s_wifi_event_group;
 extern EventGroupHandle_t network_EventHandle;
 //STR_SCAN_CMD Scan_Infor;
 STR_SSID	SSID_Info;
-bool re_init_wifi = false;
+bool ReconnectWithWifi = true;
+bool WifiScanComplete = false;
 extern unsigned short int Test[50];
 static int s_retry_num = 0;
 TaskHandle_t Wifi_Task_handle[7];
@@ -92,17 +93,25 @@ static void wifi_event_handler(
             ESP_LOGI(TAG, "Connecting to AP...");
             //debug_info("event_handler_2 esp_wifi_connect()");
             esp_wifi_connect();
+            ReconnectWithWifi = true;
             SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
             if(SSID_Info.IP_Auto_Manual == 1)
                 SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
+            break;
+
+        case WIFI_EVENT_SCAN_DONE:
+            WifiScanComplete = true;
             break;
 
         case WIFI_EVENT_STA_DISCONNECTED:
 
             //wifi_task_running = 0;
             SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
-            //debug_info("Wifi disconnected, try to connect ...");
-
+            if(ReconnectWithWifi == false)
+            {
+                break;
+            }
+            debug_info("Wifi disconnected, try to connect ...");
             if(0)
             {// wifi
                 for(int i=0 ;i<7;i++)
@@ -284,40 +293,44 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
 
 
 #if 1
+
+static bool wifi_initialized = false;
+static esp_netif_t *wifi_netif = NULL;
+
 void wifi_init_sta(void)
 {
     esp_err_t ret;
 
-    s_wifi_event_group = xEventGroupCreate();
-    CountHandle = xSemaphoreCreateCounting(7,7);
-#if 0
-    /* -------- NETIF INIT (Continue if already done) -------- */
-    ret = esp_netif_init();
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-        debug_info("esp_netif_init failed");
-    }
-#endif
-    /* -------- EVENT LOOP INIT (Continue if already created) -------- */
-    ret = esp_event_loop_create_default();
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-        debug_info("event loop create failed");
+    if (!wifi_initialized)
+    {
+        s_wifi_event_group = xEventGroupCreate();
+        CountHandle = xSemaphoreCreateCounting(7,7);
+
+        ret = esp_netif_init();
+        if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+            debug_info("esp_netif_init failed");
+        }
+
+        ret = esp_event_loop_create_default();
+        if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+            debug_info("event loop create failed");
+        }
+
+        wifi_netif = esp_netif_create_default_wifi_sta();
+        if (!wifi_netif) {
+            debug_info("wifi netif create failed");
+            return;
+        }
+
+        esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL);
+        esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL);
+
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
     }
 
-    esp_netif_t *netif = esp_netif_create_default_wifi_sta();
-    if (!netif) {
-        debug_info("wifi netif create failed");
-        return;
-    }
-
-    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL);
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ret = esp_wifi_init(&cfg);
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-        debug_info("esp_wifi_init failed");
-        return;
-    }
+    esp_wifi_stop();
 
     if(SSID_Info.MANUEL_EN != 1)
     {
@@ -328,7 +341,7 @@ void wifi_init_sta(void)
     /* -------- STATIC IP -------- */
     if(SSID_Info.IP_Auto_Manual == 1)
     {
-        esp_netif_dhcpc_stop(netif);
+        esp_netif_dhcpc_stop(wifi_netif);
 
         esp_netif_ip_info_t info_t = {0};
 
@@ -350,7 +363,7 @@ void wifi_init_sta(void)
             SSID_Info.getway[2],
             SSID_Info.getway[3]);
 
-        esp_netif_set_ip_info(netif, &info_t);
+        esp_netif_set_ip_info(wifi_netif, &info_t);
 
         if(info_t.gw.addr != 0)
         {
@@ -362,14 +375,18 @@ void wifi_init_sta(void)
                 SSID_Info.getway[2],
                 SSID_Info.getway[3]);
 
-            esp_netif_set_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns_info);
+            esp_netif_set_dns_info(wifi_netif, ESP_NETIF_DNS_MAIN, &dns_info);
 
             IP_ADDR4(&dns_info.ip, 8,8,8,8);
-            esp_netif_set_dns_info(netif, ESP_NETIF_DNS_BACKUP, &dns_info);
+            esp_netif_set_dns_info(wifi_netif, ESP_NETIF_DNS_BACKUP, &dns_info);
 
             IP_ADDR4(&dns_info.ip, 8,8,4,4);
-            esp_netif_set_dns_info(netif, ESP_NETIF_DNS_FALLBACK, &dns_info);
+            esp_netif_set_dns_info(wifi_netif, ESP_NETIF_DNS_FALLBACK, &dns_info);
         }
+    }
+    else
+    {
+        esp_netif_dhcpc_start(wifi_netif);
     }
 
     wifi_config_t wifi_config = {0};
@@ -391,20 +408,24 @@ void wifi_init_sta(void)
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     esp_wifi_start();
 
-    /* -------- WAIT WITH TIMEOUT (No infinite block) -------- */
-    EventBits_t bits = xEventGroupWaitBits(
-        s_wifi_event_group,
-        WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-        pdFALSE,
-        pdFALSE,
-        pdMS_TO_TICKS(15000));
+    if (!wifi_initialized)
+    {
+        wifi_initialized = true;
+        /* -------- WAIT WITH TIMEOUT (No infinite block) -------- */
+        EventBits_t bits = xEventGroupWaitBits(
+            s_wifi_event_group,
+            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+            pdFALSE,
+            pdFALSE,
+            pdMS_TO_TICKS(15000));
 
-    if (bits & WIFI_CONNECTED_BIT) {
-        debug_info("wifi connected");
-    } else if (bits & WIFI_FAIL_BIT) {
-        debug_info("wifi failed");
-    } else {
-        debug_info("wifi timeout");
+        if (bits & WIFI_CONNECTED_BIT) {
+            debug_info("wifi connected");
+        } else if (bits & WIFI_FAIL_BIT) {
+            debug_info("wifi failed");
+        } else {
+            debug_info("wifi timeout");
+        }
     }
 }
 #endif
@@ -481,47 +502,24 @@ void disable_wifi() {
 void wifi_task(void *pvParameters)
 {
 	uint8_t temp_rssi = 0;
-	//read_default_from_flash();
-	//modbus_init();
-	//debug_info("Finish flash init........");
-	//ESP_ERROR_CHECK(ret);
 
-	//if(SSID_Info.MANUEL_EN != 0){Test[18] = 600;
-		wifi_init_sta();
-	//}
-
-
+    wifi_init_sta();
 
     ESP_LOGI(TAG, "Finish wifi init1");
     task_test.enable[1] = 1;
 	while(1)
-	{task_test.count[1]++;
-		//if(re_init_wifi)
-		//	wifi_init_sta();
-		//esp_random();
-		/*esp_fill_random(&temp_rssi,1);
-		temp_rssi /= 15;
-		SSID_Info.rssi = temp_rssi - 95;*/
-	get_wifi_signal_strength();
-	    //Initialize the system event handler
-		/*
-	    ESP_ERROR_CHECK(esp_event_loop_init(scan_event_handler, NULL));
-	    wifi_scan_config_t scanConf = {
-			.ssid = NULL,
-			.bssid = NULL,
-			.channel = 0,
-			.show_hidden = 1
-			};
-		ESP_ERROR_CHECK(esp_wifi_scan_start(&scanConf, 0));*/
+	{
+        task_test.count[1]++;
+	    get_wifi_signal_strength();
 		vTaskDelay(3000 / portTICK_PERIOD_MS);
 	}
 }
 
 void connect_wifi(void)
 {
-	debug_info("Finish flash init........");
+	debug_info("Start Wifi init........");
 	wifi_init_sta();
-	debug_info("Finish wifi init%%%%%%%%%%");
+	debug_info("Finish wifi init........");
 }
 
 // 比较两个 4 字节数组是否相等

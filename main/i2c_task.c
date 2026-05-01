@@ -598,6 +598,7 @@ void VOC_Initial(void) 	// SGP30
 		temp++;
 		if(temp > 20)
 		{
+			ESP_LOGE(TAG, "SGP30 sensor not found after 20 attempts...check connection and power...");
 			voc_ok = 0;
 			break;
 		}
@@ -608,6 +609,7 @@ void VOC_Initial(void) 	// SGP30
 	{
 		uint16_t feature_set_version;
 		uint8_t product_type;
+		ESP_LOGI(TAG, "SGP30 sensor found and initialized successfully.");
 		ret = sgp30_get_feature_set_version(&feature_set_version, &product_type);
 
 		uint64_t serial_id;
@@ -667,13 +669,15 @@ void i2c_sensor_task(void *arg)
     int32_t sht4x_temp, sht4x_hum;
 
     I2C_sensor_Init();
-    SCD40_Reset();
+	if(Modbus.mini_type != MINI_TSTAT11)
+    	SCD40_Reset();
     g_sensors.co2_start_measure = false;
 //    uint8_t sensor_data_h, sensor_data_l;
     int cnt = 0;
     g_sensors.co2_ready = false;
 
-   if( Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_SENSOR)
+	ESP_LOGI(TAG, "i2c sensor task started...");
+   	if( Modbus.mini_type == PROJECT_AIRLAB || Modbus.mini_type == PROJECT_LSW_SENSOR || Modbus.mini_type == MINI_TSTAT11)
     {
     	//voc_value_raw = 0;
     	VOC_Initial();
@@ -968,7 +972,7 @@ void i2c_sensor_task(void *arg)
 
 
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        if(Modbus.mini_type == PROJECT_TRANSDUCER || Modbus.mini_type == PROJECT_LSW_SENSOR)
+        if(Modbus.mini_type == PROJECT_TRANSDUCER || Modbus.mini_type == PROJECT_LSW_SENSOR || Modbus.mini_type == MINI_TSTAT11)
         {
         	int32_t temp_tmp;
         	int32_t temp_hum;
@@ -980,16 +984,19 @@ void i2c_sensor_task(void *arg)
 			ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
 			if(ret != ESP_OK)
 			{
+				// ESP_LOGE(TAG, "SCD4X read failed");
 				Test[20]++;
 			}
 			else
 			{
+				// ESP_LOGI(TAG, "SCD4X read co2: %d, temp: %d, hum: %d", temp_co2, temp_tmp, temp_hum);
 				if(temp_co2 < 100 || temp_co2 > 3000)
 				{
 
 				}
 				else
-				{Test[28]++;
+				{
+					Test[28]++;
 					g_sensors.co2 = temp_co2;
 					g_sensors.co2_temp = temp_tmp;
 					g_sensors.co2_humi = temp_hum;
@@ -1011,9 +1018,12 @@ void i2c_sensor_task(void *arg)
 			if(ret != ESP_OK)
 			{
 				Test[21]++;
+				// ESP_LOGE(TAG, "SHT4X read failed");
 			}
 			else
-			{	Test[22]++;
+			{
+				// ESP_LOGI(TAG, "SHT4X read temp: %d, hum: %d", sht4x_temp, sht4x_hum);
+				Test[22]++;
 				hum_sensor_type = 2;
 				g_sensors.temperature = (sht4x_temp)/100;
 				g_sensors.humidity = (sht4x_hum)/100;
@@ -1109,7 +1119,8 @@ void i2c_sensor_task(void *arg)
 				vTaskDelay(100 / portTICK_PERIOD_MS);
 				if( sgp30_read_tvoc(&g_sensors.tvoc_ppb) == STATUS_OK)
 				{
-				  if(voc_cnt<4)
+					// ESP_LOGI(TAG, "SGP30 tVOC: %d ppb", g_sensors.tvoc_ppb);
+				 	if(voc_cnt<4)
 						voc_buf[voc_cnt++] = g_sensors.tvoc_ppb;
 					else if(voc_cnt == 4)
 					{

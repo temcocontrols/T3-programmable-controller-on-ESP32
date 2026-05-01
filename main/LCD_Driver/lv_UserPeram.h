@@ -20,7 +20,7 @@
 #include "TemcoScreen/ui_HomeScreen.h"
 #include "TemcoScreen/ui_MainMenu.h"
 
-#define UI_DATA_UPDATE_INTERVAL_MS              500
+#define UI_DATA_UPDATE_INTERVAL_MS              100
 
 #define UI_OBJ_READY(obj)   ((obj) != NULL && lv_obj_is_valid(obj))
 

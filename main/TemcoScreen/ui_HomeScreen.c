@@ -417,8 +417,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_align(ui_TextArea4, LV_ALIGN_CENTER);
     lv_textarea_set_accepted_chars(ui_TextArea4, "0123456789%");
     lv_textarea_set_max_length(ui_TextArea4, 3);
-    lv_textarea_set_text(ui_TextArea4, "50%");
-    lv_textarea_set_placeholder_text(ui_TextArea4, "50%");
+    lv_textarea_set_placeholder_text(ui_TextArea4, "00%");
     lv_textarea_set_one_line(ui_TextArea4, true);
     lv_obj_remove_flag(ui_TextArea4, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC |
                        LV_OBJ_FLAG_SCROLL_MOMENTUM | LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags

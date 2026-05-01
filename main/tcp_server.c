@@ -4665,9 +4665,10 @@ void app_main()
     //    xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[6]);
 
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
-    		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LSW_SENSOR))
+    		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LSW_SENSOR) || (Modbus.mini_type == MINI_TSTAT11))
+	{
        xTaskCreate(i2c_sensor_task,"i2c_task", 2048*2, NULL, 5, NULL);
-
+	}
 
     if(Modbus.mini_type == PROJECT_AIRLAB)
     {
@@ -4767,7 +4768,7 @@ U8_T Get_Mini_Type(void)
 
 void I2C_sensor_Init(void)
 {
-	// i2c_master_init();
+	i2c_master_init();
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 	{
 		holding_reg_params.fan_module_pwm2 = 0;

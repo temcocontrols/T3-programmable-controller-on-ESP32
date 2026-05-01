@@ -25,6 +25,10 @@
 #include "modbus.h"
 #include "user_data.h"
 #include "sntp_app.h"
+#include "esp_log.h"
+#include "flash.h"
+
+#define TAG "lv_User"
 
 /* wifi scan state machine states */
 typedef enum {
@@ -240,6 +244,7 @@ void lv_Lcd_UpdateData(void)
         if(current_Screen != prv_Screen)
         {
             isScreenChanged = true;
+            ESP_LOGI(TAG, "Screen changed: %p -> %p", prv_Screen, current_Screen);
             prv_Screen = current_Screen;
         }
         else
@@ -443,13 +448,19 @@ static void WifiScanStateMachine_Run(void)
                 wifi_scan_state = WIFI_SCAN_IDLE;
                 break;
             }
-
+            if(SSID_Info.IP_Wifi_Status != WIFI_NORMAL)
+            {
+                esp_wifi_disconnect();
+            }
+            ReconnectWithWifi = false; // Stop auto-reconnect attempts while scanning
             wifi_scan_state = WIFI_SCAN_START;
             break;
 
         // Start non-blocking scan
         case WIFI_SCAN_START:
 
+            ESP_LOGI(TAG, "Starting WiFi scan...");
+            WifiScanComplete = false;
             lv_dropdown_set_options(ui_Dropdown2, "Scanning...");
             esp_wifi_scan_start(NULL, false);  // non-blocking
             wifi_scan_state = WIFI_SCAN_WAIT;
@@ -458,9 +469,9 @@ static void WifiScanStateMachine_Run(void)
         // Wait until scan completes (polling)
         case WIFI_SCAN_WAIT:
 
-            if(esp_wifi_scan_get_ap_num(&number) == ESP_OK)
+            if(WifiScanComplete)
             {
-                // When scan is done, AP count becomes available
+                // When scan is done
                 wifi_scan_state = WIFI_SCAN_READ;
             }
 
@@ -470,6 +481,7 @@ static void WifiScanStateMachine_Run(void)
         case WIFI_SCAN_READ:
         {
             number = 0;
+            ESP_LOGI(TAG, "Reading WiFi scan results...");
             esp_wifi_scan_get_ap_num(&number);
 
             if(number == 0)
@@ -489,27 +501,30 @@ static void WifiScanStateMachine_Run(void)
 
             for(int i = 0; i < number; i++)
             {
-                size_t used;
-                int written;
+                size_t used = strlen(list);
 
-                if(strlen((char*)ap_info[i].ssid) == 0)
+                if(strnlen((char*)ap_info[i].ssid, sizeof(ap_info[i].ssid)) == 0)
                 {
                     continue;
                 }
 
-                used = strlen(list);
+                char ssid_str[33];  // +1 for null
+                memcpy(ssid_str, ap_info[i].ssid, ssid_len);
+                ssid_str[ssid_len] = '\0';
+
                 if(used >= (sizeof(list) - 1U))
                 {
                     break;
                 }
 
-                written = snprintf(&list[used], sizeof(list) - used, "%s\n", (char*)ap_info[i].ssid);
+                int written = snprintf(&list[used], sizeof(list) - used, "%s\n", ssid_str);
                 if((written < 0) || ((size_t)written >= (sizeof(list) - used)))
                 {
                     break;
                 }
             }
-
+            ESP_LOGI(TAG, "WiFi scan completed with %d APs found", number);
+            ESP_LOGI(TAG, "WiFi AP List:\n%s", list);
             lv_dropdown_set_options(ui_Dropdown2, list);
             lv_dropdown_set_selected(ui_Dropdown2, 0);
 
@@ -1809,15 +1824,27 @@ void Event_Cb_SetSetpointValue(lv_event_t * e)
  */
 void Event_Cb_WifiEn(lv_event_t * e)
 {
+    bool isDataPointUpdated = false;
+    ESP_LOGI(TAG, "WiFi Enable Switch toggled");
     if(SSID_Info.MANUEL_EN == 1 && !lv_obj_has_state(ui_WifiEnSw, LV_STATE_CHECKED))
     {
         // Disable manual WiFi config
+        isDataPointUpdated = true;
+        ESP_LOGI(TAG, "WiFi manual configuration disabled");
         SSID_Info.MANUEL_EN = 0;
     }
     else if(SSID_Info.MANUEL_EN == 0 && lv_obj_has_state(ui_WifiEnSw, LV_STATE_CHECKED))
     {
         // Enable manual WiFi config
+        ESP_LOGI(TAG, "WiFi manual configuration enabled");
+        isDataPointUpdated = true;
         SSID_Info.MANUEL_EN = 1;
+    }
+    if(isDataPointUpdated)
+    {
+        wifi_scan_state = WIFI_SCAN_CHECK_MODE;
+        save_block(FLASH_BLOCK1_SSID);
+        connect_wifi();
     }
 }
 
@@ -1957,7 +1984,7 @@ void Event_Cb_UpdateWifiConfig(lv_event_t * e)
         strncpy(SSID_Info.password, password, sizeof(SSID_Info.password) - 1U);
         SSID_Info.password[sizeof(SSID_Info.password) - 1U] = '\0';
     }
-    // TODO: update wifi configuration in the system and attempt to connect to the selected network using the provided credentials
+    connect_wifi();
 }
 
 /**

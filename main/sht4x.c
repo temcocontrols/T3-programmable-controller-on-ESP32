@@ -69,8 +69,8 @@ int16_t sht4x_measure_blocking_read(int32_t* temperature, int32_t* humidity) {
     int16_t ret;
 
     ret = sht4x_measure();
-//    if (ret!=0)
-//        return ret;
+   if (ret!=0)
+       return ret;
     sensirion_sleep_usec(sht4x_cmd_measure_delay_us);
     ret = sht4x_read(temperature, humidity);
 		return ret;
