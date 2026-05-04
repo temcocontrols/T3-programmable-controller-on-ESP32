@@ -141,6 +141,11 @@ void UpdateProtocolFunc(lv_event_t * e)
 	Event_Cb_UpdateProtocolFunc(e);
 }
 
+void ChangeTimePopUp(lv_event_t * e)
+{
+	Event_Cb_ChangeTimePopUp(e);
+}
+
 void RefreshTimeFunc(lv_event_t * e)
 {
 	Event_Cb_RefreshTimeFunc(e);

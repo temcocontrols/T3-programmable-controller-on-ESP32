@@ -502,8 +502,14 @@ static void WifiScanStateMachine_Run(void)
             for(int i = 0; i < number; i++)
             {
                 size_t used = strlen(list);
+                size_t ssid_len = strnlen((char*)ap_info[i].ssid, sizeof(ap_info[i].ssid));
 
-                if(strnlen((char*)ap_info[i].ssid, sizeof(ap_info[i].ssid)) == 0)
+                ESP_LOGI(TAG, "AP[%d]: SSID='%s' RSSI=%d",
+                    i, ap_info[i].ssid, ap_info[i].rssi);
+                ESP_LOGI(TAG, "List buffer used: %zu bytes, remaining: %zu bytes", used, sizeof(list) - used);
+                ESP_LOGI(TAG, "SSID length: %zu", ssid_len);
+
+                if(ssid_len == 0)
                 {
                     continue;
                 }
@@ -1234,6 +1240,7 @@ static void lv_refresh_NetworkSetup_Data(void)
             lv_obj_clear_flag(ui_GatewayPanel, LV_OBJ_FLAG_CLICKABLE);
             lv_obj_clear_flag(ui_SubnetPanel, LV_OBJ_FLAG_CLICKABLE);
             lv_obj_clear_flag(ui_IpPanel1, LV_OBJ_FLAG_CLICKABLE);
+            set_ip_fields_editable(false);
         }
         else
         {
@@ -1241,6 +1248,7 @@ static void lv_refresh_NetworkSetup_Data(void)
             lv_obj_add_flag(ui_GatewayPanel, LV_OBJ_FLAG_CLICKABLE);
             lv_obj_add_flag(ui_SubnetPanel, LV_OBJ_FLAG_CLICKABLE);
             lv_obj_add_flag(ui_IpPanel1, LV_OBJ_FLAG_CLICKABLE);
+            set_ip_fields_editable(true);
         }
         // --- Update IP Address UI ---
         ui_update_textarea_from_int(ui_IPoct1, Modbus.ip_addr[0]);
@@ -1586,10 +1594,12 @@ static void lv_refresh_Time_Data(void)
         if (Setting_Info.reg.en_time_sync_with_pc == 0) // Time server
         {
             lv_obj_add_state(ui_SyncLocalPcCheckbox2, LV_STATE_CHECKED);
+            set_sync_pc_fields_editable(false);
         }
         else                                            // Sync with pc
         {
             lv_obj_add_state(ui_SyncLocalPcCheckbox, LV_STATE_CHECKED);
+            set_sync_pc_fields_editable(true);
         }
 
         char buf[32];
@@ -1598,7 +1608,7 @@ static void lv_refresh_Time_Data(void)
         sprintf(buf, "%02d-%02d-%04d",
                 rtc_date.day,
                 rtc_date.month,
-                (rtc_date.year-2000));
+                (rtc_date.year));
 
         lv_label_set_text(ui_Label70, buf);
 
@@ -1618,11 +1628,11 @@ static void lv_refresh_Time_Data(void)
         sprintf(buf, "%02d-%02d-%04d",
                 RtcData.Clk.day,
                 RtcData.Clk.mon,
-                (RtcData.Clk.year-2000));
+                (RtcData.Clk.year));
         lv_label_set_text(ui_Label19, buf);
 
-        lv_calendar_set_today_date(ui_Calendar3, RtcData.Clk.year-2000, RtcData.Clk.mon,  RtcData.Clk.day);
-        lv_calendar_set_showed_date(ui_Calendar3, RtcData.Clk.year-2000, RtcData.Clk.mon);
+        lv_calendar_set_today_date(ui_Calendar3, RtcData.Clk.year, RtcData.Clk.mon,  RtcData.Clk.day);
+        lv_calendar_set_showed_date(ui_Calendar3, RtcData.Clk.year, RtcData.Clk.mon);
 
         for(int i = 0; i < sizeof(tz_offset_table)/sizeof(int16_t); i++)
         {
@@ -1975,7 +1985,7 @@ void Event_Cb_SysModeCoolFunc(lv_event_t * e)
 void Event_Cb_UpdateWifiConfig(lv_event_t * e)
 {
     const char * password = lv_textarea_get_text(ui_PasswordText);
-
+    ReconnectWithWifi = true;
     memset(&SSID_Info.name,0x00,sizeof(SSID_Info.name));
     lv_dropdown_get_selected_str(ui_Dropdown2, SSID_Info.name, sizeof(SSID_Info.name));
     memset(&SSID_Info.password,0x00,sizeof(SSID_Info.password));
@@ -1984,6 +1994,7 @@ void Event_Cb_UpdateWifiConfig(lv_event_t * e)
         strncpy(SSID_Info.password, password, sizeof(SSID_Info.password) - 1U);
         SSID_Info.password[sizeof(SSID_Info.password) - 1U] = '\0';
     }
+    save_wifi_info();
     connect_wifi();
 }
 
@@ -2228,6 +2239,8 @@ void Event_Cb_SysTimeUpdateCallback(lv_event_t * e)
     char buf[32] = {0};
 
     sprintf(buf, "%02d : %02d" ,hour_index , min_index);
+    rtc_date.hour = hour_index;
+    rtc_date.minute = min_index;
     lv_label_set_text(ui_Label68, buf);
 
     isTimeUpdated = true;
@@ -2243,7 +2256,9 @@ void Event_Cb_SysTimeUpdateCallback(lv_event_t * e)
  */
 void Event_Cb_CalenderValueChangeCallback(lv_event_t * e)
 {
-    lv_obj_t * obj = lv_event_get_target(e);
+    lv_obj_t * obj = lv_event_get_current_target(e);
+
+    if(obj == NULL) return;
 
     if(lv_calendar_get_pressed_date(obj, &selected_date) == LV_RES_OK)
     {
@@ -2272,36 +2287,44 @@ void Event_Cb_NetworkConfigUpdateFunc(lv_event_t * e)
 {
             // ui_Checkbox2 is for Static IP = 1
             // ui_Checkbox3 is for Auto DHCP = 0
-    if(lv_obj_has_state(ui_Checkbox2, LV_STATE_CHECKED))
+    static bool isDataUpdated = false;
+    if(lv_obj_has_state(ui_Checkbox2, LV_STATE_CHECKED) && SSID_Info.IP_Auto_Manual == 0)
     {
         // Select Static IP
         SSID_Info.IP_Auto_Manual = 1;
+        isDataUpdated = true;
     }
-    else if(lv_obj_has_state(ui_Checkbox3, LV_STATE_CHECKED))
+    else if(lv_obj_has_state(ui_Checkbox3, LV_STATE_CHECKED) && SSID_Info.IP_Auto_Manual == 1)
     {
         // Select Auto DHCP
         SSID_Info.IP_Auto_Manual = 0;
+        isDataUpdated = true;
     }
 
-    if(SSID_Info.IP_Auto_Manual)
+    if(SSID_Info.IP_Auto_Manual && isDataUpdated)
     {
             // --- Update IP Address ---
-        Modbus.ip_addr[0] = ui_get_int_from_textarea( ui_IPoct1 );
-        Modbus.ip_addr[1] = ui_get_int_from_textarea( ui_IPoct2 );
-        Modbus.ip_addr[2] = ui_get_int_from_textarea( ui_IPoct3 );
-        Modbus.ip_addr[3] = ui_get_int_from_textarea( ui_IPoct4 );
+        SSID_Info.ip_addr[0] = Modbus.ip_addr[0] = ui_get_int_from_textarea( ui_IPoct1 );
+        SSID_Info.ip_addr[1] = Modbus.ip_addr[1] = ui_get_int_from_textarea( ui_IPoct2 );
+        SSID_Info.ip_addr[2] = Modbus.ip_addr[2] = ui_get_int_from_textarea( ui_IPoct3 );
+        SSID_Info.ip_addr[3] = Modbus.ip_addr[3] = ui_get_int_from_textarea( ui_IPoct4 );
 
         // --- Update Subnet ---
-        Modbus.subnet[0] = ui_get_int_from_textarea( ui_IPoct6 );
-        Modbus.subnet[1] = ui_get_int_from_textarea( ui_IPoct7 );
-        Modbus.subnet[2] = ui_get_int_from_textarea( ui_IPoct8 );
-        Modbus.subnet[3] = ui_get_int_from_textarea( ui_IPoct9 );
+        SSID_Info.net_mask[0] = Modbus.subnet[0] = ui_get_int_from_textarea( ui_IPoct6 );
+        SSID_Info.net_mask[1] = Modbus.subnet[1] = ui_get_int_from_textarea( ui_IPoct7 );
+        SSID_Info.net_mask[2] = Modbus.subnet[2] = ui_get_int_from_textarea( ui_IPoct8 );
+        SSID_Info.net_mask[3] = Modbus.subnet[3] = ui_get_int_from_textarea( ui_IPoct9 );
 
         // --- Update Gateway ---
-        Modbus.getway[0] = ui_get_int_from_textarea( ui_IPoct10 );
-        Modbus.getway[1] = ui_get_int_from_textarea( ui_IPoct11 );
-        Modbus.getway[2] = ui_get_int_from_textarea( ui_IPoct12 );
-        Modbus.getway[3] = ui_get_int_from_textarea( ui_IPoct13 );
+        SSID_Info.getway[0] = Modbus.getway[0] = ui_get_int_from_textarea( ui_IPoct10 );
+        SSID_Info.getway[1] = Modbus.getway[1] = ui_get_int_from_textarea( ui_IPoct11 );
+        SSID_Info.getway[2] = Modbus.getway[2] = ui_get_int_from_textarea( ui_IPoct12 );
+        SSID_Info.getway[3] = Modbus.getway[3] = ui_get_int_from_textarea( ui_IPoct13 );
+        save_wifi_info();
+    }
+    if(isDataUpdated)
+    {
+        save_wifi_info();
     }
 }
 
@@ -2359,7 +2382,7 @@ void Event_Cb_RefreshTimeFunc(lv_event_t * e)
     sprintf(buf, "%02d-%02d-%04d",
             rtc_date.day,
             rtc_date.month,
-            (rtc_date.year-2000));
+            (rtc_date.year));
 
     lv_label_set_text(ui_Label70, buf); // update time
 
@@ -2367,6 +2390,19 @@ void Event_Cb_RefreshTimeFunc(lv_event_t * e)
     memset(buf,0x00,sizeof(buf));
     sprintf(buf, "%02d : %02d" ,rtc_date.hour , rtc_date.minute);
     lv_label_set_text(ui_Label68, buf);
+}
+
+/**
+ * @brief Event callback for update time on Update time pop up
+ * @details Handles time update on pop up window for change time
+ * @param[in] e LVGL event pointer containing event data
+ * @return void
+ */
+void Event_Cb_ChangeTimePopUp(lv_event_t * e)
+{
+        // Set dropdowns to current RTC time
+    lv_dropdown_set_selected(ui_Dropdown11, rtc_date.hour);    // hours
+    lv_dropdown_set_selected(ui_Dropdown8,  rtc_date.minute);  // minutes
 }
 
 /**
@@ -2456,7 +2492,7 @@ void Event_Cb_TimeSyncServerUpdateFunc(lv_event_t * e)
     sprintf(buf, "%02d-%02d-%04d",
             RtcData.Clk.day,
             RtcData.Clk.mon,
-            (RtcData.Clk.year-2000));
+            (RtcData.Clk.year));
     lv_label_set_text(ui_Label19, buf);
 }
 

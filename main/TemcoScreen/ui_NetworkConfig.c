@@ -69,155 +69,57 @@ void ui_event_WifiUpdateButton2(lv_event_t * e)
     }
 }
 
-void ui_event_IPoct1(lv_event_t * e)
+void set_ip_fields_editable(bool enable)
 {
-    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t* ip_fields[] = {
+        ui_IPoct1, ui_IPoct2, ui_IPoct3, ui_IPoct4,
+        ui_IPoct6, ui_IPoct7, ui_IPoct8, ui_IPoct9,
+        ui_IPoct10, ui_IPoct11, ui_IPoct12, ui_IPoct13
+    };
 
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct1);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
+    for(int i = 0; i < 12; i++)
+    {
+        if(enable)
+        {
+            lv_obj_add_flag(ip_fields[i], LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_opa(ip_fields[i], LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        else
+        {
+            lv_obj_remove_flag(ip_fields[i], LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_opa(ip_fields[i], LV_OPA_40, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
     }
 }
 
-void ui_event_IPoct2(lv_event_t * e)
+static void ip_mode_checkbox_cb(lv_event_t * e)
 {
-    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code != LV_EVENT_VALUE_CHANGED) return;
 
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct2);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
+    lv_obj_t * clicked = lv_event_get_target(e);
+
+    if(clicked == ui_Checkbox3)  // Auto (DHCP)
+    {
+        lv_obj_add_state(ui_Checkbox3, LV_STATE_CHECKED);
+        lv_obj_clear_state(ui_Checkbox2, LV_STATE_CHECKED);
+        set_ip_fields_editable(false);
     }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
+    else if(clicked == ui_Checkbox2)  // Static IP
+    {
+        lv_obj_add_state(ui_Checkbox2, LV_STATE_CHECKED);
+        lv_obj_clear_state(ui_Checkbox3, LV_STATE_CHECKED);
+        set_ip_fields_editable(true);
     }
 }
 
-void ui_event_IPoct3(lv_event_t * e)
+void ui_event_IPoct_generic(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);  // gets the actual clicked object
 
     if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct3);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct4(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct4);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct6(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct1);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct7(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct2);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct8(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct3);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct9(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct4);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct10(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct1);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct11(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct2);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct12(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct3);
-        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
-    }
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ip_auto_next(e);
-    }
-}
-
-void ui_event_IPoct13(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_NumKeyboard,  ui_IPoct4);
+        _ui_keyboard_set_target(ui_NumKeyboard, target);  // always uses the clicked one
         _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
     }
     if(event_code == LV_EVENT_VALUE_CHANGED) {
@@ -231,6 +133,10 @@ void ui_event_NumKeyboard(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         NetworkConfigKeyPressFunc(e);
+    }
+
+    if(event_code == LV_EVENT_READY || event_code == LV_EVENT_CANCEL) {
+        _ui_flag_modify(ui_NumKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
     }
 }
 
@@ -705,24 +611,24 @@ void ui_NetworkConfig_screen_init(void)
 
     lv_obj_add_event_cb(ui_GotoMenuButton2, ui_event_GotoMenuButton2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_WifiUpdateButton2, ui_event_WifiUpdateButton2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct1, ui_event_IPoct1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct2, ui_event_IPoct2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct3, ui_event_IPoct3, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct4, ui_event_IPoct4, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct6, ui_event_IPoct6, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct7, ui_event_IPoct7, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct8, ui_event_IPoct8, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct9, ui_event_IPoct9, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct10, ui_event_IPoct10, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct11, ui_event_IPoct11, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct12, ui_event_IPoct12, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_IPoct13, ui_event_IPoct13, LV_EVENT_ALL, NULL);
-    lv_keyboard_set_textarea(ui_NumKeyboard, ui_IPoct1);
+    lv_obj_add_event_cb(ui_Checkbox3, ip_mode_checkbox_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(ui_Checkbox2, ip_mode_checkbox_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(ui_IPoct1,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct2,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct3,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct4,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct6,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct7,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct8,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct9,  ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct10, ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct11, ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct12, ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_IPoct13, ui_event_IPoct_generic, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_NumKeyboard, ui_event_NumKeyboard, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_NetworkConfig, ui_event_NetworkConfig, LV_EVENT_ALL, NULL);
     uic_NetworkConfig = ui_NetworkConfig;
     uic_NumKeyboard = ui_NumKeyboard;
-
 }
 
 void ui_NetworkConfig_screen_destroy(void)

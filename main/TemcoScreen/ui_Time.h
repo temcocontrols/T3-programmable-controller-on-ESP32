@@ -55,6 +55,7 @@ extern lv_obj_t * ui_Dropdown8;
 extern void ui_event_Calendar3(lv_event_t * e);
 extern lv_obj_t * ui_Calendar3;
 extern void ui_event_TimeSyncSetupUpdateBtn(lv_event_t * e);
+extern void set_sync_pc_fields_editable(bool enable);
 extern lv_obj_t * ui_TimeSyncSetupUpdateBtn;
 extern lv_obj_t * ui_Label72;
 // CUSTOM VARIABLES

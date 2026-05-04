@@ -33,6 +33,7 @@ void UpdateProtocolFunc(lv_event_t * e);
 void UpdateParameterTableFunc(lv_event_t * e);
 void ParameterUpdateFunc(lv_event_t * e);
 void RefreshTimeFunc(lv_event_t * e);
+void ChangeTimePopUp(lv_event_t * e);
 void TimeSyncLocalPcFunc(lv_event_t * e);
 void TimeSyncServerUpdateFunc(lv_event_t * e);
 void SysTimeUpdateCallback(lv_event_t * e);

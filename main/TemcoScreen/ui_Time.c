@@ -66,6 +66,7 @@ void ui_event_ChangeTimeBtn(lv_event_t * e)
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_TimeSettingPopUp, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
         _ui_flag_modify(ui_Calendar3, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+
     }
 }
 
@@ -76,6 +77,7 @@ void ui_event_ChangeDateBtn(lv_event_t * e)
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_Calendar3, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
         _ui_flag_modify(ui_TimeSettingPopUp, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+        ChangeTimePopUp(e);
     }
 }
 
@@ -136,6 +138,73 @@ void ui_event_TimeSyncSetupUpdateBtn(lv_event_t * e)
     }
 }
 
+void set_sync_pc_fields_editable(bool enable)
+{
+    // Panel1 objects (Sync with PC side)
+    lv_obj_t* panel1_fields[] = {
+        ui_ChangeTimeBtn,
+        ui_ChangeDateBtn,
+        ui_RefreshBtn,
+        ui_SyncWithPcBtn
+    };
+
+    // Panel3 objects (Time server side)
+    lv_obj_t* panel3_fields[] = {
+        ui_Dropdown5,
+        ui_Dropdown4,
+        ui_Label19,
+        ui_UpdateLastServerSyncBtn
+    };
+
+    for(int i = 0; i < 4; i++)
+    {
+        if(enable)  // PC sync selected — enable panel1, dim panel3
+        {
+            lv_obj_add_flag(panel1_fields[i], LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_opa(panel1_fields[i], LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        else        // Time server selected — dim panel1, enable panel3
+        {
+            lv_obj_remove_flag(panel1_fields[i], LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_opa(panel1_fields[i], LV_OPA_40, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+    }
+
+    for(int i = 0; i < 4; i++)
+    {
+        if(enable)  // PC sync — dim panel3
+        {
+            lv_obj_remove_flag(panel3_fields[i], LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_opa(panel3_fields[i], LV_OPA_40, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        else        // Time server — enable panel3
+        {
+            lv_obj_add_flag(panel3_fields[i], LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_opa(panel3_fields[i], LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+    }
+}
+
+static void sync_mode_checkbox_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code != LV_EVENT_VALUE_CHANGED) return;
+
+    lv_obj_t * clicked = lv_event_get_target(e);
+
+    if(clicked == ui_SyncLocalPcCheckbox)        // Sync with Local PC
+    {
+        lv_obj_add_state(ui_SyncLocalPcCheckbox, LV_STATE_CHECKED);
+        lv_obj_clear_state(ui_SyncLocalPcCheckbox2, LV_STATE_CHECKED);
+        set_sync_pc_fields_editable(true);   // enable panel1, dim panel3
+    }
+    else if(clicked == ui_SyncLocalPcCheckbox2)  // Sync with Time Server
+    {
+        lv_obj_add_state(ui_SyncLocalPcCheckbox2, LV_STATE_CHECKED);
+        lv_obj_clear_state(ui_SyncLocalPcCheckbox, LV_STATE_CHECKED);
+        set_sync_pc_fields_editable(false);  // dim panel1, enable panel3
+    }
+}
 // build funtions
 
 void ui_Time_screen_init(void)
@@ -547,6 +616,8 @@ void ui_Time_screen_init(void)
     lv_obj_add_event_cb(ui_Button16, ui_event_Button16, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Calendar3, ui_event_Calendar3, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_TimeSyncSetupUpdateBtn, ui_event_TimeSyncSetupUpdateBtn, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SyncLocalPcCheckbox,  sync_mode_checkbox_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(ui_SyncLocalPcCheckbox2, sync_mode_checkbox_cb, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(ui_Time, ui_event_Time, LV_EVENT_ALL, NULL);
 
 }

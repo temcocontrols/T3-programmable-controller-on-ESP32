@@ -90,6 +90,10 @@ static void wifi_event_handler(
         {
         case WIFI_EVENT_STA_START:
 
+            if(ReconnectWithWifi == false)
+            {
+                break;
+            }
             ESP_LOGI(TAG, "Connecting to AP...");
             //debug_info("event_handler_2 esp_wifi_connect()");
             esp_wifi_connect();

@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 // SCREEN: ui_NetworkConfig
+extern void set_ip_fields_editable(bool enable);
 extern void ui_NetworkConfig_screen_init(void);
 extern void ui_NetworkConfig_screen_destroy(void);
 extern void ui_event_NetworkConfig(lv_event_t * e);
@@ -30,35 +31,24 @@ extern lv_obj_t * ui_Label13;
 extern lv_obj_t * ui_IpPanel2;
 extern lv_obj_t * ui_IpAddressStr;
 extern lv_obj_t * ui_Label34;
-extern void ui_event_IPoct1(lv_event_t * e);
+extern void ui_event_IPoct_generic(lv_event_t * e);
 extern lv_obj_t * ui_IPoct1;
-extern void ui_event_IPoct2(lv_event_t * e);
 extern lv_obj_t * ui_IPoct2;
-extern void ui_event_IPoct3(lv_event_t * e);
 extern lv_obj_t * ui_IPoct3;
-extern void ui_event_IPoct4(lv_event_t * e);
 extern lv_obj_t * ui_IPoct4;
 extern lv_obj_t * ui_SubnetPanel;
 extern lv_obj_t * ui_SubNetStr;
 extern lv_obj_t * ui_Label37;
-extern void ui_event_IPoct6(lv_event_t * e);
 extern lv_obj_t * ui_IPoct6;
-extern void ui_event_IPoct7(lv_event_t * e);
 extern lv_obj_t * ui_IPoct7;
-extern void ui_event_IPoct8(lv_event_t * e);
 extern lv_obj_t * ui_IPoct8;
-extern void ui_event_IPoct9(lv_event_t * e);
 extern lv_obj_t * ui_IPoct9;
 extern lv_obj_t * ui_GatewayPanel;
 extern lv_obj_t * ui_GateWayStr;
 extern lv_obj_t * ui_Label38;
-extern void ui_event_IPoct10(lv_event_t * e);
 extern lv_obj_t * ui_IPoct10;
-extern void ui_event_IPoct11(lv_event_t * e);
 extern lv_obj_t * ui_IPoct11;
-extern void ui_event_IPoct12(lv_event_t * e);
 extern lv_obj_t * ui_IPoct12;
-extern void ui_event_IPoct13(lv_event_t * e);
 extern lv_obj_t * ui_IPoct13;
 extern void ui_event_NumKeyboard(lv_event_t * e);
 extern lv_obj_t * ui_NumKeyboard;

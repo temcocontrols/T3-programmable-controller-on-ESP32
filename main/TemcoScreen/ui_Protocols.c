@@ -98,6 +98,9 @@ void ui_event_KeyboardProtocol(lv_event_t * e)
     if(event_code == LV_EVENT_CLICKED) {
         WifiKeyboardPressFunc(e);
     }
+    if(event_code == LV_EVENT_READY || event_code == LV_EVENT_CANCEL) {
+        _ui_flag_modify(ui_KeyboardProtocol, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+    }
 }
 
 void ui_event_NumKeyboardProtocol(lv_event_t * e)
@@ -106,6 +109,9 @@ void ui_event_NumKeyboardProtocol(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         NetworkConfigKeyPressFunc(e);
+    }
+    if(event_code == LV_EVENT_READY || event_code == LV_EVENT_CANCEL) {
+        _ui_flag_modify(ui_NumKeyboardProtocol, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
     }
 }
 

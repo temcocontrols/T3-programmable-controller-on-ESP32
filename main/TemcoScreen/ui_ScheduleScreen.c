@@ -332,6 +332,9 @@ void ui_event_ScheduleKeyboard(lv_event_t * e)
     if(event_code == LV_EVENT_CLICKED) {
         ScheduleKeyboardPressFunc(e);
     }
+    if(event_code == LV_EVENT_READY || event_code == LV_EVENT_CANCEL) {
+        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
+    }
 }
 
 // build funtions
