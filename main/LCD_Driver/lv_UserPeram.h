@@ -20,7 +20,7 @@
 #include "TemcoScreen/ui_HomeScreen.h"
 #include "TemcoScreen/ui_MainMenu.h"
 
-#define UI_DATA_UPDATE_INTERVAL_MS              500
+#define UI_DATA_UPDATE_INTERVAL_MS              100
 
 #define UI_OBJ_READY(obj)   ((obj) != NULL && lv_obj_is_valid(obj))
 
@@ -59,6 +59,7 @@ void Event_Cb_RefreshTimeFunc(lv_event_t * e);
 void Event_Cb_TimeSyncLocalPcFunc(lv_event_t * e);
 void Event_Cb_TimeSyncUpdateFunc(lv_event_t * e);
 void Event_Cb_TimeSyncServerUpdateFunc(lv_event_t * e);
+void Event_Cb_ParameterClearTableFunc(lv_event_t * e);
 void Event_Cb_ParameterUpdateFunc(lv_event_t * e);
 void Event_Cb_ScheduleAutoManualValChangeFun(lv_event_t * e);
 void Event_Cb_ScheduleSwithValueChangeFunc(lv_event_t * e);

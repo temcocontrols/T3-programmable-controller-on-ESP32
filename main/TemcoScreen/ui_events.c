@@ -166,6 +166,11 @@ void TimeSyncServerUpdateFunc(lv_event_t * e)
 	Event_Cb_TimeSyncServerUpdateFunc(e);
 }
 
+void ParameterClearTableFunc(lv_event_t * e)
+{
+	Event_Cb_ParameterClearTableFunc(e);
+}
+
 void ParameterUpdateFunc(lv_event_t * e)
 {
 	Event_Cb_ParameterUpdateFunc(e);

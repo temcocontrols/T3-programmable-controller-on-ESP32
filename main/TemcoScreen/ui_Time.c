@@ -66,7 +66,7 @@ void ui_event_ChangeTimeBtn(lv_event_t * e)
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_TimeSettingPopUp, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
         _ui_flag_modify(ui_Calendar3, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-
+        ChangeTimePopUp(e);
     }
 }
 
@@ -77,7 +77,6 @@ void ui_event_ChangeDateBtn(lv_event_t * e)
     if(event_code == LV_EVENT_CLICKED) {
         _ui_flag_modify(ui_Calendar3, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_REMOVE);
         _ui_flag_modify(ui_TimeSettingPopUp, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_ADD);
-        ChangeTimePopUp(e);
     }
 }
 

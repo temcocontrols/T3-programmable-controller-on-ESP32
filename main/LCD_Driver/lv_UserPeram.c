@@ -70,6 +70,7 @@ static bool isTimeUpdated = false;
 static bool isDateUpdated = false;
 lv_calendar_date_t selected_date;
 static lv_obj_t *selected_schedule_time_cell = NULL;
+static lv_obj_t * s_lv_table = NULL;
 
 typedef enum
 {
@@ -78,46 +79,8 @@ typedef enum
     PARAM_TABLE_VARIABLE
 } param_table_type_t;
 
-typedef enum
-{
-    PARAM_BIND_DESCRIPTION = 0,
-    PARAM_BIND_LABEL,
-    PARAM_BIND_VALUE,
-    PARAM_BIND_AUTO_MANUAL,
-    PARAM_BIND_DIGITAL_ANALOG,
-    PARAM_BIND_CONTROL,
-    PARAM_BIND_SWITCH_STATUS,
-    PARAM_BIND_RANGE
-} param_bind_field_t;
-
-typedef struct
-{
-    lv_obj_t *obj;
-    uint16_t row;
-    param_bind_field_t field;
-} param_edit_bind_t;
-
-#define PARAM_MAX_EDIT_BINDINGS (MAX_VARS * 8U)
-#define PARAM_TABLE_BUILD_ROWS_PER_STEP 16U
-
-typedef enum
-{
-    PARAM_TABLE_BUILD_IDLE = 0,
-    PARAM_TABLE_BUILD_INIT,
-    PARAM_TABLE_BUILD_HEADER,
-    PARAM_TABLE_BUILD_ROWS
-} param_table_build_state_t;
-
 static param_table_type_t s_param_table_type = PARAM_TABLE_INPUT;
-static lv_obj_t *s_param_table_root = NULL;
-static param_edit_bind_t s_param_edit_binds[PARAM_MAX_EDIT_BINDINGS];
-static uint16_t s_param_edit_bind_count = 0;
-static param_table_build_state_t s_param_table_build_state = PARAM_TABLE_BUILD_IDLE;
-static uint16_t s_param_table_build_next_row = 0;
-static uint16_t s_param_table_build_total_rows = 0;
-static uint32_t s_param_table_build_token = 0;
-static lv_coord_t s_param_table_widths[9] = { 34, 160, 90, 80, 45, 45, 45, 45, 70 };
-static lv_coord_t s_param_table_row_width = 0;
+static lv_coord_t s_param_table_widths[9] = { 40, 160, 90, 80, 45, 45, 45, 45, 70 };
 
 /* Forward declarations of static helper functions to refresh specific screen data */
 static void lv_refresh_HomeScreen_Data(void);
@@ -141,14 +104,10 @@ static void ui_set_wifi_visible(bool visible);
 static void ui_update_textarea_from_int(lv_obj_t * obj, uint8_t value);
 static uint8_t ui_get_int_from_textarea(lv_obj_t * obj);
 static uint16_t param_table_get_row_count(void);
-static void param_table_build_start(void);
-static void param_table_build_async_step(void *user_data);
-static void param_table_build_add_row(uint16_t i);
-static lv_coord_t param_table_calc_row_width(void);
 static void param_table_build(void);
+static void param_Clear_table(void);
 static void param_table_apply_updates(void);
 static void param_table_copy_text(char *dest, uint16_t dest_size, const char *src);
-static int32_t param_table_get_int_from_textarea(lv_obj_t *obj);
 
 extern void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS);
 
@@ -234,7 +193,7 @@ void lv_Lcd_UpdateData(void)
 {
     static uint32_t last_update_time = 0;
 
-    if((xTaskGetTickCount() - last_update_time) >= UI_DATA_UPDATE_INTERVAL_MS) // Update Data at 500 mS
+    if((xTaskGetTickCount() - last_update_time) >= UI_DATA_UPDATE_INTERVAL_MS) // Update Data at 100 mS
     {
         last_update_time = xTaskGetTickCount();
 
@@ -634,30 +593,6 @@ static void param_table_copy_text(char *dest, uint16_t dest_size, const char *sr
 }
 
 /**
- * @brief Parse signed integer text from a parameter table textarea
- * @details Reads the text content from an LVGL textarea and converts it to
- *          a signed 32-bit integer using `atoi`. Returns `0` when the object
- *          is invalid or text is unavailable.
- * @param[in] obj Textarea object containing a numeric string
- * @return int32_t Parsed integer value, or `0` on invalid input
- */
-static int32_t param_table_get_int_from_textarea(lv_obj_t *obj)
-{
-    if(!UI_OBJ_READY(obj))
-    {
-        return 0;
-    }
-
-    const char *txt = lv_textarea_get_text(obj);
-    if(txt == NULL)
-    {
-        return 0;
-    }
-
-    return (int32_t)atoi(txt);
-}
-
-/**
  * @brief Get integer row count to use for parameter table
  * @details Returns the appropriate number of rows for the currently
  *          selected parameter table type (input/output/variable), clamped
@@ -705,354 +640,63 @@ static uint16_t param_table_get_row_count(void)
     return rows;
 }
 
-/**
- * @brief Register a UI object binding for deferred parameter-table apply
- * @details Stores the target object, row index, and field type in the edit
- *          binding array used later by `param_table_apply_updates()`. If the
- *          binding table is full or object is NULL, the request is ignored.
- * @param[in] obj UI object bound to a parameter field
- * @param[in] row Parameter table row index
- * @param[in] field Field selector (label/value/range/default)
- * @return void
- */
-static void param_table_add_bind(lv_obj_t *obj, uint16_t row, param_bind_field_t field)
+static lv_obj_t * s_edit_popup = NULL;
+static lv_obj_t * s_edit_ta    = NULL;
+static uint32_t   s_edit_row   = 0;
+static uint32_t   s_edit_col   = 0;
+
+static void param_table_edit_done_cb(lv_event_t * e)
 {
-    if((obj == NULL) || (s_param_edit_bind_count >= PARAM_MAX_EDIT_BINDINGS))
+    if(lv_event_get_code(e) == LV_EVENT_READY && s_edit_ta && UI_OBJ_READY(s_lv_table))
     {
-        return;
+        lv_table_set_cell_value(s_lv_table, s_edit_row, s_edit_col,
+                                lv_textarea_get_text(s_edit_ta));
     }
-
-    s_param_edit_binds[s_param_edit_bind_count].obj = obj;
-    s_param_edit_binds[s_param_edit_bind_count].row = row;
-    s_param_edit_binds[s_param_edit_bind_count].field = field;
-    s_param_edit_bind_count++;
-}
-
-/**
- * @brief Create and configure a table row container
- * @details Returns a newly created LVGL object configured as a non-scrollable
- *          horizontal row with padding and styling matching the parameter table.
- * @param[in] parent Parent LVGL object
- * @param[in] height Row height in pixels
- * @return lv_obj_t* Pointer to the created row object
- */
-static lv_obj_t *param_table_create_row(lv_obj_t *parent, lv_coord_t height)
-{
-    lv_obj_t *row = lv_obj_create(parent);
-    lv_obj_set_width(row, s_param_table_row_width);
-    lv_obj_set_height(row, height);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_pad_left(row, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_right(row, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_top(row, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_bottom(row, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_pad_column(row, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(row, LV_BORDER_SIDE_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(row, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    return row;
-}
-
-/**
- * @brief Add a header label cell to a parameter table row
- * @param[in] row Parent row object
- * @param[in] txt Header text to display
- * @param[in] width Cell width in pixels
- * @return lv_obj_t* Created label object
- */
-static lv_obj_t *param_table_add_header_cell(lv_obj_t *row, const char *txt, lv_coord_t width)
-{
-    lv_obj_t *cell = lv_label_create(row);
-    lv_obj_set_width(cell, width);
-    lv_label_set_text(cell, txt);
-    lv_obj_set_style_text_font(cell, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
-    return cell;
-}
-
-/**
- * @brief Add an index label cell to a table row
- * @param[in] row Parent row
- * @param[in] index Zero-based index to display as 1-based
- * @param[in] width Cell width in pixels
- * @return lv_obj_t* Label object created for the index
- */
-static lv_obj_t *param_table_add_index_cell(lv_obj_t *row, uint16_t index, lv_coord_t width)
-{
-    char buf[8];
-    lv_obj_t *cell = lv_label_create(row);
-    lv_obj_set_width(cell, width);
-    snprintf(buf, sizeof(buf), "%u", (unsigned)(index + 1U));
-    lv_label_set_text(cell, buf);
-    return cell;
-}
-
-/**
- * @brief Add a one-line editable textarea cell to a parameter table row
- * @details Creates a textarea configured for either numeric-only input or
- *          general text input, and initializes it with the provided value.
- * @param[in] row Parent row object
- * @param[in] txt Initial text value (NULL allowed)
- * @param[in] width Cell width in pixels
- * @param[in] numeric True for numeric-only input, false for free text
- * @return lv_obj_t* Created textarea object
- */
-static lv_obj_t *param_table_add_textarea_cell(lv_obj_t *row, const char *txt, lv_coord_t width, bool numeric)
-{
-    lv_obj_t *ta = lv_textarea_create(row);
-    lv_obj_set_width(ta, width);
-    lv_obj_set_height(ta, 22);
-    lv_textarea_set_one_line(ta, true);
-    lv_textarea_set_max_length(ta, numeric ? 12 : 24);
-    if(numeric)
+    if(s_edit_popup)
     {
-        lv_textarea_set_accepted_chars(ta, "-0123456789");
-    }
-    lv_textarea_set_text(ta, (txt != NULL) ? txt : "");
-    return ta;
-}
-
-/**
- * @brief Calculate total row width from configured column widths
- */
-static lv_coord_t param_table_calc_row_width(void)
-{
-    lv_coord_t total = 0;
-    for(uint8_t i = 0; i < 9U; i++)
-    {
-        total += s_param_table_widths[i];
-    }
-
-    /* Extra spacing for internal gaps/margins. */
-    total += 20;
-    return total;
-}
-
-/**
- * @brief Build and bind one parameter table row
- * @param[in] i Row index
- */
-static void param_table_build_add_row(uint16_t i)
-{
-    char desc_buf[24] = {0};
-    char label_buf[12] = {0};
-    char num_buf[16];
-    lv_obj_t *row = param_table_create_row(s_param_table_root, 26);
-
-    param_table_add_index_cell(row, i, s_param_table_widths[0]);
-
-    if(s_param_table_type == PARAM_TABLE_INPUT)
-    {
-        param_table_copy_text(desc_buf, sizeof(desc_buf), (const char *)inputs[i].description);
-        param_table_copy_text(label_buf, sizeof(label_buf), (const char *)inputs[i].label);
-
-        lv_obj_t *desc = param_table_add_textarea_cell(row, desc_buf, s_param_table_widths[1], false);
-        lv_obj_t *label = param_table_add_textarea_cell(row, label_buf, s_param_table_widths[2], false);
-
-        snprintf(num_buf, sizeof(num_buf), "%ld", (long)inputs[i].value);
-        lv_obj_t *value = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[3], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", inputs[i].auto_manual);
-        lv_obj_t *am = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[4], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", inputs[i].digital_analog);
-        lv_obj_t *da = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[5], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", inputs[i].control);
-        lv_obj_t *ctrl = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[6], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", inputs[i].range);
-        lv_obj_t *range = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[8], true);
-
-        param_table_add_bind(desc, i, PARAM_BIND_DESCRIPTION);
-        param_table_add_bind(label, i, PARAM_BIND_LABEL);
-        param_table_add_bind(value, i, PARAM_BIND_VALUE);
-        param_table_add_bind(am, i, PARAM_BIND_AUTO_MANUAL);
-        param_table_add_bind(da, i, PARAM_BIND_DIGITAL_ANALOG);
-        param_table_add_bind(ctrl, i, PARAM_BIND_CONTROL);
-        param_table_add_bind(range, i, PARAM_BIND_RANGE);
-    }
-    else if(s_param_table_type == PARAM_TABLE_OUTPUT)
-    {
-        param_table_copy_text(desc_buf, sizeof(desc_buf), (const char *)outputs[i].description);
-        param_table_copy_text(label_buf, sizeof(label_buf), (const char *)outputs[i].label);
-
-        lv_obj_t *desc = param_table_add_textarea_cell(row, desc_buf, s_param_table_widths[1], false);
-        lv_obj_t *label = param_table_add_textarea_cell(row, label_buf, s_param_table_widths[2], false);
-
-        snprintf(num_buf, sizeof(num_buf), "%ld", (long)outputs[i].value);
-        lv_obj_t *value = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[3], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", outputs[i].auto_manual);
-        lv_obj_t *am = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[4], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", outputs[i].digital_analog);
-        lv_obj_t *da = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[5], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", outputs[i].control);
-        lv_obj_t *ctrl = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[6], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", outputs[i].switch_status);
-        lv_obj_t *sw = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[7], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", outputs[i].range);
-        lv_obj_t *range = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[8], true);
-
-        param_table_add_bind(desc, i, PARAM_BIND_DESCRIPTION);
-        param_table_add_bind(label, i, PARAM_BIND_LABEL);
-        param_table_add_bind(value, i, PARAM_BIND_VALUE);
-        param_table_add_bind(am, i, PARAM_BIND_AUTO_MANUAL);
-        param_table_add_bind(da, i, PARAM_BIND_DIGITAL_ANALOG);
-        param_table_add_bind(ctrl, i, PARAM_BIND_CONTROL);
-        param_table_add_bind(sw, i, PARAM_BIND_SWITCH_STATUS);
-        param_table_add_bind(range, i, PARAM_BIND_RANGE);
-    }
-    else
-    {
-        param_table_copy_text(desc_buf, sizeof(desc_buf), (const char *)vars[i].description);
-        param_table_copy_text(label_buf, sizeof(label_buf), (const char *)vars[i].label);
-
-        lv_obj_t *desc = param_table_add_textarea_cell(row, desc_buf, s_param_table_widths[1], false);
-        lv_obj_t *label = param_table_add_textarea_cell(row, label_buf, s_param_table_widths[2], false);
-
-        snprintf(num_buf, sizeof(num_buf), "%ld", (long)vars[i].value);
-        lv_obj_t *value = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[3], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", vars[i].auto_manual);
-        lv_obj_t *am = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[4], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", vars[i].digital_analog);
-        lv_obj_t *da = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[5], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", vars[i].control);
-        lv_obj_t *ctrl = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[6], true);
-        snprintf(num_buf, sizeof(num_buf), "%d", vars[i].range);
-        lv_obj_t *range = param_table_add_textarea_cell(row, num_buf, s_param_table_widths[8], true);
-
-        param_table_add_bind(desc, i, PARAM_BIND_DESCRIPTION);
-        param_table_add_bind(label, i, PARAM_BIND_LABEL);
-        param_table_add_bind(value, i, PARAM_BIND_VALUE);
-        param_table_add_bind(am, i, PARAM_BIND_AUTO_MANUAL);
-        param_table_add_bind(da, i, PARAM_BIND_DIGITAL_ANALOG);
-        param_table_add_bind(ctrl, i, PARAM_BIND_CONTROL);
-        param_table_add_bind(range, i, PARAM_BIND_RANGE);
+        lv_obj_del(s_edit_popup);
+        s_edit_popup = NULL;
+        s_edit_ta    = NULL;
     }
 }
 
-/**
- * @brief Non-blocking parameter table build step
- * @details Uses async callbacks to build the table in small chunks to keep UI responsive.
- * @param[in] user_data Build token
- */
-static void param_table_build_async_step(void *user_data)
+static void param_table_cell_edit_cb(lv_event_t * e)
 {
-    uint32_t token = (uint32_t)(uintptr_t)user_data;
-    if(token != s_param_table_build_token)
+    lv_obj_t * table = lv_event_get_target(e);
+    lv_table_get_selected_cell(table, &s_edit_row, &s_edit_col);
+
+    if(s_edit_row == 0 || s_edit_col == 0) return; // header or No column
+
+    const char * cur = lv_table_get_cell_value(table, s_edit_row, s_edit_col);
+
+    if(UI_OBJ_READY(s_edit_popup))
     {
-        return;
+        lv_obj_del(s_edit_popup);
+        s_edit_popup = NULL;
     }
+    s_edit_popup = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_edit_popup, 300, 170);
+    lv_obj_center(s_edit_popup);
+    lv_obj_clear_flag(s_edit_popup, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(s_edit_popup, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    if(!UI_OBJ_READY(ui_Panel4))
-    {
-        s_param_table_build_state = PARAM_TABLE_BUILD_IDLE;
-        return;
-    }
+    s_edit_ta = lv_textarea_create(s_edit_popup);
+    lv_obj_set_size(s_edit_ta, 280, 45);
+    lv_obj_align(s_edit_ta, LV_ALIGN_TOP_MID, 0, 0);
+    lv_textarea_set_one_line(s_edit_ta, true);
+    lv_textarea_set_max_length(s_edit_ta, 24);
+    lv_textarea_set_text(s_edit_ta, cur ? cur : "");
 
-    if(s_param_table_build_state == PARAM_TABLE_BUILD_INIT)
-    {
-        if(UI_OBJ_READY(s_param_table_root))
-        {
-            lv_obj_del(s_param_table_root);
-            s_param_table_root = NULL;
-        }
-
-        s_param_edit_bind_count = 0;
-        s_param_table_build_total_rows = param_table_get_row_count();
-        s_param_table_build_next_row = 0;
-        s_param_table_row_width = param_table_calc_row_width();
-
-        lv_obj_add_flag(ui_Panel4, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_scroll_dir(ui_Panel4, (lv_dir_t)(LV_DIR_HOR | LV_DIR_VER));
-        lv_obj_set_style_pad_all(ui_Panel4, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-        s_param_table_root = lv_obj_create(ui_Panel4);
-        lv_obj_set_width(s_param_table_root, s_param_table_row_width);
-        lv_obj_set_height(s_param_table_root, LV_SIZE_CONTENT);
-        lv_obj_set_align(s_param_table_root, LV_ALIGN_TOP_LEFT);
-        lv_obj_set_flex_flow(s_param_table_root, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(s_param_table_root, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-        lv_obj_remove_flag(s_param_table_root, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_style_bg_opa(s_param_table_root, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_border_side(s_param_table_root, LV_BORDER_SIDE_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_pad_all(s_param_table_root, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_pad_row(s_param_table_root, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-        s_param_table_build_state = PARAM_TABLE_BUILD_HEADER;
-        return;
-    }
-
-    if(s_param_table_build_state == PARAM_TABLE_BUILD_HEADER)
-    {
-        lv_obj_t *header = param_table_create_row(s_param_table_root, 22);
-
-        if(s_param_table_type == PARAM_TABLE_INPUT)
-        {
-            param_table_add_header_cell(header, "No", s_param_table_widths[0]);
-            param_table_add_header_cell(header, "Description", s_param_table_widths[1]);
-            param_table_add_header_cell(header, "Label", s_param_table_widths[2]);
-            param_table_add_header_cell(header, "Value", s_param_table_widths[3]);
-            param_table_add_header_cell(header, "A/M", s_param_table_widths[4]);
-            param_table_add_header_cell(header, "D/A", s_param_table_widths[5]);
-            param_table_add_header_cell(header, "Ctrl", s_param_table_widths[6]);
-            param_table_add_header_cell(header, "Range", s_param_table_widths[8]);
-        }
-        else if(s_param_table_type == PARAM_TABLE_OUTPUT)
-        {
-            param_table_add_header_cell(header, "No", s_param_table_widths[0]);
-            param_table_add_header_cell(header, "Description", s_param_table_widths[1]);
-            param_table_add_header_cell(header, "Label", s_param_table_widths[2]);
-            param_table_add_header_cell(header, "Value", s_param_table_widths[3]);
-            param_table_add_header_cell(header, "A/M", s_param_table_widths[4]);
-            param_table_add_header_cell(header, "D/A", s_param_table_widths[5]);
-            param_table_add_header_cell(header, "Ctrl", s_param_table_widths[6]);
-            param_table_add_header_cell(header, "Sw", s_param_table_widths[7]);
-            param_table_add_header_cell(header, "Range", s_param_table_widths[8]);
-        }
-        else
-        {
-            param_table_add_header_cell(header, "No", s_param_table_widths[0]);
-            param_table_add_header_cell(header, "Description", s_param_table_widths[1]);
-            param_table_add_header_cell(header, "Label", s_param_table_widths[2]);
-            param_table_add_header_cell(header, "Value", s_param_table_widths[3]);
-            param_table_add_header_cell(header, "A/M", s_param_table_widths[4]);
-            param_table_add_header_cell(header, "D/A", s_param_table_widths[5]);
-            param_table_add_header_cell(header, "Ctrl", s_param_table_widths[6]);
-            param_table_add_header_cell(header, "Range", s_param_table_widths[8]);
-        }
-
-        s_param_table_build_state = PARAM_TABLE_BUILD_ROWS;
-        return;
-    }
-
-    if(s_param_table_build_state == PARAM_TABLE_BUILD_ROWS)
-    {
-        uint8_t n = 0;
-        while((s_param_table_build_next_row < s_param_table_build_total_rows) && (n < PARAM_TABLE_BUILD_ROWS_PER_STEP))
-        {
-            param_table_build_add_row(s_param_table_build_next_row);
-            s_param_table_build_next_row++;
-            n++;
-        }
-
-        if(s_param_table_build_next_row < s_param_table_build_total_rows)
-        {
-            return;
-        }
-
-        s_param_table_build_state = PARAM_TABLE_BUILD_IDLE;
-        return;
-    }
-}
-
-/**
- * @brief Start non-blocking parameter table build state machine
- */
-static void param_table_build_start(void)
-{
-    s_param_table_build_token++;
-    if(s_param_table_build_token == 0U)
-    {
-        s_param_table_build_token = 1U;
-    }
-    s_param_table_build_state = PARAM_TABLE_BUILD_INIT;
+    lv_obj_t * kb = lv_keyboard_create(s_edit_popup);
+    lv_obj_set_size(kb, 284, 110);
+    lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_keyboard_set_textarea(kb, s_edit_ta);
+    lv_obj_clear_flag(kb, LV_OBJ_FLAG_SCROLLABLE);
+    // Numeric cols: Value(3), A/M(4), D/A(5), Ctrl(6), Sw(7 output), Range
+    lv_keyboard_set_mode(kb, (s_edit_col >= 3) ? LV_KEYBOARD_MODE_NUMBER
+                                               : LV_KEYBOARD_MODE_TEXT_LOWER);
+    lv_obj_add_event_cb(kb, param_table_edit_done_cb, LV_EVENT_READY,  NULL);
+    lv_obj_add_event_cb(kb, param_table_edit_done_cb, LV_EVENT_CANCEL, NULL);
 }
 
 /**
@@ -1061,7 +705,162 @@ static void param_table_build_start(void)
  */
 static void param_table_build(void)
 {
-    param_table_build_start();
+    if(!UI_OBJ_READY(ui_Panel4)) return;
+
+    // Destroy old table if rebuilding
+    if(UI_OBJ_READY(s_lv_table))
+    {
+        lv_obj_del(s_lv_table);
+        s_lv_table = NULL;
+    }
+
+    bool is_output = (s_param_table_type == PARAM_TABLE_OUTPUT);
+    uint16_t col_count = is_output ? 9U : 8U;
+    uint16_t row_count = param_table_get_row_count();
+    uint16_t total_w = 0;
+
+    for(uint16_t i = 0; i < col_count; i++) {
+        total_w += s_param_table_widths[i];
+    }
+    ESP_LOGI(TAG, "Building parameter table: type=%d, cols=%d, rows=%d, total_width=%d",
+             s_param_table_type, col_count, row_count, total_w);
+
+    // Create table
+    s_lv_table = lv_table_create(ui_Panel4);
+
+    lv_obj_set_width(s_lv_table, total_w);
+    lv_obj_set_height(s_lv_table, LV_SIZE_CONTENT);
+    lv_obj_align(s_lv_table, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_clear_flag(s_lv_table, LV_OBJ_FLAG_SCROLLABLE);
+    lv_table_set_column_count(s_lv_table, col_count);
+    lv_table_set_row_count(s_lv_table, row_count + 1U); // +1 for header
+    lv_obj_set_style_pad_left(s_lv_table, 2, LV_PART_ITEMS);
+    lv_obj_set_style_pad_right(s_lv_table, 2, LV_PART_ITEMS);
+    lv_obj_set_style_pad_top(s_lv_table, 4, LV_PART_ITEMS);
+    lv_obj_set_style_pad_bottom(s_lv_table, 4, LV_PART_ITEMS);
+    lv_obj_set_style_pad_row(s_lv_table, 0, LV_PART_MAIN);
+
+    // Column widths  (reuse your existing s_param_table_widths)
+    lv_table_set_column_width(s_lv_table, 0, s_param_table_widths[0]); // No
+    lv_table_set_column_width(s_lv_table, 1, s_param_table_widths[1]); // Description
+    lv_table_set_column_width(s_lv_table, 2, s_param_table_widths[2]); // Label
+    lv_table_set_column_width(s_lv_table, 3, s_param_table_widths[3]); // Value
+    lv_table_set_column_width(s_lv_table, 4, s_param_table_widths[4]); // A/M
+    lv_table_set_column_width(s_lv_table, 5, s_param_table_widths[5]); // D/A
+    lv_table_set_column_width(s_lv_table, 6, s_param_table_widths[6]); // Ctrl
+    if(is_output)
+    {
+        lv_table_set_column_width(s_lv_table, 7, s_param_table_widths[7]); // Sw
+        lv_table_set_column_width(s_lv_table, 8, s_param_table_widths[8]); // Range
+    }
+    else
+    {
+        lv_table_set_column_width(s_lv_table, 7, s_param_table_widths[8]); // Range
+    }
+
+    // Header row
+    lv_table_set_cell_value(s_lv_table, 0, 0, "No");
+    lv_table_set_cell_value(s_lv_table, 0, 1, "Description");
+    lv_table_set_cell_value(s_lv_table, 0, 2, "Label");
+    lv_table_set_cell_value(s_lv_table, 0, 3, "Value");
+    lv_table_set_cell_value(s_lv_table, 0, 4, "A/M");
+    lv_table_set_cell_value(s_lv_table, 0, 5, "D/A");
+    lv_table_set_cell_value(s_lv_table, 0, 6, "Ctrl");
+    if(is_output)
+    {
+        lv_table_set_cell_value(s_lv_table, 0, 7, "Sw");
+        lv_table_set_cell_value(s_lv_table, 0, 8, "Range");
+    }
+    else
+    {
+        lv_table_set_cell_value(s_lv_table, 0, 7, "Range");
+    }
+
+    // Data rows
+    char buf[32];
+    for(uint16_t i = 0; i < row_count; i++)
+    {
+        uint16_t r = i + 1U;
+
+        lv_snprintf(buf, sizeof(buf), "%u", (unsigned)(i + 1U));
+        lv_table_set_cell_value(s_lv_table, r, 0, buf);
+
+        if(s_param_table_type == PARAM_TABLE_INPUT)
+        {
+            lv_table_set_cell_value(s_lv_table, r, 1, (const char *)inputs[i].description);
+            lv_table_set_cell_value(s_lv_table, r, 2, (const char *)inputs[i].label);
+            lv_snprintf(buf, sizeof(buf), "%ld", (long)inputs[i].value);
+            lv_table_set_cell_value(s_lv_table, r, 3, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].auto_manual);
+            lv_table_set_cell_value(s_lv_table, r, 4, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].digital_analog);
+            lv_table_set_cell_value(s_lv_table, r, 5, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].control);
+            lv_table_set_cell_value(s_lv_table, r, 6, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].range);
+            lv_table_set_cell_value(s_lv_table, r, 7, buf);
+        }
+        else if(s_param_table_type == PARAM_TABLE_OUTPUT)
+        {
+            lv_table_set_cell_value(s_lv_table, r, 1, (const char *)outputs[i].description);
+            lv_table_set_cell_value(s_lv_table, r, 2, (const char *)outputs[i].label);
+            lv_snprintf(buf, sizeof(buf), "%ld", (long)outputs[i].value);
+            lv_table_set_cell_value(s_lv_table, r, 3, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].auto_manual);
+            lv_table_set_cell_value(s_lv_table, r, 4, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].digital_analog);
+            lv_table_set_cell_value(s_lv_table, r, 5, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].control);
+            lv_table_set_cell_value(s_lv_table, r, 6, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].switch_status);
+            lv_table_set_cell_value(s_lv_table, r, 7, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].range);
+            lv_table_set_cell_value(s_lv_table, r, 8, buf);
+        }
+        else // PARAM_TABLE_VARIABLE
+        {
+            lv_table_set_cell_value(s_lv_table, r, 1, (const char *)vars[i].description);
+            lv_table_set_cell_value(s_lv_table, r, 2, (const char *)vars[i].label);
+            lv_snprintf(buf, sizeof(buf), "%ld", (long)vars[i].value);
+            lv_table_set_cell_value(s_lv_table, r, 3, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", vars[i].auto_manual);
+            lv_table_set_cell_value(s_lv_table, r, 4, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", vars[i].digital_analog);
+            lv_table_set_cell_value(s_lv_table, r, 5, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", vars[i].control);
+            lv_table_set_cell_value(s_lv_table, r, 6, buf);
+            lv_snprintf(buf, sizeof(buf), "%d", vars[i].range);
+            lv_table_set_cell_value(s_lv_table, r, 7, buf);
+        }
+    }
+
+    // Font for all cells
+    lv_obj_set_style_text_font(s_lv_table, &lv_font_montserrat_12,
+                               LV_PART_ITEMS | LV_STATE_DEFAULT);
+
+    // Click handler for editing
+    lv_obj_add_event_cb(s_lv_table, param_table_cell_edit_cb,
+                        LV_EVENT_VALUE_CHANGED, NULL);
+}
+
+/**
+ * @brief Clears the parameter table and any associated edit popups
+ * @details Deletes the LVGL table object and any active edit popup, resetting pointers to NULL
+ * to ensure a clean state when switching between different parameter table types or refreshing the UI.
+ */
+static void param_Clear_table(void)
+{
+    if(UI_OBJ_READY(s_edit_popup))
+    {
+        lv_obj_del(s_edit_popup);
+        s_edit_popup = NULL;
+        s_edit_ta    = NULL;
+    }
+    if(UI_OBJ_READY(s_lv_table))
+    {
+        lv_obj_del(s_lv_table);
+        s_lv_table = NULL;
+    }
 }
 
 /**
@@ -1073,150 +872,62 @@ static void param_table_build(void)
  */
 static void param_table_apply_updates(void)
 {
+    if(!UI_OBJ_READY(s_lv_table)) return;
+
     uint16_t row_count = param_table_get_row_count();
 
-    for(uint16_t i = 0; i < s_param_edit_bind_count; i++)
-    {
-        lv_obj_t *obj = s_param_edit_binds[i].obj;
-        uint16_t row = s_param_edit_binds[i].row;
-        param_bind_field_t field = s_param_edit_binds[i].field;
-        int32_t v32;
+    #define CELL(r,c)  lv_table_get_cell_value(s_lv_table, (r), (c))
+    #define GETI(r,c)  ((int32_t)atoi(CELL(r,c)))
+    #define U8(v)      ((uint8_t)(((v)<0)?0:(((v)>255)?255:(v))))
+    #define S8(v)      ((int8_t)(((v)<-128)?-128:(((v)>127)?127:(v))))
 
-        if((row >= row_count) || !UI_OBJ_READY(obj))
-        {
-            continue;
-        }
+    for(uint16_t i = 0; i < row_count; i++)
+    {
+        uint16_t r = i + 1U;
 
         if(s_param_table_type == PARAM_TABLE_INPUT)
         {
-            switch(field)
-            {
-                case PARAM_BIND_DESCRIPTION:
-                    param_table_copy_text((char *)inputs[row].description, sizeof(inputs[row].description), lv_textarea_get_text(obj));
-                    break;
-                case PARAM_BIND_LABEL:
-                    param_table_copy_text((char *)inputs[row].label, sizeof(inputs[row].label), lv_textarea_get_text(obj));
-                    break;
-                case PARAM_BIND_VALUE:
-                    inputs[row].value = param_table_get_int_from_textarea(obj);
-                    break;
-                case PARAM_BIND_AUTO_MANUAL:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    inputs[row].auto_manual = (int8_t)v32;
-                    break;
-                case PARAM_BIND_DIGITAL_ANALOG:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    inputs[row].digital_analog = (int8_t)v32;
-                    break;
-                case PARAM_BIND_CONTROL:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    inputs[row].control = (int8_t)v32;
-                    break;
-                case PARAM_BIND_RANGE:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    inputs[row].range = (uint8_t)v32;
-                    break;
-                default:
-                    break;
-            }
+            param_table_copy_text((char *)inputs[i].description,
+                sizeof(inputs[i].description), CELL(r, 1));
+            param_table_copy_text((char *)inputs[i].label,
+                sizeof(inputs[i].label), CELL(r, 2));
+            inputs[i].value          = GETI(r, 3);
+            inputs[i].auto_manual    = S8(GETI(r, 4));
+            inputs[i].digital_analog = S8(GETI(r, 5));
+            inputs[i].control        = S8(GETI(r, 6));
+            inputs[i].range          = U8(GETI(r, 7));
         }
         else if(s_param_table_type == PARAM_TABLE_OUTPUT)
         {
-            switch(field)
-            {
-                case PARAM_BIND_DESCRIPTION:
-                    param_table_copy_text((char *)outputs[row].description, sizeof(outputs[row].description), lv_textarea_get_text(obj));
-                    break;
-                case PARAM_BIND_LABEL:
-                    param_table_copy_text((char *)outputs[row].label, sizeof(outputs[row].label), lv_textarea_get_text(obj));
-                    break;
-                case PARAM_BIND_VALUE:
-                    outputs[row].value = param_table_get_int_from_textarea(obj);
-                    break;
-                case PARAM_BIND_AUTO_MANUAL:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    outputs[row].auto_manual = (int8_t)v32;
-                    break;
-                case PARAM_BIND_DIGITAL_ANALOG:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    outputs[row].digital_analog = (int8_t)v32;
-                    break;
-                case PARAM_BIND_CONTROL:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    outputs[row].control = (int8_t)v32;
-                    break;
-                case PARAM_BIND_SWITCH_STATUS:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    outputs[row].switch_status = (uint8_t)v32;
-                    break;
-                case PARAM_BIND_RANGE:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    outputs[row].range = (int8_t)v32;
-                    break;
-                default:
-                    break;
-            }
+            param_table_copy_text((char *)outputs[i].description,
+                sizeof(outputs[i].description), CELL(r, 1));
+            param_table_copy_text((char *)outputs[i].label,
+                sizeof(outputs[i].label), CELL(r, 2));
+            outputs[i].value          = GETI(r, 3);
+            outputs[i].auto_manual    = S8(GETI(r, 4));
+            outputs[i].digital_analog = S8(GETI(r, 5));
+            outputs[i].control        = S8(GETI(r, 6));
+            outputs[i].switch_status  = U8(GETI(r, 7));
+            outputs[i].range          = S8(GETI(r, 8));
         }
-        else
+        else // PARAM_TABLE_VARIABLE
         {
-            switch(field)
-            {
-                case PARAM_BIND_DESCRIPTION:
-                    param_table_copy_text((char *)vars[row].description, sizeof(vars[row].description), lv_textarea_get_text(obj));
-                    break;
-                case PARAM_BIND_LABEL:
-                    param_table_copy_text((char *)vars[row].label, sizeof(vars[row].label), lv_textarea_get_text(obj));
-                    break;
-                case PARAM_BIND_VALUE:
-                    vars[row].value = param_table_get_int_from_textarea(obj);
-                    break;
-                case PARAM_BIND_AUTO_MANUAL:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    vars[row].auto_manual = (uint8_t)v32;
-                    break;
-                case PARAM_BIND_DIGITAL_ANALOG:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    vars[row].digital_analog = (uint8_t)v32;
-                    break;
-                case PARAM_BIND_CONTROL:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    vars[row].control = (uint8_t)v32;
-                    break;
-                case PARAM_BIND_RANGE:
-                    v32 = param_table_get_int_from_textarea(obj);
-                    if(v32 < 0) v32 = 0;
-                    if(v32 > 255) v32 = 255;
-                    vars[row].range = (uint8_t)v32;
-                    break;
-                default:
-                    break;
-            }
+            param_table_copy_text((char *)vars[i].description,
+                sizeof(vars[i].description), CELL(r, 1));
+            param_table_copy_text((char *)vars[i].label,
+                sizeof(vars[i].label), CELL(r, 2));
+            vars[i].value          = GETI(r, 3);
+            vars[i].auto_manual    = U8(GETI(r, 4));
+            vars[i].digital_analog = U8(GETI(r, 5));
+            vars[i].control        = U8(GETI(r, 6));
+            vars[i].range          = U8(GETI(r, 7));
         }
     }
+
+    #undef CELL
+    #undef GETI
+    #undef U8
+    #undef S8
 }
 
 /**
@@ -1621,6 +1332,15 @@ static void lv_refresh_Time_Data(void)
         {
             lv_dropdown_set_selected(ui_Dropdown5, Modbus.en_sntp - 2);
         }
+        memcpy(&selected_date, &rtc_date, sizeof(rtc_date));
+        if(rtc_date.year < 2025) // Basic sanity check to avoid setting calendar to garbage date if RTC isn't set
+        {
+            rtc_date.year = 2026;
+            selected_date.year = 2026;
+        }
+        lv_calendar_set_today_date(ui_Calendar3, rtc_date.year, rtc_date.month,  rtc_date.day);
+        lv_calendar_set_showed_date(ui_Calendar3, rtc_date.year, rtc_date.month);
+
         memset(buf,0x00,sizeof(buf));
 
         UN_Time RtcData;
@@ -1630,9 +1350,6 @@ static void lv_refresh_Time_Data(void)
                 RtcData.Clk.mon,
                 (RtcData.Clk.year));
         lv_label_set_text(ui_Label19, buf);
-
-        lv_calendar_set_today_date(ui_Calendar3, RtcData.Clk.year, RtcData.Clk.mon,  RtcData.Clk.day);
-        lv_calendar_set_showed_date(ui_Calendar3, RtcData.Clk.year, RtcData.Clk.mon);
 
         for(int i = 0; i < sizeof(tz_offset_table)/sizeof(int16_t); i++)
         {
@@ -1654,11 +1371,9 @@ static void lv_refresh_Time_Data(void)
  */
 static void lv_refresh_Parameters_Data(void)
 {
-    if(s_param_table_build_state != PARAM_TABLE_BUILD_IDLE)
-    {
-        /* Drive non-blocking table creation from periodic refresh. */
-        param_table_build_async_step((void *)(uintptr_t)s_param_table_build_token);
-    }
+    // Nothing to do — table is built once on screen load.
+    // lv_table renders itself; no periodic async step needed.
+    (void)0;
 }
 
 /**
@@ -2233,8 +1948,8 @@ void Event_Cb_UpdateParameterTableFunc(lv_event_t * e)
  */
 void Event_Cb_SysTimeUpdateCallback(lv_event_t * e)
 {
-    uint16_t hour_index = lv_roller_get_selected(ui_Dropdown11);
-    uint16_t min_index  = lv_roller_get_selected(ui_Dropdown8);
+    uint16_t hour_index = lv_dropdown_get_selected(ui_Dropdown11);
+    uint16_t min_index  = lv_dropdown_get_selected(ui_Dropdown8);
 
     char buf[32] = {0};
 
@@ -2436,28 +2151,24 @@ void Event_Cb_TimeSyncUpdateFunc(lv_event_t * e)
 
     if(isDateUpdated || isTimeUpdated)
     {
-        uint16_t year = rtc_date.year;
-        uint8_t month = rtc_date.month;
-        uint8_t day = rtc_date.day;
-        uint8_t hour = rtc_date.hour;
-        uint8_t minute = rtc_date.minute;
-        uint8_t second = rtc_date.second;
-
         if(isDateUpdated)
         {
-            year = selected_date.year;
-            month = (uint8_t)selected_date.month;
-            day = (uint8_t)selected_date.day;
+            rtc_date.year = selected_date.year;
+            rtc_date.month = (uint8_t)selected_date.month;
+            rtc_date.day = (uint8_t)selected_date.day;
         }
 
         if(isTimeUpdated)
         {
-            hour = (uint8_t)lv_roller_get_selected(ui_Dropdown11);
-            minute = (uint8_t)lv_roller_get_selected(ui_Dropdown8);
-            second = 0U;
+            rtc_date.hour = (uint8_t)lv_dropdown_get_selected(ui_Dropdown11);
+            rtc_date.minute = (uint8_t)lv_dropdown_get_selected(ui_Dropdown8);
+            rtc_date.second = 0U;
         }
-
-        Rtc_Set(year, month, day, hour, minute, second, 0);
+        ESP_LOGI(TAG, "Applying manual time update: %04u-%02u-%02u %02u:%02u:%02u",
+                 rtc_date.year, rtc_date.month, rtc_date.day,
+                 rtc_date.hour, rtc_date.minute, rtc_date.second);
+        PCF_SetDateTime(&rtc_date);
+		update_timers();
         isDateUpdated = false;
         isTimeUpdated = false;
     }
@@ -2497,6 +2208,19 @@ void Event_Cb_TimeSyncServerUpdateFunc(lv_event_t * e)
 }
 
 /**
+ * @brief Event callback for clearing parameter table edits
+ * @details Discards any pending edits in the parameter table and resets the
+ *          display to match the current underlying data model values.
+ * @param[in] e LVGL event pointer containing event data
+ * @return void
+ */
+void Event_Cb_ParameterClearTableFunc(lv_event_t * e)
+{
+    (void)e;
+    param_Clear_table();
+}
+
+/**
  * @brief Event callback for committing parameter table edits
  * @details Applies all buffered parameter table field edits back into the
  *          underlying input/output/variable data model.
@@ -2507,6 +2231,7 @@ void Event_Cb_ParameterUpdateFunc(lv_event_t * e)
 {
     (void)e;
     param_table_apply_updates();
+    param_Clear_table();
 }
 
 /**

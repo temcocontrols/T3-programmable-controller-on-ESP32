@@ -115,7 +115,7 @@ static void wifi_event_handler(
             {
                 break;
             }
-            debug_info("Wifi disconnected, try to connect ...");
+            // debug_info("Wifi disconnected, try to connect ...");
             if(0)
             {// wifi
                 for(int i=0 ;i<7;i++)

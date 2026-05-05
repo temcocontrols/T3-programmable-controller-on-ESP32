@@ -31,6 +31,7 @@ void ip_auto_next(lv_event_t * e);
 void NetworkConfigKeyPressFunc(lv_event_t * e);
 void UpdateProtocolFunc(lv_event_t * e);
 void UpdateParameterTableFunc(lv_event_t * e);
+void ParameterClearTableFunc(lv_event_t * e);
 void ParameterUpdateFunc(lv_event_t * e);
 void RefreshTimeFunc(lv_event_t * e);
 void ChangeTimePopUp(lv_event_t * e);
