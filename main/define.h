@@ -5,6 +5,13 @@
 #include "esp_attr.h"
 #include <stdint.h>
 
+/* Compatibility: some targets (esp32s3) may not define LEDC_HIGH_SPEED_MODE.
+	Provide a safe numeric fallback so legacy code can compile even if
+	driver/ledc.h hasn't been included yet. */
+#ifndef LEDC_HIGH_SPEED_MODE
+#define LEDC_HIGH_SPEED_MODE 0
+#endif
+
 #pragma pack(1)
 
 #define SOFTREV     6602

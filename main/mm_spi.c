@@ -6,6 +6,10 @@
 #include "driver/gpio.h"
 #include "hy3131_sw.h"
 
+#ifndef HSPI_HOST
+#define HSPI_HOST SPI3_HOST
+#endif
+
 static const char *TAG = "HY3131_SPI";
 
 // Global variables

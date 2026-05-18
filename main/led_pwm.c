@@ -18,7 +18,12 @@
 #include "scan.h"
 
 #define LEDC_HS_TIMER          LEDC_TIMER_0
+#ifdef LEDC_HIGH_SPEED_MODE
 #define LEDC_HS_MODE           LEDC_HIGH_SPEED_MODE
+#else
+/* LEDC_HIGH_SPEED_MODE may be unavailable on some targets; fall back */
+#define LEDC_HS_MODE           LEDC_LOW_SPEED_MODE
+#endif
 #define LEDC_HS_CH0_GPIO       (25)
 #define LEDC_HS_CH0_CHANNEL    LEDC_CHANNEL_0
 #define LEDC_HS_CH1_GPIO       (26)

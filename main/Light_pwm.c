@@ -17,7 +17,11 @@
 #include "modbus.h"
 #include "i2c_task.h"
 #include "user_data.h"//?????????????????????
+
 #include "driver/ledc.h"
+#ifndef LEDC_HIGH_SPEED_MODE
+#define LEDC_HIGH_SPEED_MODE 0
+#endif
 
 #include "esp_attr.h"
 

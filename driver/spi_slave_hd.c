@@ -51,8 +51,8 @@ static spi_slave_hd_slot_t *spihost[SOC_SPI_PERIPH_NUM];
 static const char TAG[] = "slave_hd";
 
 static void spi_slave_hd_intr_segment(void *arg);
-#if CONFIG_IDF_TARGET_ESP32S2
-//Append mode is only supported on ESP32S2 now
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+//Append mode is only supported on ESP32S2 and ESP32S3 now
 static void spi_slave_hd_intr_append(void *arg);
 #endif
 
@@ -66,13 +66,13 @@ esp_err_t spi_slave_hd_init(spi_host_device_t host_id, const spi_bus_config_t *b
     esp_err_t ret = ESP_OK;
 
     SPIHD_CHECK(VALID_HOST(host_id), "invalid host", ESP_ERR_INVALID_ARG);
-#if CONFIG_IDF_TARGET_ESP32S2
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
     SPIHD_CHECK(config->dma_chan == SPI_DMA_DISABLED || config->dma_chan == (int)host_id || config->dma_chan == SPI_DMA_CH_AUTO, "invalid dma channel", ESP_ERR_INVALID_ARG);
 #elif SOC_GDMA_SUPPORTED
     SPIHD_CHECK(config->dma_chan == SPI_DMA_DISABLED || config->dma_chan == SPI_DMA_CH_AUTO, "invalid dma channel, chip only support spi dma channel auto-alloc", ESP_ERR_INVALID_ARG);
 #endif
-#if !CONFIG_IDF_TARGET_ESP32S2
-//Append mode is only supported on ESP32S2 now
+#if !(CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3)
+//Append mode is only supported on ESP32S2 and ESP32S3 now
     SPIHD_CHECK(append_mode == 0, "Append mode is only supported on ESP32S2 now", ESP_ERR_INVALID_ARG);
 #endif
 
@@ -157,8 +157,8 @@ esp_err_t spi_slave_hd_init(spi_host_device_t host_id, const spi_bus_config_t *b
             goto cleanup;
         }
     }
-#if CONFIG_IDF_TARGET_ESP32S2
-//Append mode is only supported on ESP32S2 now
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+//Append mode is only supported on ESP32S2 and ESP32S3 now
     else {
         host->tx_cnting_sem = xSemaphoreCreateCounting(config->queue_size, config->queue_size);
         host->rx_cnting_sem = xSemaphoreCreateCounting(config->queue_size, config->queue_size);
@@ -182,8 +182,8 @@ esp_err_t spi_slave_hd_init(spi_host_device_t host_id, const spi_bus_config_t *b
             goto cleanup;
         }
     }
-#if CONFIG_IDF_TARGET_ESP32S2
-//Append mode is only supported on ESP32S2 now
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+//Append mode is only supported on ESP32S2 and ESP32S3 now
     else {
         ret = esp_intr_alloc(spicommon_irqsource_for_host(host_id), 0, spi_slave_hd_intr_append,
                          (void *)host, &host->intr);
