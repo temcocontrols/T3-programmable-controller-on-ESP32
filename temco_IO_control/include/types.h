@@ -2,6 +2,13 @@
 
 #define _TYPES_DOT_H       /* avoid recompilation */
 
+/* Pull in ESP-IDF BIT0..BIT31 first so our local guards align with the SDK */
+#if defined(__has_include)
+#  if __has_include("esp_bit_defs.h")
+#    include "esp_bit_defs.h"
+#  endif
+#endif
+
 #define MINI64
 
 #define Byte 		unsigned char
@@ -36,6 +43,7 @@
 #define HIGH_BYTE(word)	(U8_T)((word & 0xFF00) >> 8)
 
 /* Bit Definitions for Bitwise Operation */
+#ifndef BIT0
 #define BIT0		0x01
 #define BIT1		0x02
 #define BIT2		0x04
@@ -68,6 +76,7 @@
 #define	BIT29		0x20000000
 #define	BIT30		0x40000000
 #define	BIT31		0x80000000
+#endif
 
 
 #ifndef NULL

@@ -215,7 +215,9 @@ extern U8_T flag_send_get_panel_number;
 #define BAC_TIMESYNC 		1
 #define BAC_TRENDLOG		1
 #define BAC_RANGE			1 // dont need range
+#undef  BAC_BI
 #define BAC_BI				1
+#undef  BAC_BV
 #define BAC_BV				1
 #define BAC_DCC				0
 #define BAC_PROPRIETARY 1

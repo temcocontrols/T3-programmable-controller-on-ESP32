@@ -91,7 +91,9 @@
 #define BAC_AI 			28
 #define BAC_AO 			29
 #define BAC_BO 			30
+#undef  BAC_BV
 #define BAC_BV 			21
+#undef  BAC_BI
 #define BAC_BI 			20
 
 #define BAC_FLOAT_ABCD  32

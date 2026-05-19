@@ -364,7 +364,6 @@ void DisplayHumidity( uint8_t index , S16_T value )
 
 static void DisplaySetpointValue(void)
 {
-    Str_points_ptr setpointPtr = put_io_buf(VAR, 0);
     // Label at the same spot as idle screen
     // disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS - 20, (char*)setpointPtr.pvar->label, SCH_COLOR, TSTAT8_BACK_COLOR);
     // Value with the same formatter used by idle screen

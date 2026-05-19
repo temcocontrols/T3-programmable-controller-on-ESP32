@@ -2,6 +2,13 @@
 
 #define _TYPES_DOT_H       /* avoid recompilation */
 
+/* Pull in ESP-IDF BIT0..BIT31 first so our local guards align with the SDK */
+#if defined(__has_include)
+#  if __has_include("esp_bit_defs.h")
+#    include "esp_bit_defs.h"
+#  endif
+#endif
+
 #define MINI64
 
 

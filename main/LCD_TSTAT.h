@@ -21,14 +21,20 @@
 #define FORM16X24           2
 
 
+#ifndef CH_HEIGHT
 #define CH_HEIGHT           36
+#endif
 
+#ifndef THERM_METER_POS
 #define THERM_METER_POS     5
+#endif
 
 #define IDLE_LINE1_POS      0
 #define IDLE_LINE2_POS      50
 
+#ifndef SETPOINT_POS
 #define SETPOINT_POS        115
+#endif
 #define FAN_MODE_POS        SETPOINT_POS+CH_HEIGHT+7
 #define SYS_MODE_POS        FAN_MODE_POS+CH_HEIGHT+7
 

@@ -17,6 +17,7 @@
 /*----------------------------------------------------------------------------*/
 /* DEFINITIONS                                                                */
 /*----------------------------------------------------------------------------*/
+#ifndef BIT0
 #define  BIT0 0x01
 #define  BIT1 0x02
 #define  BIT2 0x04
@@ -25,6 +26,7 @@
 #define  BIT5 0x20
 #define  BIT6 0x40
 #define  BIT7 0x80
+#endif
 
 #define C_func_KEY			(1 << 0)	//PT1.1
 #define C_range_KEY         (1 << 1)	//PT1.0
