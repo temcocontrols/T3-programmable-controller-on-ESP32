@@ -11,10 +11,3 @@ You can change the default ESP IDF installation path, which will be used later.
 6.	You can get more help from
 https://esp32.com/index.php
 https://espressif-docs.readthedocs-hosted.com/projects/esp-idf/en/latest/index.html
-If you target an ESP32-S3 board, switch the IDF target before configuring/building:
-
-idf.py set-target esp32s3
-idf.py menuconfig   # verify peripherals, USB and flash settings
-idf.py build
-
-If you use `sdkconfig.defaults` in the project root, `menuconfig` will pick those defaults automatically.

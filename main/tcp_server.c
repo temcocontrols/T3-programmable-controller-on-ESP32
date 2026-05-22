@@ -35,6 +35,7 @@
 #include "ethernet_task.h"
 #include "flash.h"
 #include "rtc.h"
+#include "usb_cdc.h"
 
 #include "i2c_task.h"
 //#include "microphone.h"
@@ -62,6 +63,7 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "LCD_Driver/lcd_drv.h"
 #include "lora.h"
 
 //#include "lowPower.h"
@@ -1963,7 +1965,7 @@ void Inital_Bacnet_Server(void)
 		BOS = 4;
 		TemcoVars = 3;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 		AIS = MAX_INS + 1;
 		AOS = MAX_AOS + 1;
@@ -2633,7 +2635,7 @@ void Timer_task(void *pvParameters)
 	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
 			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
 	{
-
+		i2c_master_init();
 		PCF_hctosys();
 		PCF_systohc();
 	}
@@ -2918,7 +2920,7 @@ void Update_Led(void)
 		max_out = 7;
 		max_digout = 7;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 		max_in = 8;
 		max_out = 7;
@@ -3380,8 +3382,10 @@ void i2c_master_task(void *pvParameters)
 			LED_i2c_write(0x74,led_buf,4);
 			vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_RMC1216
-				|| Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
+		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == MINI_BIG_ARM ||
+				Modbus.mini_type == PROJECT_RMC1216	|| Modbus.mini_type == MINI_TSTAT10 ||
+				Modbus.mini_type == MINI_TSTAT11    || Modbus.mini_type == PROJECT_NG2_NEW ||
+				Modbus.mini_type == PROJECT_CO2)
 		{
 			// send
 			// led
@@ -4367,7 +4371,7 @@ void Bacnet_Control(void *pvParameters)
 	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
 		max_dos = 7; max_aos = 0;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
 		max_dos = 5; max_aos = 2;
 	}
@@ -4561,6 +4565,7 @@ void TEST_FLASH(void);
 void vStartScanTask(unsigned char uxPriority);
 void i2c_sensor_task(void *arg);
 void MenuTask(void *pvParameters);
+void Lcd_Task(void *pvParameters);
 
 void LS_led_task(void *pvParameters);
 
@@ -4588,21 +4593,29 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
+	Modbus.mini_type = MINI_TSTAT11;
+
 	uart_init(0);
+
+#ifdef USE_USB_CDC_MAIN
+	usb_cdc_init();
+#endif
 
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
 #endif
 
-    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
+	if(Modbus.mini_type == MINI_TSTAT11)
+	{
+		LCD_Init();
+		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+	}
+    else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
 	{
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
-
-  	if (Modbus.mini_type != MINI_BIG_ARM)
-    	uart_init(2);
 
 	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
 	{
@@ -4641,6 +4654,7 @@ void app_main()
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
 	}
 
+	// TODO: Need to update i2c communication with display and other i2c sensor
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
     {
@@ -4652,13 +4666,14 @@ void app_main()
         // Create multiMeterTask with low priority
         xTaskCreate(multiMeterTask, "MultiMeterTask", 2048*2, NULL, tskIDLE_PRIORITY+5, NULL);
     }
-    //if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
+    // if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
     //    xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[6]);
 
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
-    		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LSW_SENSOR))
+    		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LSW_SENSOR) || (Modbus.mini_type == MINI_TSTAT11))
+	{
        xTaskCreate(i2c_sensor_task,"i2c_task", 2048*2, NULL, 5, NULL);
-
+	}
 
     if(Modbus.mini_type == PROJECT_AIRLAB)
     {
@@ -4694,7 +4709,6 @@ void app_main()
 
  #if 1
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
-
 #endif
 
 
@@ -4725,7 +4739,11 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 	}
 	else if(port == 2)
 	{
+#ifdef USE_USB_CDC_MAIN
+		usb_cdc_write(p, length);
+#else
 		uart_write_bytes(UART_NUM_2, (const char *)p, length);
+#endif
 	}
 
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}

@@ -3,9 +3,6 @@
 #include "driver/gpio.h"
 #include "user_data.h"
 #include "driver/ledc.h"
-#ifndef LEDC_HIGH_SPEED_MODE
-#define LEDC_HIGH_SPEED_MODE 0
-#endif
 #include "modbus.h"
 
 #define MPPT_POWER_LED	27
@@ -20,7 +17,7 @@
 #define MPPT_OUTPUT_RELAY_SEL	(1ULL<<MPPT_OUTPUT_RELAY)
 
 #define MPPT_HS_TIMER          LEDC_TIMER_0
-#define MPPT_HS_MODE           LEDC_HIGH_SPEED_MODE
+#define MPPT_HS_MODE           LEDC_LOW_SPEED_MODE
 #define MPPT_HS_CH0_GPIO       (32)
 #define MPPT_HS_CH0_CHANNEL    LEDC_CHANNEL_0
 #define MPPT_CH_NUM			   1

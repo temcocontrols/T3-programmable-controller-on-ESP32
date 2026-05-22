@@ -145,7 +145,7 @@ int spicommon_irqdma_source_for_host(spi_host_device_t host)
 static inline periph_module_t get_dma_periph(int dma_chan)
 {
     assert(dma_chan >= 1 && dma_chan <= SOC_SPI_DMA_CHAN_NUM);
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S2
     if (dma_chan == 1) {
         return PERIPH_SPI2_DMA_MODULE;
     } else if (dma_chan == 2) {
@@ -208,9 +208,6 @@ static esp_err_t alloc_dma_chan(spi_host_device_t host_id, spi_dma_chan_t dma_ch
 #elif CONFIG_IDF_TARGET_ESP32S2
         //On ESP32S2, each SPI controller has its own DMA channel
         success = claim_dma_chan(host_id, &actual_dma_chan);
-#elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-    //On ESP32S2 and ESP32S3, each SPI controller has its own DMA channel
-    success = claim_dma_chan(host_id, &actual_dma_chan);
 #endif  //#if CONFIG_IDF_TARGET_XXX
     } else {
         success = claim_dma_chan((int)dma_chan, &actual_dma_chan);
@@ -609,8 +606,6 @@ esp_err_t spicommon_bus_initialize_io(spi_host_device_t host, const spi_bus_conf
             esp_rom_gpio_connect_in_signal(bus_config->mosi_io_num, spi_periph_signal[host].spid_in, false);
 #if CONFIG_IDF_TARGET_ESP32S2
             PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[bus_config->mosi_io_num]);
-#elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-    //On ESP32S2 and ESP32S3, each SPI controller has its own DMA channel. So there is no need to connect them.
 #endif
             gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[bus_config->mosi_io_num], FUNC_GPIO);
         }

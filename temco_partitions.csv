@@ -1,0 +1,21 @@
+
+# Name,   Type, SubType, Offset,   Size, Flags
+nvs,      data, nvs,      0x9000,   0x10000
+# 64kb
+otadata,  data, ota,      0x19000,  0x2000
+phy_init, data, phy,      0x1B000,  0x1000
+
+# using temco bootloader -- 1 MB for bootloader and 6 MB for application
+#factory,  app,  factory,  0x20000,  0x100000
+#ota_0,    app,  ota_0,    0x120000, 0x600000
+
+# for flash directly without bootloader - app - 6 MB, OTA- 1 MB(N/A)
+factory,  app,  factory,  0x20000,  0x600000
+ota_0,    app,  ota_0,    0x620000, 0x100000
+
+matter,   data, nvs,      0x720000, 0x40000
+ # ~256 KB (important for matter)
+storage,  data, nvs,      0x760000, 0x20000
+# other data
+
+# used till 0x78000.

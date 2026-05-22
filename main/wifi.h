@@ -36,7 +36,8 @@ typedef struct
 	int8_t rssi;
 }STR_SSID;
 
-extern bool re_init_wifi;
+extern bool ReconnectWithWifi;
+extern bool WifiScanComplete;
 extern char debug_array[100];
 
 extern STR_SSID	SSID_Info;

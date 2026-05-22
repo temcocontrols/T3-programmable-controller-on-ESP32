@@ -226,15 +226,11 @@ esp_err_t ethernet_init(void)
     // else
     //  ;//Test[5]++;
 
+#if CONFIG_IDF_TARGET_ESP32
+
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 
-    /* Configure and create MAC/PHY.
-       The esp32 EMAC helper APIs are specific to the original ESP32 target.
-       Guard usage so builds for other targets (eg. esp32s3) that lack
-       these symbols still succeed. For non-ESP32 targets Ethernet is
-       skipped and `eth_handle` remains NULL. */
-#if CONFIG_IDF_TARGET_ESP32
     /* Configure ESP32 EMAC specific config */
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
 
@@ -269,12 +265,6 @@ esp_err_t ethernet_init(void)
     }
 
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
-#else
-    ESP_LOGW(TAG, "Ethernet MAC/PHY creation skipped: target is not ESP32");
-    esp_eth_mac_t *mac = NULL;
-    esp_eth_phy_t *phy = NULL;
-    esp_eth_config_t config = {0};
-#endif
 
     /* ===== YOUR ORIGINAL CONDITION PRESERVED ===== */
     if( Modbus.mini_type == MINI_SMALL_ARM ||
@@ -322,6 +312,7 @@ esp_err_t ethernet_init(void)
     {
         debug_info("Ethernet not started (handle NULL)");
     }
+#endif
 
 #if 1//DNS
 //  dns_init();

@@ -5,14 +5,10 @@
 #include "esp_attr.h"
 #include <stdint.h>
 
-/* Compatibility: some targets (esp32s3) may not define LEDC_HIGH_SPEED_MODE.
-	Provide a safe numeric fallback so legacy code can compile even if
-	driver/ledc.h hasn't been included yet. */
-#ifndef LEDC_HIGH_SPEED_MODE
-#define LEDC_HIGH_SPEED_MODE 0
-#endif
-
 #pragma pack(1)
+
+/* 定义此宏将把 Port 2 (Main RS485) 切换为 USB CDC 虚拟串口 */
+#define USE_USB_CDC_MAIN
 
 #define SOFTREV     6602
 
@@ -193,8 +189,9 @@ typedef	enum
 #define PROJECT_CO2 		26
 #define PROJECT_LSW_SENSOR	27
 #define PROJECT_LORA_GATEWAY	28
+#define MINI_TSTAT11 		29
 
-#define MAX_MINI_TYPE 		28
+#define MAX_MINI_TYPE 		29
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;

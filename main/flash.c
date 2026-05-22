@@ -452,7 +452,7 @@ esp_err_t read_default_from_flash(void)
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
 		memset(lcddisplay,0,sizeof(lcdconfig));
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 		{
 			lcddisplay[0] = 1;
 			lcddisplay[2] = IN;
@@ -469,7 +469,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN1_CAL, &input_cal[0]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[0] = 3680;
 		else
 			input_cal[0] = 4095;
@@ -478,7 +478,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN2_CAL, &input_cal[1]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[1] = 3680;
 		else
 			input_cal[1] = 4095;
@@ -487,7 +487,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN3_CAL, &input_cal[2]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[2] = 3680;
 		else
 			input_cal[2] = 4095;
@@ -496,7 +496,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN4_CAL, &input_cal[3]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[3] = 3680;
 		else
 			input_cal[3] = 4095;
@@ -505,7 +505,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN5_CAL, &input_cal[4]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[4] = 3680;
 		else
 			input_cal[4] = 4095;
@@ -515,7 +515,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN6_CAL, &input_cal[5]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[5] = 3680;
 		else
 			input_cal[5] = 4095;
@@ -524,7 +524,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN7_CAL, &input_cal[6]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[6] = 3680;
 		else
 			input_cal[6] = 4095;
@@ -533,7 +533,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN8_CAL, &input_cal[7]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[7] = 3680;
 		else
 			input_cal[7] = 4095;
@@ -542,7 +542,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN9_CAL, &input_cal[8]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[8] = 3680;
 		else
 			input_cal[8] = 4095;
@@ -551,7 +551,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN10_CAL, &input_cal[9]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[9] = 3680;
 		else
 			input_cal[9] = 4095;
@@ -561,7 +561,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN11_CAL, &input_cal[10]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[10] = 3680;
 		else
 			input_cal[10] = 4095;
@@ -570,7 +570,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN12_CAL, &input_cal[11]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[11] = 3680;
 		else
 			input_cal[11] = 4095;
@@ -579,7 +579,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN13_CAL, &input_cal[12]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[12] = 3680;
 		else
 			input_cal[12] = 4095;
@@ -588,7 +588,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN14_CAL, &input_cal[13]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[13] = 3680;
 		else
 			input_cal[13] = 4095;
@@ -597,7 +597,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN15_CAL, &input_cal[14]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[14] = 3680;
 		else
 			input_cal[14] = 4095;
@@ -606,7 +606,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_IN16_CAL, &input_cal[15]);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 			input_cal[15] = 3680;
 		else
 			input_cal[15] = 4095;
@@ -1612,7 +1612,7 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"P_size",strlen("P_size"));
 		}
 
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 		{
 
 			ptr = put_io_buf(IN,8);
@@ -1667,7 +1667,7 @@ void Initial_points(uint8_t point_type)
 			}
 			Get_AVS();
 		}
-		if(Modbus.mini_type == MINI_TSTAT10)
+		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 		{
 			ptr = put_io_buf(VAR,0);
 			memcpy(ptr.pvar->label,"STP",4);

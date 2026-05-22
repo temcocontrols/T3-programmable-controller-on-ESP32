@@ -20,9 +20,7 @@
 #include "types.h"
 #include "sensirion_common.h"
 
-#ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN
-#endif
 
 
 #define CHANNEL_HUM		0

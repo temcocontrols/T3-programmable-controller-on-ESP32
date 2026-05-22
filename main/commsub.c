@@ -61,20 +61,38 @@ extern U8_T base_var;
 // if the current search item is i, then the next search item is (2i + 1 , 2(i + 1))
 void Comm_Tstat_Initial_Data(void)
 {
-	if(Modbus.mini_type == MINI_BIG_ARM)		{	base_in = 32;		base_out = 24;   	}
-	else if(Modbus.mini_type == MINI_SMALL_ARM)	{	base_in = 16;		base_out = 10;		}
-	else if (Modbus.mini_type == MINI_TINY_ARM) {	base_in = 8;		base_out = 14;		}
-	else if(Modbus.mini_type == MINI_TSTAT10) 	{	base_in = TSTAT10_MAX_AIS;		base_out = TSTAT10_MAX_DOS + TSTAT10_MAX_AOS;}
-	else if(Modbus.mini_type == MINI_T10P) 		{	base_in = T10P_MAX_AIS;			base_out = T10P_MAX_DOS + T10P_MAX_AOS;}
-	else if(Modbus.mini_type == PROJECT_FAN_MODULE)	{	base_in = 6;		base_out = 2;}
-	else if(Modbus.mini_type == PROJECT_AIRLAB)	{	base_in = 16;		base_out = 0;}
-	else if(Modbus.mini_type == PROJECT_RMC1216) 	{	base_in = 16;		base_out = 7;}
-	else if(Modbus.mini_type == PROJECT_NG2_NEW) {	base_in = 24;		base_out = 12;}
-	else if(Modbus.mini_type == PROJECT_LSW_BTN) {base_in = 16;		base_out = 4;}
-	else if(Modbus.mini_type == PROJECT_LSW_SENSOR) {base_in = 16;		base_out = 4;} // ?????????
-	else if(Modbus.mini_type == PROJECT_LORA_GATEWAY) {base_in = 32;		base_out = 0;}
-	else if(Modbus.mini_type == MINI_NANO) 		{	base_in = 0;		base_out = 0;}
-	else if(Modbus.mini_type == PROJECT_LIGHT_PWM) 		{	base_in = 0;		base_out = 4;}
+	switch(Modbus.mini_type)
+	{
+		case MINI_BIG_ARM:			base_in = 32;			   base_out = 24;
+			break;
+		case MINI_SMALL_ARM:		base_in = 16;			   base_out = 10;
+			break;
+		case MINI_TINY_ARM:			base_in = 8;			   base_out = 14;
+			break;
+		case MINI_TSTAT10:
+		case MINI_TSTAT11:			base_in = TSTAT10_MAX_AIS; base_out = TSTAT10_MAX_DOS + TSTAT10_MAX_AOS;
+			break;
+		case MINI_T10P:				base_in = T10P_MAX_AIS;	   base_out = T10P_MAX_DOS + T10P_MAX_AOS;
+			break;
+		case PROJECT_FAN_MODULE:	base_in = 6;			   base_out = 2;
+			break;
+		case PROJECT_AIRLAB:		base_in = 16;			   base_out = 0;
+			break;
+		case PROJECT_RMC1216:		base_in = 16;			   base_out = 7;
+			break;
+		case PROJECT_NG2_NEW:		base_in = 24;			   base_out = 12;
+			break;
+		case PROJECT_LSW_BTN:		base_in = 16;			   base_out = 4;
+			break;
+		case PROJECT_LSW_SENSOR:	base_in = 16;			   base_out = 4;
+			break;
+		case PROJECT_LORA_GATEWAY:	base_in = 32;			   base_out = 0;
+			break;
+		case MINI_NANO:				base_in = 0;			   base_out = 0;
+			break;
+		case PROJECT_LIGHT_PWM:		base_in = 0;			   base_out = 4;
+			break;
+	}
 	base_var = 0;
 
 

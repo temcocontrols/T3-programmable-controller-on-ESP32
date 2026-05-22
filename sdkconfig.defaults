@@ -1,2 +1,0 @@
-# Defaults to prefer ESP32-S3 target
-CONFIG_IDF_TARGET_ESP32S3=y

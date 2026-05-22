@@ -17,11 +17,7 @@
 #include "modbus.h"
 #include "i2c_task.h"
 #include "user_data.h"//?????????????????????
-
 #include "driver/ledc.h"
-#ifndef LEDC_HIGH_SPEED_MODE
-#define LEDC_HIGH_SPEED_MODE 0
-#endif
 
 #include "esp_attr.h"
 
@@ -36,7 +32,7 @@ void Light_PWM_Init(void)
 	Str_points_ptr ptr;
     // 配置 LEDC 定时器
     ledc_timer_config_t ledc_timer = {
-        .speed_mode       = LEDC_HIGH_SPEED_MODE, // 高速模式
+        .speed_mode       = LEDC_LOW_SPEED_MODE, // 高速模式
         .timer_num        = LEDC_TIMER_0,        // 定时器 0
         .duty_resolution  = LEDC_TIMER_13_BIT,   // 占空比分辨率为 13 位
         .freq_hz          = 5000,               // PWM 频率为 5 kHz
@@ -48,7 +44,7 @@ void Light_PWM_Init(void)
     ledc_channel_config_t ledc_channel[] = {
         {
             .gpio_num       = GPIO_NUM_2,                 // GPIO 2
-            .speed_mode     = LEDC_HIGH_SPEED_MODE,
+            .speed_mode     = LEDC_LOW_SPEED_MODE,
             .channel        = LEDC_CHANNEL_0,   // 通道 0
             .timer_sel      = LEDC_TIMER_0,     // 使用定时器 0
             .duty           = 0,                // 初始占空比为 0
@@ -56,7 +52,7 @@ void Light_PWM_Init(void)
         },
         {
             .gpio_num       = GPIO_NUM_12,                // GPIO 12
-            .speed_mode     = LEDC_HIGH_SPEED_MODE,
+            .speed_mode     = LEDC_LOW_SPEED_MODE,
             .channel        = LEDC_CHANNEL_1,   // 通道 1
             .timer_sel      = LEDC_TIMER_0,     // 使用定时器 0
             .duty           = 0,                // 初始占空比为 0
@@ -64,7 +60,7 @@ void Light_PWM_Init(void)
         },
         {
             .gpio_num       = GPIO_NUM_15,                // GPIO 15
-            .speed_mode     = LEDC_HIGH_SPEED_MODE,
+            .speed_mode     = LEDC_LOW_SPEED_MODE,
             .channel        = LEDC_CHANNEL_2,   // 通道 2
             .timer_sel      = LEDC_TIMER_0,     // 使用定时器 0
             .duty           = 0,                // 初始占空比为 0
@@ -72,7 +68,7 @@ void Light_PWM_Init(void)
         },
         {
             .gpio_num       = GPIO_NUM_32,                // GPIO 32
-            .speed_mode     = LEDC_HIGH_SPEED_MODE,
+            .speed_mode     = LEDC_LOW_SPEED_MODE,
             .channel        = LEDC_CHANNEL_3,   // 通道 3
             .timer_sel      = LEDC_TIMER_0,     // 使用定时器 0
             .duty           = 0,                // 初始占空比为 0
@@ -90,7 +86,7 @@ void Light_PWM_Init(void)
         ptr.pout->range = P0_100_PWM;
     }
     Count_OUT_Object_Number();
-    
+
     // 配置 IO13 为输出模式
    gpio_config_t io_conf = {
 	   .pin_bit_mask = IO13_PIN_SEL,  // 选择 IO13
@@ -103,15 +99,15 @@ void Light_PWM_Init(void)
 
    // 设置 IO13 默认高电平
    gpio_set_level(IO13_PIN, 1);
-   
+
 }
 
 //PWM 的占空比范围由分辨率决定，例如 13 位分辨率的最大值为 2^13 - 1 = 8191。
 //50% 占空比为 8191 / 2 = 4095。
 void Set_PWM_Duty(ledc_channel_t channel, uint32_t duty)
 {
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, channel, duty);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, channel);
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, channel, duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, channel);
 }
 
 void Light_PWM_AO_Update(void)

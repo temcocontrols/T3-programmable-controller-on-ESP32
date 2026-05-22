@@ -57,9 +57,23 @@ idf_component_register(			SRCS
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
+							"LCD_Driver/lcd_drv.c"
+							"LCD_Driver/lcd_task.c"
+							"LCD_Driver/touch_drv.c"
+							"LCD_Driver/lv_UserPeram.c"
+							"usb_cdc.c"
+
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
-                    		INCLUDE_DIRS ".")
+			INCLUDE_DIRS "."
+							"LCD_Driver"
+							"TemcoScreen"
+							)
+
+# Auto-include all .c files from TemcoScreen subdirectory
+file(GLOB TEMCO_SCREEN_SOURCES "TemcoScreen/*.c")
+target_sources(${COMPONENT_LIB} PRIVATE ${TEMCO_SCREEN_SOURCES})
+
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 

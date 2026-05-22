@@ -222,7 +222,7 @@ U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 // 用于内部input，range可以调整
 U8_T get_max_input(void)
 {
-	if(Modbus.mini_type == MINI_TSTAT10)
+	if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{// base in is 14，包含6路外部senseor
 		if(flag_internal_temperature == 1)
 			return 9;
@@ -252,7 +252,7 @@ U8_T get_max_internal_input(void)
 	{
 	  return NEW_TINY_MAX_AIS;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 	  if(flag_internal_temperature == 1)
 		  return TSTAT10_MAX_AIS + 1;
@@ -285,7 +285,7 @@ U8_T get_max_internal_output(void)
 	{
 	  return NEW_TINY_MAX_AOS + NEW_TINY_MAX_DOS;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10)
+	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
 	{
 		return TSTAT10_MAX_AOS + TSTAT10_MAX_DOS;
 	}

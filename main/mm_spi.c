@@ -6,10 +6,6 @@
 #include "driver/gpio.h"
 #include "hy3131_sw.h"
 
-#ifndef HSPI_HOST
-#define HSPI_HOST SPI3_HOST
-#endif
-
 static const char *TAG = "HY3131_SPI";
 
 // Global variables
@@ -239,11 +235,11 @@ void hy3131_spi_init(void) {
     };
 
     // Initialize the SPI bus
-    ESP_ERROR_CHECK(spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
+    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     // Attach the HY3131 to the SPI bus
     spi_device_handle_t hy3131_handle;
-    ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &devcfg, &hy3131_handle));
+    ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &devcfg, &hy3131_handle));
 
     ESP_LOGI(TAG, "HY3131 SPI initialized");
 
