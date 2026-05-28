@@ -53,6 +53,7 @@ idf_component_register(			SRCS
 						#	"lowPower.c"
 							"co2.c"
 							"lora.c"
+							"a7608.c"
 							"LcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"

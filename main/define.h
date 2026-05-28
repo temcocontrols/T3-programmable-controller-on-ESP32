@@ -8,7 +8,7 @@
 #pragma pack(1)
 
 /* 定义此宏将把 Port 2 (Main RS485) 切换为 USB CDC 虚拟串口 */
-#define USE_USB_CDC_MAIN
+//#define USE_USB_CDC_MAIN
 
 #define SOFTREV     6602
 

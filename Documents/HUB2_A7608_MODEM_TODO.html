@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUB2 A7608E-H Modem - Firmware TODO</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f5f5; color: #222; }
+    .wrap { padding: 16px; max-width: 1600px; margin: 0 auto; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    nav a { padding: 8px 14px; background: #fff; border: 1px solid #d9d9d9; border-radius: 4px; color: #1f3864; text-decoration: none; font-size: 14px; font-weight: bold; }
+    nav a.active { background: #1f3864; color: #fff; border-color: #1f3864; }
+    nav a:hover:not(.active) { background: #eef2f8; }
+    .note { background: #fff; border-left: 4px solid #cc0000; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; line-height: 1.55; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .note strong { color: #1f3864; }
+    table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.12); margin-bottom: 16px; }
+    th, td { border: 1px solid #d9d9d9; padding: 8px 10px; text-align: left; vertical-align: top; font-size: 13px; }
+    thead { position: sticky; top: 0; z-index: 10; }
+    tr.title th { background: #1f3864; color: #fff; font-size: 18px; font-weight: bold; text-align: center; padding: 14px 10px; }
+    tr.header th { background: #1f3864; color: #fff; font-weight: bold; text-align: center; font-size: 12px; }
+    tr.odd td { background: #fff; }
+    tr.even td { background: #f2f2f2; }
+    td.task-id, td.priority, td.status { text-align: center; white-space: nowrap; font-weight: bold; }
+    td.priority { color: #cc0000; }
+    td.status { color: #c55a11; }
+    h2 { font-size: 16px; color: #1f3864; margin: 24px 0 8px; }
+    .footnote { font-size: 12px; color: #555; line-height: 1.6; }
+    code { background: #eef2f8; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a href="HUB2_A7608_MODEM_INTEGRATION.md">Integration Plan</a>
+      <a href="HUB2_A7608_MODEM_BLOCK_DIAGRAM.html">Block Diagram</a>
+      <a href="HUB2_A7608_MODEM_TODO.html" class="active">Firmware TODO</a>
+      <a href="HUB2_A7608_Modem_Integration_Plan.docx">Source Plan</a>
+    </nav>
+
+    <div class="note">
+      <strong>Bring-up is in progress.</strong>
+      Core LilyGo-compatible modem pins are confirmed, ATDebug firmware can talk to the modem, and the ESP32-S3 USB-to-serial bridge is working.
+      The next focus is SIM/LTE/GNSS status logging and converting the proven AT flow into the reusable A7608 driver.
+      Full 4G-to-Ethernet router behavior is intentionally outside this first task list.
+    </div>
+
+    <table>
+      <thead>
+        <tr class="title"><th colspan="8">HUB2 A7608E-H TODO - mandatory before prototype ship</th></tr>
+        <tr class="header"><th>Task</th><th>Priority</th><th>Category</th><th>What to do</th><th>Problem today</th><th>Required action</th><th>Files / Artifacts</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr class="odd"><td class="task-id">HUB2-001</td><td class="priority">P0</td><td>Bring-up</td><td><strong>Confirm ESP32-S3 flash and boot</strong></td><td>The modem work depends on a known-good board boot path.</td><td>LilyGo-Modem-Series ATDebug firmware is loaded and running on the chip.</td><td>ATDebug firmware</td><td class="status">Done</td></tr>
+        <tr class="even"><td class="task-id">HUB2-002</td><td class="priority">P0</td><td>Power</td><td><strong>Measure A7608E-H rail during high-current events</strong></td><td>LTE registration and TX can pull high peak current and reset the board.</td><td>Scope/record voltage and current during power-on, idle, registration, and data TX.</td><td>Power test report</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-003</td><td class="priority">P0</td><td>Pinout</td><td><strong>Verify core modem pin map</strong></td><td>Driver timing cannot be correct until active levels and timings are confirmed.</td><td>Important pins match LilyGo-Modem-Series: TX=GPIO17, RX=GPIO18, PWRKEY=GPIO15, RESET=GPIO16, RING=GPIO6, DTR=GPIO7.</td><td>Schematic, pin map</td><td class="status">Done</td></tr>
+        <tr class="even"><td class="task-id">HUB2-004</td><td class="priority">P0</td><td>UART</td><td><strong>Confirm AT / OK over UART</strong></td><td>No modem driver should be merged before basic AT communication is stable.</td><td>ATDebug firmware confirms AT commands are communicating with the modem.</td><td>AT log</td><td class="status">Done</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-005</td><td class="priority">P0</td><td>SIM</td><td><strong>Validate SIM interface</strong></td><td>SIM faults can look like network or modem driver faults.</td><td>Check SIM detect, SIM power, clock, reset, and data lines. Confirm CPIN? READY.</td><td>AT log, schematic</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-006</td><td class="priority">P1</td><td>RF</td><td><strong>Verify LTE and GNSS antenna paths</strong></td><td>Registration and GNSS results depend heavily on antenna path quality.</td><td>Check connector, matching, ground, and antenna type. Record CSQ and GNSS behavior.</td><td>RF notes</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-007</td><td class="priority">P1</td><td>USB</td><td><strong>Check USB debug path</strong></td><td>USB may be needed for diagnostics or modem firmware update.</td><td>ESP32-S3 USB-to-serial bridge is working. Decide separately whether modem USB_DP/USB_DM is needed for production support.</td><td>USB serial bridge, modem USB note</td><td class="status">Partial</td></tr>
+        <tr class="even"><td class="task-id">HUB2-008</td><td class="priority">P0</td><td>Driver</td><td><strong>Create reusable A7608 driver module</strong></td><td>AT logic scattered through application code will be hard to debug.</td><td>First-pass a7608.c/.h module has been added and registered in main/CMakeLists.txt. It is standalone and not auto-started yet.</td><td>main/a7608.c, main/a7608.h</td><td class="status">Partial</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-009</td><td class="priority">P0</td><td>AT</td><td><strong>Implement AT command framework</strong></td><td>Timeout/retry behavior needs one owner.</td><td>Generic send/wait API is implemented with expected-response matching, ERROR detection, timeout, and response buffer capture.</td><td>a7608.c</td><td class="status">Partial</td></tr>
+        <tr class="even"><td class="task-id">HUB2-010</td><td class="priority">P0</td><td>State</td><td><strong>Implement modem state machine</strong></td><td>Application code needs a single modem status model.</td><td>State enum and first status transitions are added: OFF, BOOTING, AT_READY, SIM_READY, REGISTERED, ATTACHED, CONNECTED, ERROR. Next step is task-level integration.</td><td>a7608.c, a7608.h</td><td class="status">Partial</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-011</td><td class="priority">P0</td><td>Status</td><td><strong>Read SIM, LTE, RSSI, operator, IP status</strong></td><td>Field support needs modem status, not only pass/fail logs.</td><td>Initial status refresh reads CPIN?, CEREG?/CREG?, CSQ, CGATT?, COPS?, and CGPADDR. Needs real modem log validation in HUB2 firmware.</td><td>a7608.c</td><td class="status">Partial</td></tr>
+        <tr class="even"><td class="task-id">HUB2-012</td><td class="priority">P1</td><td>GNSS</td><td><strong>Add GNSS enable/read/disable</strong></td><td>Location support is part of the modem plan but should not block LTE bring-up.</td><td>Add GNSS command sequence from the A7608E-H AT manual and expose fix status.</td><td>a7608.c, AT manual</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-013</td><td class="priority">P0</td><td>Cellular</td><td><strong>Bring up cellular IP connection</strong></td><td>Prototype target is connect-out behavior, not router behavior.</td><td>Configure PDP, open network, verify IPADDR, and close cleanly.</td><td>a7608.c, AT log</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-014</td><td class="priority">P1</td><td>Cellular</td><td><strong>Test TCP, MQTT, or HTTP upload</strong></td><td>A cellular IP alone does not prove application data can be sent.</td><td>Send a small HUB2 status payload through one modem-supported protocol.</td><td>Test firmware</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-015</td><td class="priority">P0</td><td>Recovery</td><td><strong>Add LTE reconnect logic</strong></td><td>Weak signal and carrier drops are normal field conditions.</td><td>Detect attach/registration loss and reconnect without rebooting ESP32-S3.</td><td>a7608.c</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-016</td><td class="priority">P0</td><td>Recovery</td><td><strong>Add modem reset recovery</strong></td><td>A stuck modem must not leave HUB2 offline forever.</td><td>If AT command timeouts persist, reset or power-cycle modem and rebuild state.</td><td>a7608.c, power control</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-017</td><td class="priority">P0</td><td>Board</td><td><strong>Add HUB2 board configuration and pins</strong></td><td>The Temco firmware needs a clean project/board boundary for HUB2.</td><td>Add HUB2 project type or 4G Hub board config with modem and W5500 pins.</td><td>define.h, board config</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-018</td><td class="priority">P0</td><td>Ethernet</td><td><strong>Initialize W5500 Ethernet</strong></td><td>Ethernet must keep working while modem code is present.</td><td>Bring up DHCP/static IP through W5500 and log link/IP state.</td><td>ethernet_task.c</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-019</td><td class="priority">P0</td><td>Status</td><td><strong>Add modem fields to system status</strong></td><td>T3000 and support tools need structured status data.</td><td>Add SIM, LTE, RSSI, operator, IP, GNSS, uptime, reset count, and last error fields.</td><td>status structs</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-020</td><td class="priority">P0</td><td>Modbus</td><td><strong>Expose modem status through Modbus registers</strong></td><td>Without register mapping, modem status is only visible in logs.</td><td>Assign registers and document scaling/string handling for T3000.</td><td>Modbus map</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-021</td><td class="priority">P1</td><td>BACnet</td><td><strong>Optionally expose modem status through BACnet</strong></td><td>BACnet visibility may be useful but should not block the first prototype.</td><td>Add objects only after the Modbus/T3000 status path is stable.</td><td>BACnet objects</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-022</td><td class="priority">P0</td><td>T3000</td><td><strong>Make modem status readable from T3000</strong></td><td>Field diagnostics need a normal support workflow.</td><td>Verify T3000 scan, display, and status refresh for the new HUB2 fields.</td><td>T3000 test</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-023</td><td class="priority">P0</td><td>Ethernet</td><td><strong>Verify W5500 static IP and DHCP</strong></td><td>Network behavior must be stable before combined LTE/Ethernet tests.</td><td>Test both IP modes and record link/IP logs.</td><td>Ethernet test</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-024</td><td class="priority">P0</td><td>Protocols</td><td><strong>Verify Modbus TCP and BACnet/IP over Ethernet</strong></td><td>Existing product protocols must not regress during modem integration.</td><td>Run T3000 discovery, Modbus TCP access, and BACnet/IP discovery tests.</td><td>Protocol test report</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-025</td><td class="priority">P1</td><td>Switch</td><td><strong>Verify RTL8309N unmanaged switch behavior</strong></td><td>No switch management driver is planned for the first prototype.</td><td>Confirm multiple ports pass traffic normally; defer VLAN/port status unless required.</td><td>Ethernet switch test</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-026</td><td class="priority">P0</td><td>Coexistence</td><td><strong>Run LTE and Ethernet together</strong></td><td>W5500, modem, Wi-Fi, BACnet, and Modbus can stress memory and task priority.</td><td>Poll modem status while Ethernet protocols are active. Watch heap, resets, and latency.</td><td>System test log</td><td class="status">Open</td></tr>
+        <tr class="odd"><td class="task-id">HUB2-027</td><td class="priority">P0</td><td>Stability</td><td><strong>Run 24 to 72 hour stability test</strong></td><td>Short bring-up tests do not catch reconnect, memory, or power issues.</td><td>Run with LTE reconnect, Ethernet traffic, T3000 scan, Modbus TCP, and BACnet/IP.</td><td>Burn-in report</td><td class="status">Open</td></tr>
+        <tr class="even"><td class="task-id">HUB2-028</td><td class="priority">P0</td><td>Faults</td><td><strong>Test SIM, antenna, cable, and power fault recovery</strong></td><td>Field failures must recover without manual intervention where possible.</td><td>Test SIM removal/reinsert, LTE/GNSS antenna removal, Ethernet plug/unplug, USB/battery power behavior, and modem reset.</td><td>Fault test report</td><td class="status">Open</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Prototype sequence</h2>
+    <p class="footnote">
+      1. ESP32-S3 boot -> 2. A7608E-H power rail check -> 3. PWRKEY boot -> 4. AT ready ->
+      5. SIM ready -> 6. LTE registered -> 7. Cellular IP attached -> 8. Optional GNSS read ->
+      9. W5500 Ethernet online -> 10. Modbus/T3000 status visible -> 11. Reconnect and fault recovery test.
+    </p>
+
+    <p class="footnote">
+      Detail: <a href="HUB2_A7608_MODEM_INTEGRATION.md">HUB2_A7608_MODEM_INTEGRATION.md</a>.
+      Architecture: <a href="HUB2_A7608_MODEM_BLOCK_DIAGRAM.html">HUB2_A7608_MODEM_BLOCK_DIAGRAM.html</a>.
+    </p>
+  </div>
+</body>
+</html>

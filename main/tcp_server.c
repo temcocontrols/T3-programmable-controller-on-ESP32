@@ -4593,7 +4593,7 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
-	Modbus.mini_type = MINI_TSTAT11;
+	Modbus.mini_type = MINI_NANO;
 
 	uart_init(0);
 
