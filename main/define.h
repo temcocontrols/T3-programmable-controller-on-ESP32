@@ -190,8 +190,11 @@ typedef	enum
 #define PROJECT_LSW_SENSOR	27
 #define PROJECT_LORA_GATEWAY	28
 #define MINI_TSTAT11 		29
+#define PROJECT_HUB		30
 
-#define MAX_MINI_TYPE 		29
+#define PROJECT_HUB_AT_DEBUG	1
+
+#define MAX_MINI_TYPE 		30
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;

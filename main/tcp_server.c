@@ -65,6 +65,7 @@
 #include "LcdTheme.h"
 #include "LCD_Driver/lcd_drv.h"
 #include "lora.h"
+#include "a7608.h"
 
 //#include "lowPower.h"
 
@@ -4575,6 +4576,9 @@ void start_dns_server(void);
 void ddns_task(void *pvParameters);
 #endif
 
+void hub_usb_serial_init(void);
+int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
+
 void phy_reset(void);
 void app_main()
 {
@@ -4593,9 +4597,11 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
-	Modbus.mini_type = MINI_NANO;
+	Modbus.mini_type = PROJECT_HUB;
 
 	uart_init(0);
+	if(Modbus.mini_type == PROJECT_HUB)
+		hub_usb_serial_init();
 
 #ifdef USE_USB_CDC_MAIN
 	usb_cdc_init();
@@ -4687,10 +4693,21 @@ void app_main()
     	xTaskCreate(vPM25Task,"PM25Task",2048, NULL, tskIDLE_PRIORITY + 1,&main_task_handle[15]);
     }
     else
+    {
     	vStartScanTask(5);
+    }
 
-    xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
-    xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
+	xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
+#if PROJECT_HUB_AT_DEBUG
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		xTaskCreate(a7608_at_debug_task,"a7608_at_debug",4096, NULL, 10, &main_task_handle[9]);
+	}
+	else
+#endif
+	{
+		xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
+	}
 
     if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
     	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW)
@@ -4735,7 +4752,10 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 
 	if(port == 0)
 	{
-		uart_write_bytes(UART_NUM_0, (const char *)p, length);
+		if(Modbus.mini_type == PROJECT_HUB)
+			hub_usb_serial_write(p, length, 10);
+		else
+			uart_write_bytes(UART_NUM_0, (const char *)p, length);
 	}
 	else if(port == 2)
 	{

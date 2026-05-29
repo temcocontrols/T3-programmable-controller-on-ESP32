@@ -90,6 +90,8 @@ esp_err_t a7608_send_command(const char *cmd,
 esp_err_t a7608_probe(void);
 esp_err_t a7608_refresh_status(void);
 
+void a7608_at_debug_task(void *pvParameters);
+
 const a7608_status_t *a7608_get_status(void);
 const char *a7608_state_name(a7608_state_t state);
 

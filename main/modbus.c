@@ -6,6 +6,7 @@
 #include "esp_log.h"            // for log_write
 #include "driver/gpio.h"
 #include "driver/uart.h"
+#include "driver/usb_serial_jtag.h"
 #include "modbus.h"
 #include "i2c_task.h"
 #include "flash.h"
@@ -96,6 +97,35 @@ uint8_t count_change_uart0 = 0;
 uint8_t count_change_uart2 = 0;
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
+
+static bool hub_usb_serial_ready = false;
+
+void hub_usb_serial_init(void)
+{
+	if(hub_usb_serial_ready)
+		return;
+
+	usb_serial_jtag_driver_config_t config = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+	config.rx_buffer_size = 1024;
+	config.tx_buffer_size = 1024;
+	esp_err_t ret = usb_serial_jtag_driver_install(&config);
+	if(ret == ESP_OK || ret == ESP_ERR_INVALID_STATE)
+		hub_usb_serial_ready = true;
+}
+
+int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms)
+{
+	if(!hub_usb_serial_ready)
+		return 0;
+	return usb_serial_jtag_read_bytes(buf, length, pdMS_TO_TICKS(timeout_ms));
+}
+
+int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms)
+{
+	if(!hub_usb_serial_ready)
+		return 0;
+	return usb_serial_jtag_write_bytes(buf, length, pdMS_TO_TICKS(timeout_ms));
+}
 
 void check_modbus_slave(void)
 {
@@ -585,7 +615,11 @@ void uart0_rx_task(void *pvParameters)
 				else //if(Modbus.baudrate <= 6)
 					block_time = 70;
 
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_PERIOD_MS);
+				int len;
+				if(Modbus.mini_type == PROJECT_HUB)
+					len = hub_usb_serial_read(uart_rsv, 512, block_time);
+				else
+					len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_PERIOD_MS);
 
 				if(len > 0)
 				{
@@ -646,7 +680,11 @@ void uart0_rx_task(void *pvParameters)
 			{
 				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
 				{
-					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
+					int len;
+					if(Modbus.mini_type == PROJECT_HUB)
+						len = hub_usb_serial_read(uart_rsv, 50, 10);
+					else
+						len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 
 					if(len>0)
 					{Test[24]++;
