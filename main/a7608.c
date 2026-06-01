@@ -20,6 +20,9 @@ static bool a7608_initialized;
 extern int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms);
 extern int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
 
+static bool pin_is_valid(gpio_num_t pin);
+static int inactive_level(int active_level);
+
 static void a7608_debug_write(const char *text)
 {
     if (text == NULL) {
@@ -71,7 +74,7 @@ static void a7608_debug_write_modem_bytes(const uint8_t *buf, int len)
     }
 }
 
-static bool a7608_debug_drain_modem(uint32_t timeout_ms, char *response, size_t response_len)
+static bool a7608_debug_read_modem(uint32_t timeout_ms, char *response, size_t response_len, bool echo)
 {
     uint8_t buf[128];
     TickType_t start = xTaskGetTickCount();
@@ -86,7 +89,9 @@ static bool a7608_debug_drain_modem(uint32_t timeout_ms, char *response, size_t 
         int len = uart_read_bytes(a7608_cfg.uart_num, buf, sizeof(buf), pdMS_TO_TICKS(50));
         if (len > 0) {
             received = true;
-            a7608_debug_write_modem_bytes(buf, len);
+            if (echo) {
+                a7608_debug_write_modem_bytes(buf, len);
+            }
             if ((response != NULL) && (response_len > 1)) {
                 size_t used = strlen(response);
                 for (int i = 0; (i < len) && (used < response_len - 1); i++) {
@@ -102,27 +107,76 @@ static bool a7608_debug_drain_modem(uint32_t timeout_ms, char *response, size_t 
     return received;
 }
 
-static bool a7608_debug_send_at(const char *cmd, uint32_t timeout_ms, const char *expected)
+static bool a7608_debug_check_respond(void)
 {
-    if (!a7608_initialized || cmd == NULL) {
-        return false;
+    char response[256];
+
+    for (int i = 0; i < 10; i++) {
+        uart_write_bytes(a7608_cfg.uart_num, "AT\r\n", 4);
+        if (a7608_debug_read_modem(1000, response, sizeof(response), false) && strstr(response, "OK") != NULL) {
+            return true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
 
-    char response[256];
-    (void)uart_flush_input(a7608_cfg.uart_num);
-    a7608_debug_printf("\r\n>> %s\r\n", cmd);
-    uart_write_bytes(a7608_cfg.uart_num, cmd, strlen(cmd));
-    uart_write_bytes(a7608_cfg.uart_num, "\r\n", 2);
-    if (!a7608_debug_drain_modem(timeout_ms, response, sizeof(response))) {
-        a7608_debug_write("[no response]\r\n");
-        return false;
+    return false;
+}
+
+static esp_err_t a7608_debug_lilygo_boot_sequence(void)
+{
+    esp_err_t ret;
+
+    if (pin_is_valid(a7608_cfg.reset_pin)) {
+        a7608_debug_printf("Reset modem via pin %d\r\n", a7608_cfg.reset_pin);
+        ret = gpio_set_level(a7608_cfg.reset_pin, inactive_level(a7608_cfg.reset_active_level));
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+        ret = gpio_set_level(a7608_cfg.reset_pin, a7608_cfg.reset_active_level);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        vTaskDelay(pdMS_TO_TICKS(2600));
+        ret = gpio_set_level(a7608_cfg.reset_pin, inactive_level(a7608_cfg.reset_active_level));
+        if (ret != ESP_OK) {
+            return ret;
+        }
     }
-    return (expected == NULL) || (strstr(response, expected) != NULL);
+
+    if (pin_is_valid(a7608_cfg.dtr_pin)) {
+        a7608_debug_printf("Set DTR pin %d LOW\r\n", a7608_cfg.dtr_pin);
+        ret = a7608_set_dtr(true);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+    }
+
+    if (pin_is_valid(a7608_cfg.pwrkey_pin)) {
+        a7608_debug_printf("Power on modem via pin %d\r\n", a7608_cfg.pwrkey_pin);
+        ret = gpio_set_level(a7608_cfg.pwrkey_pin, 0);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+        ret = gpio_set_level(a7608_cfg.pwrkey_pin, 1);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        ret = gpio_set_level(a7608_cfg.pwrkey_pin, 0);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+    }
+
+    return ESP_OK;
 }
 
 static bool a7608_debug_sync_baudrate(void)
 {
-    static const int baudrates[] = {115200, 9600, 57600, 38400, 19200, 230400, 460800};
+    static const int baudrates[] = {A7608_DEFAULT_BAUD_RATE};
+    char response[256];
 
     for (size_t i = 0; i < sizeof(baudrates) / sizeof(baudrates[0]); i++) {
         int baudrate = baudrates[i];
@@ -130,14 +184,96 @@ static bool a7608_debug_sync_baudrate(void)
             continue;
         }
         a7608_cfg.baud_rate = baudrate;
-        a7608_debug_printf("\r\nTrying A7608 baud %d...\r\n", baudrate);
-        if (a7608_debug_send_at("AT", 800, "OK")) {
-            a7608_debug_printf("A7608 AT baud locked at %d.\r\n", baudrate);
-            return true;
+        vTaskDelay(pdMS_TO_TICKS(10));
+        a7608_debug_printf("Trying baud rate %d\r\n", baudrate);
+        for (int attempt = 0; attempt < 10; attempt++) {
+            uart_write_bytes(a7608_cfg.uart_num, "AT\r\n", 4);
+            if (a7608_debug_read_modem(1000, response, sizeof(response), false) && strstr(response, "OK") != NULL) {
+                a7608_debug_printf("Modem responded at rate:%d\r\n", baudrate);
+                return true;
+            }
         }
     }
 
+    uart_set_baudrate(a7608_cfg.uart_num, A7608_DEFAULT_BAUD_RATE);
+    a7608_cfg.baud_rate = A7608_DEFAULT_BAUD_RATE;
+
     return false;
+}
+
+static void a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_ms)
+{
+    char response[768];
+    size_t used = 0;
+    bool received = false;
+    uint8_t buf[128];
+
+    a7608_debug_printf("\r\n>>> %s\r\n", cmd);
+    (void)uart_flush_input(a7608_cfg.uart_num);
+    int wrote = uart_write_bytes(a7608_cfg.uart_num, cmd, strlen(cmd));
+    int wrote_crlf = uart_write_bytes(a7608_cfg.uart_num, "\r\n", 2);
+    if ((wrote < 0) || (wrote_crlf < 0)) {
+        a7608_debug_printf("UART write failed for %s\r\n", cmd);
+        return;
+    }
+
+    response[0] = '\0';
+    TickType_t start = xTaskGetTickCount();
+    TickType_t timeout_ticks = pdMS_TO_TICKS(timeout_ms);
+    while ((xTaskGetTickCount() - start) < timeout_ticks) {
+        int len = uart_read_bytes(a7608_cfg.uart_num, buf, sizeof(buf), pdMS_TO_TICKS(50));
+        if (len <= 0) {
+            continue;
+        }
+
+        received = true;
+        a7608_debug_write_modem_bytes(buf, len);
+
+        for (int i = 0; (i < len) && (used < sizeof(response) - 1); i++) {
+            if ((buf[i] == '\r') || (buf[i] == '\n') || (buf[i] == '\t') || ((buf[i] >= 0x20) && (buf[i] <= 0x7e))) {
+                response[used++] = (char)buf[i];
+            }
+        }
+        response[used] = '\0';
+
+        if ((strstr(response, "OK") != NULL) || (strstr(response, "ERROR") != NULL)) {
+            break;
+        }
+    }
+
+    if (!received) {
+        a7608_debug_printf("No response for %s\r\n", cmd);
+    }
+    vTaskDelay(pdMS_TO_TICKS(200));
+}
+
+static void a7608_debug_run_status_snapshot(void)
+{
+    static const struct {
+        const char *cmd;
+        uint32_t timeout_ms;
+    } commands[] = {
+        {"AT", 1000},
+        {"ATI", 2000},
+        {"AT+CPIN?", 3000},
+        {"AT+CSQ", 3000},
+        {"AT+CEREG?", 3000},
+        {"AT+CREG?", 3000},
+        {"AT+CGATT?", 3000},
+        {"AT+COPS?", 5000},
+        {"AT+CGDCONT?", 3000},
+        {"AT+CGPADDR", 3000},
+    };
+
+    a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT]\r\n");
+    for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+        a7608_debug_send_snapshot_command(commands[i].cmd, commands[i].timeout_ms);
+        if (strcmp(commands[i].cmd, "ATI") == 0) {
+            a7608_debug_write("\r\nWaiting 5 seconds for SIM/network stack to settle...\r\n");
+            vTaskDelay(pdMS_TO_TICKS(5000));
+        }
+    }
+    a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT END]\r\n");
 }
 
 static bool pin_is_valid(gpio_num_t pin)
@@ -333,8 +469,8 @@ esp_err_t a7608_init(const a7608_config_t *config)
     }
 
     ret = uart_set_pin(a7608_cfg.uart_num,
-                       a7608_cfg.modem_rx_pin,
                        a7608_cfg.modem_tx_pin,
+                       a7608_cfg.modem_rx_pin,
                        UART_PIN_NO_CHANGE,
                        UART_PIN_NO_CHANGE);
     if (ret != ESP_OK) {
@@ -599,27 +735,6 @@ void a7608_at_debug_task(void *pvParameters)
 {
     (void)pvParameters;
 
-    static const struct {
-        const char *cmd;
-        uint32_t timeout_ms;
-    } startup_cmds[] = {
-        {"AT", 1000},
-        {"ATE1", 1000},
-        {"ATI", 1500},
-        {"AT+SIMCOMATI", 1500},
-        {"AT+CPIN?", 1500},
-        {"AT+CSQ", 1500},
-        {"AT+CIMI", 1500},
-        {"AT+CCID", 1500},
-        {"AT+COPS?", 2000},
-        {"AT+CREG?", 1500},
-        {"AT+CEREG?", 1500},
-        {"AT+CGATT?", 1500},
-        {"AT+CPSI?", 2000},
-        {"AT+CGDCONT?", 2000},
-        {"AT+CGPADDR", 2000},
-    };
-
     a7608_config_t config;
     a7608_get_default_config(&config);
     esp_err_t ret = a7608_init(&config);
@@ -627,8 +742,8 @@ void a7608_at_debug_task(void *pvParameters)
     a7608_debug_printf("UART%d baud=%d ESP_TX/MODEM_RX=%d ESP_RX/MODEM_TX=%d PWRKEY=%d(active=%d) RESET=%d(active=%d)\r\n",
                        config.uart_num,
                        config.baud_rate,
-                       config.modem_rx_pin,
                        config.modem_tx_pin,
+                       config.modem_rx_pin,
                        config.pwrkey_pin,
                        config.pwrkey_active_level,
                        config.reset_pin,
@@ -640,37 +755,30 @@ void a7608_at_debug_task(void *pvParameters)
         return;
     }
 
-    (void)a7608_set_dtr(false);
-    a7608_debug_write("Synchronizing A7608 AT baud...\r\n");
-    bool at_ready = a7608_debug_sync_baudrate();
-    if (!at_ready) {
-        a7608_debug_write("\r\nNo AT response before boot sequence. Resetting modem, then pulsing PWRKEY...\r\n");
-        ret = a7608_hard_reset(2600, 100);
-        if (ret != ESP_OK) {
-            a7608_debug_printf("RESET pulse failed: %s\r\n", esp_err_to_name(ret));
-        }
-        ret = a7608_power_on(1000, 8000);
-        if (ret != ESP_OK) {
-            a7608_debug_printf("PWRKEY pulse failed: %s\r\n", esp_err_to_name(ret));
-        } else {
-            a7608_debug_write("Retrying AT sync after PWRKEY boot...\r\n");
-            at_ready = a7608_debug_sync_baudrate();
-        }
+    ret = a7608_debug_lilygo_boot_sequence();
+    if (ret != ESP_OK) {
+        a7608_debug_printf("LilyGO boot sequence failed: %s\r\n", esp_err_to_name(ret));
     }
 
-    if (at_ready) {
-        a7608_debug_write("Running startup AT command set...\r\n");
-        for (size_t i = 0; i < sizeof(startup_cmds) / sizeof(startup_cmds[0]); i++) {
-            a7608_debug_send_at(startup_cmds[i].cmd, startup_cmds[i].timeout_ms, "OK");
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-    } else {
-        a7608_debug_write("A7608 did not return OK after PWRKEY boot. Check VBAT, PWRKEY active level, RX/TX pins, common GND, and modem STATUS/NETLIGHT.\r\n");
+    a7608_debug_printf("Control levels: PWRKEY=%d RESET=%d DTR=%d RING=%d\r\n",
+                       gpio_get_level(config.pwrkey_pin),
+                       gpio_get_level(config.reset_pin),
+                       gpio_get_level(config.dtr_pin),
+                       gpio_get_level(config.ring_pin));
+
+    a7608_debug_write("Checking modem response...\r\n");
+    bool at_ready = a7608_debug_check_respond();
+    if (!at_ready) {
+        a7608_debug_write("Wait modem started...\r\n");
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        at_ready = a7608_debug_sync_baudrate();
     }
 
     if (at_ready) {
         a7608_debug_write("\r\nTransparent AT bridge ready. Type AT commands with CR/LF.\r\n");
+        a7608_debug_run_status_snapshot();
     } else {
+        a7608_debug_write("A7608 did not return OK after LilyGO ATDebug boot sequence.\r\n");
         a7608_debug_write("\r\nManual AT bridge ready, modem background read is paused until USB input is sent.\r\n");
     }
 

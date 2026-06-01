@@ -32,12 +32,12 @@ The first prototype should focus on stable modem bring-up and status reporting. 
 
 ## Modem Signal Map
 
-The important modem control pins currently match the LilyGo-Modem-Series ATDebug firmware pin map. AT commands have been verified through the ATDebug image, and the ESP32-S3 USB-to-serial bridge is already working.
+The important modem control pins currently match the LilyGo-Modem-Series ATDebug firmware pin map. AT commands have been verified both with the LilyGo ATDebug image and with the HUB2 firmware AT debug bridge at fixed 115200 baud. The ESP32-S3 USB-to-serial bridge is working.
 
 | Signal | Direction | Purpose | Notes |
 |--------|-----------|---------|-------|
-| MODEM_TXD | UART | Modem TX to ESP32-S3 RX path | GPIO17 |
-| MODEM_RXD | UART | ESP32-S3 TX to modem RX path | GPIO18 |
+| ESP_TX / MODEM_RXD | UART | ESP32-S3 TX to modem RX path | GPIO17; LilyGo-compatible; verified in HUB2 AT bridge |
+| ESP_RX / MODEM_TXD | UART | Modem TX to ESP32-S3 RX path | GPIO18; LilyGo-compatible; verified in HUB2 AT bridge |
 | PWRKEY | Output | Modem power-on/off key | GPIO15; LilyGo-compatible |
 | RESET | Output | Hardware reset | GPIO16; LilyGo-compatible |
 | RING | Input | Modem ring / URC wake indication | GPIO6; LilyGo-compatible |
@@ -60,12 +60,12 @@ Required first checks:
 1. Confirm ESP32-S3 flash and boot. **Done with LilyGo-Modem-Series ATDebug firmware.**
 2. Measure A7608E-H power rail during power-on, registration, and data transmission.
 3. Verify PWRKEY, RESET, RING, and DTR behavior. **Core pin map matches LilyGo-Modem-Series.**
-4. Confirm UART `AT` / `OK` communication. **Done with ATDebug firmware.**
-5. Validate SIM card detection and SIM electrical lines.
+4. Confirm UART `AT` / `OK` communication. **Done with LilyGo ATDebug firmware and HUB2 firmware AT bridge at 115200 baud.**
+5. Validate SIM card detection and SIM electrical lines. **`+CPIN: READY` has been observed through the HUB2 AT bridge; physical SIM detect and electrical validation remain open.**
 6. Check LTE and GNSS antenna connections.
 7. Confirm whether the USB path can support debug or firmware upgrade. **ESP32-S3 USB-to-serial bridge is working; modem USB path still needs production decision.**
 
-Current next step: enable this driver from the HUB2 board/project startup path, call `a7608_refresh_status()` on real hardware, and compare the parsed status against the known-good ATDebug log.
+Current next step: flash the build with the conservative automatic AT status snapshot, review the boot log responses (`ATI`, `AT+CPIN?`, `AT+CSQ`, `AT+CEREG?`, `AT+CREG?`, `AT+CGATT?`, `AT+COPS?`, `AT+CGDCONT?`, `AT+CGPADDR`), then call `a7608_refresh_status()` on real hardware and compare the parsed status against the known-good AT log.
 
 ---
 
@@ -78,7 +78,7 @@ Suggested files:
 - `main/a7608.c`
 - `main/a7608.h`
 
-Current status: the first-pass `a7608.c/.h` driver has been added to the `main` component and registered in `main/CMakeLists.txt`. It provides UART setup, LilyGo-compatible default pins, PWRKEY/RESET/DTR helpers, generic AT command send/wait, status refresh, and a modem state enum. It is compiled as a standalone module and is not started automatically yet.
+Current status: the first-pass `a7608.c/.h` driver has been added to the `main` component and registered in `main/CMakeLists.txt`. It provides UART setup, LilyGo-compatible default pins, PWRKEY/RESET/DTR helpers, generic AT command send/wait, status refresh, and a modem state enum. For HUB2 bring-up, `PROJECT_HUB_AT_DEBUG` can start `a7608_at_debug_task()` to provide a transparent USB-to-modem AT bridge.
 
 Public responsibilities:
 
@@ -120,6 +120,10 @@ IPADDR
 IPCLOSE
 GNSS commands from the A7608E-H AT manual
 ```
+
+Verified so far in HUB2 firmware: the transparent AT bridge starts at 115200 baud and the modem returns `+CPIN: READY`. The TX/RX mapping must remain ESP_TX/MODEM_RX=GPIO17 and ESP_RX/MODEM_TX=GPIO18. The debug task now runs a conservative one-shot status snapshot after readiness so the next boot log captures modem identity, SIM, RSSI, registration, attach, operator, PDP context, and IP status. Startup-only diagnostics such as `AT+IPR?` and `AT+CSCLK?` should be sent manually after the modem proves stable.
+
+Open idle observation: after about 20 minutes, the bridge printed escaped non-AT bytes such as `\x05`, `\x12`, and `\x90`. These are raw non-printable UART bytes, not normal A7608 text URCs. When this appears, immediately send `AT`, `AT+IPR?`, `AT+CSCLK?`, `AT+CPIN?`, and `AT+CSQ` through the bridge. If `AT` still returns `OK`, treat the burst as a noise/filtering/debug-output issue for now; if `AT` no longer responds, investigate modem sleep, UART line integrity, and any UART1 ownership conflict.
 
 ---
 
@@ -226,8 +230,8 @@ Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hard
 
 | Phase | Focus | Deliverable |
 |-------|-------|-------------|
-| Phase 1 | Hardware bring-up | Pin map, power sequence, AT log, power test, issue list |
-| Phase 2 | A7608 driver | `a7608.c/.h`, AT framework, modem state machine, debug output |
+| Phase 1 | Hardware bring-up | Pin map, power sequence, 115200 AT bridge log, SIM READY log, power test, issue list |
+| Phase 2 | A7608 driver | `a7608.c/.h`, AT framework, modem state machine, transparent AT debug task, status refresh validation |
 | Phase 3 | Cellular data | LTE data connection, TCP/MQTT/HTTP test, reconnect and recovery |
 | Phase 4 | Temco integration | HUB2 config, W5500, modem status, Modbus/BACnet/T3000 visibility |
 | Phase 5 | Ethernet verification | W5500, RTL8309N switch behavior, Modbus TCP, BACnet/IP |
@@ -250,8 +254,8 @@ Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hard
 
 - ESP32-S3 can be flashed and boots reliably.
 - A7608E-H power rail remains stable during registration and data TX.
-- `AT` / `OK` works repeatedly after cold boot and reset.
-- SIM removal and reinsertion are detected and recovered.
+- `AT` / `OK` works repeatedly after cold boot and reset at 115200 baud.
+- `CPIN?` reports READY; SIM removal and reinsertion are detected and recovered.
 - LTE registration and cellular IP attach are logged.
 - GNSS enable/read/disable works without breaking LTE status.
 - W5500 Ethernet, Modbus TCP, and BACnet/IP still work while modem status polling runs.
