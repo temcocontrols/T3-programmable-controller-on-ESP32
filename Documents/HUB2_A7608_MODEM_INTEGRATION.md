@@ -62,10 +62,10 @@ Required first checks:
 3. Verify PWRKEY, RESET, RING, and DTR behavior. **Core pin map matches LilyGo-Modem-Series.**
 4. Confirm UART `AT` / `OK` communication. **Done with LilyGo ATDebug firmware and HUB2 firmware AT bridge at 115200 baud.**
 5. Validate SIM card detection and SIM electrical lines. **`+CPIN: READY` has been observed through the HUB2 AT bridge; physical SIM detect and electrical validation remain open.**
-6. Check LTE and GNSS antenna connections.
+6. Check LTE and GNSS antenna connections. **LTE has registered with CSQ 14; GNSS and antenna margin remain open.**
 7. Confirm whether the USB path can support debug or firmware upgrade. **ESP32-S3 USB-to-serial bridge is working; modem USB path still needs production decision.**
 
-Current next step: flash the build with the conservative automatic AT status snapshot, review the boot log responses (`ATI`, `AT+CPIN?`, `AT+CSQ`, `AT+CEREG?`, `AT+CREG?`, `AT+CGATT?`, `AT+COPS?`, `AT+CGDCONT?`, `AT+CGPADDR`), then call `a7608_refresh_status()` on real hardware and compare the parsed status against the known-good AT log.
+Current next step: flash the build with parsed status printing, confirm `a7608_refresh_status()` reports `CONNECTED`, operator `46001`, CSQ 14, RSSI about -85 dBm, and IP `10.55.52.49`, then add GNSS status and a small TCP/MQTT/HTTP upload test.
 
 ---
 
@@ -121,7 +121,7 @@ IPCLOSE
 GNSS commands from the A7608E-H AT manual
 ```
 
-Verified so far in HUB2 firmware: the transparent AT bridge starts at 115200 baud and the modem returns `+CPIN: READY`. The TX/RX mapping must remain ESP_TX/MODEM_RX=GPIO17 and ESP_RX/MODEM_TX=GPIO18. The debug task now runs a conservative one-shot status snapshot after readiness so the next boot log captures modem identity, SIM, RSSI, registration, attach, operator, PDP context, and IP status. Startup-only diagnostics such as `AT+IPR?` and `AT+CSCLK?` should be sent manually after the modem proves stable.
+Verified so far in HUB2 firmware: the transparent AT bridge starts at 115200 baud and the modem returns `+CPIN: READY`. The TX/RX mapping must remain ESP_TX/MODEM_RX=GPIO17 and ESP_RX/MODEM_TX=GPIO18. The conservative AT status snapshot has validated A7608E-H identity, SIM READY, CSQ 14, CEREG/CREG registered, CGATT attached, operator `46001`, APN `3GNET`, and IPv4 address `10.55.52.49`. Startup-only diagnostics such as `AT+IPR?` and `AT+CSCLK?` should be sent manually after the modem proves stable. The debug task now also prints the parsed `a7608_refresh_status()` result so the reusable driver path can be compared against the raw AT log.
 
 Open idle observation: after about 20 minutes, the bridge printed escaped non-AT bytes such as `\x05`, `\x12`, and `\x90`. These are raw non-printable UART bytes, not normal A7608 text URCs. When this appears, immediately send `AT`, `AT+IPR?`, `AT+CSCLK?`, `AT+CPIN?`, and `AT+CSQ` through the bridge. If `AT` still returns `OK`, treat the burst as a noise/filtering/debug-output issue for now; if `AT` no longer responds, investigate modem sleep, UART line integrity, and any UART1 ownership conflict.
 

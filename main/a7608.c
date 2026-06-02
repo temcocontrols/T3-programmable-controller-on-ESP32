@@ -383,6 +383,30 @@ static void parse_operator(const char *response)
 
 static void parse_ip_addr(const char *response)
 {
+    a7608_status.ip_addr[0] = '\0';
+
+    const char *cgpaddr = strstr(response, "+CGPADDR:");
+    if (cgpaddr != NULL) {
+        const char *addr = strchr(cgpaddr, ',');
+        if (addr == NULL) {
+            return;
+        }
+        addr++;
+        while ((*addr == ' ') || (*addr == '\t') || (*addr == '"')) {
+            addr++;
+        }
+
+        size_t len = strcspn(addr, ",\r\n\"");
+        if (len >= sizeof(a7608_status.ip_addr)) {
+            len = sizeof(a7608_status.ip_addr) - 1;
+        }
+        if (len > 0) {
+            memcpy(a7608_status.ip_addr, addr, len);
+            a7608_status.ip_addr[len] = '\0';
+        }
+        return;
+    }
+
     const char *quote = strchr(response, '"');
     if (quote != NULL) {
         const char *end_quote = strchr(quote + 1, '"');
@@ -731,6 +755,30 @@ const char *a7608_state_name(a7608_state_t state)
     }
 }
 
+static void a7608_debug_print_parsed_status(void)
+{
+    esp_err_t ret = a7608_refresh_status();
+    const a7608_status_t *status = a7608_get_status();
+
+    a7608_debug_write("\r\n[A7608 PARSED STATUS]\r\n");
+    a7608_debug_printf("refresh=%s state=%s at=%d sim=%d reg_home=%d reg_roam=%d attached=%d connected=%d\r\n",
+                       esp_err_to_name(ret),
+                       a7608_state_name(status->state),
+                       status->at_ready,
+                       status->sim_ready,
+                       status->registered_home,
+                       status->registered_roaming,
+                       status->attached,
+                       status->connected);
+    a7608_debug_printf("csq=%d rssi_dbm=%d operator=%s ip=%s last_error=%s\r\n",
+                       status->csq,
+                       status->rssi_dbm,
+                       status->operator_name[0] != '\0' ? status->operator_name : "-",
+                       status->ip_addr[0] != '\0' ? status->ip_addr : "-",
+                       status->last_error[0] != '\0' ? status->last_error : "-");
+    a7608_debug_write("[A7608 PARSED STATUS END]\r\n");
+}
+
 void a7608_at_debug_task(void *pvParameters)
 {
     (void)pvParameters;
@@ -755,9 +803,24 @@ void a7608_at_debug_task(void *pvParameters)
         return;
     }
 
-    ret = a7608_debug_lilygo_boot_sequence();
-    if (ret != ESP_OK) {
-        a7608_debug_printf("LilyGO boot sequence failed: %s\r\n", esp_err_to_name(ret));
+    bool modem_ready_before_boot = false;
+    if (pin_is_valid(config.dtr_pin)) {
+        a7608_debug_printf("Set DTR pin %d LOW before AT probe\r\n", config.dtr_pin);
+        ret = a7608_set_dtr(true);
+        if (ret != ESP_OK) {
+            a7608_debug_printf("Set DTR failed: %s\r\n", esp_err_to_name(ret));
+        }
+    }
+
+    a7608_debug_write("Checking modem response before power key pulse...\r\n");
+    modem_ready_before_boot = a7608_debug_check_respond();
+    if (modem_ready_before_boot) {
+        a7608_debug_write("Modem already responds; skip reset/PWRKEY boot sequence.\r\n");
+    } else {
+        ret = a7608_debug_lilygo_boot_sequence();
+        if (ret != ESP_OK) {
+            a7608_debug_printf("LilyGO boot sequence failed: %s\r\n", esp_err_to_name(ret));
+        }
     }
 
     a7608_debug_printf("Control levels: PWRKEY=%d RESET=%d DTR=%d RING=%d\r\n",
@@ -777,6 +840,7 @@ void a7608_at_debug_task(void *pvParameters)
     if (at_ready) {
         a7608_debug_write("\r\nTransparent AT bridge ready. Type AT commands with CR/LF.\r\n");
         a7608_debug_run_status_snapshot();
+        a7608_debug_print_parsed_status();
     } else {
         a7608_debug_write("A7608 did not return OK after LilyGO ATDebug boot sequence.\r\n");
         a7608_debug_write("\r\nManual AT bridge ready, modem background read is paused until USB input is sent.\r\n");
