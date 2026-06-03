@@ -27,6 +27,8 @@ extern "C" {
 #define A7608_OPERATOR_LEN                 32
 #define A7608_IP_ADDR_LEN                  40
 #define A7608_LAST_ERROR_LEN               64
+#define A7608_GNSS_UTC_LEN                 24
+#define A7608_GNSS_COORD_LEN               20
 
 typedef enum {
     A7608_STATE_OFF = 0,
@@ -71,6 +73,13 @@ typedef struct {
     int rssi_dbm;
     char operator_name[A7608_OPERATOR_LEN];
     char ip_addr[A7608_IP_ADDR_LEN];
+    bool gnss_powered;
+    bool gnss_fix;
+    char gnss_utc[A7608_GNSS_UTC_LEN];
+    char gnss_latitude[A7608_GNSS_COORD_LEN];
+    char gnss_ns;
+    char gnss_longitude[A7608_GNSS_COORD_LEN];
+    char gnss_ew;
     char last_error[A7608_LAST_ERROR_LEN];
 } a7608_status_t;
 
@@ -89,6 +98,9 @@ esp_err_t a7608_send_command(const char *cmd,
                              size_t response_len);
 esp_err_t a7608_probe(void);
 esp_err_t a7608_refresh_status(void);
+esp_err_t a7608_gnss_enable(void);
+esp_err_t a7608_gnss_disable(void);
+esp_err_t a7608_refresh_gnss(void);
 
 void a7608_at_debug_task(void *pvParameters);
 

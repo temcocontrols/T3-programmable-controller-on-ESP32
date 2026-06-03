@@ -65,7 +65,7 @@ Required first checks:
 6. Check LTE and GNSS antenna connections. **LTE has registered with CSQ 14; GNSS and antenna margin remain open.**
 7. Confirm whether the USB path can support debug or firmware upgrade. **ESP32-S3 USB-to-serial bridge is working; modem USB path still needs production decision.**
 
-Current next step: flash the build with parsed status printing, confirm `a7608_refresh_status()` reports `CONNECTED`, operator `46001`, CSQ 14, RSSI about -85 dBm, and IP `10.55.52.49`, then add GNSS status and a small TCP/MQTT/HTTP upload test.
+Current status: parsed modem status is validated. `a7608_refresh_status()` reports `CONNECTED`, operator `46001`, CSQ/RSSI, and IPv4 `10.205.135.212` in the HUB2 AT debug path. The next step is to validate the newly added GNSS enable/read/disable path on hardware, then run a small TCP/MQTT/HTTP upload test.
 
 ---
 
@@ -78,7 +78,7 @@ Suggested files:
 - `main/a7608.c`
 - `main/a7608.h`
 
-Current status: the first-pass `a7608.c/.h` driver has been added to the `main` component and registered in `main/CMakeLists.txt`. It provides UART setup, LilyGo-compatible default pins, PWRKEY/RESET/DTR helpers, generic AT command send/wait, status refresh, and a modem state enum. For HUB2 bring-up, `PROJECT_HUB_AT_DEBUG` can start `a7608_at_debug_task()` to provide a transparent USB-to-modem AT bridge.
+Current status: the first-pass `a7608.c/.h` driver has been added to the `main` component and registered in `main/CMakeLists.txt`. It provides UART setup, LilyGo-compatible default pins, PWRKEY/RESET/DTR helpers, generic AT command send/wait, status refresh, GNSS enable/read/disable helpers, and a modem state enum. For HUB2 bring-up, `PROJECT_HUB_AT_DEBUG` can start `a7608_at_debug_task()` to provide a transparent USB-to-modem AT bridge.
 
 Public responsibilities:
 
@@ -121,7 +121,7 @@ IPCLOSE
 GNSS commands from the A7608E-H AT manual
 ```
 
-Verified so far in HUB2 firmware: the transparent AT bridge starts at 115200 baud and the modem returns `+CPIN: READY`. The TX/RX mapping must remain ESP_TX/MODEM_RX=GPIO17 and ESP_RX/MODEM_TX=GPIO18. The conservative AT status snapshot has validated A7608E-H identity, SIM READY, CSQ 14, CEREG/CREG registered, CGATT attached, operator `46001`, APN `3GNET`, and IPv4 address `10.55.52.49`. Startup-only diagnostics such as `AT+IPR?` and `AT+CSCLK?` should be sent manually after the modem proves stable. The debug task now also prints the parsed `a7608_refresh_status()` result so the reusable driver path can be compared against the raw AT log.
+Verified so far in HUB2 firmware: the transparent AT bridge starts at 115200 baud and the modem returns `+CPIN: READY`. The TX/RX mapping must remain ESP_TX/MODEM_RX=GPIO17 and ESP_RX/MODEM_TX=GPIO18. The conservative AT status snapshot has validated A7608E-H identity, SIM READY, CSQ/RSSI, CEREG/CREG registered, CGATT attached, operator `46001`, APN `3GNET`, and IPv4 address `10.205.135.212`. The parsed `a7608_refresh_status()` output is now declared done for SIM/LTE/operator/IP status. The debug task also enables GNSS, reads `AT+CGNSSINFO`, and leaves GNSS enabled for manual fix observation.
 
 Open idle observation: after about 20 minutes, the bridge printed escaped non-AT bytes such as `\x05`, `\x12`, and `\x90`. These are raw non-printable UART bytes, not normal A7608 text URCs. When this appears, immediately send `AT`, `AT+IPR?`, `AT+CSCLK?`, `AT+CPIN?`, and `AT+CSQ` through the bridge. If `AT` still returns `OK`, treat the burst as a noise/filtering/debug-output issue for now; if `AT` no longer responds, investigate modem sleep, UART line integrity, and any UART1 ownership conflict.
 

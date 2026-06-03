@@ -22,6 +22,10 @@ extern int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t time
 
 static bool pin_is_valid(gpio_num_t pin);
 static int inactive_level(int active_level);
+static void parse_gnss_info(const char *response);
+static void parse_gps_info(const char *response);
+static void parse_cgnsinf(const char *response);
+static esp_err_t a7608_read_gnss_info(char *response, size_t response_len, const char **command_used);
 
 static void a7608_debug_write(const char *text)
 {
@@ -72,6 +76,21 @@ static void a7608_debug_write_modem_bytes(const uint8_t *buf, int len)
     if (out_len > 0) {
         hub_usb_serial_write((const uint8_t *)out, out_len, 50);
     }
+}
+
+static void a7608_debug_write_response_block(const char *title, const char *response)
+{
+    a7608_debug_printf("[%s RAW]\r\n", title);
+    if ((response != NULL) && (response[0] != '\0')) {
+        a7608_debug_write(response);
+        size_t len = strlen(response);
+        if ((len > 0) && (response[len - 1] != '\n')) {
+            a7608_debug_write("\r\n");
+        }
+    } else {
+        a7608_debug_write("-\r\n");
+    }
+    a7608_debug_printf("[%s RAW END]\r\n", title);
 }
 
 static bool a7608_debug_read_modem(uint32_t timeout_ms, char *response, size_t response_len, bool echo)
@@ -201,11 +220,12 @@ static bool a7608_debug_sync_baudrate(void)
     return false;
 }
 
-static void a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_ms)
+static bool a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_ms)
 {
     char response[768];
     size_t used = 0;
     bool received = false;
+    bool command_ok = false;
     uint8_t buf[128];
 
     a7608_debug_printf("\r\n>>> %s\r\n", cmd);
@@ -214,7 +234,7 @@ static void a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_
     int wrote_crlf = uart_write_bytes(a7608_cfg.uart_num, "\r\n", 2);
     if ((wrote < 0) || (wrote_crlf < 0)) {
         a7608_debug_printf("UART write failed for %s\r\n", cmd);
-        return;
+        return false;
     }
 
     response[0] = '\0';
@@ -236,7 +256,11 @@ static void a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_
         }
         response[used] = '\0';
 
-        if ((strstr(response, "OK") != NULL) || (strstr(response, "ERROR") != NULL)) {
+        if (strstr(response, "OK") != NULL) {
+            command_ok = true;
+            break;
+        }
+        if (strstr(response, "ERROR") != NULL) {
             break;
         }
     }
@@ -245,9 +269,11 @@ static void a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_
         a7608_debug_printf("No response for %s\r\n", cmd);
     }
     vTaskDelay(pdMS_TO_TICKS(200));
+
+    return command_ok;
 }
 
-static void a7608_debug_run_status_snapshot(void)
+static bool a7608_debug_run_status_snapshot(void)
 {
     static const struct {
         const char *cmd;
@@ -267,13 +293,20 @@ static void a7608_debug_run_status_snapshot(void)
 
     a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT]\r\n");
     for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
-        a7608_debug_send_snapshot_command(commands[i].cmd, commands[i].timeout_ms);
+        (void)a7608_debug_send_snapshot_command(commands[i].cmd, commands[i].timeout_ms);
         if (strcmp(commands[i].cmd, "ATI") == 0) {
             a7608_debug_write("\r\nWaiting 5 seconds for SIM/network stack to settle...\r\n");
             vTaskDelay(pdMS_TO_TICKS(5000));
+            a7608_debug_write("Rechecking modem response after ATI settle wait...\r\n");
+            if (!a7608_debug_send_snapshot_command("AT", 1000)) {
+                a7608_debug_write("Modem lost after ATI settle wait; skip remaining status snapshot.\r\n");
+                a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT END]\r\n");
+                return false;
+            }
         }
     }
     a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT END]\r\n");
+    return true;
 }
 
 static bool pin_is_valid(gpio_num_t pin)
@@ -433,6 +466,203 @@ static void parse_ip_addr(const char *response)
     if (end != NULL) {
         *end = '\0';
     }
+}
+
+static void copy_csv_field(const char **cursor, char *out, size_t out_len)
+{
+    if ((cursor == NULL) || (*cursor == NULL) || (out == NULL) || (out_len == 0)) {
+        return;
+    }
+
+    const char *start = *cursor;
+    while ((*start == ' ') || (*start == '\t') || (*start == '"')) {
+        start++;
+    }
+
+    const char *end = start;
+    while ((*end != '\0') && (*end != ',') && (*end != '\r') && (*end != '\n')) {
+        end++;
+    }
+    while ((end > start) && ((end[-1] == ' ') || (end[-1] == '\t') || (end[-1] == '"'))) {
+        end--;
+    }
+
+    size_t len = (size_t)(end - start);
+    if (len >= out_len) {
+        len = out_len - 1;
+    }
+    memcpy(out, start, len);
+    out[len] = '\0';
+
+    const char *next = strchr(*cursor, ',');
+    *cursor = next != NULL ? next + 1 : NULL;
+}
+
+static void parse_gnss_power(const char *response)
+{
+    const char *line = strstr(response, "+CGNSSPWR:");
+    int first = 0;
+    int second = -1;
+    int third = -1;
+    if ((line != NULL) && (sscanf(line, "%*[^:]: %d,%d,%d", &first, &second, &third) >= 1)) {
+        a7608_status.gnss_powered = second >= 0 ? (second != 0) : (first != 0);
+    }
+}
+
+static void parse_gps_info(const char *response)
+{
+    const char *line = strstr(response, "+CGPSINFO:");
+    char date[12] = {0};
+    char time[16] = {0};
+    char ns[4] = {0};
+    char ew[4] = {0};
+
+    a7608_status.gnss_fix = false;
+    a7608_status.gnss_utc[0] = '\0';
+    a7608_status.gnss_latitude[0] = '\0';
+    a7608_status.gnss_ns = '\0';
+    a7608_status.gnss_longitude[0] = '\0';
+    a7608_status.gnss_ew = '\0';
+
+    if (line == NULL) {
+        return;
+    }
+
+    const char *field = strchr(line, ':');
+    if (field == NULL) {
+        return;
+    }
+    field++;
+
+    copy_csv_field(&field, a7608_status.gnss_latitude, sizeof(a7608_status.gnss_latitude));
+    copy_csv_field(&field, ns, sizeof(ns));
+    copy_csv_field(&field, a7608_status.gnss_longitude, sizeof(a7608_status.gnss_longitude));
+    copy_csv_field(&field, ew, sizeof(ew));
+    copy_csv_field(&field, date, sizeof(date));
+    copy_csv_field(&field, time, sizeof(time));
+
+    a7608_status.gnss_ns = ns[0];
+    a7608_status.gnss_ew = ew[0];
+    if ((date[0] != '\0') || (time[0] != '\0')) {
+        a7608_status.gnss_utc[0] = '\0';
+        strlcpy(a7608_status.gnss_utc, date, sizeof(a7608_status.gnss_utc));
+        strlcat(a7608_status.gnss_utc, time, sizeof(a7608_status.gnss_utc));
+    }
+    a7608_status.gnss_fix = (a7608_status.gnss_latitude[0] != '\0') &&
+                             (a7608_status.gnss_longitude[0] != '\0');
+}
+
+static void parse_cgnsinf(const char *response)
+{
+    const char *line = strstr(response, "+CGNSINF:");
+    char run_status[8] = {0};
+    char fix_status[8] = {0};
+
+    a7608_status.gnss_fix = false;
+    a7608_status.gnss_utc[0] = '\0';
+    a7608_status.gnss_latitude[0] = '\0';
+    a7608_status.gnss_ns = '\0';
+    a7608_status.gnss_longitude[0] = '\0';
+    a7608_status.gnss_ew = '\0';
+
+    if (line == NULL) {
+        return;
+    }
+
+    const char *field = strchr(line, ':');
+    if (field == NULL) {
+        return;
+    }
+    field++;
+
+    copy_csv_field(&field, run_status, sizeof(run_status));
+    copy_csv_field(&field, fix_status, sizeof(fix_status));
+    copy_csv_field(&field, a7608_status.gnss_utc, sizeof(a7608_status.gnss_utc));
+    copy_csv_field(&field, a7608_status.gnss_latitude, sizeof(a7608_status.gnss_latitude));
+    copy_csv_field(&field, a7608_status.gnss_longitude, sizeof(a7608_status.gnss_longitude));
+
+    if (run_status[0] == '1') {
+        a7608_status.gnss_powered = true;
+    }
+    a7608_status.gnss_fix = (fix_status[0] == '1') &&
+                             (a7608_status.gnss_latitude[0] != '\0') &&
+                             (a7608_status.gnss_longitude[0] != '\0');
+}
+
+static esp_err_t a7608_read_gnss_info(char *response, size_t response_len, const char **command_used)
+{
+    static const char *commands[] = {
+        "AT+CGNSSINFO",
+        "AT+CGPSINFO",
+        "AT+CGNSINF",
+    };
+
+    for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+        esp_err_t ret = a7608_send_command(commands[i], "OK", 5000, response, response_len);
+        if (command_used != NULL) {
+            *command_used = commands[i];
+        }
+        if (ret != ESP_OK) {
+            continue;
+        }
+        if (strstr(response, "+CGNSSINFO:") != NULL) {
+            parse_gnss_info(response);
+            return ESP_OK;
+        }
+        if (strstr(response, "+CGPSINFO:") != NULL) {
+            parse_gps_info(response);
+            return ESP_OK;
+        }
+        if (strstr(response, "+CGNSINF:") != NULL) {
+            parse_cgnsinf(response);
+            return ESP_OK;
+        }
+    }
+
+    return ESP_FAIL;
+}
+
+static void parse_gnss_info(const char *response)
+{
+    const char *line = strstr(response, "+CGNSSINFO:");
+    char run_status[8] = {0};
+    char fix_status[8] = {0};
+    char ns[4] = {0};
+    char ew[4] = {0};
+
+    a7608_status.gnss_fix = false;
+    a7608_status.gnss_utc[0] = '\0';
+    a7608_status.gnss_latitude[0] = '\0';
+    a7608_status.gnss_ns = '\0';
+    a7608_status.gnss_longitude[0] = '\0';
+    a7608_status.gnss_ew = '\0';
+
+    if (line == NULL) {
+        return;
+    }
+
+    const char *field = strchr(line, ':');
+    if (field == NULL) {
+        return;
+    }
+    field++;
+
+    copy_csv_field(&field, run_status, sizeof(run_status));
+    copy_csv_field(&field, fix_status, sizeof(fix_status));
+    copy_csv_field(&field, a7608_status.gnss_utc, sizeof(a7608_status.gnss_utc));
+    copy_csv_field(&field, a7608_status.gnss_latitude, sizeof(a7608_status.gnss_latitude));
+    copy_csv_field(&field, ns, sizeof(ns));
+    copy_csv_field(&field, a7608_status.gnss_longitude, sizeof(a7608_status.gnss_longitude));
+    copy_csv_field(&field, ew, sizeof(ew));
+
+    if (run_status[0] == '1') {
+        a7608_status.gnss_powered = true;
+    }
+    a7608_status.gnss_ns = ns[0];
+    a7608_status.gnss_ew = ew[0];
+    a7608_status.gnss_fix = (fix_status[0] == '1') &&
+                             (a7608_status.gnss_latitude[0] != '\0') &&
+                             (a7608_status.gnss_longitude[0] != '\0');
 }
 
 void a7608_get_default_config(a7608_config_t *config)
@@ -726,6 +956,54 @@ esp_err_t a7608_refresh_status(void)
     return first_error;
 }
 
+esp_err_t a7608_gnss_enable(void)
+{
+    char response[128];
+    esp_err_t ret = a7608_send_command("AT+CGNSSPWR=1", "OK", 5000, response, sizeof(response));
+    if (ret == ESP_OK) {
+        a7608_status.gnss_powered = true;
+    }
+    return ret;
+}
+
+esp_err_t a7608_gnss_disable(void)
+{
+    char response[128];
+    esp_err_t ret = a7608_send_command("AT+CGNSSPWR=0", "OK", 5000, response, sizeof(response));
+    if (ret == ESP_OK) {
+        a7608_status.gnss_powered = false;
+        a7608_status.gnss_fix = false;
+        a7608_status.gnss_utc[0] = '\0';
+        a7608_status.gnss_latitude[0] = '\0';
+        a7608_status.gnss_ns = '\0';
+        a7608_status.gnss_longitude[0] = '\0';
+        a7608_status.gnss_ew = '\0';
+    }
+    return ret;
+}
+
+esp_err_t a7608_refresh_gnss(void)
+{
+    char response[768];
+    esp_err_t first_error = ESP_OK;
+
+    if (a7608_send_command("AT+CGNSSPWR?", "OK", 2000, response, sizeof(response)) == ESP_OK) {
+        parse_gnss_power(response);
+    } else {
+        first_error = ESP_FAIL;
+    }
+
+    if (a7608_status.gnss_powered) {
+        if (a7608_read_gnss_info(response, sizeof(response), NULL) != ESP_OK) {
+            first_error = ESP_FAIL;
+        }
+    } else {
+        a7608_status.gnss_fix = false;
+    }
+
+    return first_error;
+}
+
 const a7608_status_t *a7608_get_status(void)
 {
     return &a7608_status;
@@ -755,6 +1033,37 @@ const char *a7608_state_name(a7608_state_t state)
     }
 }
 
+static void a7608_debug_probe_gnss_commands(void)
+{
+    static const char *commands[] = {
+        "AT+CGNSSPWR=?",
+        "AT+CGNSSPWR?",
+        "AT+CGNSSINFO=?",
+        "AT+CGNSSINFO?",
+        "AT+CGPS=?",
+        "AT+CGPS?",
+        "AT+CGPSINFO=?",
+        "AT+CGPSINFO?",
+        "AT+CGPSSTATUS?",
+        "AT+CGNSINF=?",
+        "AT+CGNSINF?",
+        "AT+CGNSSMODE=?",
+        "AT+CGNSSMODE?",
+        "AT+CGNSSPORTSWITCH=?",
+        "AT+CGNSSPORTSWITCH?",
+    };
+    static char response[768];
+
+    a7608_debug_write("\r\n[A7608 GNSS COMMAND PROBE]\r\n");
+    for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
+        esp_err_t ret = a7608_send_command(commands[i], "OK", 2000, response, sizeof(response));
+        a7608_debug_printf("probe_%s=%s\r\n", commands[i] + 3, esp_err_to_name(ret));
+        a7608_debug_write_response_block(commands[i] + 3, response);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    a7608_debug_write("[A7608 GNSS COMMAND PROBE END]\r\n");
+}
+
 static void a7608_debug_print_parsed_status(void)
 {
     esp_err_t ret = a7608_refresh_status();
@@ -777,6 +1086,89 @@ static void a7608_debug_print_parsed_status(void)
                        status->ip_addr[0] != '\0' ? status->ip_addr : "-",
                        status->last_error[0] != '\0' ? status->last_error : "-");
     a7608_debug_write("[A7608 PARSED STATUS END]\r\n");
+}
+
+static void a7608_debug_print_gnss_status(void)
+{
+    static char response[768];
+    a7608_debug_write("\r\n[A7608 GNSS STATUS]\r\n");
+
+    esp_err_t enable_ret = a7608_send_command("AT+CGNSSPWR=1", "OK", 5000, response, sizeof(response));
+    a7608_debug_printf("enable=%s\r\n", esp_err_to_name(enable_ret));
+    a7608_debug_write_response_block("GNSS ENABLE", response);
+    if (enable_ret == ESP_OK) {
+        a7608_status.gnss_powered = true;
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+
+    esp_err_t power_ret = a7608_send_command("AT+CGNSSPWR?", "OK", 3000, response, sizeof(response));
+    a7608_debug_printf("power_query=%s\r\n", esp_err_to_name(power_ret));
+    a7608_debug_write_response_block("GNSS POWER QUERY", response);
+    if (power_ret == ESP_OK) {
+        parse_gnss_power(response);
+    }
+
+    if ((power_ret == ESP_OK) && !a7608_status.gnss_powered) {
+        esp_err_t fallback_ret = a7608_send_command("AT+CGNSSPWR=1,1", "OK", 5000, response, sizeof(response));
+        a7608_debug_printf("enable_fallback=%s\r\n", esp_err_to_name(fallback_ret));
+        a7608_debug_write_response_block("GNSS ENABLE FALLBACK", response);
+        if (fallback_ret == ESP_OK) {
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            power_ret = a7608_send_command("AT+CGNSSPWR?", "OK", 3000, response, sizeof(response));
+            a7608_debug_printf("power_query_after_fallback=%s\r\n", esp_err_to_name(power_ret));
+            a7608_debug_write_response_block("GNSS POWER QUERY AFTER FALLBACK", response);
+            if (power_ret == ESP_OK) {
+                parse_gnss_power(response);
+            }
+        }
+    }
+
+    static const char *info_commands[] = {
+        "AT+CGNSSINFO",
+        "AT+CGPSINFO",
+        "AT+CGNSINF",
+    };
+    esp_err_t info_ret = ESP_FAIL;
+    bool info_parsed = false;
+    for (size_t i = 0; i < sizeof(info_commands) / sizeof(info_commands[0]); i++) {
+        info_ret = a7608_send_command(info_commands[i], "OK", 5000, response, sizeof(response));
+        a7608_debug_printf("info_%s=%s\r\n", info_commands[i] + 3, esp_err_to_name(info_ret));
+        a7608_debug_write_response_block(info_commands[i] + 3, response);
+        if (info_ret != ESP_OK) {
+            continue;
+        }
+        if (strstr(response, "+CGNSSINFO:") != NULL) {
+            parse_gnss_info(response);
+            info_parsed = true;
+            break;
+        }
+        if (strstr(response, "+CGPSINFO:") != NULL) {
+            parse_gps_info(response);
+            info_parsed = true;
+            break;
+        }
+        if (strstr(response, "+CGNSINF:") != NULL) {
+            parse_cgnsinf(response);
+            info_parsed = true;
+            break;
+        }
+    }
+    if (!info_parsed) {
+        a7608_debug_probe_gnss_commands();
+    }
+
+    const a7608_status_t *status = a7608_get_status();
+    a7608_debug_printf("summary powered=%d fix=%d utc=%s lat=%s%c lon=%s%c last_error=%s\r\n",
+                       status->gnss_powered,
+                       status->gnss_fix,
+                       status->gnss_utc[0] != '\0' ? status->gnss_utc : "-",
+                       status->gnss_latitude[0] != '\0' ? status->gnss_latitude : "-",
+                       status->gnss_ns != '\0' ? status->gnss_ns : ' ',
+                       status->gnss_longitude[0] != '\0' ? status->gnss_longitude : "-",
+                       status->gnss_ew != '\0' ? status->gnss_ew : ' ',
+                       status->last_error[0] != '\0' ? status->last_error : "-");
+    a7608_debug_write("GNSS remains enabled for manual AT+CGNSSINFO checks.\r\n");
+    a7608_debug_write("[A7608 GNSS STATUS END]\r\n");
 }
 
 void a7608_at_debug_task(void *pvParameters)
@@ -839,8 +1231,13 @@ void a7608_at_debug_task(void *pvParameters)
 
     if (at_ready) {
         a7608_debug_write("\r\nTransparent AT bridge ready. Type AT commands with CR/LF.\r\n");
-        a7608_debug_run_status_snapshot();
-        a7608_debug_print_parsed_status();
+        bool snapshot_ok = a7608_debug_run_status_snapshot();
+        if (snapshot_ok) {
+            a7608_debug_print_parsed_status();
+            a7608_debug_print_gnss_status();
+        } else {
+            a7608_debug_write("\r\nSkip parsed status because modem did not stay responsive after ATI.\r\n");
+        }
     } else {
         a7608_debug_write("A7608 did not return OK after LilyGO ATDebug boot sequence.\r\n");
         a7608_debug_write("\r\nManual AT bridge ready, modem background read is paused until USB input is sent.\r\n");

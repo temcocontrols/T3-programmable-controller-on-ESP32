@@ -4701,7 +4701,7 @@ void app_main()
 #if PROJECT_HUB_AT_DEBUG
 	if(Modbus.mini_type == PROJECT_HUB)
 	{
-		xTaskCreate(a7608_at_debug_task,"a7608_at_debug",4096, NULL, 10, &main_task_handle[9]);
+		xTaskCreate(a7608_at_debug_task,"a7608_at_debug",8192, NULL, 10, &main_task_handle[9]);
 	}
 	else
 #endif
