@@ -100,6 +100,18 @@ typedef struct
 	U8_T mstp_master;
 	U16_T write_flash;
 
+	/* WireGuard configuration */
+	U8_T wireguard_enable;
+	U8_T wireguard_private_key[64];
+	U8_T wireguard_peer_public_key[64];
+	U8_T wireguard_preshared_key[64];
+	U8_T wireguard_local_ip[4];
+	U8_T wireguard_local_netmask[4];
+	U16_T wireguard_local_port;
+	U8_T wireguard_peer_ip[4];
+	U16_T wireguard_peer_port;
+	U8_T wireguard_keepalive;
+	U8_T wireguard_timezone[32];
 
 }STR_MODBUS;
 
@@ -187,8 +199,9 @@ typedef	enum
 #define PROJECT_LSW_SENSOR	27
 #define PROJECT_LORA_GATEWAY	28
 #define MINI_TSTAT11 		29
+#define PROJECT_WIREGUARD_GATEWAY 30
 
-#define MAX_MINI_TYPE 		29
+#define MAX_MINI_TYPE 		30
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;

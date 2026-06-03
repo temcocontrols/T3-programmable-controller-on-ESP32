@@ -98,7 +98,7 @@ void update_sntp(void)
     uint8_t state;
     static uint32_t count_sntp = 0;
 
-    if (Modbus.en_sntp >= 2)
+    if (Modbus.en_sntp >= 2 || Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
     {
         count_sntp++;
 

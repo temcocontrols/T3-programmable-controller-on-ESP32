@@ -1,5 +1,5 @@
-idf_component_register(			SRCS
-							"tcp_server.c"
+idf_component_register(		SRCS
+							"app_main.c"
 							"modbus.c"
 #							"deviceparams.c"
 							"i2c_task.c"
@@ -61,12 +61,14 @@ idf_component_register(			SRCS
 							"LCD_Driver/lcd_task.c"
 							"LCD_Driver/touch_drv.c"
 							"LCD_Driver/lv_UserPeram.c"
+							"WireGuard_App/WireGuard_App.c"
 
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
 			INCLUDE_DIRS "."
 							"LCD_Driver"
 							"TemcoScreen"
+							"WireGuard_App"
 							)
 
 # Auto-include all .c files from TemcoScreen subdirectory

@@ -23,6 +23,7 @@ extern char sntp_server[30];
 void sntp_select_time_server(uint8_t type);
 
 void update_sntp(void);
+uint8_t SNTPC_GetState(void);
 void Send_TimeSync_Broadcast(uint8_t protocal);
 esp_sntp_operatingmode_t sntp_getoperatingmode(void);
 
