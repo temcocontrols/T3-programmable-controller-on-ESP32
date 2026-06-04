@@ -68,7 +68,9 @@
 /**
  * @brief Remote WireGuard peer endpoint address.
  */
-#define WG_PEER_ADDRESS            "223.236.26.80"
+// #define WG_PEER_ADDRESS            "223.236.26.80"
+#define WG_PEER_ADDRESS            "152.59.50.144"
+// #define WG_PEER_ADDRESS            "192.168.31.135"
 
 /**
  * @brief Remote WireGuard peer UDP port.

@@ -172,7 +172,7 @@ esp_err_t wireguard_app_setup(wireguard_ctx_t *ctx)
     wg_config.persistent_keepalive = WG_PERSISTENT_KEEP_ALIVE;
 
     /* Load configuration from Modbus (overrides defaults) */
-    wireguard_app_load_config_from_modbus();
+    // wireguard_app_load_config_from_modbus();
 
     err = esp_wireguard_init(&wg_config, ctx);
     if (err != ESP_OK) {

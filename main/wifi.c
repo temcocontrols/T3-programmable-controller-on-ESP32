@@ -509,6 +509,7 @@ void disable_wifi() {
 void wifi_task(void *pvParameters)
 {
 	uint8_t temp_rssi = 0;
+    esp_log_level_set("wifi", ESP_LOG_ERROR);
 
     wifi_init_sta();
 

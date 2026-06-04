@@ -446,7 +446,7 @@ void uart_init(uint8_t uart)
 	if(uart == 0) // sub port
 	{
 		uart_param_config(uart_num_sub, &uart_config);
-		if(Modbus.mini_type == MINI_TSTAT11)
+		if(Modbus.mini_type == MINI_TSTAT11 || Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
 			uart_set_pin(uart_num_sub, GPIO_NUM_43, GPIO_NUM_44, GPIO_MODBUS_EN_PIN, UART_PIN_NO_CHANGE);
 		else
 			uart_set_pin(uart_num_sub, GPIO_NUM_1, GPIO_NUM_3, GPIO_SUB_EN_PIN, UART_PIN_NO_CHANGE);
