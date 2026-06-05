@@ -118,12 +118,16 @@ typedef enum
 #define FLASH_WIREGUARD_PEER_PUBLIC_KEY "WG_PEER_PUB_KEY"
 #define FLASH_WIREGUARD_PRESHARED_KEY "WG_PSK"
 #define FLASH_WIREGUARD_LOCAL_IP "WG_LOCAL_IP"
-#define FLASH_WIREGUARD_LOCAL_NETMASK "WG_LOCAL_NETMASK"
-#define FLASH_WIREGUARD_LOCAL_PORT "WG_LOCAL_PORT"
+#define FLASH_WIREGUARD_LOCAL_IP1 "WG_LOCAL_IP1"
+#define FLASH_WIREGUARD_LOCAL_IP2 "WG_LOCAL_IP2"
+#define FLASH_WIREGUARD_LOCAL_IP3 "WG_LOCAL_IP3"
+#define FLASH_WIREGUARD_LOCAL_IP4 "WG_LOCAL_IP4"
+#define FLASH_WIREGUARD_PORT "WG_PORT"
 #define FLASH_WIREGUARD_PEER_IP "WG_PEER_IP"
-#define FLASH_WIREGUARD_PEER_PORT "WG_PEER_PORT"
-#define FLASH_WIREGUARD_KEEPALIVE "WG_KEEPALIVE"
-#define FLASH_WIREGUARD_TIMEZONE "WG_TIMEZONE"
+#define FLASH_WIREGUARD_PEER_IP1 "WG_PEER_IP1"
+#define FLASH_WIREGUARD_PEER_IP2 "WG_PEER_IP2"
+#define FLASH_WIREGUARD_PEER_IP3 "WG_PEER_IP3"
+#define FLASH_WIREGUARD_PEER_IP4 "WG_PEER_IP4"
 
 #define FLASH_CURRENT_TLG_PAGE	"TLG_PAGE"
 
@@ -189,6 +193,9 @@ void Save_SPD_CNT(void);
 
 esp_err_t Save_Ethernet_Info(void);
 esp_err_t Save_Lcd_config(void);
+
+esp_err_t save_wireguard_config_to_flash(void);
+esp_err_t load_wireguard_config_from_flash(void);
 
 extern void Flash_Inital(void);
 extern void read_point_info(void);

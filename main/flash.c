@@ -706,6 +706,133 @@ void clear_currnet_page(void)
 	save_uint8_to_flash(FLASH_COUNT_REBOOT,0);
 }*/
 
+/* ==================== WireGuard Flash Functions ==================== */
+
+/**
+ * @brief Save WireGuard configuration to flash (NVS)
+ * Saves all WireGuard configuration with support for both string keys (blobs)
+ * and individual byte/word values
+ */
+esp_err_t save_wireguard_config_to_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+
+	// Save enable flag
+	err = nvs_set_u8(my_handle, FLASH_WIREGUARD_ENABLE, Modbus.wireguard_enable);
+	if (err != ESP_OK) goto done;
+
+	// Save private key (64 bytes)
+	err = nvs_set_blob(my_handle, FLASH_WIREGUARD_PRIVATE_KEY,
+		Modbus.wireguard_private_key, sizeof(Modbus.wireguard_private_key));
+	if (err != ESP_OK) goto done;
+
+	// Save peer public key (64 bytes)
+	err = nvs_set_blob(my_handle, FLASH_WIREGUARD_PEER_PUBLIC_KEY,
+		Modbus.wireguard_peer_public_key, sizeof(Modbus.wireguard_peer_public_key));
+	if (err != ESP_OK) goto done;
+
+	// Save preshared key (64 bytes)
+	err = nvs_set_blob(my_handle, FLASH_WIREGUARD_PRESHARED_KEY,
+		Modbus.wireguard_preshared_key, sizeof(Modbus.wireguard_preshared_key));
+	if (err != ESP_OK) goto done;
+
+	// Save local IP (4 bytes)
+	err = nvs_set_blob(my_handle, FLASH_WIREGUARD_LOCAL_IP,
+		Modbus.wireguard_local_ip, sizeof(Modbus.wireguard_local_ip));
+	if (err != ESP_OK) goto done;
+
+	// Save port (both local and peer use same port)
+	err = nvs_set_u16(my_handle, FLASH_WIREGUARD_PORT, Modbus.wireguard_port);
+	if (err != ESP_OK) goto done;
+
+	// Save peer IP (4 bytes)
+	err = nvs_set_blob(my_handle, FLASH_WIREGUARD_PEER_IP,
+		Modbus.wireguard_peer_ip, sizeof(Modbus.wireguard_peer_ip));
+	if (err != ESP_OK) goto done;
+
+	err = nvs_commit(my_handle);
+
+done:
+	nvs_close(my_handle);
+	return err;
+}
+
+/**
+ * @brief Load WireGuard configuration from flash (NVS)
+ * Loads WireGuard configuration, using defaults if not found
+ */
+esp_err_t load_wireguard_config_from_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+	size_t len;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return err;
+
+	// Load enable flag
+	err = nvs_get_u8(my_handle, FLASH_WIREGUARD_ENABLE, &Modbus.wireguard_enable);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		Modbus.wireguard_enable = 0;  // Disabled by default
+		nvs_set_u8(my_handle, FLASH_WIREGUARD_ENABLE, Modbus.wireguard_enable);
+	}
+
+	// Load private key
+	len = sizeof(Modbus.wireguard_private_key);
+	err = nvs_get_blob(my_handle, FLASH_WIREGUARD_PRIVATE_KEY,
+		Modbus.wireguard_private_key, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		memset(Modbus.wireguard_private_key, 0, sizeof(Modbus.wireguard_private_key));
+	}
+
+	// Load peer public key
+	len = sizeof(Modbus.wireguard_peer_public_key);
+	err = nvs_get_blob(my_handle, FLASH_WIREGUARD_PEER_PUBLIC_KEY,
+		Modbus.wireguard_peer_public_key, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		memset(Modbus.wireguard_peer_public_key, 0, sizeof(Modbus.wireguard_peer_public_key));
+	}
+
+	// Load preshared key
+	len = sizeof(Modbus.wireguard_preshared_key);
+	err = nvs_get_blob(my_handle, FLASH_WIREGUARD_PRESHARED_KEY,
+		Modbus.wireguard_preshared_key, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		memset(Modbus.wireguard_preshared_key, 0, sizeof(Modbus.wireguard_preshared_key));
+	}
+
+	// Load local IP
+	len = sizeof(Modbus.wireguard_local_ip);
+	err = nvs_get_blob(my_handle, FLASH_WIREGUARD_LOCAL_IP,
+		Modbus.wireguard_local_ip, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		memset(Modbus.wireguard_local_ip, 0, sizeof(Modbus.wireguard_local_ip));
+	}
+
+	// Load port
+	err = nvs_get_u16(my_handle, FLASH_WIREGUARD_PORT, &Modbus.wireguard_port);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		Modbus.wireguard_port = 51821;  // Default WireGuard port
+		nvs_set_u16(my_handle, FLASH_WIREGUARD_PORT, Modbus.wireguard_port);
+	}
+
+	// Load peer IP
+	len = sizeof(Modbus.wireguard_peer_ip);
+	err = nvs_get_blob(my_handle, FLASH_WIREGUARD_PEER_IP,
+		Modbus.wireguard_peer_ip, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		memset(Modbus.wireguard_peer_ip, 0, sizeof(Modbus.wireguard_peer_ip));
+	}
+
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+
 typedef struct
 {
 	U16_T addr;

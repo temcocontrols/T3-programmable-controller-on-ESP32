@@ -23,6 +23,7 @@
 #include "sntp_app.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "WireGuard_App.h"
 
 
 extern SemaphoreHandle_t xSem_comport[3];
@@ -1195,9 +1196,15 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             temp2 = SSID_Info.rssi;
          }
 
-         else if((address >= MODBUS_WIFI_START)&& (address <= MODBUS_WIFI_END))
+		else if((address >= MODBUS_WIFI_START)&& (address < MODBUS_WIREGUARD_ENABLE))
 		 {
         	 temp = read_wifi_data_by_block(address);
+			 temp1 = (temp >> 8) & 0xFF;
+			 temp2 = temp & 0xFF;
+		 }
+         else if((address >= MODBUS_WIREGUARD_ENABLE)&& (address <= MODBUS_WIREGUARD_END))
+		 {
+			 temp = wireguard_read_by_block(address);
 			 temp1 = (temp >> 8) & 0xFF;
 			 temp2 = temp & 0xFF;
 		 }
@@ -2003,9 +2010,13 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 	   {
 		write_lightswitch_by_block(temp_i,0,bufadd,0);
 	   }
-      if(temp_i >= MODBUS_WIFI_START && temp_i <= MODBUS_WIFI_END)
+      if(temp_i >= MODBUS_WIFI_START && temp_i < MODBUS_WIREGUARD_ENABLE)
       {
          write_wifi_data_by_block(temp_i,0,bufadd,0);
+      }
+      else if(temp_i >= MODBUS_WIREGUARD_ENABLE && temp_i <= MODBUS_WIREGUARD_END)
+      {
+         wireguard_write_by_block(temp_i,0,bufadd);
       }
 
       /******************* write IN OUT by block start ******************************************/
@@ -2082,9 +2093,13 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			}
 			save_uint8_to_flash(FLASH_SN_WRITE,SNWriteflag);
 		}
-	   if(address >= MODBUS_WIFI_START && address <= MODBUS_WIFI_END)
+	   if(address >= MODBUS_WIFI_START && address < MODBUS_WIREGUARD_ENABLE)
 		{
 			write_wifi_data_by_block(address,0,bufadd,0);
+		}
+	   else if(address >= MODBUS_WIREGUARD_ENABLE && address <= MODBUS_WIREGUARD_END)
+		{
+			wireguard_write_by_block(address,0,bufadd);
 		}
 	   if(address >= MODBUS_TSTAT10_START && address <= MODBUS_TSTAT10_END)
 	   {

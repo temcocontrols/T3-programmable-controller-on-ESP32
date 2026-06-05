@@ -21,21 +21,6 @@
 #include <esp_wireguard.h>
 
 /**
- * @brief WiFi SSID configuration.
- */
-#define WG_WIFI_SSID               "4G-UFI"
-
-/**
- * @brief WiFi password configuration.
- */
-#define WG_WIFI_PASSWORD           "12345678"
-
-/**
- * @brief WiFi maximum retry attempts.
- */
-#define WG_WIFI_MAXIMUM_RETRY      5
-
-/**
  * @brief WireGuard private key for this device.
  */
 #define WG_PRIVATE_KEY             "KGktoZPaxM0edqvBXXU/tXKtMb3PA/IC3mf9BktAvV4="
@@ -68,8 +53,8 @@
 /**
  * @brief Remote WireGuard peer endpoint address.
  */
-// #define WG_PEER_ADDRESS            "223.236.26.80"
-#define WG_PEER_ADDRESS            "152.59.50.144"
+#define WG_PEER_ADDRESS            "223.236.26.80"
+// #define WG_PEER_ADDRESS            "152.59.50.144"
 // #define WG_PEER_ADDRESS            "192.168.31.135"
 
 /**
@@ -87,14 +72,26 @@
  */
 #define WG_PING_ADDRESS            "10.0.0.1"
 
-/**
- * @brief Time zone for system clock (EST5EDT).
- */
-#define WG_SYSTEM_TZ               "EST5EDT,M3.2.0/2,M11.1.0"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * @brief read WireGuard configuration data by block for Modbus register access
+ *
+ * @param addr Modbus register address corresponding to WireGuard configuration item
+ * @return 16-bit value read from the specified WireGuard configuration item
+ */
+uint16_t wireguard_read_by_block(uint16_t addr);
+
+/**
+ * @brief write WireGuard configuration data by block from Modbus register
+ *
+ * @param addr Modbus register address corresponding to WireGuard configuration item
+ * @param HeadLen Length of the Modbus header (used to calculate data offset)
+ * @param pData Pointer to the Modbus data buffer containing the value to write
+ */
+void wireguard_write_by_block(uint16_t addr, uint8_t HeadLen, uint8_t *pData);
 
 /**
  * @brief Check whether the WireGuard peer is currently up.

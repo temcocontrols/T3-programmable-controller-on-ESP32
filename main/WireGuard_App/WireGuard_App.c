@@ -9,6 +9,7 @@
 #include "WireGuard_App.h"
 
 #include <string.h>
+#include <stdbool.h>
 #include <inttypes.h>
 #include <time.h>
 #include <sys/time.h>
@@ -22,6 +23,8 @@
 #include <lwip/inet.h>
 #include <ping/ping_sock.h>
 #include "define.h"
+#include "flash.h"
+#include "modbus.h"
 #include "sntp_app.h"
 
 extern  EventGroupHandle_t s_wifi_event_group;
@@ -32,6 +35,16 @@ static wireguard_config_t wg_config = ESP_WIREGUARD_CONFIG_DEFAULT();
 /** Event bit for WiFi connected with IP. */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
+
+static bool wireguard_buffer_has_text(uint8_t *buffer, size_t size)
+{
+    if (buffer == NULL || size == 0)
+        return false;
+
+    buffer[size - 1] = '\0';
+
+    return buffer[0] != '\0';
+}
 
 static void wireguard_app_on_ping_success(esp_ping_handle_t hdl, void *args)
 {
@@ -76,82 +89,255 @@ static void wireguard_app_on_ping_end(esp_ping_handle_t hdl, void *args)
              transmitted, received, total_time_ms);
 }
 
+
 /**
- * @brief Load WireGuard configuration from Modbus data.
- * Uses defaults from #defines if Modbus values are not set.
+ * @brief Read WireGuard data by block for Modbus register access
+ * Supports reading both single bytes (IPs) and word values (port)
  */
-static void wireguard_app_load_config_from_modbus(void)
+uint16_t wireguard_read_by_block(uint16_t addr)
 {
-    /* Load private key from Modbus, use default if not set */
-    if (Modbus.wireguard_private_key[0] != 0) {
-        memcpy((void *)wg_config.private_key, Modbus.wireguard_private_key,
-               sizeof(Modbus.wireguard_private_key));
+	uint8_t item = 0;
+
+	if (addr == MODBUS_WIREGUARD_ENABLE) {
+		return Modbus.wireguard_enable;
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PRIVATE_KEY_START) &&
+		(addr <= MODBUS_WIREGUARD_PRIVATE_KEY_END)) {
+		item = addr - MODBUS_WIREGUARD_PRIVATE_KEY_START;
+		if (item * 2 + 1 < sizeof(Modbus.wireguard_private_key)) {
+			return (Modbus.wireguard_private_key[item * 2] << 8) |
+				Modbus.wireguard_private_key[item * 2 + 1];
+		}
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PEER_PUBLIC_KEY_START) &&
+		(addr <= MODBUS_WIREGUARD_PEER_PUBLIC_KEY_END)) {
+		item = addr - MODBUS_WIREGUARD_PEER_PUBLIC_KEY_START;
+		if (item * 2 + 1 < sizeof(Modbus.wireguard_peer_public_key)) {
+			return (Modbus.wireguard_peer_public_key[item * 2] << 8) |
+				Modbus.wireguard_peer_public_key[item * 2 + 1];
+		}
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PRESHARED_KEY_START) &&
+		(addr <= MODBUS_WIREGUARD_PRESHARED_KEY_END)) {
+		item = addr - MODBUS_WIREGUARD_PRESHARED_KEY_START;
+		if (item * 2 + 1 < sizeof(Modbus.wireguard_preshared_key)) {
+			return (Modbus.wireguard_preshared_key[item * 2] << 8) |
+				Modbus.wireguard_preshared_key[item * 2 + 1];
+		}
+	}
+	else if ((addr >= MODBUS_WIREGUARD_LOCAL_IP1) &&
+		(addr <= MODBUS_WIREGUARD_LOCAL_IP4)) {
+		item = addr - MODBUS_WIREGUARD_LOCAL_IP1;
+		return Modbus.wireguard_local_ip[item];
+	}
+	else if (addr == MODBUS_WIREGUARD_PORT) {
+		return Modbus.wireguard_port;
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PEER_IP1) &&
+		(addr <= MODBUS_WIREGUARD_PEER_IP4)) {
+		item = addr - MODBUS_WIREGUARD_PEER_IP1;
+		return Modbus.wireguard_peer_ip[item];
+	}
+
+	return 0;
+}
+
+static bool wireguard_write_register(uint16_t addr, uint16_t value_word)
+{
+	uint8_t item = 0;
+	uint8_t value = value_word & 0xff;
+
+	if (addr == MODBUS_WIREGUARD_ENABLE) {
+		Modbus.wireguard_enable = value ? 1 : 0;
+		return true;
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PRIVATE_KEY_START) &&
+		(addr <= MODBUS_WIREGUARD_PRIVATE_KEY_END)) {
+		item = addr - MODBUS_WIREGUARD_PRIVATE_KEY_START;
+		if (item * 2 + 1 < sizeof(Modbus.wireguard_private_key)) {
+			Modbus.wireguard_private_key[item * 2] = value_word >> 8;
+			Modbus.wireguard_private_key[item * 2 + 1] = value;
+			return true;
+		}
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PEER_PUBLIC_KEY_START) &&
+		(addr <= MODBUS_WIREGUARD_PEER_PUBLIC_KEY_END)) {
+		item = addr - MODBUS_WIREGUARD_PEER_PUBLIC_KEY_START;
+		if (item * 2 + 1 < sizeof(Modbus.wireguard_peer_public_key)) {
+			Modbus.wireguard_peer_public_key[item * 2] = value_word >> 8;
+			Modbus.wireguard_peer_public_key[item * 2 + 1] = value;
+			return true;
+		}
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PRESHARED_KEY_START) &&
+		(addr <= MODBUS_WIREGUARD_PRESHARED_KEY_END)) {
+		item = addr - MODBUS_WIREGUARD_PRESHARED_KEY_START;
+		if (item * 2 + 1 < sizeof(Modbus.wireguard_preshared_key)) {
+			Modbus.wireguard_preshared_key[item * 2] = value_word >> 8;
+			Modbus.wireguard_preshared_key[item * 2 + 1] = value;
+			return true;
+		}
+	}
+	else if ((addr >= MODBUS_WIREGUARD_LOCAL_IP1) &&
+		(addr <= MODBUS_WIREGUARD_LOCAL_IP4)) {
+		item = addr - MODBUS_WIREGUARD_LOCAL_IP1;
+		Modbus.wireguard_local_ip[item] = value;
+		return true;
+	}
+	else if (addr == MODBUS_WIREGUARD_PORT) {
+		Modbus.wireguard_port = value_word;
+		return true;
+	}
+	else if ((addr >= MODBUS_WIREGUARD_PEER_IP1) &&
+		(addr <= MODBUS_WIREGUARD_PEER_IP4)) {
+		item = addr - MODBUS_WIREGUARD_PEER_IP1;
+		Modbus.wireguard_peer_ip[item] = value;
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * @brief Write WireGuard data by block from Modbus register
+ * Supports both single register writes and multiple register writes.
+ * Automatically saves to flash after valid data is written.
+ */
+void wireguard_write_by_block(uint16_t addr, uint8_t HeadLen, uint8_t *pData)
+{
+	bool changed = false;
+
+	if (pData == NULL)
+		return;
+
+	if (pData[HeadLen + 1] == MULTIPLE_WRITE_VARIABLES) {
+		uint16_t quantity = ((uint16_t)pData[HeadLen + 4] << 8) | pData[HeadLen + 5];
+		uint8_t byte_count = pData[HeadLen + 6];
+
+		for (uint16_t index = 0; index < quantity; index++) {
+			uint16_t data_offset = HeadLen + 7 + (index * 2);
+
+			if ((index * 2 + 1) >= byte_count)
+				break;
+
+			uint16_t value_word = ((uint16_t)pData[data_offset] << 8) |
+				pData[data_offset + 1];
+
+			changed |= wireguard_write_register(addr + index, value_word);
+		}
+	}
+	else {
+		uint16_t value_word = ((uint16_t)pData[HeadLen + 4] << 8) |
+			pData[HeadLen + 5];
+
+		changed = wireguard_write_register(addr, value_word);
+	}
+
+	if (changed)
+		save_wireguard_config_to_flash();
+}
+
+static bool wireguard_config_valid(void)
+{
+    if (Modbus.wireguard_enable == 0)
+        return false;
+
+    if (!wireguard_buffer_has_text(Modbus.wireguard_private_key,
+        sizeof(Modbus.wireguard_private_key)))
+        return false;
+
+    if (!wireguard_buffer_has_text(Modbus.wireguard_peer_public_key,
+        sizeof(Modbus.wireguard_peer_public_key)))
+        return false;
+
+    if (Modbus.wireguard_peer_ip[0] == 0 &&
+        Modbus.wireguard_peer_ip[1] == 0 &&
+        Modbus.wireguard_peer_ip[2] == 0 &&
+        Modbus.wireguard_peer_ip[3] == 0)
+        return false;
+
+    if (Modbus.wireguard_local_ip[0] == 0 &&
+        Modbus.wireguard_local_ip[1] == 0 &&
+        Modbus.wireguard_local_ip[2] == 0 &&
+        Modbus.wireguard_local_ip[3] == 0)
+        return false;
+
+    return true;
+}
+
+static void wireguard_app_load_config(void)
+{
+    static char local_ip[16];
+    static char peer_ip[16];
+
+    /* Wait until valid configuration is available */
+    while (!wireguard_config_valid())
+    {
+        ESP_LOGW(TAG,
+            "WireGuard configuration not available. Waiting for Modbus update...");
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+
+        /* Reload latest data from flash */
+        load_wireguard_config_from_flash();
     }
 
-    /* Load peer public key from Modbus, use default if not set */
-    if (Modbus.wireguard_peer_public_key[0] != 0) {
-        memcpy((void *)wg_config.public_key, Modbus.wireguard_peer_public_key,
-               sizeof(Modbus.wireguard_peer_public_key));
-    }
+    memset(&wg_config, 0, sizeof(wg_config));
 
-    /* Load preshared key from Modbus if set */
-    if (Modbus.wireguard_preshared_key[0] != 0) {
-        wg_config.preshared_key = (const char *)Modbus.wireguard_preshared_key;
-    } else {
+    /* Keys */
+    wg_config.private_key =
+        (const char *)Modbus.wireguard_private_key;
+
+    wg_config.public_key =
+        (const char *)Modbus.wireguard_peer_public_key;
+
+    wireguard_buffer_has_text(Modbus.wireguard_preshared_key,
+        sizeof(Modbus.wireguard_preshared_key));
+
+    if (strlen((char *)Modbus.wireguard_preshared_key))
+    {
+        wg_config.preshared_key =
+            (const char *)Modbus.wireguard_preshared_key;
+    }
+    else
+    {
         wg_config.preshared_key = NULL;
     }
 
-    /* Load local IP from Modbus, use default if not set */
-    if (Modbus.wireguard_local_ip[0] != 0 || Modbus.wireguard_local_ip[1] != 0 ||
-        Modbus.wireguard_local_ip[2] != 0 || Modbus.wireguard_local_ip[3] != 0) {
-        static char local_ip_str[16];
-        snprintf(local_ip_str, sizeof(local_ip_str), "%d.%d.%d.%d",
-                Modbus.wireguard_local_ip[0], Modbus.wireguard_local_ip[1],
-                Modbus.wireguard_local_ip[2], Modbus.wireguard_local_ip[3]);
-        wg_config.allowed_ip = local_ip_str;
-    }
+    /* Local VPN IP */
+    snprintf(local_ip,
+             sizeof(local_ip),
+             "%u.%u.%u.%u",
+             Modbus.wireguard_local_ip[0],
+             Modbus.wireguard_local_ip[1],
+             Modbus.wireguard_local_ip[2],
+             Modbus.wireguard_local_ip[3]);
 
-    /* Load local netmask from Modbus, use default if not set */
-    if (Modbus.wireguard_local_netmask[0] != 0 || Modbus.wireguard_local_netmask[1] != 0 ||
-        Modbus.wireguard_local_netmask[2] != 0 || Modbus.wireguard_local_netmask[3] != 0) {
-        static char netmask_str[16];
-        snprintf(netmask_str, sizeof(netmask_str), "%d.%d.%d.%d",
-                Modbus.wireguard_local_netmask[0], Modbus.wireguard_local_netmask[1],
-                Modbus.wireguard_local_netmask[2], Modbus.wireguard_local_netmask[3]);
-        wg_config.allowed_ip_mask = netmask_str;
-    }
+    wg_config.allowed_ip = local_ip;
 
-    /* Load local port from Modbus, use default if not set */
-    if (Modbus.wireguard_local_port != 0) {
-        wg_config.listen_port = Modbus.wireguard_local_port;
-    }
+    /* Peer Endpoint */
+    snprintf(peer_ip,
+             sizeof(peer_ip),
+             "%u.%u.%u.%u",
+             Modbus.wireguard_peer_ip[0],
+             Modbus.wireguard_peer_ip[1],
+             Modbus.wireguard_peer_ip[2],
+             Modbus.wireguard_peer_ip[3]);
 
-    /* Load peer IP from Modbus, use default if not set */
-    if (Modbus.wireguard_peer_ip[0] != 0 || Modbus.wireguard_peer_ip[1] != 0 ||
-        Modbus.wireguard_peer_ip[2] != 0 || Modbus.wireguard_peer_ip[3] != 0) {
-        static char peer_ip_str[16];
-        snprintf(peer_ip_str, sizeof(peer_ip_str), "%d.%d.%d.%d",
-                Modbus.wireguard_peer_ip[0], Modbus.wireguard_peer_ip[1],
-                Modbus.wireguard_peer_ip[2], Modbus.wireguard_peer_ip[3]);
-        wg_config.endpoint = peer_ip_str;
-    }
+    wg_config.endpoint = peer_ip;
 
-    /* Load peer port from Modbus, use default if not set */
-    if (Modbus.wireguard_peer_port != 0) {
-        wg_config.port = Modbus.wireguard_peer_port;
-    }
+    /* Ports */
+    wg_config.listen_port = Modbus.wireguard_port;
+    wg_config.port        = Modbus.wireguard_port;
 
-    /* Load keepalive from Modbus, use default if not set */
-    if (Modbus.wireguard_keepalive != 0) {
-        wg_config.persistent_keepalive = Modbus.wireguard_keepalive;
-    }
+    /* Defaults */
+    wg_config.allowed_ip_mask = "255.255.255.0";
+    wg_config.persistent_keepalive = 25;
 
-    /* Load timezone from Modbus, use default if not set */
-    if (Modbus.wireguard_timezone[0] != 0) {
-        setenv("TZ", (const char *)Modbus.wireguard_timezone, 1);
-    }
-
-    ESP_LOGI(TAG, "WireGuard config loaded from Modbus");
+    ESP_LOGI(TAG, "WireGuard configuration loaded");
+    ESP_LOGI(TAG, "VPN IP      : %s", wg_config.allowed_ip);
+    ESP_LOGI(TAG, "Peer IP     : %s", wg_config.endpoint);
+    ESP_LOGI(TAG, "Listen Port : %d", wg_config.listen_port);
 }
 
 esp_err_t wireguard_app_setup(wireguard_ctx_t *ctx)
@@ -160,19 +346,8 @@ esp_err_t wireguard_app_setup(wireguard_ctx_t *ctx)
 
     ESP_LOGI(TAG, "Initializing WireGuard.");
 
-    /* Initialize with default values */
-    wg_config.private_key = WG_PRIVATE_KEY;
-    wg_config.listen_port = WG_LOCAL_PORT;
-    wg_config.public_key = WG_PEER_PUBLIC_KEY;
-    wg_config.preshared_key = (strcmp(WG_PRESHARED_KEY, "") != 0) ? WG_PRESHARED_KEY : NULL;
-    wg_config.allowed_ip = WG_LOCAL_IP_ADDRESS;
-    wg_config.allowed_ip_mask = WG_LOCAL_IP_NETMASK;
-    wg_config.endpoint = WG_PEER_ADDRESS;
-    wg_config.port = WG_PEER_PORT;
-    wg_config.persistent_keepalive = WG_PERSISTENT_KEEP_ALIVE;
-
-    /* Load configuration from Modbus (overrides defaults) */
-    // wireguard_app_load_config_from_modbus();
+    /* Load configuration from flash and wait until it's valid */
+    wireguard_app_load_config();
 
     err = esp_wireguard_init(&wg_config, ctx);
     if (err != ESP_OK) {
@@ -256,18 +431,6 @@ void wireguard_gateway_task(void *pvParameters)
     wireguard_ctx_t wg_ctx = {0};
 
     ESP_LOGI("wireguard_gateway_task", "Starting WireGuard Gateway initialization...");
-
-
-    /* Initialize synchronize system time */
-
-	// obtain_time();
-    // time(&now);
-
-    // setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
-    // tzset();
-    // localtime_r(&now, &timeinfo);
-    // strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    // ESP_LOGI(TAG, "The current date/time in New York is: %s", strftime_buf);
 
     /* Wait for wifi to be connected before initializing WireGuard */
     ESP_LOGI(TAG, "Waiting for WiFi connection...");
