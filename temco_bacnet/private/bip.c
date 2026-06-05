@@ -414,7 +414,7 @@ uint16_t bip_receive(
     /* subtract off the BVLC header */
 		pdu_len -= 4;
 		switch (function) {
-#if 0
+
         case BVLC_RESULT:
             /* Upon receipt of a BVLC-Result message containing a result code
                of X'0000' indicating the successful completion of the
@@ -469,11 +469,11 @@ uint16_t bip_receive(
                originating device with a result code of X'0020' indicating that
                the read attempt has failed. */
 
-						if(bbmd_en == 0)
-						{
-							 pdu_len = 0;
-							break;
-						}	
+			if(bbmd_en == 0)
+			{
+				 pdu_len = 0;
+				break;
+			}	
 
             if (bvlc_send_bdt(&sin) <= 0) {
                 bvlc_send_result(&sin,
@@ -649,7 +649,7 @@ uint16_t bip_receive(
             /* not an NPDU */
             pdu_len = 0;
             break;
-#endif
+
         case BVLC_ORIGINAL_UNICAST_NPDU:
 //            debug_printf("BVLC: Received Original-Unicast-NPDU.\n");
             /* ignore messages from me */
