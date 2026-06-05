@@ -8,6 +8,7 @@
 #include "driver/gpio.h"
 #include "sdkconfig.h"
 #include "ethernet_task.h"
+#include "hub_w5500.h"
 #include "define.h"
 #include "wifi.h"
 #include "esp_netif_ip_addr.h"
@@ -132,6 +133,37 @@ static void got_ip_event_handler(void *arg,
 esp_eth_handle_t eth_handle = NULL;
 
 extern uint8_t count_reboot;
+
+static esp_err_t ethernet_attach_and_start(esp_netif_t *eth_netif)
+{
+    esp_err_t ret = ESP_OK;
+
+    if (eth_handle != NULL)
+    {
+        ret = esp_netif_attach(eth_netif,
+            esp_eth_new_netif_glue(eth_handle));
+
+        if (ret == ESP_OK)
+        {
+            ret = esp_eth_start(eth_handle);
+            if(ret == ESP_OK)
+                debug_info("esp_eth_start finished^^^^^^^^");
+            else
+                debug_info("esp_eth_start failed");
+        }
+        else
+        {
+            debug_info("esp_netif_attach failed");
+        }
+    }
+    else
+    {
+        debug_info("Ethernet not started (handle NULL)");
+        ret = ESP_FAIL;
+    }
+
+    return ret;
+}
 
 esp_err_t ethernet_init(void)
 {
@@ -290,29 +322,25 @@ esp_err_t ethernet_init(void)
     }
     /* ============================================= */
 
-    /* Attach and start only if handle valid */
-    if (eth_handle != NULL)
-    {
-        ret = esp_netif_attach(eth_netif,
-            esp_eth_new_netif_glue(eth_handle));
+#endif
 
-        if (ret == ESP_OK)
-        {
-            if(esp_eth_start(eth_handle) == ESP_OK)
-                debug_info("esp_eth_start finished^^^^^^^^");
-            else
-                debug_info("esp_eth_start failed");
-        }
+#if CONFIG_IDF_TARGET_ESP32S3
+    if(Modbus.mini_type == PROJECT_HUB)
+    {
+        ret = hub_w5500_install(&eth_handle);
+        if(ret == ESP_OK)
+            debug_info("hub_w5500_install finished^^^^^^^^");
         else
-        {
-            debug_info("esp_netif_attach failed");
-        }
+            eth_handle = NULL;
     }
     else
     {
-        debug_info("Ethernet not started (handle NULL)");
+        debug_info("ESP32S3 Ethernet requires PROJECT_HUB W5500 config");
     }
 #endif
+
+    if(eth_handle != NULL)
+        ret = ethernet_attach_and_start(eth_netif);
 
 #if 1//DNS
 //  dns_init();

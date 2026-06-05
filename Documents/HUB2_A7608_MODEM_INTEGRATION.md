@@ -12,7 +12,7 @@ Source plan: `HUB2_A7608_Modem_Integration_Plan.docx`
 
 Integrate the **A7608E-H 4G/GNSS modem** into the HUB2 project. The ESP32-S3 will control the modem with AT commands and provide SIM detection, LTE registration, signal status, cellular data connection, GNSS location, and basic remote communication.
 
-The first prototype should focus on stable modem bring-up and status reporting. Full 4G-to-Ethernet routing is a separate high-risk phase because it requires PPP, NAT, and IP forwarding.
+The A7608 modem scope is now parked as Pending Verification, including GNSS. The active prototype focus has moved to W5500 Ethernet bring-up, static/DHCP IP validation, and preserving existing Modbus TCP/BACnet/IP behavior. Full 4G-to-Ethernet routing is a separate high-risk phase because it requires PPP, NAT, and IP forwarding.
 
 ---
 
@@ -58,14 +58,14 @@ Do not start by merging modem logic into the main Temco firmware. First verify h
 Required first checks:
 
 1. Confirm ESP32-S3 flash and boot. **Done with LilyGo-Modem-Series ATDebug firmware.**
-2. Measure A7608E-H power rail during power-on, registration, and data transmission.
+2. Measure A7608E-H power rail during power-on, registration, and data transmission. **Pending verification while W5500 work is active.**
 3. Verify PWRKEY, RESET, RING, and DTR behavior. **Core pin map matches LilyGo-Modem-Series.**
 4. Confirm UART `AT` / `OK` communication. **Done with LilyGo ATDebug firmware and HUB2 firmware AT bridge at 115200 baud.**
-5. Validate SIM card detection and SIM electrical lines. **`+CPIN: READY` has been observed through the HUB2 AT bridge; physical SIM detect and electrical validation remain open.**
-6. Check LTE and GNSS antenna connections. **LTE has registered with CSQ 14; GNSS and antenna margin remain open.**
+5. Validate SIM card detection and SIM electrical lines. **`+CPIN: READY` has been observed through the HUB2 AT bridge; physical SIM detect and electrical validation are parked as pending verification.**
+6. Check LTE and GNSS antenna connections. **LTE has registered with CSQ 14; GNSS support is included in the pending-verification A7608 scope.**
 7. Confirm whether the USB path can support debug or firmware upgrade. **ESP32-S3 USB-to-serial bridge is working; modem USB path still needs production decision.**
 
-Current status: parsed modem status is validated. `a7608_refresh_status()` reports `CONNECTED`, operator `46001`, CSQ/RSSI, and IPv4 `10.205.135.212` in the HUB2 AT debug path. The next step is to validate the newly added GNSS enable/read/disable path on hardware, then run a small TCP/MQTT/HTTP upload test.
+Current status: A7608 bring-up, status parsing, cellular IP, and GNSS helper work are temporarily treated as complete enough to move forward and are marked Pending Verification in the tracker. The active engineering focus now moves to W5500 Ethernet bring-up, starting with board configuration, link/IP logging, and DHCP/static IP validation.
 
 ---
 
@@ -78,7 +78,7 @@ Suggested files:
 - `main/a7608.c`
 - `main/a7608.h`
 
-Current status: the first-pass `a7608.c/.h` driver has been added to the `main` component and registered in `main/CMakeLists.txt`. It provides UART setup, LilyGo-compatible default pins, PWRKEY/RESET/DTR helpers, generic AT command send/wait, status refresh, GNSS enable/read/disable helpers, and a modem state enum. For HUB2 bring-up, `PROJECT_HUB_AT_DEBUG` can start `a7608_at_debug_task()` to provide a transparent USB-to-modem AT bridge.
+Current status: the first-pass `a7608.c/.h` driver has been added to the `main` component and registered in `main/CMakeLists.txt`. It provides UART setup, LilyGo-compatible default pins, PWRKEY/RESET/DTR helpers, generic AT command send/wait, status refresh, GNSS enable/read/disable helpers, and a modem state enum. This A7608 driver scope is now parked as Pending Verification while W5500 work proceeds. For HUB2 bring-up, `PROJECT_HUB_AT_DEBUG` can start `a7608_at_debug_task()` to provide a transparent USB-to-modem AT bridge.
 
 Public responsibilities:
 
@@ -121,7 +121,7 @@ IPCLOSE
 GNSS commands from the A7608E-H AT manual
 ```
 
-Verified so far in HUB2 firmware: the transparent AT bridge starts at 115200 baud and the modem returns `+CPIN: READY`. The TX/RX mapping must remain ESP_TX/MODEM_RX=GPIO17 and ESP_RX/MODEM_TX=GPIO18. The conservative AT status snapshot has validated A7608E-H identity, SIM READY, CSQ/RSSI, CEREG/CREG registered, CGATT attached, operator `46001`, APN `3GNET`, and IPv4 address `10.205.135.212`. The parsed `a7608_refresh_status()` output is now declared done for SIM/LTE/operator/IP status. The debug task also enables GNSS, reads `AT+CGNSSINFO`, and leaves GNSS enabled for manual fix observation.
+Verified so far in HUB2 firmware: the transparent AT bridge starts at 115200 baud and the modem returns `+CPIN: READY`. The TX/RX mapping must remain ESP_TX/MODEM_RX=GPIO17 and ESP_RX/MODEM_TX=GPIO18. The conservative AT status snapshot has validated A7608E-H identity, SIM READY, CSQ/RSSI, CEREG/CREG registered, CGATT attached, operator `46001`, APN `3GNET`, and IPv4 address `10.205.135.212`. The parsed `a7608_refresh_status()` output is now declared done for SIM/LTE/operator/IP status. GNSS enable/read/disable is also included in the pending-verification A7608 scope.
 
 Open idle observation: after about 20 minutes, the bridge printed escaped non-AT bytes such as `\x05`, `\x12`, and `\x90`. These are raw non-printable UART bytes, not normal A7608 text URCs. When this appears, immediately send `AT`, `AT+IPR?`, `AT+CSCLK?`, `AT+CPIN?`, and `AT+CSQ` through the bridge. If `AT` still returns `OK`, treat the burst as a noise/filtering/debug-output issue for now; if `AT` no longer responds, investigate modem sleep, UART line integrity, and any UART1 ownership conflict.
 
@@ -167,9 +167,9 @@ ERROR
 
 ## Cellular Data Policy
 
-First connect out from HUB2. Do not implement router behavior in the first prototype.
+This section is now a parked A7608 verification checklist while W5500 Ethernet work is active. Do not implement router behavior in the first prototype.
 
-Target for the first prototype:
+Parked A7608 verification checklist:
 
 1. Establish cellular data connection through AT commands.
 2. Test TCP client, MQTT, or HTTP upload using modem commands.
@@ -183,7 +183,7 @@ If HUB2 must later act as a 4G router for Ethernet devices, plan a separate phas
 
 ## Temco Firmware Integration
 
-Integrate only after the standalone driver is stable.
+The A7608 standalone driver is currently parked as Pending Verification. The next integration work should start with W5500 Ethernet and the HUB2 board boundary.
 
 | Integration point | Required result |
 |-------------------|-----------------|
@@ -215,7 +215,20 @@ Recommended status items:
 
 ## W5500 And Ethernet Switch Verification
 
-Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hardware switch unless VLAN, port isolation, or per-port status is later required.
+Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hardware switch unless VLAN, port isolation, or per-port status is later required. This is the current active workstream now that A7608 is parked as Pending Verification.
+
+Firmware boundary: keep W5500-specific SPI/MAC/PHY setup in `main/hub_w5500.c` and `main/hub_w5500.h`. `main/ethernet_task.c` should only keep the common Ethernet netif, event handlers, IP/DNS handling, and the `PROJECT_HUB` call into `hub_w5500_install()`.
+
+Current HUB2 W5500 pin map:
+
+| W5500 signal | ESP32-S3 GPIO |
+|--------------|---------------|
+| RSTN | IO9 |
+| INTN | IO10 |
+| MOSI | IO11 |
+| MISO | IO12 |
+| SCLK | IO13 |
+| SCSN | IO14 |
 
 1. ESP32 obtains static IP or DHCP through W5500.
 2. T3000 can discover the HUB2 board.
@@ -230,11 +243,11 @@ Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hard
 
 | Phase | Focus | Deliverable |
 |-------|-------|-------------|
-| Phase 1 | Hardware bring-up | Pin map, power sequence, 115200 AT bridge log, SIM READY log, power test, issue list |
-| Phase 2 | A7608 driver | `a7608.c/.h`, AT framework, modem state machine, transparent AT debug task, status refresh validation |
-| Phase 3 | Cellular data | LTE data connection, TCP/MQTT/HTTP test, reconnect and recovery |
-| Phase 4 | Temco integration | HUB2 config, W5500, modem status, Modbus/BACnet/T3000 visibility |
-| Phase 5 | Ethernet verification | W5500, RTL8309N switch behavior, Modbus TCP, BACnet/IP |
+| Phase 1 | A7608 hardware bring-up | Pending Verification: pin map, power sequence, 115200 AT bridge log, SIM READY log, power test, issue list |
+| Phase 2 | A7608 driver | Pending Verification: `a7608.c/.h`, AT framework, modem state machine, transparent AT debug task, status refresh validation, GNSS helpers |
+| Phase 3 | Cellular data | Pending Verification: LTE data connection, TCP/MQTT/HTTP test, reconnect and recovery |
+| Phase 4 | W5500 Ethernet bring-up | Current: HUB2 board config, W5500 init, link/IP logs, DHCP/static IP validation |
+| Phase 5 | Ethernet protocol verification | W5500, RTL8309N switch behavior, Modbus TCP, BACnet/IP |
 | Phase 6 | Stability test | 24 to 72 hour run, weak signal, SIM, antenna, Ethernet, power recovery |
 
 ---
@@ -253,11 +266,11 @@ Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hard
 ## Bench Checklist
 
 - ESP32-S3 can be flashed and boots reliably.
-- A7608E-H power rail remains stable during registration and data TX.
-- `AT` / `OK` works repeatedly after cold boot and reset at 115200 baud.
-- `CPIN?` reports READY; SIM removal and reinsertion are detected and recovered.
-- LTE registration and cellular IP attach are logged.
-- GNSS enable/read/disable works without breaking LTE status.
+- A7608E-H power rail remains stable during registration and data TX. Pending Verification.
+- `AT` / `OK` works repeatedly after cold boot and reset at 115200 baud. Pending Verification.
+- `CPIN?` reports READY; SIM removal and reinsertion are detected and recovered. Pending Verification.
+- LTE registration and cellular IP attach are logged. Pending Verification.
+- GNSS enable/read/disable works without breaking LTE status. Pending Verification.
 - W5500 Ethernet, Modbus TCP, and BACnet/IP still work while modem status polling runs.
 - Modem reset recovery works when AT commands time out.
 - 24 to 72 hour test passes with LTE reconnect and Ethernet cable plug/unplug.

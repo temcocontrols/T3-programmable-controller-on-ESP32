@@ -131,13 +131,18 @@ static bool a7608_debug_check_respond(void)
     char response[256];
 
     for (int i = 0; i < 10; i++) {
-        uart_write_bytes(a7608_cfg.uart_num, "AT\r\n", 4);
+        int wrote = uart_write_bytes(a7608_cfg.uart_num, "AT\r\n", 4);
+        if (wrote < 0) {
+            a7608_debug_printf("AT probe write failed on UART%d\r\n", a7608_cfg.uart_num);
+            continue;
+        }
         if (a7608_debug_read_modem(1000, response, sizeof(response), false) && strstr(response, "OK") != NULL) {
             return true;
         }
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 
+    a7608_debug_write("No OK after 10 AT probe attempts.\r\n");
     return false;
 }
 
