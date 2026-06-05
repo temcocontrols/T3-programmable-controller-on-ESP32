@@ -12,6 +12,7 @@
 #include "define.h"
 #include "co2.h"
 #include "modbus.h"
+#include "flash.h"
 
 
 extern STR_Task_Test task_test;
@@ -21,12 +22,12 @@ Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
 
 /*const uint8 Var_label[13][9] = {
-
+	
 	"Baudrate",   //0
 	"StnNumer",   //1
 	"Protocol", //2
 	"Instance",//3
-	"Unit", //10
+	"Unit", //10 
 	"Trgger_S",
 	"Timer_S",
 	"Trgger_L",
@@ -38,7 +39,7 @@ Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
 };
 const uint8 Var_Description[13][21] = {
-
+	
 	"baudrate select",   	//0
 	"station number",   	//1
 	"modbus/bacnet switch",    //2
@@ -57,8 +58,8 @@ const uint8 Var_Description[13][21] = {
 
 
 QueueHandle_t qSendCo2;
-// uint8 isBlankScreen;
-// uint8_t display_config[5];
+//uint8 isBlankScreen;
+//uint8_t display_config[5];
 
 /*_RANGE_ output_range_table[3] =
 {
@@ -75,6 +76,8 @@ uint16 CO2_modbus_Addr;
 int16 CO2_modbus_value;
 uint8_t flag_write_i2c;
 
+uint8_t co2_data_screenArea[3];
+
 uint16_t read_co2_by_block(uint16_t addr)
 {
 	uint8_t item;
@@ -82,7 +85,7 @@ uint16_t read_co2_by_block(uint16_t addr)
 	uint8_t *block1;
 	uint8_t temp;
 	/*uint8_t lcd_i2c_sensor_index;
-
+	
 	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;*/
 
 	if(addr == MODBUS_CO2_TEMPERATURE_DEGREE_C_OR_F)
@@ -258,19 +261,19 @@ uint16_t read_co2_by_block(uint16_t addr)
 	{
 	  return co2_data.I2C_Sensor[2].hum_offset;
 	}
-	/*else if(addr == MODBUS_CO2_SCREEN_AREA_1)
+	else if(addr == MODBUS_CO2_SCREEN_AREA_1)
 	{
-	  return co2_data.screenArea1;
+	  return co2_data_screenArea[0];
 	}
 	else if(addr == MODBUS_CO2_SCREEN_AREA_2)
 	{
-	  return co2_data.screenArea2;
+	  return co2_data_screenArea[1];
 	}
 	else if(addr == MODBUS_CO2_SCREEN_AREA_3)
 	{
-	  return co2_data.screenArea3;
+	  return co2_data_screenArea[2];
 	}
-	else if(addr == MODBUS_CO2_ENABLE_SCROLL)
+	/*else if(addr == MODBUS_CO2_ENABLE_SCROLL)
 	{
 	  return co2_data.enableScroll;
 	}
@@ -577,7 +580,7 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   if(value == co2_data.i2c_sensor_type[2])
 		   return 1;
 	   else
-	   		   return 0;
+		   return 0;
 	}
 	else if(addr == MODBUS_CO2_I2C_SENOR3_TEM)
 	{
@@ -605,36 +608,36 @@ uint8_t check_write_co2(uint16_t addr,uint16_t value)
 	   if(value == co2_data.I2C_Sensor[2].tem_offset)
 			return 1;
 	   else
-	   		   return 0;
+	   		return 0;
 	}
 	else if(addr == MODBUS_CO2_I2C_SENOR3_HUM_OFFSET)
 	{
 	   if(value == co2_data.I2C_Sensor[2].hum_offset)
 		   return 1;
 	   else
-	   		   return 0;
+		   return 0;
 	}
-
-	/*else if(addr == MODBUS_CO2_SCREEN_AREA_1)
+	/*
+	else if(addr == MODBUS_CO2_SCREEN_AREA_1)
 	{
-	   if(value == co2_data.screenArea1)
+	   if(value == co2_data_screenArea1)
 			return 1;
 	   else
-	   		   return 0;
+	   		return 0;
 	}
 	else if(addr == MODBUS_CO2_SCREEN_AREA_2)
 	{
-	   if(value == co2_data.screenArea2)
+	   if(value == co2_data_screenArea2)
 			return 1;
 	   else
-	   		   return 0;
+		   return 0;
 	}
 	else if(addr == MODBUS_CO2_SCREEN_AREA_3)
 	{
-	   if(value == co2_data.screenArea3)
-				return 1;
+	   if(value == co2_data_screenArea3)
+			return 1;
 	   else
-	   		   return 0;
+	   		return 0;
 	}
 	else if(addr == MODBUS_CO2_ENABLE_SCROLL)
 	{
@@ -682,7 +685,7 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	uint8_t *block1;
 	uint8_t temp;
 /*	uint8_t lcd_i2c_sensor_index;
-
+	
 
 	lcd_i2c_sensor_index = co2_data.lcd_i2c_sensor_index;
 	if(lcd_i2c_sensor_index == 255)
@@ -861,20 +864,22 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 	{
 	   co2_data.I2C_Sensor[2].hum_offset = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);;
 	}
-
-	/*else if(addr == MODBUS_CO2_SCREEN_AREA_1)
+	else if(addr == MODBUS_CO2_SCREEN_AREA_1)
 	{
-	   co2_data.screenArea1 = pData[HeadLen + 5];
+	   co2_data_screenArea[0] = pData[HeadLen + 5];
+	   save_uint8_to_flash(FLASH_CO2_SA1,co2_data_screenArea[0]);
 	}
 	else if(addr == MODBUS_CO2_SCREEN_AREA_2)
 	{
-	   co2_data.screenArea2 = pData[HeadLen + 5];
+	   co2_data_screenArea[1] = pData[HeadLen + 5];
+	   save_uint8_to_flash(FLASH_CO2_SA2,co2_data_screenArea[1]);
 	}
 	else if(addr == MODBUS_CO2_SCREEN_AREA_3)
 	{
-	   co2_data.screenArea3 = pData[HeadLen + 5];
+	   co2_data_screenArea[2] = pData[HeadLen + 5];
+	   save_uint8_to_flash(FLASH_CO2_SA3,co2_data_screenArea[2]);
 	}
-	else if(addr == MODBUS_CO2_ENABLE_SCROLL)
+	/*else if(addr == MODBUS_CO2_ENABLE_SCROLL)
 	{
 	   co2_data.enableScroll = pData[HeadLen + 5];
 	}
@@ -901,11 +906,11 @@ void write_co2_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t typ
 
 	xQueueSend(qSendCo2, &flag_write_i2c, 0);
 
-	return;
+	return ;
 }
 
 
-
+extern uint16_t co2_frc;
 void CO2_check_calibration(uint8_t i)
 {
 	Str_points_ptr ptr;
@@ -922,12 +927,15 @@ void CO2_check_calibration(uint8_t i)
 			cal = -cal;
 		value = cal;
 	}
-	else  // co2 value
+	// 2,5,8 是 CO2中的input， 12 是 T10的input
+	else if(i == 2 || i == 5 || i == 8 || i == 12) // co2 value
 	{
 		value = ptr.pin->value / 1000;
 	}
-
-	Test[25]++;
+	else if(i == 9)
+	{
+		value = ptr.pin->value / 100;
+	}
 
 
 	if(i == 0)
@@ -966,11 +974,24 @@ void CO2_check_calibration(uint8_t i)
 	{
 		addr = MODBUS_CO2_I2C_SENOR3_CO2;
 	}
+	if(i == 9)
+	{
+		if(co2_data.deg_c_or_f == 0)
+			addr = MODBUS_CO2_INTERNAL_TEMPERATURE_CELSIUS;
+		else
+			addr = MODBUS_CO2_INTERNAL_TEMPERATURE_FAHRENHEIT;
+	}
 
-	flag_write_i2c = 1;
-	CO2_modbus_Addr = addr;
-	CO2_modbus_value = value;
-//	delay_ms(1000);
-	//xQueueSend(qSendCo2, &flag_write_i2c, 0);
+	if(Modbus.mini_type == MINI_TSTAT10)
+	{
+		co2_frc = value;
+		flag_write_i2c = 1;
+	}
+	else // CO2
+	{
+		flag_write_i2c = 1;
+		CO2_modbus_Addr = addr;
+		CO2_modbus_value = value;
+	}
 
 }

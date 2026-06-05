@@ -81,6 +81,7 @@ void LS_led_task(void *pvParameters)
         .strip_gpio_num = CONFIG_EXAMPLE_RMT_TX_GPIO,
         .max_leds = CONFIG_EXAMPLE_STRIP_LED_NUMBER,
         .led_model = LED_MODEL_WS2812,
+		.color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
         .flags.invert_out = false,
     };
 
@@ -91,40 +92,37 @@ void LS_led_task(void *pvParameters)
         .flags.with_dma = false,
     };
 
-    ESP_ERROR_CHECK(
-        led_strip_new_rmt_device(&strip_config, &rmt_config, &strip)
-    );
 
-    /* Clear LED strip (turn off all LEDs) */
-    ESP_ERROR_CHECK(led_strip_clear(strip));
+    esp_err_t rc = led_strip_new_rmt_device(&strip_config, &rmt_config, &strip);
+   if (rc != ESP_OK) {
+	   ESP_LOGE(TAG, "led_strip_new_rmt_device failed: %d", rc);
+	   vTaskDelay(portMAX_DELAY);
+   }
+   while (true)
+   {
+	   /* Same as: strip->clear(strip, 50); */
+	   //led_strip_clear(strip);
+	   //vTaskDelay(5 / portTICK_PERIOD_MS);
+	   for(uint8_t i = 0; i < 6; i++)
+	   {
+		   if(led_status.pos[i] == 1)
+		   {
+			   led_strip_set_pixel(strip, i,
+								   led_status.color_r[i],
+								   led_status.color_g[i],
+								   led_status.color_b[i]);
+		   }
+		   else
+		   {
+			   led_strip_set_pixel(strip,i, 0x00, 0x00, 0x00);
 
-    while (true)
-    {
-        /* Same as: strip->clear(strip, 50); */
-        led_strip_clear(strip);
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+		   }
+	   }
 
-        for(uint8_t i = 0; i < 6; i++)
-        {
-            if(led_status.pos[i] == 1)
-            {
-                /* Same as strip->set_pixel() */
-                led_strip_set_pixel(strip, i,
-                                    led_status.color_r[i],
-                                    led_status.color_g[i],
-                                    led_status.color_b[i]);
-            }
-            else
-            {
-                led_strip_set_pixel(strip, i, 0, 0, 0);
-            }
-        }
-
-        /* Same as strip->refresh(strip, 100); */
-        led_strip_refresh(strip);
-
-        vTaskDelay(200 / portTICK_PERIOD_MS);
-    }
+	   /* Same as strip->refresh(strip, 100); */
+	   led_strip_refresh(strip);
+	   vTaskDelay(200 / portTICK_PERIOD_MS);
+   }
 }
 
 /* End of file */

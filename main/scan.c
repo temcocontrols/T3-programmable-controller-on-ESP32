@@ -1191,7 +1191,18 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 	else
 		length = 0;
 
-	if(length > 0)
+	// check whether subnet_response_buf is invalid
+	if(subnet_response_buf[1] == READ_COIL || subnet_response_buf[1] == READ_DIS_INPUT || subnet_response_buf[1] == READ_VARIABLES || subnet_response_buf[1] == READ_INPUT)
+	{
+
+	}
+	else
+	{
+		length = 0;
+	}
+
+
+	if(length > 0)	 
 	{
 		check_whether_modbus_slave(subnet_response_buf,length,port);
 		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
@@ -1705,12 +1716,546 @@ uint16 READ_POINT_TIMER_FROM_EEP;
 
 U8_T far index_sub;
 
+// try a few times after change com port setting and
+// dont scan it
+
+// The third party device -> WS90
+typedef enum{
+//	E_WS90_INT = 0,
+	E_WS90_SCAN_ID = 1,
+	E_WS90_READ = 2
+}E_WS;
+uint8_t flag_discover_ws90 = 0;  //
+uint8_t read_ws90_id(void)
+{
+	U8_T port;
+	U8_T baut;
+	U8_T buf[8];
+	U16_T crc_check;
+	U16_T length;
+	U8_T ret = 0;
+
+	// read 0x160, device id is 0x90, it means it is WS90
+	buf[0] = 0x90;
+	buf[1] = 0x03;
+	buf[2] = 0x01;
+	buf[3] = 0x60;
+	buf[4] = 0;
+	buf[5] = 1;
+
+	port = get_port_by_id(buf[0]);
+	baut = get_baut_by_id(port,buf[0]);
+	if(port == 0)
+	{  // wrong id
+		return 0;
+	}
+
+	port = port - 1;
+
+	if(Modbus.com_config[port] != MODBUS_MASTER)
+		return 0;
+
+	crc_check = crc16(buf, 6); // crc16
+	buf[6] = HIGH_BYTE(crc_check);
+	buf[7] = LOW_BYTE(crc_check);
+
+	set_baut_by_port(port,baut);
+	uart_send_string(buf,8,port);
+
+
+	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
+	if(port == 0 || port == 2)
+		length = uart_read_bytes(port, subnet_response_buf, 50, 1000 / portTICK_PERIOD_MS);
+	else
+		length = 0;
+
+
+	if(length > 0)
+	{
+		check_whether_modbus_slave(subnet_response_buf,length,port);
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+		com_rx[port] += length;
+		crc_check = crc16(subnet_response_buf,5);
+		if((HIGH_BYTE(crc_check) == subnet_response_buf[5]) && (LOW_BYTE(crc_check) == subnet_response_buf[6]))
+		{
+//			auto_check_master_retry[port] = 0;
+			if(subnet_response_buf[4] == 0x90)
+			{// WS90 exist
+				ret = 1;
+			}
+			else
+			{
+				ret = 0;
+			}
+		}
+		else
+			ret = 0;
+	}
+	else
+		ret = 0;
+
+	free(subnet_response_buf);
+
+	return ret;
+}
+
+uint16_t ws90_light;
+uint16_t ws90_UVI;
+uint16_t ws90_temp;
+uint16_t ws90_humi;
+uint16_t ws90_wind_spd;
+uint16_t ws90_gust_spd;
+uint16_t ws90_wind_dir;
+uint16_t ws90_rainfall;
+uint16_t ws90_ABS;
+
+uint8_t read_ws90_value(void)
+{
+	U8_T port;
+	U8_T baut;
+	U8_T buf[8];
+	U16_T crc_check;
+	U16_T length;
+	U8_T ret = 0;
+	Str_points_ptr ptr;
+
+	// read 0x165, device id is 0x90, it means it is WS90
+	buf[0] = 0x90;
+	buf[1] = 0x03;
+	buf[2] = 0x01;
+	buf[3] = 0x65;
+	buf[4] = 0x00;
+	buf[5] = 0x09;
+
+	port = get_port_by_id(buf[0]);
+	baut = get_baut_by_id(port,buf[0]);
+	if(port == 0)
+	{  // wrong id
+		return 0;
+	}
+
+	port = port - 1;
+
+	if(Modbus.com_config[port] != MODBUS_MASTER)
+		return 0;
+
+	crc_check = crc16(buf, 6); // crc16
+	buf[6] = HIGH_BYTE(crc_check);
+	buf[7] = LOW_BYTE(crc_check);
+
+	set_baut_by_port(port,baut);
+	uart_send_string(buf,8,port);
+
+	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
+	if(port == 0 || port == 2)
+		length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
+	else
+		length = 0;
+
+	if(length > 0)
+	{
+		check_whether_modbus_slave(subnet_response_buf,length,port);
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+		com_rx[port] += length;
+		crc_check = crc16(subnet_response_buf,21);
+		if((HIGH_BYTE(crc_check) == subnet_response_buf[21]) && (LOW_BYTE(crc_check) == subnet_response_buf[22]))
+		{
+			uint8_t i;
+
+			ws90_light =  subnet_response_buf[3] * 256 +  subnet_response_buf[4];
+			ws90_UVI =  subnet_response_buf[5] * 256 +  subnet_response_buf[6];
+			ws90_temp =  subnet_response_buf[7] * 256 +  subnet_response_buf[8];
+			ws90_humi =  subnet_response_buf[9] * 256 +  subnet_response_buf[10];
+			ws90_wind_spd =  subnet_response_buf[11] * 256 +  subnet_response_buf[12];
+			ws90_gust_spd =  subnet_response_buf[13] * 256 +  subnet_response_buf[14];
+			ws90_wind_dir =  subnet_response_buf[15] * 256 +  subnet_response_buf[16];
+			ws90_rainfall =  subnet_response_buf[17] * 256 +  subnet_response_buf[18];
+			ws90_ABS =  subnet_response_buf[19] * 256 +  subnet_response_buf[20];
+
+			for(i = 0;i < 9;i++)
+			{
+				ptr = put_io_buf(IN,base_in + i);
+
+				switch(i)
+				{
+					case 0:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 light", sizeof("ws90 light"));
+							memcpy(ptr.pin->label, "ws_light", sizeof("ws_light"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 1000;
+						ptr.pin->range = LUX;
+						break;
+					case 1:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 UVI",  sizeof("ws90 UVI"));
+							memcpy(ptr.pin->label, "ws90_UVI", sizeof("ws90_UVI"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 1000;
+						ptr.pin->range = 0;
+						break;
+					case 2:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 TEMP", sizeof("ws90 TEMP"));
+							memcpy(ptr.pin->label, "ws_TEMP", sizeof("ws_TEMP"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 100 - 40000;
+						ptr.pin->range = R10K_40_120DegC;
+						break;
+					case 3:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 HUMII", sizeof("ws90 HUMII"));
+							memcpy(ptr.pin->label, "ws_HUM", sizeof( "ws_HUM"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 1000;
+						ptr.pin->range = 27 /*HUMIDITY*/;
+						break;
+					case 4:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 WSPD", sizeof("ws90 WSPD"));
+							memcpy(ptr.pin->label, "ws_WSPD", sizeof("ws_WSPD"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 1000;
+						ptr.pin->range = 0;
+						break;
+					case 5:
+						if (ptr.pin->label[0] == '\0')//if ((ptr.pin->label == NULL) || (ptr.pin->label[0] == '\0'))
+						{
+							memcpy(ptr.pin->description, "ws90 Gust speed", sizeof("ws90 Gust speed"));
+							memcpy(ptr.pin->label, "ws_GSPD", sizeof("ws_GSPD"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 1000;
+						ptr.pin->range = 0;
+						break;
+					case 6:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 Wind direction", sizeof("ws90 Wind direction"));
+							memcpy(ptr.pin->label, "ws_WD", sizeof("ws_WD"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 100;
+						ptr.pin->range = 0;
+						break;
+					case 7:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 Rainfall", sizeof("ws90 Rainfall"));
+							memcpy(ptr.pin->label, "ws_RF", sizeof("ws_RF"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 100;
+						ptr.pin->range = 0;
+						break;
+					case 8:
+						if (ptr.pin->label[0] == '\0')//if (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+						{
+							memcpy(ptr.pin->description, "ws90 ABS", sizeof("ws90 ABS"));
+							memcpy(ptr.pin->label, "ws_ABS", sizeof("ws_ABS"));
+						}
+						ptr.pin->value = (subnet_response_buf[i*2+3] * 256 +  subnet_response_buf[i*2+4]) * 100;
+						ptr.pin->range = 0;
+						break;
+					default:
+						break;
+				}
+			}
+
+			// WS90 exist
+			ret = 1;
+		}
+		else
+			ret = 0;
+	}
+	else
+		ret = 0;
+
+	free(subnet_response_buf);
+
+	return ret;
+}
+
+void scan_ws90(void)
+{
+
+	static U8_T status = E_WS90_SCAN_ID;
+	static U8_T retry = 0;
+	u8 ret = 0;
+	if(retry >= 10)
+		return;
+
+	switch(status)
+	{
+	/*case E_WS90_INT:
+		status = E_WS90_SCAN_ID;
+		break;*/
+	case E_WS90_SCAN_ID:
+		ret = read_ws90_id();
+		status = E_WS90_READ;
+		break;
+	case E_WS90_READ:
+		ret = read_ws90_value();
+		break;
+	default:
+		break;
+	}
+
+	if(ret == 0)
+		retry++;
+	else
+		retry = 0;
+
+}
+// The third party device -> WS90
+
+
+
+// The third party device -> POWER METER
+typedef enum{
+	E_PM_SCAN_ID = 1,
+	//E_PM_SCAN_ID1,
+	E_PM_READ_RATIO,
+	//E_PM_READ_RATIO1,
+	E_PM_READ_N_CURT,
+	//E_PM_READ_N_CURT1,
+	E_PM_READ_RLY_SYS,
+	//E_PM_READ_RLY_SYS1,
+	E_PM_READ_VOL_AVG,
+	//E_PM_READ_VOL_AVG1,
+	E_PM_READ_CUR_AVG,
+	//E_PM_READ_CUR_AVG1,
+	E_PM_READ_PWR_AVG,
+	//E_PM_READ_PWR_AVG1,
+
+}E_PM_STATUS;
+
+uint8_t flag_discover_PM = 0;
+uint8_t PM_id = 1;  				// reg80
+uint8_t PM_pt_ratio;				// reg91
+uint8_t PM_normal_current;			// reg93
+uint8_t PM_rly_sys;					// reg150
+uint8_t PM_vol_avg;					// MB_REG_FLOAT_ABCD1006
+uint8_t PM_cur_avg;					// MB_REG_FLOAT_ABCD1022
+uint8_t PM_pwr_avg;					// MB_REG_FLOAT_ABCD1032
+
+uint8_t read_PM_value(uint16_t reg,uint8_t len)
+{
+	U8_T port;
+	U8_T baut;
+	U8_T buf[8];
+	U16_T crc_check;
+	U16_T length;
+	U8_T ret = 0;
+	Str_points_ptr ptr;
+
+	// read 80, device id is 0x90, it means it is PM
+	buf[0] = PM_id;
+	buf[1] = 0x03;
+	buf[2] = reg >> 8;
+	buf[3] = reg;
+	buf[4] = 0;
+	buf[5] = len;
+
+	port = get_port_by_id(buf[0]);
+	baut = get_baut_by_id(port,buf[0]);
+
+	if(port == 0)
+	{  // wrong id
+		return 0;
+	}
+
+	port = port - 1;
+
+	if(Modbus.com_config[port] != MODBUS_MASTER)
+		return 0;
+
+	crc_check = crc16(buf, 6); // crc16
+	buf[6] = HIGH_BYTE(crc_check);
+	buf[7] = LOW_BYTE(crc_check);
+
+	set_baut_by_port(port,baut);
+	uart_send_string(buf,8,port);
+
+
+	uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
+	if(port == 0 || port == 2)
+		length = uart_read_bytes(port, subnet_response_buf, 50, 1000 / portTICK_PERIOD_MS);// read sub device, should wait 1s to avoid read error
+	else
+		length = 0;
+
+	if(length > 0)
+	{
+		check_whether_modbus_slave(subnet_response_buf,length,port);
+		if(port == 0)	{led_sub_rx++; flagLED_sub_rx = 1;}
+		else if(port == 2)	{led_main_rx++; flagLED_main_rx = 1;}
+		com_rx[port] += length;
+		crc_check = crc16(subnet_response_buf,3 + len * 2 );
+		if((HIGH_BYTE(crc_check) == subnet_response_buf[3 + len * 2]) && (LOW_BYTE(crc_check) == subnet_response_buf[4 + len * 2]))
+		{
+			float f;
+			uint32_t val;
+
+			if(reg == 80)
+			{Test[10]++;
+				ptr = put_io_buf(IN,base_in + 0);
+				ptr.pin->value = (subnet_response_buf[3] * 256 + subnet_response_buf[4]) * 1000;
+				if(ptr.pin->label[0] == '\0')// (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+				{
+					memcpy(ptr.pin->description, "PM ID", sizeof("PM ID"));
+					memcpy(ptr.pin->label, "pm_id", sizeof("pm_id"));
+				}
+			}
+			if(reg == 91)
+			{Test[11]++;
+				ptr = put_io_buf(IN,base_in + 1);
+				ptr.pin->value = (subnet_response_buf[3] * 256 + subnet_response_buf[4]) * 1000;
+				if(ptr.pin->label[0] == '\0')// (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+				{
+					memcpy(ptr.pin->description, "PM RADIO", sizeof("PM RADIO"));
+					memcpy(ptr.pin->label, "pm_radio", sizeof("pm_radio"));
+				}
+			}
+			if(reg == 93)
+			{Test[12]++;
+				ptr = put_io_buf(IN,base_in + 2);
+				ptr.pin->value = (subnet_response_buf[3] * 256 + subnet_response_buf[4]) * 1000;
+				if(ptr.pin->label[0] == '\0')// (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+				{
+					memcpy(ptr.pin->description, "PM NORMAL CURRENT", sizeof("PM NORMAL CURRENT"));
+					memcpy(ptr.pin->label, "pm_curr", sizeof("pm_curr"));
+				}
+			}
+			if(reg == 150)
+			{Test[13]++;
+				ptr = put_io_buf(IN,base_in + 3);
+				ptr.pin->value = (subnet_response_buf[3] * 256 + subnet_response_buf[4]) * 1000;
+				if(ptr.pin->label[0] == '\0')// (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+				{
+					memcpy(ptr.pin->description, "PM RELAY SYS", sizeof("PM RELAY SYS"));
+					memcpy(ptr.pin->label, "rly_sys", sizeof("rly_sys"));
+				}
+			}
+			if(reg == 1006)
+			{Test[14]++;
+				ptr = put_io_buf(IN,base_in + 4);
+				val = (uint32_t)(subnet_response_buf[3] << 24) + (uint32_t)(subnet_response_buf[4] << 16) + (uint16_t)(subnet_response_buf[5] << 8) + subnet_response_buf[6];
+				Byte_to_Float(&f,val,FLOAT_TYPE_ABCD);
+				ptr.pin->value = f * 1000;
+				if(ptr.pin->label[0] == '\0')// (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+				{
+					memcpy(ptr.pin->description, "PM AVG VOLTAGE", sizeof("PM AVG VOLTAGE"));
+					memcpy(ptr.pin->label, "avg_vol", sizeof("avg_vol"));
+				}
+			}
+			if(reg == 1022)
+			{Test[15]++;
+				ptr = put_io_buf(IN,base_in + 5);
+				val = (uint32_t)(subnet_response_buf[3] << 24) + (uint32_t)(subnet_response_buf[4] << 16) + (uint16_t)(subnet_response_buf[5] << 8) + subnet_response_buf[6];
+				Byte_to_Float(&f,val,FLOAT_TYPE_ABCD);
+				ptr.pin->value = f * 1000;
+				if(ptr.pin->label[0] == '\0')// (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+				{
+					memcpy(ptr.pin->description, "PM AVG CURRENT", sizeof("PM AVG CURRENT"));
+					memcpy(ptr.pin->label, "avg_curr", sizeof("avg_curr"));
+				}
+			}
+			if(reg == 1032)
+			{Test[16]++;
+				ptr = put_io_buf(IN,base_in + 6);
+				val = (uint32_t)(subnet_response_buf[3] << 24) + (uint32_t)(subnet_response_buf[4] << 16) + (uint16_t)(subnet_response_buf[5] << 8) + subnet_response_buf[6];
+				Byte_to_Float(&f,val,FLOAT_TYPE_ABCD);
+				ptr.pin->value = f * 1000;
+				if(ptr.pin->label[0] == '\0')// (ptr.pin->label == NULL || ptr.pin->label[0] == '\0')
+				{
+					memcpy(ptr.pin->description, "PM POWER", sizeof("PM POWER"));
+					memcpy(ptr.pin->label, "pm_power", sizeof("pm_power"));
+				}
+			}
+//			auto_check_master_retry[port] = 0;
+			ret = 1;
+		}
+		else
+			ret = 0;
+	}
+	else
+		ret = 0;
+
+	free(subnet_response_buf);
+
+	return ret;
+}
+
+
+
+void scan_PM(void)
+{
+	static U8_T status = E_PM_SCAN_ID;
+	static U8_T retry = 0;
+	u8 ret = 0;
+	if(retry >= 50)
+		return;
+	switch(status)
+	{
+	case E_PM_SCAN_ID:
+	//case E_PM_SCAN_ID1: //
+		ret = read_PM_value(80,1);
+		break;
+	case E_PM_READ_RATIO:
+	//case E_PM_READ_RATIO1:
+		ret = read_PM_value(91,1);
+		break;
+	case E_PM_READ_N_CURT:
+	//case E_PM_READ_N_CURT1:
+		ret = read_PM_value(93,1);
+		break;
+	case E_PM_READ_RLY_SYS:
+	//case E_PM_READ_RLY_SYS1:
+		ret = read_PM_value(150,1);
+		break;
+	case E_PM_READ_VOL_AVG:
+	//case E_PM_READ_VOL_AVG1:
+		ret = read_PM_value(1006,2);
+		break;
+	case E_PM_READ_CUR_AVG:
+	//case E_PM_READ_CUR_AVG1:
+		ret = read_PM_value(1022,2);
+		break;
+	case E_PM_READ_PWR_AVG:
+	//case E_PM_READ_PWR_AVG1:
+		ret = read_PM_value(1032,2);
+		break;
+	default:
+		break;
+	}
+
+	if(status < E_PM_READ_PWR_AVG)
+		status++;
+	else
+		status = E_PM_SCAN_ID;
+	//delay_ms(500);
+	if(ret == 0)
+		retry++;
+	else
+		retry = 0;
+
+}
+// The third party device -> PowerMeter
+
+
 // Heart beat scan
 void Scan_Idle(void)
 {
 
 	static uint8_t count = 0;
 
+	scan_ws90();
+
+	scan_PM();
 	//if(count++ % 5 == 0)
 	{
 		if(sub_no > 0)
@@ -1771,7 +2316,7 @@ void Scan_Idle(void)
 
 		}
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
-			    	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
+			    	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_RMC1216_32I) || (Modbus.mini_type == PROJECT_NG3))
 		{
 			if(uart2_sub_no == 0)
 			{
@@ -1789,42 +2334,6 @@ void Scan_Idle(void)
 			}
 		}
 
-/*		static uint8_t index;
-		if(subcom_num >= 1)
-		{
-			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
-			uint8_t port;
-			static uint8_t comindex2 = 0;
-			if(comindex2 < subcom_num - 1)
-			{
-				comindex2++;
-			}
-			else
-				comindex2 = 0;
-
-			port = subcom_seq[comindex2];
-			Test[21]++;
-			int len = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
-
-			if(len>0)
-			{
-				if(port == 2)
-				{
-					led_main_rx++;
-					com_rx[2] += len;
-					flagLED_main_rx = 1;
-				}
-				if(port == 0)
-				{
-					led_sub_rx++;
-					com_rx[0] += len;
-					flagLED_sub_rx = 1;
-				}
-				check_whether_modbus_slave(subnet_response_buf,len,port);
-			}
-
-		}
-*/
 
 	}
 }
@@ -1967,15 +2476,19 @@ void ScanTask(void *pvParameters)
 						{
 							U8_T temp_index;
 
-							if(remote_modbus_index < number_of_remote_points_modbus)
+							/*if(remote_modbus_index < number_of_remote_points_modbus)
 							{
 								remote_modbus_index++;
 							}
 							else
 							{
 								remote_modbus_index = 0;
-							}
-							get_index_by_id(remote_points_list[remote_modbus_index].tb.RP_modbus.id, &temp_index);
+							}*/
+							// find next valid modbus point
+							remote_modbus_index = find_next_remote_modbus_point(remote_modbus_index);
+							if(remote_modbus_index != 0xff)
+							{
+								get_index_by_id(remote_points_list[remote_modbus_index].tb.RP_modbus.id, &temp_index);
 
 							// if current id is in DB, must check whether it is on line
 							// if current id is not in DB, must implement it
@@ -2004,8 +2517,8 @@ void ScanTask(void *pvParameters)
 							// heart beat
 								Scan_Idle();
 
+								}
 							}
-
 						}
 
 					}

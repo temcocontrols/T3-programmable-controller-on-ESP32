@@ -99,8 +99,11 @@ typedef struct
 	uint8 mask_addr_wifi[4];
 	uint8 gate_addr_wifi[4];
 
+	uint8 write_basic_info;
+
 }STR_CO2_Reg;
 
+extern uint8_t co2_data_screenArea[3];
 
 typedef enum
 {

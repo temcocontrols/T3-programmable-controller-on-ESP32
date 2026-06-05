@@ -94,18 +94,26 @@ void mppt_task_init(void)
 
 void ina228_read_task(void* arg)
 {
-
+	Str_points_ptr ptr;
 	while(1)
 	{
 		Test[47] = gMPPT.input_voltage = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[0].value = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[1].value = Test[48] = gMPPT.input_current = (uint32_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[2].value = Test[49] = gMPPT.input_power = (uint32_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[3].value = Test[46] = gMPPT.input_energy = (uint32_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
-		inputs[4].value = Test[40] = gMPPT.output_voltage = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
-		inputs[5].value = Test[41] = gMPPT.output_current = (uint32_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
-		inputs[6].value = Test[42] = gMPPT.output_power = (uint32_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
-		inputs[7].value = Test[43] = gMPPT.output_energy = (uint32_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		ptr = put_io_buf(IN,0);
+		ptr.pin->value = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		ptr = put_io_buf(IN,1);
+		ptr.pin->value = Test[48] = gMPPT.input_current = (uint32_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		ptr = put_io_buf(IN,2);
+		ptr.pin->value = Test[49] = gMPPT.input_power = (uint32_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		ptr = put_io_buf(IN,3);
+		ptr.pin->value = Test[46] = gMPPT.input_energy = (uint32_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_ADDRESS)*1000);
+		ptr = put_io_buf(IN,4);
+		ptr.pin->value = Test[40] = gMPPT.output_voltage = (uint32_t)(ina228_voltage(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		ptr = put_io_buf(IN,5);
+		ptr.pin->value = Test[41] = gMPPT.output_current = (uint32_t)(ina228_current(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		ptr = put_io_buf(IN,6);
+		ptr.pin->value = Test[42] = gMPPT.output_power = (uint32_t)(ina228_power(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
+		ptr = put_io_buf(IN,7);
+		ptr.pin->value = Test[43] = gMPPT.output_energy = (uint32_t)(ina228_energy(I2C_MASTER_NUM, INA228_SLAVE_OUTPUT_ADDRESS)*1000);
 		//Test[45] = outputs[0].value/1000;
 
 		vTaskDelay(2000 / portTICK_PERIOD_MS);//pdMS_TO_TICKS(1000));
@@ -234,7 +242,8 @@ void mppt_task(void* arg)
 			if(gMPPT.output_current > gMPPT.currentCharging)     {gMPPT.PWM--;}
 
 			else{
-				gMPPT.PWM = (outputs[0].value/1000)*MAX_PWM_PULSE/100;
+				ptr = put_io_buf(OUT, 0);
+				gMPPT.PWM = (ptr.pout->value/1000)*MAX_PWM_PULSE/100;
 			}
 			ledc_set_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL, gMPPT.PWM);//gMPPT.output_pwm);
 			ledc_update_duty(MPPT_HS_MODE, MPPT_HS_CH0_CHANNEL);

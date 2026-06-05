@@ -34,6 +34,7 @@
 #define MAX_OUTS        64
 #define MAX_CONS       	 16
 #define MAX_VARS		128
+#define MAX_TEMCOVARS		50
 
 #define MAX_EXTIO       12
 
@@ -108,11 +109,11 @@
 
 typedef enum
 	{
-		OUT=0, IN, VAR, CON, WRT, AR, PRG,/* TBL,*/  TZ = 8,
+		OUT=0, IN, VAR, CON, WRT, AR, PRG, TEMCOVAR = 7,/* TBL,*/  TZ = 8,
 		AMON = 9, GRP, ARRAY, ALARMM = 12,
 		UNIT, USER_NAME, ALARM_SET = 15, WR_TIME, AR_DATA, 
-		PRG_CODE, GRP_POINT = 19,SUB_DB = 20,/*20???*/
-		TBL = 22,ID_ROUTION,
+		PRG_CODE, GRP_POINT = 19,SUB_DB = 20,
+		TBL = 22,
 		MAX_POINT_TYPE
 	}	Point_type_equate;
 
@@ -225,6 +226,9 @@ typedef enum {
 		 READ_JSON_ITEM            = 87,
 		 WRITE_JSON_SCREEN			= 186,
 		 WRITE_JSON_ITEM			= 187,
+
+		 READ_PVAR = 88,
+		 WRITE_PVAR = 188,
 
 } CommandRequest;
 
@@ -1116,6 +1120,20 @@ typedef struct
 
 }Str_array_point;		/* (size = 10 bytes)	*/
 
+typedef struct
+{
+	int8_t description[21];	      /*  (21 uint8_ts; string)*/
+	int8_t label[9];		      /*  (9 uint8_ts; string)*/
+	int32_t value;
+
+	uint8_t auto_manual;  /*  (1 bit; 0=auto, 1=manual)*/
+	uint8_t digital_analog;  /*  (1 bit; 1=analog, 0=digital)*/
+	uint8_t control	;
+	uint8_t unused	;  //low 4 bit for prog
+	uint8_t range ; /*  (1 uint8_t ; variable_range_equate)*/
+}	Str_TemcoVar_point; /*  39*/
+
+
 typedef union {
 		Str_out_point             *pout;
 		Str_in_point 			  *pin;
@@ -1145,6 +1163,7 @@ typedef union {
 		NETWORK_POINTS            *pnp;
 	//	WANT_POINTS               *pwp;
 //		TST_INFO				  *ptst;
+		Str_TemcoVar_point		  *ptvar;
 	 } Str_points_ptr;
 
 

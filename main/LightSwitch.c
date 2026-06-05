@@ -19,7 +19,7 @@
 #include "user_data.h"//?????????????????????
 
 #include "esp_attr.h"
-#include "led_strip.h"
+//#include "led_strip.h"
 #include "driver/rmt.h"
 #include "airlab.h"
 
@@ -41,18 +41,18 @@ extern uint16_t co2_asc;
 extern uint16_t co2_frc;
 extern uint8 sensirion_co2_cmd_ForcedCalibration[8];
 extern char debug_array[100];
-void LS_led_task(void);
+void LS_led_task(void *pvParameters);
 
 //-----------LIGHT SWITCH IO define
 #define LS_SENSOR_EN		2
 #define LS_SENSOR_EN_SEL  	(1ULL<<LS_SENSOR_EN)
 
-#define LS_S7				12
-#define LS_S7_SEL  			(1ULL<<LS_S7)
+//#define LS_S7				12
+//#define LS_S7_SEL  			(1ULL<<LS_S7)
 
-#define LS_S1_S2_SEL  		(1ULL<<33)
-#define LS_S3_S4_SEL  		(1ULL<<32)
-#define LS_S5_S6_SEL  		(1ULL<<36)
+//#define LS_S1_S2_SEL  		(1ULL<<33)
+//#define LS_S3_S4_SEL  		(1ULL<<32)
+//#define LS_S5_S6_SEL  		(1ULL<<36)
 #define LS_AIN_TEMP_SET		(1ULL<<34)
 #define LS_AIN_LIGHT_SET	(1ULL<<35)
 #define LS_AIN_OCC_SET		(1ULL<<39)
@@ -74,7 +74,7 @@ void Light_Switch_IO_Init(void)
 	io_conf.pull_up_en = 0;
 	//configure GPIO with the given settings
 	gpio_config(&io_conf);
-
+	
 	gpio_set_level(LS_SENSOR_EN, 1);  // ENABLE SENSOR
 
 	//disable interrupt
@@ -82,7 +82,7 @@ void Light_Switch_IO_Init(void)
 	//set as output mode
 	io_conf.mode = GPIO_MODE_INPUT;
 	//bit mask of the pins that you want to set
-	io_conf.pin_bit_mask = LS_S7_SEL | LS_S1_S2_SEL | LS_S3_S4_SEL | LS_S5_S6_SEL | LS_AIN_TEMP_SET | LS_AIN_LIGHT_SET | LS_AIN_OCC_SET;
+	io_conf.pin_bit_mask = /*LS_S7_SEL | LS_S1_S2_SEL | LS_S3_S4_SEL | LS_S5_S6_SEL |*/ LS_AIN_TEMP_SET | LS_AIN_LIGHT_SET | LS_AIN_OCC_SET;
 
 	io_conf.pull_up_en = 1;
 	//configure GPIO with the given settings
@@ -100,9 +100,9 @@ static const adc_unit_t lightswitch_unit = ADC_UNIT_1;
 static const adc_channel_t lightswitch_Light = ADC_CHANNEL_7;  // light  IO34
 static const adc_channel_t lightswitch_PIR = ADC_CHANNEL_3;  //  occ	IO35
 static const adc_channel_t lightswitch_TEMP = ADC_CHANNEL_6;  // temperature  IO39
-static const adc_channel_t lightswitch_S1S2 = ADC_CHANNEL_5;  // S2 S1
-static const adc_channel_t lightswitch_S3S4 = ADC_CHANNEL_4;  //  S4 S3
-static const adc_channel_t lightswitch_S5S6 = ADC_CHANNEL_0;  //  S5 S6
+//static const adc_channel_t lightswitch_S1S2 = ADC_CHANNEL_5;  // S2 S1
+//static const adc_channel_t lightswitch_S3S4 = ADC_CHANNEL_4;  //  S4 S3
+//static const adc_channel_t lightswitch_S5S6 = ADC_CHANNEL_0;  //  S5 S6
 
 uint8_t light_key[7];
 uint8_t light_key_last[7];
@@ -117,9 +117,6 @@ void lightswitch_adc_init(void)
 	adc1_config_channel_atten(lightswitch_Light, lightswitch_atten);
 	adc1_config_channel_atten(lightswitch_PIR, lightswitch_atten);
 	adc1_config_channel_atten(lightswitch_TEMP, lightswitch_atten);
-	adc1_config_channel_atten(lightswitch_S1S2, lightswitch_atten);
-	adc1_config_channel_atten(lightswitch_S3S4, lightswitch_atten);
-	adc1_config_channel_atten(lightswitch_S5S6, lightswitch_atten);
 
     xTaskCreate(Light_adc_task, "adc_task", 2048, NULL, 2, NULL);
 }
@@ -146,9 +143,9 @@ static void Light_adc_task(void* arg)
 	uint32_t vol_light = 0;
 	uint32_t vol_pir = 0;
 	uint32_t vol_tempertature = 0;
-	uint32_t vol_S1S2 = 0;
-	uint32_t vol_S3S4 = 0;
-	uint32_t vol_S5S6 = 0;
+//	uint32_t vol_S1S2 = 0;
+//	uint32_t vol_S3S4 = 0;
+//	uint32_t vol_S5S6 = 0;
 
 	int i = 0;
     //Continuously sample ADC1//Characterize ADC
@@ -164,300 +161,21 @@ static void Light_adc_task(void* arg)
             	adc_light += adc1_get_raw((adc1_channel_t)lightswitch_Light);
             	adc_pir += adc1_get_raw((adc1_channel_t)lightswitch_PIR);
             	adc_tempertature += adc1_get_raw((adc1_channel_t)lightswitch_TEMP);
-            	adc_S1S2 += adc1_get_raw((adc1_channel_t)lightswitch_S1S2);
-            	adc_S3S4 += adc1_get_raw((adc1_channel_t)lightswitch_S3S4);
-            	adc_S5S6 += adc1_get_raw((adc1_channel_t)lightswitch_S5S6);
             }
         }
 
         adc_light /= LIGHT_NO_OF_SAMPLES;
         adc_pir /= LIGHT_NO_OF_SAMPLES;
         adc_tempertature /= LIGHT_NO_OF_SAMPLES;
-        adc_S1S2 /= LIGHT_NO_OF_SAMPLES;
-        adc_S3S4 /= LIGHT_NO_OF_SAMPLES;
-        adc_S5S6 /= LIGHT_NO_OF_SAMPLES;
-
+        
 
         vol_light = esp_adc_cal_raw_to_voltage(adc_light, lightswitch_adc_chars);
         vol_pir = esp_adc_cal_raw_to_voltage(adc_pir, lightswitch_adc_chars);
         vol_tempertature = esp_adc_cal_raw_to_voltage(adc_tempertature, lightswitch_adc_chars);
-        vol_S1S2 = esp_adc_cal_raw_to_voltage(adc_S1S2, lightswitch_adc_chars);
-        vol_S3S4 = esp_adc_cal_raw_to_voltage(adc_S3S4, lightswitch_adc_chars);
-        vol_S5S6 = esp_adc_cal_raw_to_voltage(adc_S5S6, lightswitch_adc_chars);
 
-
-        if(gpio_get_level(LS_S7) == 0)
-        {
-        	if(key_temp[6] == 1)
-			{
-				key_temp[6] = 0;
-				key_refresh_timer[6] = xTaskGetTickCount();
-			}
-        	if(xTaskGetTickCount() - key_refresh_timer[6] > 20)
-			{
-				light_key[6] = 0; key_temp[6] = 0;
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[6] > 1000)
-			{
-				if(xTaskGetTickCount() - key_refresh_timer[6] > 1000)
-				{// long press
-					ptr = put_io_buf(2/*VAR*/,25);
-					ptr.pvar->range = 0/*OFF_ON*/;
-					ptr.pvar->digital_analog = 1;
-					ptr.pvar->value = (xTaskGetTickCount() - key_refresh_timer[6] - 1000);
-					memcpy(ptr.pvar->description,"press time of button7", strlen("press time of button7"));
-					memcpy(ptr.pvar->label,"HT_KEY7",strlen("HT_KEY7"));
-				}
-			}
-        }
-        else
-        {
-        	if(xTaskGetTickCount() - key_refresh_timer[6] > 500)
-        	{
-        		light_key[6] = 1;key_temp[6] = 1;
-#if 0
-        		ptr = put_io_buf(2/*VAR*/,25);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = 0;
-#endif
-        	}
-        }
-
-
-        if(vol_S1S2 < 500)
-        {
-        	if(xTaskGetTickCount() - key_refresh_timer[0] > 500)
-        	{
-        		light_key[0] = 1;key_temp[0] = 1;
-#if 0
-        		ptr = put_io_buf(2/*VAR*/,19);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = 0;
-#endif
-        	}
-        	if(xTaskGetTickCount() - key_refresh_timer[1] > 500)
-        	{
-        		light_key[1] = 1;key_temp[1] = 1;
-#if 0
-        		ptr = put_io_buf(2/*VAR*/,20);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = 0;
-#endif
-        	}
-        }// 1/4
-        else if(vol_S1S2 < 1800)
-        {
-        	if(key_temp[1] == 1)
-        	{
-        		key_temp[1] = 0;
-        		key_refresh_timer[1] = xTaskGetTickCount();
-        	}
-			if(xTaskGetTickCount() - key_refresh_timer[1] > 20)
-			{
-				light_key[0] = 1; light_key[1] = 0; key_temp[1] = 0;
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[1] > 1000)
-			{
-				if(xTaskGetTickCount() - key_refresh_timer[1] > 1000)
-				{// long press
-					ptr = put_io_buf(2/*VAR*/,20);
-					ptr.pvar->range = 0/*OFF_ON*/;
-					ptr.pvar->digital_analog = 1;
-					ptr.pvar->value = (xTaskGetTickCount() - key_refresh_timer[1] - 1000);
-					memcpy(ptr.pvar->description,"press time of button2", strlen("press time of button2"));
-					memcpy(ptr.pvar->label,"HT_KEY2",strlen("HT_KEY2"));
-				}
-			}
-        }// 1/2
-        else if(vol_S1S2 < 2400)
-        {
-        	if(key_temp[0] == 1)
-			{
-				key_temp[0] = 0;
-				key_refresh_timer[0] = xTaskGetTickCount();
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[0] > 20)
-			{
-				light_key[1] = 1; light_key[0] = 0; key_temp[0] = 0;
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[0] > 1000)
-			{
-				if(xTaskGetTickCount() - key_refresh_timer[0] > 1000)
-				{// long press
-					ptr = put_io_buf(2/*VAR*/,19);
-					ptr.pvar->range = 0/*OFF_ON*/;
-					ptr.pvar->digital_analog = 1;
-					ptr.pvar->value = (xTaskGetTickCount() - key_refresh_timer[0] - 1000);
-					memcpy(ptr.pvar->description,"press time of button1", strlen("press time of button1"));
-					memcpy(ptr.pvar->label,"HT_KEY1",strlen("HT_KEY1"));
-				}
-			}
-        }// 2/3
-        else 						{light_key[0] = 0; key_temp[0] = 0; light_key[1] = 0; key_temp[1] = 0; key_refresh_timer[0] = xTaskGetTickCount(); key_refresh_timer[1] = xTaskGetTickCount();}// 1
-
-
-		if(vol_S3S4 < 500)	{
-			if(xTaskGetTickCount() - key_refresh_timer[2] > 500)
-			{
-				light_key[2] = 1; key_temp[2] = 1;
-#if 0
-				ptr = put_io_buf(2/*VAR*/,21);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = 0;
-#endif
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[3] > 500)
-			{
-				light_key[3] = 1; key_temp[3] = 1;
-#if 0
-				ptr = put_io_buf(2/*VAR*/,22);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = 0;
-#endif
-			}
-
-		}// 1/4
-		else if(vol_S3S4 < 1800)
-		{
-			if(key_temp[3] == 1)
-			{
-				key_temp[3] = 0;
-				key_refresh_timer[3] = xTaskGetTickCount();
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[3] > 20)
-			{
-				light_key[2] = 1;	light_key[3] = 0;	key_temp[3] = 0;
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[3] > 1000)
-			{// long press
-				ptr = put_io_buf(2/*VAR*/,22);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = (xTaskGetTickCount() - key_refresh_timer[3] - 1000);
-				memcpy(ptr.pvar->description,"press time of button4", strlen("press time of button4"));
-				memcpy(ptr.pvar->label,"HT_KEY4",strlen("HT_KEY4"));
-			}
-		}// 1/2
-		else if(vol_S3S4 < 2400)
-		{
-			if(key_temp[2] == 1)
-			{
-				key_temp[2] = 0;
-				key_refresh_timer[2] = xTaskGetTickCount();
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[2] > 20)
-			{
-				light_key[3] = 1;	light_key[2] = 0;	key_temp[2] = 0;
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[2] > 1000)
-			{// long press
-				ptr = put_io_buf(2/*VAR*/,21);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = (xTaskGetTickCount() - key_refresh_timer[2] - 1000);
-				memcpy(ptr.pvar->description,"press time of button3", strlen("press time of button3"));
-				memcpy(ptr.pvar->label,"HT_KEY3",strlen("HT_KEY3"));
-			}// 2/3
-		}
-		else 						{ light_key[2] = 0; key_temp[2] = 0; light_key[3] = 0; key_temp[3] = 0;	key_refresh_timer[2] = xTaskGetTickCount();	key_refresh_timer[3] = xTaskGetTickCount();}// 1
-
-
-        if(vol_S5S6 < 500)	{
-        	if(xTaskGetTickCount() - key_refresh_timer[4] > 500)
-        	{
-        		light_key[4] = 1;key_temp[4] = 1;
-#if 0
-        		ptr = put_io_buf(2/*VAR*/,23);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = 0;
-#endif
-        	}
-        	if(xTaskGetTickCount() - key_refresh_timer[5] > 500)
-        	{
-        		light_key[5] = 1;key_temp[5] = 1;
-#if 0
-        		ptr = put_io_buf(2/*VAR*/,24);
-				ptr.pvar->range = 0/*OFF_ON*/;
-				ptr.pvar->digital_analog = 1;
-				ptr.pvar->value = 0;
-#endif
-        	}
-        }// 1/4
-		else if(vol_S5S6 < 1800)
-		{
-			if(key_temp[5] == 1)
-			{
-				key_temp[5] = 0;
-				key_refresh_timer[5] = xTaskGetTickCount();
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[5] > 20)
-			{
-				light_key[4] = 1; light_key[5] = 0; key_temp[5] = 0;
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[5] > 2000)
-			{
-				if(xTaskGetTickCount() - key_refresh_timer[5] > 1000)
-				{// long press
-					ptr = put_io_buf(2/*VAR*/,24);
-					ptr.pvar->range = 0/*OFF_ON*/;
-					ptr.pvar->digital_analog = 1;
-					ptr.pvar->value = (xTaskGetTickCount() - key_refresh_timer[5] - 1000);
-					memcpy(ptr.pvar->description,"press time of button6", strlen("press time of button6"));
-					memcpy(ptr.pvar->label,"HT_KEY6",strlen("HT_KEY6"));
-				}
-			}
-		}// 1/2
-		else if(vol_S5S6 < 2400)
-		{
-			if(key_temp[4] == 1)
-			{
-				key_temp[4] = 0;
-				key_refresh_timer[4] = xTaskGetTickCount();
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[4] > 20)
-			{
-				light_key[5] = 1; light_key[4] = 0; key_temp[4] = 0;
-			}
-			if(xTaskGetTickCount() - key_refresh_timer[4] > 2000)
-			{
-				if(xTaskGetTickCount() - key_refresh_timer[4] > 1000)
-				{// long press
-					ptr = put_io_buf(2/*VAR*/,23);
-					ptr.pvar->range = 0/*OFF_ON*/;
-					ptr.pvar->digital_analog = 1;
-					ptr.pvar->value = (xTaskGetTickCount() - key_refresh_timer[4] - 1000);
-					memcpy(ptr.pvar->description,"press time of button5", strlen("press time of button5"));
-					memcpy(ptr.pvar->label,"HT_KEY5",strlen("HT_KEY5"));
-				}
-			}
-		}// 2/3
-		else 	{	light_key[4] = 0;key_temp[4] = 0; light_key[5] = 0;	key_temp[5] = 0; key_refresh_timer[4] = xTaskGetTickCount();	key_refresh_timer[5] = xTaskGetTickCount();}// 1
-
-
-
-        for(i = 0;i < 7;i++)
-        {
-        	ptr = put_io_buf(2/*VAR*/,i);
-        	ptr.pvar->range = 1/*OFF_ON*/;
-        	ptr.pvar->digital_analog = 0;
-        	if((light_key[i] == 0) && (light_key_last[i] == 1))
-        	{
-        		Test[10 + i]++;
-        		ptr.pvar->control = ~ptr.pvar->control;
-        		// save it to flash
-
-        	}
-        	light_key_last[i] = light_key[i];
-        }
 
         // control led
-#if 1
+#if 1  // only for test only
         uint32_t temp_color[6] = {0,0,0,0,0,0};
         for(i = 0;i < 6;i++)
 		{
@@ -599,7 +317,7 @@ uint16_t read_lightswitch_by_block(uint16_t addr)
 	  return disp_pm25_number_25;
 	}
 
-// VOC
+// VOC	
 	else if((addr >= MODBUS_AIRLAB_VOC_BASELINE1) && (addr <= MODBUS_AIRLAB_VOC_BASELINE1))
 	{
 	  return g_sensors.voc_baseline[addr - MODBUS_AIRLAB_VOC_BASELINE1];
@@ -607,7 +325,7 @@ uint16_t read_lightswitch_by_block(uint16_t addr)
 	else if(addr == MODBUS_AIRLAB_VOC_DATA)
 	{
 	  return g_sensors.voc_value;
-	}
+	}	
 	else if(addr == MODBUS_AIRLAB_PATICAL_SIZE)
 	{
 	  return 0;
@@ -626,7 +344,7 @@ uint16_t read_lightswitch_by_block(uint16_t addr)
 	  return co2_frc;
 	}
 	// DISPLAY CONFIG
-
+	
 	else
 	  return 0;
 }
@@ -655,40 +373,40 @@ void write_lightswitch_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uin
 	{
 		DEGCorF = pData[HeadLen + 5];
 	}
-
+	
 	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
-
+	  
 	}
 	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
-
+	  
 	}
 	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
-
+	  
 	}
-
+	
 	// PIR
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
-
+	  
 	}
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  PirSensorZero = pData[HeadLen + 5];
 	}
-
+	
 // PM2.5
-
-// VOC
-
-
-	// CO2
+	
+// VOC		
+	
+	
+	// CO2	
 	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 		uint16 tmp;
-		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];
+		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];	
 		sensirion_co2_cmd_ForcedCalibration[5] = pData[HeadLen + 5];
 		tmp = (uint16)(sensirion_co2_cmd_ForcedCalibration[4]<<8 )|sensirion_co2_cmd_ForcedCalibration[5];
 		if((tmp >= 0) && (tmp <= 5000))
@@ -705,9 +423,9 @@ void write_lightswitch_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uin
 					scd4x_perform_forced = 1;
 					//scd4x_perform_forced_count = 0;
 				}
-			}
+			}					
 		}
-	}
+	}	
 }
 #endif
 

@@ -337,7 +337,8 @@ void handler_conf_private_trans_ack(
         uint8_t * service_request,
         uint16_t service_len,
         BACNET_ADDRESS * src,
-        BACNET_CONFIRMED_SERVICE_DATA * service_data);
+        BACNET_CONFIRMED_SERVICE_DATA * service_data,
+		uint8_t protocal);
 
     void handler_get_alarm_summary_set(
         BACNET_OBJECT_TYPE object_type,

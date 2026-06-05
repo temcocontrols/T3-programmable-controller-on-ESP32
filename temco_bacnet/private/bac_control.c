@@ -457,10 +457,10 @@ void check_output_priority_HOA(U8_T i)
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);					
 				}
 				
-				if(ptr.pout->control) 
+				if(ptr.pout->control)
 					set_output_raw(i,1000);
-				else 
-					set_output_raw(i,0);	
+				else
+					set_output_raw(i,0);
 				
 			}
 			else
@@ -514,9 +514,8 @@ void check_output_priority_HOA(U8_T i)
 
 				if(ptr.pout->control) 
 					set_output_raw(i,1000);
-				else 
-					set_output_raw(i,0);					
-			
+				else
+					set_output_raw(i,0);
 			}
 			else
 			{
