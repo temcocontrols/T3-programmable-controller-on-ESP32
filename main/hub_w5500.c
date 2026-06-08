@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_eth.h"
 #include "esp_eth_mac_spi.h"
 #include "esp_eth_phy.h"
@@ -13,6 +15,35 @@ static const char *TAG = "hub_w5500";
 
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 extern esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config);
+
+static esp_err_t hub_w5500_reset(void)
+{
+    if (HUB_W5500_RST_GPIO == GPIO_NUM_NC) {
+        return ESP_OK;
+    }
+
+    gpio_config_t io_conf = {
+        .pin_bit_mask = 1ULL << HUB_W5500_RST_GPIO,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    esp_err_t ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "W5500 reset GPIO config failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    gpio_set_level(HUB_W5500_RST_GPIO, 0);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    gpio_set_level(HUB_W5500_RST_GPIO, 1);
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    ESP_LOGI(TAG, "W5500 reset pulse done on GPIO%d", HUB_W5500_RST_GPIO);
+    return ESP_OK;
+}
 
 static esp_err_t hub_w5500_init_spi_bus(void)
 {
@@ -57,7 +88,12 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
         return ESP_OK;
     }
 
-    esp_err_t ret = hub_w5500_init_spi_bus();
+    esp_err_t ret = hub_w5500_reset();
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    ret = hub_w5500_init_spi_bus();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "W5500 SPI bus init failed: %s", esp_err_to_name(ret));
         return ret;

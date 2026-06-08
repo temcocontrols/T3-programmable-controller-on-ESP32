@@ -4580,6 +4580,45 @@ void hub_usb_serial_init(void);
 int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
 
 void phy_reset(void);
+
+#if CONFIG_IDF_TARGET_ESP32S3
+static void hub_uart0_console_driver_init(void)
+{
+	if (uart_is_driver_installed(UART_NUM_0)) {
+		return;
+	}
+
+	const uart_config_t uart_cfg = {
+		.baud_rate = 115200,
+		.data_bits = UART_DATA_8_BITS,
+		.parity = UART_PARITY_DISABLE,
+		.stop_bits = UART_STOP_BITS_1,
+		.flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+		.source_clk = UART_SCLK_DEFAULT,
+	};
+
+	esp_err_t ret = uart_param_config(UART_NUM_0, &uart_cfg);
+	if (ret != ESP_OK) {
+		ESP_LOGW(TCP_TASK_TAG, "UART0 param config failed: %s", esp_err_to_name(ret));
+		return;
+	}
+
+	ret = uart_set_pin(UART_NUM_0, GPIO_NUM_43, GPIO_NUM_44, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+	if (ret != ESP_OK) {
+		ESP_LOGW(TCP_TASK_TAG, "UART0 pin set failed: %s", esp_err_to_name(ret));
+		return;
+	}
+
+	ret = uart_driver_install(UART_NUM_0, 2048, 0, 0, NULL, 0);
+	if (ret != ESP_OK) {
+		ESP_LOGW(TCP_TASK_TAG, "UART0 driver install failed: %s", esp_err_to_name(ret));
+		return;
+	}
+
+	(void)uart_set_mode(UART_NUM_0, UART_MODE_UART);
+}
+#endif
+
 void app_main()
 {
 
@@ -4599,9 +4638,18 @@ void app_main()
 
 	Modbus.mini_type = PROJECT_HUB;
 
-	uart_init(0);
 	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		/* PROJECT_HUB uses GPIO13 as W5500 SCLK, so skip UART0 RS485 init (uses GPIO13 as SUB_EN). */
 		hub_usb_serial_init();
+		#if CONFIG_IDF_TARGET_ESP32S3
+		hub_uart0_console_driver_init();
+		#endif
+	}
+	else
+	{
+		uart_init(0);
+	}
 
 #ifdef USE_USB_CDC_MAIN
 	usb_cdc_init();
@@ -4609,7 +4657,10 @@ void app_main()
 
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+	if(Modbus.mini_type == PROJECT_HUB)
+		hub_usb_serial_write((const uint8_t *)debug_array, strlen(debug_array), 20);
+	else
+		uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
 #endif
 
 	if(Modbus.mini_type == MINI_TSTAT11)

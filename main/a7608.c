@@ -597,8 +597,14 @@ static void parse_cgnsinf(const char *response)
 static esp_err_t a7608_read_gnss_info(char *response, size_t response_len, const char **command_used)
 {
     static const char *commands[] = {
+        "AT+CGNSSINFO?",
+        "AT+CGPSINFO?",
         "AT+CGNSSINFO",
+        "AT+CGNSSINFO=1",
+        "AT+CGNSSINFO=0",
         "AT+CGPSINFO",
+        "AT+CGPSINFO=1",
+        "AT+CGPSINFO=0",
         "AT+CGNSINF",
     };
 
@@ -1130,7 +1136,11 @@ static void a7608_debug_print_gnss_status(void)
 
     static const char *info_commands[] = {
         "AT+CGNSSINFO",
+        "AT+CGNSSINFO=1",
+        "AT+CGNSSINFO=0",
         "AT+CGPSINFO",
+        "AT+CGPSINFO=1",
+        "AT+CGPSINFO=0",
         "AT+CGNSINF",
     };
     esp_err_t info_ret = ESP_FAIL;

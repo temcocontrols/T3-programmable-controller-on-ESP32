@@ -39,7 +39,7 @@ extern "C" {
 #endif
 
 #ifndef HUB_W5500_SPI_CLOCK_HZ
-#define HUB_W5500_SPI_CLOCK_HZ          (20 * 1000 * 1000)
+#define HUB_W5500_SPI_CLOCK_HZ          (10 * 1000 * 1000)
 #endif
 
 #ifndef HUB_W5500_POLL_PERIOD_MS
