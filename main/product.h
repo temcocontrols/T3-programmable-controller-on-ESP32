@@ -95,26 +95,19 @@
 #define T10P_MAX_DIS 8
 #define T10P_MAX_SCS 8
 
-#define RMC1216_MAX_AIS 16 + 6 + 1 // rev7 加入1路测电压 NG2 == RMC1216
-#define RMC1216_MAX_DOS 7
-#define RMC1216_MAX_AOS 0
-#define RMC1216_MAX_AVS 128
-#define RMC1216_MAX_DIS 0
-#define RMC1216_MAX_SCS 8
+#define NG2_MAX_AIS 16 + 6
+#define NG2_MAX_DOS 7
+#define NG2_MAX_AOS 0
+#define NG2_MAX_AVS 128
+#define NG2_MAX_DIS 0
+#define NG2_MAX_SCS 8
 
-#define RMC32I_MAX_AIS 32 + 4 // 32AI + 2I2C * 2
-#define RMC32I_MAX_DOS 6
-#define RMC32I_MAX_AOS 0
-#define RMC32I_MAX_AVS 128
-#define RMC32I_MAX_DIS 0
-#define RMC32I_MAX_SCS 8
-
-#define NG3_MAX_AIS 24 + 4
-#define NG3_MAX_DOS 8
-#define NG3_MAX_AOS 5
-#define NG3_MAX_AVS 128
-#define NG3_MAX_DIS 0
-#define NG3_MAX_SCS 8
+#define NEWNG2_MAX_AIS 24 + 4
+#define NEWNG2_MAX_DOS 8
+#define NEWNG2_MAX_AOS 4
+#define NEWNG2_MAX_AVS 128
+#define NEWNG2_MAX_DIS 0
+#define NEWNG2_MAX_SCS 8
 
 #define MINI_CM5  0
 #define MINI_BIG	 1
@@ -186,7 +179,7 @@ void uart_send_string(unsigned char *p, unsigned int length,unsigned char port);
 #define cQueueSend xQueueSend
 #define cQueueReceive xQueueReceive
 #define vSemaphoreCreateBinary xQueueCreateMutex
-//#define xSemaphoreHandle QueueHandle_t
+//#define SemaphoreHandle_t QueueHandle_t
 #define cSemaphoreTake xQueueTakeMutexRecursive
 #define cSemaphoreGive xQueueGiveMutexRecursive
 

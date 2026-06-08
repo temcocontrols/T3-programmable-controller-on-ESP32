@@ -24,8 +24,7 @@ idf_component_register(			SRCS
 							"timegm.c"
 							"sht4x.c"
 							"sht3x.c"
-							"stcc4_i2c.c"
-							"scd4x_i2c.c"													
+							"scd4x_i2c.c"
 							"scan.c"
 							"commsub.c"
 							"ade7953.c"
@@ -57,21 +56,10 @@ idf_component_register(			SRCS
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
-							"tca9535.c"					
-							  						
-    						
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
                     		INCLUDE_DIRS ".")
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
-
-
-# Á´½Ó BMV080 ¾²Ì¬¿â
-target_link_libraries(${COMPONENT_TARGET} PRIVATE
-	"-u pro_info"
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib_bmv080.a
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib_postProcessor.a
-)
-#target_link_libraries(${COMPONENT_TARGET} "-u pro_info")
+target_link_libraries(${COMPONENT_TARGET} "-u pro_info")

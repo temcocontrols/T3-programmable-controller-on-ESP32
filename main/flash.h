@@ -105,18 +105,13 @@ typedef enum
 #define FLASH_IN14_CAL		"IN14_CAL"
 
 #define FLASH_ICON_CONFIG	"ICON_CONFIG"
-#define FLASH_DISABLE_T10_DIS  "DISABLE_T10_DIS"
-#define FLASH_LCD_TIME_OFF_DELAY	"LCD_TOFF"
+#define FLASH_LCD_TIME_OFF_DELAY		"LCD_TOFF"
 #define FLASH_FIX_COM_CONFIG	"COM_CONFIG"
 #define FLASH_WRITE_FLASH	"WRT_FLASH"
 
 #define FLASH_LSW_ONTIME	"LSW_ON_T"
 #define FLASH_LSW_OFFTIME	"LSW_OFF_T"
 
-
-#define FLASH_CO2_SA1		"CO2_SA1" //co2_data_screenArea[1]
-#define FLASH_CO2_SA2		"CO2_SA2" //co2_data_screenArea[1]
-#define FLASH_CO2_SA3		"CO2_SA3" //co2_data_screenArea[1]
 
 
 
@@ -182,8 +177,6 @@ extern esp_err_t save_int16_to_flash(const char* key, int16_t value);
 extern void clear_count_reboot(void);
 
 void Save_SPD_CNT(void);
-void update_pvar(uint8_t index, int32_t value);
-void update_all_pvars(void);
 
 esp_err_t Save_Ethernet_Info(void);
 esp_err_t Save_Lcd_config(void);

@@ -24,8 +24,7 @@
 #ifndef _TIMESTAMP_H_
 #define _TIMESTAMP_H_
 
-#include <stdint.h>
-#include "datetime.h"
+#include "bacdcode.h"
 
 typedef enum {
     TIME_STAMP_TIME = 0,

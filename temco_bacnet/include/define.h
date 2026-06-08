@@ -28,7 +28,6 @@ typedef struct
 	U8_T  ethernet_status;
 	U16_T 	tcp_port;
 	U8_T  mini_type;
-	U8_T  LcdTheme;
 	U8_T  sub_port;
 //	U8_T zigbee_or_gsm;
 	U8_T point_sequence;
@@ -60,7 +59,7 @@ typedef struct
 	U8_T uart_stopbit[3];
 //	U8_T network_ID[3]; // 3 RS485 port
 	U16_T zigbee_module_id;
-	U8_T dead_master_for_PLC;
+	U8_T dead_master;
 	U8_T disable_tstat10_display;  // display icons and scrolling string
 	//lcdconfig display_lcd;
 	U8_T start_month;

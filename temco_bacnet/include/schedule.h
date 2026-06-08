@@ -85,7 +85,7 @@ extern "C" {
     uint32_t Schedule_Index_To_Instance(
         unsigned index);
     uint32_t Schedule_Instance_To_Index(
-    	unsigned instance);
+        unsigned instance);
     bool Schedule_Object_Instance_Add(
         uint32_t instance);
 

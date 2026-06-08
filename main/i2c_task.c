@@ -402,17 +402,12 @@ esp_err_t sensirion_i2c_write(uint8_t address, const uint8_t *data,
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     ret = i2c_master_start(cmd);
-
     ret = i2c_master_write_byte(cmd,address << 1| WRITE_BIT, ACK_CHECK_EN);
-
     for (i = 0; i < count; i++) {
         ret = i2c_master_write_byte(cmd, data[i],ACK_CHECK_EN);
     }
-
     ret = i2c_master_stop(cmd);
-
 	ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 5000 / portTICK_PERIOD_MS);
-
 	i2c_cmd_link_delete(cmd);
 	return ret;
 }
@@ -424,6 +419,7 @@ esp_err_t sensirion_i2c_read(uint8_t address, uint8_t *data, uint16_t count) {
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd,address << 1| READ_BIT, ACK_CHECK_EN);
+    //usleep(600);
     vTaskDelay(5/portTICK_PERIOD_MS);
     for (i = 0; i < count; i++) {
 		send_ack = i < (count - 1); // last byte must be NACK'ed
@@ -591,7 +587,6 @@ void VOC_Initial(void) 	// SGP30
 		}
 		vTaskDelay(100/ portTICK_PERIOD_MS);
 	}
-
 	temp = 0;
 	if(voc_ok)
 	{
@@ -680,7 +675,6 @@ void i2c_sensor_task(void *arg)
 		}
 	}
 #endif
-
 	if(Modbus.mini_type == PROJECT_POWER_METER)
 	{
 		Ade7953_init();
@@ -923,6 +917,8 @@ void i2c_sensor_task(void *arg)
 				g_sensors.original_humidity = SHT3X_getHumidity(&sht31_data[3]);
 				g_sensors.temperature = (uint16_t)(g_sensors.original_temperature*10);
 				g_sensors.humidity = (uint16_t)(g_sensors.original_humidity*10);
+				Test[23] = g_sensors.temperature;
+				Test[24] = g_sensors.humidity;
 				ptr = put_io_buf(IN,0);
 
 				if(ptr.pin->range == 3)
@@ -961,7 +957,6 @@ void i2c_sensor_task(void *arg)
         	int32_t temp_tmp;
         	int32_t temp_hum;
         	uint16 temp_co2;
-
         	int32_t pre_value = 0;
 
 			scd4x_start_periodic_measurement();
@@ -969,7 +964,7 @@ void i2c_sensor_task(void *arg)
 			ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
 			if(ret != ESP_OK)
 			{
-
+				Test[20]++;
 			}
 			else
 			{
@@ -978,10 +973,13 @@ void i2c_sensor_task(void *arg)
 
 				}
 				else
-				{
+				{Test[28]++;
 					g_sensors.co2 = temp_co2;
 					g_sensors.co2_temp = temp_tmp;
 					g_sensors.co2_humi = temp_hum;
+					Test[15] = temp_co2;
+					Test[16] = temp_tmp;
+					Test[17] = temp_hum;
 					ptr = put_io_buf(IN,2);
 					pre_value = g_sensors.co2*1000;
 					if( !ptr.pin->calibration_sign )
@@ -996,13 +994,15 @@ void i2c_sensor_task(void *arg)
 			ret = sht4x_measure_blocking_read(&sht4x_temp, &sht4x_hum);
 			if(ret != ESP_OK)
 			{
-
+				Test[21]++;
 			}
 			else
-			{
+			{	Test[22]++;
 				hum_sensor_type = 2;
 				g_sensors.temperature = (sht4x_temp)/100;
 				g_sensors.humidity = (sht4x_hum)/100;
+				Test[23] = g_sensors.temperature;
+				Test[24] = g_sensors.humidity;
 
 				ptr = put_io_buf(IN,0);
 				pre_value = g_sensors.temperature*100;
@@ -1170,6 +1170,7 @@ void i2c_sensor_task(void *arg)
 					 // printf("Invalid sample detected, skipping.\n");
 				} else {count_err = 0;
 					//CO2_get_value(co2,temperature / 100,humidity / 100);
+
 					if((hum_sensor_type != 1) && (hum_sensor_type != 2) )
 					{
 						g_sensors.temperature = temperature / 100;
@@ -1205,436 +1206,3 @@ void i2c_sensor_task(void *arg)
 }
 
 
-//-----------STCC4 CO2 SENSOR START-------------------
-
-#include "stcc4_i2c.h"
-extern char debug_array[100];
-int16_t stcc4_initial(void)
-{
-
-	uint32_t product_id = 0;
-	uint64_t serial_number = 0;
-	int16_t error = NO_ERROR;
-
-	stcc4_init(STCC4_I2C_ADDR_64);
-	Test[31]++;
-	error = stcc4_stop_continuous_measurement();
-	if (error != NO_ERROR) {
-		printf("error executing stop_continuous_measurement(): %i\n", error);
-		return error;
-	}
-	error = stcc4_get_product_id(&product_id, &serial_number);
-	if (error != NO_ERROR) {
-		printf("error executing get_product_id(): %i\n", error);
-		return error;
-	}
-//	printf("product_id: %u ", product_id);
-	Test[32] = product_id;
-#if 0
-    sprintf(debug_array,"STCC4 product_id: %u \r\n", product_id);
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-#endif
-
-    //    printf("serial_number: %" PRIx64 "\n", serial_number);
-	error = stcc4_start_continuous_measurement();
-	if (error != NO_ERROR) {
-		printf("error executing start_continuous_measurement(): %i\n", error);
-		return error;
-	}
-
-	return error;
-
-}
-
-int stcc4_read(void) {
-    int16_t error = NO_ERROR;
-
-//    printf("serial_number: %" PRIx64 "\n", serial_number);
-
-    int16_t co2_concentration_raw = 0;
-    uint16_t temperature_raw = 0;
-    uint16_t relative_humidity_raw = 0;
-    uint16_t sensor_status_raw = 0;
-    uint16_t repetition = 0;
-    Str_points_ptr ptr;
-
-    for (repetition = 0; repetition < 10; repetition++)
-    {
-        //sensirion_hal_sleep_us(1000000);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        error = stcc4_read_measurement_raw(
-            &co2_concentration_raw, &temperature_raw, &relative_humidity_raw,
-            &sensor_status_raw);
-        Test[34]++;
-        if (error == 0)
-        {Test[35]++;
-            Test[29] = co2_concentration_raw;
-            Test[27] = temperature_raw;
-            Test[28] = relative_humidity_raw;
-
-            Test[37] = ((21875 * (int32_t)temperature_raw) >> 13) - 45000;
-        	Test[38] = ((100000 * (int32_t)relative_humidity_raw) / 65535);
-
-        	/*ptr = put_io_buf(IN,0);
-			ptr.pin->value = g_sensors.temperature * 100;
-			ptr = put_io_buf(IN,1);
-			ptr.pin->value = g_sensors.humidity * 100;
-			g_sensors.co2 = co2;*/
-
-			ptr = put_io_buf(IN,2);
-			ptr.pin->value = co2_concentration_raw * 1000;
-        }
-    }
-
-    return NO_ERROR;
-}
-
-
-
-//-----------STCC4 CO2 SENSOR END-------------------
-
-
-
-//#include "combridge.h"
-//#include "bmv080.h"
-//#include "driver/gpio.h"
-#if 1
-#include "bmv080.h"
-#include "driver/i2c.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-//实现 SDK 强制要求的回调函数
-
-// 硬件配置参数
-#define I2C_PORT          I2C_MASTER_NUM
-#define BMV080_I2C_ADDR   0x54  // 由 CSB/MISO 引脚配置决定（示例：CSB=0，MISO=0）
-
-// 1. I2C 读回调（bmv080_callback_read_t 类型，SDK 内部调用）
-static int8_t bmv080_i2c_read(bmv080_sercom_handle_t sercom_handle,
-                               uint16_t header,
-                               uint16_t* payload,
-                               uint16_t payload_length)
-{
-    /* 16-bit header left shifted by 1, since the R/W bit (most significant bit) is passed along with the 7-bit device address  */
-	uint16_t header_adjusted = header << 1;
-
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	/* 7-bit I2C address + R/W bit (R = 1, W = 0) to write header information */
-	i2c_master_write_byte(cmd, (BMV080_I2C_ADDR << 1) | I2C_MASTER_WRITE, ACK_CHECK_EN);
-
-	i2c_master_write_byte(cmd, (header_adjusted >> 8) & 0xFF, ACK_CHECK_EN);
-	i2c_master_write_byte(cmd, header_adjusted & 0xFF, ACK_CHECK_EN);
-	i2c_master_stop(cmd);
-
-	//int i2c_num = *((int *)sercom_handle);
-	esp_err_t err  = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
-	i2c_cmd_link_delete(cmd);
-
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	/* 7-bit I2C address + R/W bit (R = 1, W = 0) to read payload information */
-	i2c_master_write_byte(cmd, (BMV080_I2C_ADDR << 1) | I2C_MASTER_READ, ACK_CHECK_EN);
-	i2c_master_read(cmd, (uint8_t *)payload, payload_length * 2, I2C_MASTER_LAST_NACK);
-	i2c_master_stop(cmd);
-
-	err = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
-	i2c_cmd_link_delete(cmd);
-
-	/* Conversion of payload from big endian to little endian */
-	for (int payload_idx = 0; payload_idx < payload_length; payload_idx++)
-	{
-		uint16_t swapped_word = ((payload[payload_idx] << 8) | (payload[payload_idx] >> 8)) & 0xffff;
-		payload[payload_idx] = swapped_word;
-	}
-
-	return (int8_t)err;
-}
-
-// 2. I2C 写回调（bmv080_callback_write_t 类型）
-static int8_t bmv080_i2c_write(bmv080_sercom_handle_t sercom_handle,
-                                uint16_t header,
-                                const uint16_t* payload,
-                                uint16_t payload_length)
-{
-    /* 7-bit I2C address + most significant bit of the header passed from the sensor driver which represents the R/W bit (R = 1, W = 0) */
-       uint8_t device_address = (BMV080_I2C_ADDR << 1) | (header >> 15);
-       /* 16-bit header left shifted by 1, since the R/W bit (most significant bit) is passed along with the 7-bit device address  */
-       uint16_t header_adjusted = header << 1;
-
-       /* Conversion of payload from little endian to big endian (dynamic allocation is used) */
-       uint16_t *payload_swapped = (uint16_t *)calloc(payload_length, sizeof(uint16_t));
-       for (int payload_idx = 0; payload_idx < payload_length; payload_idx++)
-       {
-           payload_swapped[payload_idx] = ((payload[payload_idx] << 8) | (payload[payload_idx] >> 8)) & 0xffff;
-       }
-
-       i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-       i2c_master_start(cmd);
-       i2c_master_write_byte(cmd, device_address, ACK_CHECK_EN);
-
-       i2c_master_write_byte(cmd, (header_adjusted >> 8) & 0xFF, ACK_CHECK_EN);
-       i2c_master_write_byte(cmd, header_adjusted & 0xFF, ACK_CHECK_EN);
-
-       i2c_master_write(cmd, (uint8_t *)payload_swapped, payload_length * 2, I2C_MASTER_ACK);
-       i2c_master_stop(cmd);
-
-       //int i2c_num = *((int *)sercom_handle);
-       esp_err_t err = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
-       i2c_cmd_link_delete(cmd);
-
-       free(payload_swapped);
-
-       return (int8_t)err;
-}
-
-// 3. 延迟回调（bmv080_callback_delay_t 类型，用于 SDK 时序同步）
-static int8_t bmv080_delay_ms(uint32_t duration_in_ms) {
-    vTaskDelay(pdMS_TO_TICKS(duration_in_ms));  // ESP32 延迟函数
-    return E_BMV080_OK;
-}
-
-// 4. 数据就绪回调（bmv080_callback_data_ready_t 类型，接收传感器输出）
-static void bmv080_data_ready(bmv080_output_t output, void* callback_parameters) {
-    // 输出有效数据（过滤遮挡/超量程情况）
-	Str_points_ptr ptr;
-
-    if (!output.is_obstructed && !output.is_outside_measurement_range) {
-    	ptr = put_io_buf(IN,4);
-    	ptr.pin->value = output.pm1_mass_concentration * 1000;
-    	ptr = put_io_buf(IN,5);
-		ptr.pin->value = output.pm2_5_mass_concentration * 1000;
-		ptr = put_io_buf(IN,7);
-		ptr.pin->value = output.pm10_mass_concentration * 1000;
-
-    //    printf("PM1.0: %.1f μg/m³ | PM2.5: %.1f μg/m³ | PM10: %.1f μg/m³\n",
-    //           output.pm1_mass_concentration,
-     //          output.pm2_5_mass_concentration,
-     //          output.pm10_mass_concentration);
-    } else {
-     //   if (output.is_obstructed) printf("⚠️  传感器光学路径被遮挡\n");
-     //   if (output.is_outside_measurement_range) printf("⚠️  PM2.5 超量程（>1000 μg/m³）\n");
-    }
-
-}
-
-//SDK 核心初始化（创建句柄 + 传感器初始化
-bmv080_handle_t bmv080_handle = NULL;  // 传感器句柄（全局）
-uint8_t bmv080_i2c_addr = BMV080_I2C_ADDR;  // I2C 地址（通信句柄）
-bmv080_sercom_handle_t sercom_handle = &bmv080_i2c_addr;  // 通信句柄（传递地址）
-
-static bmv080_status_code_t bmv080_sdk_init(void) {
-    // 1. 打开传感器（创建句柄，绑定回调）
-
-	bmv080_handle = NULL;
-    bmv080_status_code_t status = bmv080_open(&bmv080_handle,
-                                              sercom_handle,
-                                              bmv080_i2c_read,
-                                              bmv080_i2c_write,
-                                              bmv080_delay_ms);
-
-    if (status != E_BMV080_OK) {
-        printf("❌ 句柄创建失败，状态码：%d\n", status);
-        return status;
-    }
-
-    // 2. 获取传感器 ID（验证通信是否正常）
-    char sensor_id[13] = "empty";
-    status = bmv080_get_sensor_id(bmv080_handle, sensor_id);
-    if (status != E_BMV080_OK) {
-        printf("❌ 获取传感器 ID 失败\n");
-        //return status;
-    }
-
-
-    // 3. 软复位传感器（恢复默认配置）
-    status = bmv080_reset(bmv080_handle);
-    if (status != E_BMV080_OK) {
-        printf("❌ 传感器复位失败\n");
-        //return status;
-    }
-    bmv080_delay_ms(100);  // 复位后稳定延时
-
-    return E_BMV080_OK;
-}
-
-
-#if 0
-// 配置测量模式与参数（连续测量模式为例）
-static bmv080_status_code_t bmv080_config_measurement(void) {
-    // 1. 配置测量算法（连续模式支持高精度/平衡/快速响应）
-
-    bmv080_measurement_algorithm_t algo = E_BMV080_MEASUREMENT_ALGORITHM_HIGH_PRECISION;
-    bmv080_status_code_t status = bmv080_set_parameter(bmv080_handle,
-                                                      "measurement_algorithm",
-                                                      &algo);
-    if (status != E_BMV080_OK) {
-        printf("❌ 配置测量算法失败\n");
-        return status;
-    }
-    else
-    {
-#if 1
-    sprintf(debug_array,"bmv080 set algorithm\r\n");
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    //Modbus.mini_type = MINI_TSTAT10;
-#endif
-    }
-    // 2. 配置积分时间（默认 10s，低浓度时建议≥10s保证精度）
-    float integration_time = 10.0f;  // 单位：s
-    status = bmv080_set_parameter(bmv080_handle,
-                                  "integration_time",
-                                  &integration_time);
-    if (status != E_BMV080_OK) {
-        printf("❌ 配置积分时间失败\n");
-        return status;
-    }
-    else
-    {
-#if 1
-    sprintf(debug_array,"bmv080 set integration_time\r\n");
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    //Modbus.mini_type = MINI_TSTAT10;
-#endif
-    }
-    // 3. 启动连续测量模式
-    status = bmv080_start_continuous_measurement(bmv080_handle);
-    if (status != E_BMV080_OK) {
-        printf("❌ 启动连续测量失败\n");
-        return status;
-    }
-    else
-    {
-#if 1
-    sprintf(debug_array,"bmv080 start continuous measurement \r\n");
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-#endif
-    }
-
-    // 4. 等待启动时间（软件轮询模式需等 1.9s，硬件 IRQ 模式需等 2.9s）
-    //printf("⏱  传感器预热中...\n");
-    bmv080_delay_ms(1900);
-    return E_BMV080_OK;
-}
-#endif
-
-#if 1
-// 占空比模式配置（替代步骤 4）占空比测量模式配置（低功耗场景）
-static bmv080_status_code_t bmv080_config_duty_cycling(void) {
-    // 1. 占空比模式仅支持“快速响应”算法
-    bmv080_measurement_algorithm_t algo = E_BMV080_MEASUREMENT_ALGORITHM_FAST_RESPONSE;
-    bmv080_set_parameter(bmv080_handle, "measurement_algorithm", &algo);
-
-    // 2. 配置积分时间（5s）和占空比周期（30s：5s测量+25s休眠）
-    float integration_time = 5.0f;
-    int duty_cycling_period = 30;  // 单位：s，必须 > 积分时间+2s
-    bmv080_set_parameter(bmv080_handle, "integration_time", &integration_time);
-    bmv080_set_parameter(bmv080_handle, "duty_cycling_period", &duty_cycling_period);
-
-    // 3. 启动占空比测量（需传入滴答函数）
-    return bmv080_start_duty_cycling_measurement(bmv080_handle,
-                                                (bmv080_callback_tick_t)xTaskGetTickCount,
-												E_BMV080_DUTY_CYCLING_MODE_0);
-}
-
-
-#endif
-
-void i2c_scan(void) {
-    printf("Scanning I2C bus...\n");
-
-    esp_err_t result;
-	uint8_t address;
-	Test[3] = 0;
-	for (address = 0x01; address <= 0x7f; address++) {  // I2C 地址范围：0x03 到 0x77
-		i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-		i2c_master_start(cmd);
-		i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-		i2c_master_stop(cmd);
-
-		result = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
-		i2c_cmd_link_delete(cmd);
-
-		if (result == ESP_OK) {
-			Test[4 + Test[3]++] = address;
-			printf("I2C device found at address 0x%02X\n", address);
-		}
-	}
-    printf("I2C scan complete.\n");
-}
-
-
-
-
-
-
-void bmv080_task(void *pvParam)
-{
-	// 初始化
-	uint8_t bmv080_exist = 0;
-	uint8_t stcc4_exist = 0;
-	uint8_t count = 0;
-	i2c_master_init();
-	if(stcc4_initial() == 0)
-		stcc4_exist = 1;
-    if (bmv080_sdk_init() != E_BMV080_OK)
-	{
-		bmv080_exist = 1;
-		bmv080_delay_ms(1000);  // 初始化失败，卡死报错
-	}  // initial ok
-	else
-	{
-		// 3. 配置测量模式
-		/*if (bmv080_config_measurement() != E_BMV080_OK)
-		{
-
-		}
-		else
-		{
-
-			bmv080_exist = 2;
-		}*/
-
-		if (bmv080_config_duty_cycling() != E_BMV080_OK)
-		{
-
-		}
-		else
-		{
-
-			bmv080_exist = 2;
-		}
-
-	}
-    while (1)
-    {
-        // ==============================================
-        // ✅ 核心：无中断，直接调用！！！
-        // ==============================================
-    	Test[20] = bmv080_exist;
-    	Test[21] = stcc4_exist;
-    	if(stcc4_exist == 1)
-    	{
-    		stcc4_read();
-    	}
-        // 定时读取（200ms ~ 1s 都行）
-        vTaskDelay(pdMS_TO_TICKS(1000));
-         // if(count % 10 == 0)
-        {
-        	if(bmv080_exist == 2)
-			{// 基本上是10s执行一次
-				bmv080_serve_interrupt(
-						bmv080_handle,
-						bmv080_data_ready,  // 回调
-						NULL                   // 参数
-				);
-			}
-        }
-
-    }
-}
-
-
-
-#endif

@@ -532,8 +532,7 @@ void MSTP_Receive_Frame_FSM(
 										{// ID collision
 											chech_mstp_collision();
 										}
-										// 避免T3000影响设备间的通讯，T3000等bacent软件的sourceaddr大概是0
-										if(SourceAddress < Station_NUM && SourceAddress != 0)
+										if(SourceAddress < Station_NUM)
 										{
 											set_mstp_master();
 										}

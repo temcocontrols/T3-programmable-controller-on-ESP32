@@ -27,13 +27,11 @@ uint8_t count_reboot = 0;
 extern S16_T timezone;
 extern U8_T lcddisplay[7];
 void Get_AVS(void);
-void Recievebuf_Initialize(uint8_t port);
 
-extern const uint8 Var_Description[12][21];
-extern const uint8 Var_label[12][9];
+extern const uint8 Var_Description[16][21];
+extern const uint8 Var_label[16][9];
 
 extern uint16_t input_cal[16];
-extern uint8_t co2_data_screenArea[3];
 
 extern uint16_t count_lcd_time_off_delay;
 extern uint8_t com_config_back[3];
@@ -41,7 +39,7 @@ extern uint8_t com_config_back[3];
 extern uint16_t current_page;
 extern char sntp_server[30];
 
-#if LSW_ON_OFF
+#if 1//LSW_ON_OFF
 extern uint16_t LSW_on_time;
 extern uint16_t LSW_off_time;
 #endif
@@ -49,24 +47,12 @@ extern uint16_t LSW_off_time;
 extern uint32_t  high_spd_counter_tempbuf[32/*HI_COMMON_CHANNEL*/];
 
 #define POINT_INFO_ADDR	0
-// if old parition, storage size is 0x20000, point info is too long, change lengh to 0x11000, trendlog length to 0xf000
-#define POINT_INFO_LEN 	0x16000  // 0X10000
-#define TRENDLOG_ADDR	0x16000	 // 0X10000
-#define TRENDLOG_LEN	0xA000	 // 0X10000
-#define MAX_TREND_PAGE 	TRENDLOG_LEN / 0x1000    // 10	// max page is 10, 16 * 4k = 40k
+#define POINT_INFO_LEN 	0x10000
+
+#define TRENDLOG_ADDR	0x10000
+#define TRENDLOG_LEN	0x10000
 
 #define SPI_FLASH_SEC_SIZE 4096
-
-// if use new parition.cvs,storage size is 0x40000, point length is 0x20000, trendlog length is 0x20000
-#define POINT_INFO_LEN_NEW 	0x20000
-#define TRENDLOG_ADDR_NEW	0x20000
-#define MAX_TREND_PAGE_NEW 	TRENDLOG_ADDR_NEW / 0x1000    // 32	// max page is 32, 32 * 4k = 128K
-
-
-
-
-
-
 
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
@@ -268,9 +254,6 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u16(my_handle, FLASH_WRITE_FLASH, Modbus.write_flash);
 	}
 
-	if(Modbus.write_flash > 0 && Modbus.write_flash < 60)
-		Modbus.write_flash = 60;
-
 	if(Modbus.write_flash != 0)
 	{
 		ChangeFlash = 2;
@@ -328,6 +311,7 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_DIS_HOME_SCREEN, Modbus.enabled_Display_HomeScreen);
 	}
 	err = nvs_get_u16(my_handle, FLASH_NETWORK_NUMBER, &Modbus.network_number);
+
 	if((Modbus.network_number == 0) || (err == ESP_ERR_NVS_NOT_FOUND))
 	{
 		Modbus.network_number = 0xffff;
@@ -372,7 +356,6 @@ esp_err_t read_default_from_flash(void)
 	nvs_get_u16(my_handle, FLASH_TIME_ZONE, (uint16 *)&timezone);
 	nvs_get_u8(my_handle, FLASH_DSL, &Daylight_Saving_Time);
 
-#if NEW_IO
 	err = nvs_get_u8(my_handle, FLASH_MAX_VARS, &max_vars);
 	if(err == ESP_ERR_NVS_NOT_FOUND || max_vars == 0)
 	{
@@ -391,30 +374,27 @@ esp_err_t read_default_from_flash(void)
 		max_inputs = 64;
 		nvs_set_u8(my_handle, FLASH_MAX_INS, max_inputs);
 	}
-#else
-	max_vars = 128;
-	max_outputs = 64;
-	max_inputs = 64;
-#endif
+
 	err = nvs_get_u8(my_handle, FLASH_EN_USERNAME, &Modbus.en_username);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		Modbus.en_username = 0;
+		Modbus.en_username = MINI_NANO;
 		nvs_set_u8(my_handle, FLASH_EN_USERNAME, Modbus.en_username);
 	}
 
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
-
+	Test[21]++;
 	if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_CO2)
-	{
+	{Test[22]++;
 		if(count_reboot > 10)
 		{ // reboot
 			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
 			start_fw_update();
 		}
 		else
-		{
+		{	Test[23]++;
+			Test[24] = count_reboot;
 			nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, ++count_reboot);
 		}
 	}
@@ -640,15 +620,6 @@ esp_err_t read_default_from_flash(void)
 		Modbus.icon_config = 0;
 		nvs_set_u8(my_handle, FLASH_ICON_CONFIG, Modbus.icon_config);
 	}
-	pvars[3].value = Modbus.icon_config;
-
-	err = nvs_get_u8(my_handle, FLASH_DISABLE_T10_DIS, &Modbus.disable_tstat10_display);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
-	{
-		Modbus.disable_tstat10_display = 0;
-		nvs_set_u8(my_handle, FLASH_DISABLE_T10_DIS, Modbus.disable_tstat10_display);
-	}
-	pvars[4].value = Modbus.disable_tstat10_display;
 
 	/*err = nvs_get_u8(my_handle, FLASH_LCD_EN_TIMEOVER, &lcd_time_over_en);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
@@ -676,7 +647,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u16(my_handle, FLASH_READ_POINT_TIMER, &READ_POINT_TIMER_FROM_EEP);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
-		READ_POINT_TIMER_FROM_EEP = 500;
+		READ_POINT_TIMER_FROM_EEP = 200;
 		nvs_set_u16(my_handle, FLASH_READ_POINT_TIMER, READ_POINT_TIMER_FROM_EEP);
 		READ_POINT_TIMER = READ_POINT_TIMER_FROM_EEP;
 	}
@@ -702,34 +673,10 @@ esp_err_t read_default_from_flash(void)
 	}
 #endif
 	// Close
-
-	if(Modbus.mini_type == PROJECT_CO2)
-	{
-		err = nvs_get_u8(my_handle, FLASH_CO2_SA1, &co2_data_screenArea[0]);
-		if(err == ESP_ERR_NVS_NOT_FOUND)
-		{
-			co2_data_screenArea[0] = 0;  //TEMP
-			nvs_set_u8(my_handle, FLASH_CO2_SA1, co2_data_screenArea[0]);
-		}
-
-		err = nvs_get_u8(my_handle, FLASH_CO2_SA2, &co2_data_screenArea[1]);
-		if(err == ESP_ERR_NVS_NOT_FOUND)
-		{
-			co2_data_screenArea[1] = 1;  //HUM
-			nvs_set_u8(my_handle, FLASH_CO2_SA2, co2_data_screenArea[1]);
-		}
-
-		err = nvs_get_u8(my_handle, FLASH_CO2_SA3, &co2_data_screenArea[2]);
-		if(err == ESP_ERR_NVS_NOT_FOUND)
-		{
-			co2_data_screenArea[2] = 2;  //CO2
-			nvs_set_u8(my_handle, FLASH_CO2_SA3, co2_data_screenArea[2]);
-		}
-	}
-
 	nvs_close(my_handle);
 
 	Flash_Inital();
+
 	return ESP_OK;
 }
 
@@ -761,7 +708,7 @@ void clear_currnet_page(void)
 
 typedef struct
 {
-	U32_T addr;
+	U16_T addr;
 	U16_T len;
 	U8_T valid;
 }STR_Flash_POS;
@@ -771,7 +718,7 @@ STR_Flash_POS  Flash_Position[24];
 void Flash_Inital(void)
 {
 	uint8_t loop;
-	uint32_t baseAddr = 0;
+	uint16_t baseAddr = 0;
 	uint16_t  len = 0;
 //	ChangeFlash = 0;
 	count_write_Flash = 0;
@@ -806,7 +753,7 @@ void Flash_Inital(void)
 			baseAddr += len;
 #if NEW_IO
 			if(max_vars <= MAX_VARS)
-				len = sizeof(Str_variable_point) * MAX_VARS;
+				len = sizeof(Str_variable_point) * max_vars;
 			else
 				len = sizeof(Str_variable_point) * max_vars;
 #else
@@ -879,12 +826,8 @@ void Flash_Inital(void)
 			break;
 		case GRP_POINT:
 			baseAddr += len;
-			len = sizeof(Str_grp_element_new) * MAX_ELEMENTS_NEW;
+			len = sizeof(Str_grp_element) * 240;
 			break;
-		/*case TEMCOVAR:
-			baseAddr += len;
-			len = sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS;
-			break;*/
 		case TBL:
 			baseAddr += len;
 			len = sizeof(Str_table_point) * MAX_TBLS ;
@@ -893,7 +836,10 @@ void Flash_Inital(void)
 			baseAddr += len;
 			len = sizeof(SCAN_DB) * SUB_NO;
 			break;
-
+		/*case ID_ROUTION:
+			baseAddr += len;
+			len = STORE_ID_LEN * 254;
+			break;*/
 		default:
 			//len = 0;
 			Flash_Position[loop].valid = 0;
@@ -907,14 +853,6 @@ void Flash_Inital(void)
 		Flash_Position[loop].len = len;
 		//write_page_en[loop] = 0;
 	}
-
-	// 把后面添加的TEMCO_VAR，添加到后面，避免把之前的flash弄乱
-	baseAddr += len;
-	len = sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS;
-	Flash_Position[TEMCOVAR].addr = baseAddr;
-	Flash_Position[TEMCOVAR].len = len;
-
-
 	for(loop = 0;loop < MAX_PRGS;loop++)
 		programs[loop].real_byte = 0;
 }
@@ -950,7 +888,6 @@ void Set_Object_Name(char * name)
 {
 	// store it to flash memory
 	memcpy(panelname,name,strlen(name));
-	panelname[strlen(name)] = 0;
 	save_block(FLASH_BLOCK2_PN);
 }
 
@@ -988,7 +925,7 @@ void Save_MSV(void)
 
 extern uint8_t flag_change_uart0;
 extern uint8_t count_change_uart0;
-void save_TemcoAV_value_AIRALB(uint16_t index, uint16_t value)
+void save_TemcoAV_AIRALB(uint16_t index, uint16_t value)
 {
 	if(index == 0)
 	{
@@ -1008,292 +945,30 @@ void save_TemcoAV_value_AIRALB(uint16_t index, uint16_t value)
 	if(index == 2)
 	{
 		Modbus.com_config[0] = value;
-		com_config_back[0] = Modbus.com_config[0];
 		save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
 		flag_change_uart0 = 1;
 		count_change_uart0 = 0;
 		Count_com_config();
 	}
-
-	pvars[index].value = value * 1000;
-	save_point_info(0);
 }
 
-void save_TemcoAV_value_T10(uint16_t index, uint32_t value)
+uint16_t get_TemcoAVS_airlab(uint8_t index)
 {
-	Str_points_ptr ptr;
-	if(index == 0)
-	{
-		if((value != 0) && (value != 255))
-		{
-			panel_number = value;
-			change_panel_number_in_code(Setting_Info.reg.panel_number,panel_number);
-			Setting_Info.reg.panel_number	= panel_number;
-			Modbus.address = panel_number;
-			Station_NUM = panel_number;
-			save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
-		}
-	}
-	else if(index == 1)
-	{
-		Modbus.baudrate[0] = value;
-		save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
-		flag_change_uart0 = 1;
-		count_change_uart0 = 0;
-	}
-	else if(index == 2)
-	{
-		Modbus.com_config[0] = value;
-		save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
-		flag_change_uart0 = 1;
-		count_change_uart0 = 0;
-		Count_com_config();
-		if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
-		{
-			Recievebuf_Initialize(0);
-		}
-		com_config_back[0] = Modbus.com_config[0];
-	}
-	else if(index == 3)
-	{
-		Modbus.icon_config = value;
-		save_uint8_to_flash( FLASH_ICON_CONFIG, Modbus.icon_config);
-	}
-	else if(index == 4)
-	{
-		Modbus.disable_tstat10_display = value;
-		save_uint8_to_flash( FLASH_DISABLE_T10_DIS, Modbus.disable_tstat10_display);
-	}
-	else if(index >= 11 && index <= 18)
-	{
-		ptr = put_io_buf(IN,index - 1);
-		ptr.pin->digital_analog = (U16_T)value >> 8;
-		ptr.pin->range = (U8_T)value;
-	}
-
-	pvars[index].value = value * 1000;
-	save_point_info(0);
-}
-
-
-uint16_t get_TemcoAVS_value_airlab(uint8_t index)
-{
-	uint32_t value = 0;
-	value = pvars[index].value / 1000;
-
 	if(index == 0)
 	{
 		return Modbus.address;
 	}
-	else if(index == 1)
+	if(index == 1)
 	{
 		return Modbus.baudrate[0];
 	}
-	else if(index == 2)
+	if(index == 2)
 	{
 		return Modbus.com_config[0];
 	}
-	else
-		return value;
+	return 0;
 }
 
-uint32_t UI_dis_value[3]; // 3 line
-uint32_t get_TemcoAVS_value_T10(uint8_t index)
-{
-	uint8_t i;
-	Str_points_ptr ptr;
-	uint32_t value = 0;
-
-	value = pvars[index].value / 1000;
-	switch(index)
-	{
-		case 0: value = panel_number;					break;
-		case 1: value = Modbus.baudrate[0];				break;
-		case 2: value = Modbus.com_config[0];			break;
-		case 3: value = pvars[index].value / 1000; 			break;
-		case 4: value = pvars[index].value / 1000; 			break;
-		case 11: ptr = put_io_buf(IN,0);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		case 12: ptr = put_io_buf(IN,1);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		case 13: ptr = put_io_buf(IN,2);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		case 14: ptr = put_io_buf(IN,3);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		case 15: ptr = put_io_buf(IN,4);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		case 16: ptr = put_io_buf(IN,5);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		case 17: ptr = put_io_buf(IN,6);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		case 18: ptr = put_io_buf(IN,7);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;					break;
-		/*case 19: value = pvars[index].value / 1000; break;// first line
-		case 20:value = pvars[index].value / 1000;break;// second line
-		case 21:value = pvars[index].value / 1000;break;// third line
-		case 22:value = pvars[index].value / 1000;break;//
-		case 23:value = pvars[index].value / 1000;break;
-		case 24:value = pvars[index].value / 1000;break;
-		case 25:value = pvars[index].value / 1000;break;*/
-		default:
-			break;
-	}
-
-	return value;
-}
-
-
-void update_pvar(uint8_t index, int32_t value)
-{
-	if(Modbus.mini_type == MINI_TSTAT10)
-	{
-		Str_points_ptr ptr;
-		uint32_t value = 0;
-
-		switch(index)
-		{
-		case 0:	pvars[0].value = panel_number * 1000;	break;
-		case 1: pvars[1].value = Modbus.baudrate[0] * 1000;	break;
-		case 2:	pvars[2].value = Modbus.com_config[0] * 1000; break;
-		case 3:	pvars[3].value = Modbus.icon_config * 1000; break;
-		case 4: pvars[4].value = Modbus.disable_tstat10_display * 1000; break;
-		case 11:
-		case 12:
-		case 13:
-		case 14:
-		case 15:
-		case 16:
-		case 17:
-		case 18:
-			ptr = put_io_buf(IN,index - 11);	value = (ptr.pin->digital_analog << 8) + ptr.pin->range;
-			pvars[index].value = value * 1000;
-			break;
-		default:
-			break;
-		}
-	}
-	if(Modbus.mini_type == PROJECT_AIRLAB)
-	{
-		Str_points_ptr ptr;
-		uint32_t value = 0;
-
-		switch(index)
-		{
-		case 0:	pvars[0].value = panel_number * 1000;	break;
-		case 1: pvars[1].value = Modbus.baudrate[0] * 1000;	break;
-		case 2:	pvars[2].value = Modbus.com_config[0] * 1000; break;
-			break;
-		default:
-			break;
-		}
-	}
-}
-
-
-
-uint32_t get_TemcoAVS_value(uint8_t index)
-{
-	if(Modbus.mini_type == MINI_TSTAT10)
-	{
-		return get_TemcoAVS_value_T10(index);
-	}
-	else
-	{
-		return get_TemcoAVS_value_airlab(index);
-	}
-
-}
-
-void save_TemcoAV_value(uint16_t index, uint32_t value)
-{
-	if(Modbus.mini_type == MINI_TSTAT10)
-	{
-		save_TemcoAV_value_T10(index,value);
-	}
-	else
-	{
-		save_TemcoAV_value_AIRALB(index,value);
-	}
-	save_point_info(0);
-}
-
-
-char* get_TemcoAV_description(uint8_t num)
-{
-	if(Modbus.mini_type == MINI_TSTAT10)
-	{
-		if(num == 0) return "device id";  // id
-		else if(num == 1) return "baudrate";
-		else if(num == 2) return "protocal";
-		else if(num == 3) return "icon configure";
-		else if(num == 4) return "disable_tstat10_display";
-		else if(num == 11) return "range_IN1";
-		else if(num == 12) return "range_IN2";
-		else if(num == 13) return "range_IN3";
-		else if(num == 14) return "range_IN4";
-		else if(num == 15) return "range_IN5";
-		else if(num == 16) return "range_IN6";
-		else if(num == 17) return "range_IN7";
-		else if(num == 18) return "range_IN8";
-		else if(num == 19) return "UI_first_line";
-		else if(num == 20) return "UI_second_line";
-		else if(num == 21) return "UI_third_line";
-		else if(num == 22) return "room_temperature";
-		else if(num == 23) return "outdoor_temperature";
-		else if(num == 24) return "room_humidity";
-		else if(num == 25) return "outdoor_humidity";
-		else return " ";
-	}
-	else
-	{
-		if(num == 0) return "device id";  // id
-		else if(num == 1) return "baudrate";
-		else if(num == 2) return "protocal";
-		else if(num == 19) return "UI_first_line";
-		else if(num == 20) return "UI_second_line";
-		else if(num == 21) return "UI_third_line";
-		else if(num == 22) return "room_temperature";
-		else if(num == 23) return "outdoor_temperature";
-		else if(num == 24) return "room_humidity";
-		else if(num == 25) return "outdoor_humidity";
-		else return " ";
-	}
-
-}
-
-char* get_TemcoAV_label(uint8_t num)
-{
-	if(Modbus.mini_type == MINI_TSTAT10)
-	{
-		if(num == 0) return "ID";  // id
-		else if(num == 1) return "baudrate";
-		else if(num == 2) return "protocal";
-		else if(num == 3) return "icon_cfg";
-		else if(num == 4) return "dsp_cfg";// disable_tstat10_display
-		else if(num == 11) return "range_1";
-		else if(num == 12) return "range_2";
-		else if(num == 13) return "range_3";
-		else if(num == 14) return "range_4";
-		else if(num == 15) return "range_5";
-		else if(num == 16) return "range_6";
-		else if(num == 17) return "range_7";
-		else if(num == 18) return "range_8";
-		else if(num >= 19 && num <= 25) return (char *)pvars[num].label;
-		else return " ";
-	}
-	else
-	{
-		if(num == 0) return "ID";  // id
-		else if(num == 1) return "baudrate";
-		else if(num == 2) return "protocal";
-		else if(num >= 19 && num <= 25) return (char *)pvars[num].label;
-		else return " ";
-	}
-
-}
-
-void update_all_pvars(void)
-{
-	uint8_t i;
-	for(i = 0;i < 30;i++)
-	{
-		memcpy(pvars[i].description,get_TemcoAV_description(i),21);
-		memcpy(pvars[i].label,get_TemcoAV_label(i),9);
-		update_pvar(i,(int32_t)(pvars[i].value / 1000));
-	}
-}
 
 void Store_Instance_To_Eeprom(uint32_t Instance)
 {
@@ -1342,6 +1017,7 @@ esp_err_t save_block(uint8_t key)
 		if (err != ESP_OK) return err;
 		break;
 	case FLASH_BLOCK_MSV:
+		Test[10]++;
 		err = nvs_set_blob(my_handle, FLASH_MSV, (const void*)(&msv_data), sizeof(multiple_struct) * MAX_MSV * STR_MSV_MULTIPLE_COUNT);
 		if (err != ESP_OK) return err;
 		break;
@@ -1492,9 +1168,10 @@ esp_err_t save_point_info(uint8_t point_type)
 			case GRP_POINT:
 				memcpy(tempbuf,&group_data_new,sizeof(Str_grp_element_new));
 				break;
-			case TEMCOVAR:
-				memcpy(tempbuf,&pvars, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
-				break;
+	/*		case ID_ROUTION:
+				for(i = 0;i < 254;i++)
+				memcpy(&tempbuf[i * STORE_ID_LEN],&ID_Config[i], STORE_ID_LEN);		// store 15 bytes
+				break;*/
 			case SUB_DB:
 				memcpy(tempbuf,&scan_db,sizeof(SCAN_DB) * SUB_NO);
 				break;
@@ -1937,6 +1614,7 @@ void Initial_points(uint8_t point_type)
 
 		if(Modbus.mini_type == MINI_TSTAT10)
 		{
+
 			ptr = put_io_buf(IN,8);
 			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
 			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
@@ -2104,7 +1782,7 @@ void read_point_info(void)
 			// if initial status
 			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
 			{
-				Initial_points(VAR);
+				Initial_points(VAR);Test[23]++;
 			}
 			break;
 
@@ -2163,9 +1841,14 @@ void read_point_info(void)
 		case GRP_POINT:
 			memcpy(&group_data_new,tempbuf,sizeof(Str_grp_element_new));
 			break;
-		case TEMCOVAR:
-			memcpy(&pvars,tempbuf,sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
-			break;
+		/*case ID_ROUTION:
+			for(i = 0;i < 254;i++)
+			{
+				memcpy(&ID_Config[i],&tempbuf[i * STORE_ID_LEN],STORE_ID_LEN);
+				ID_Config_Sche[i] = ID_Config[i].Str.schedule;
+			}
+			break;*/
+
 		default:
 			break;
 
@@ -2183,21 +1866,15 @@ void read_point_info(void)
 
 	}
 
-	update_all_pvars();
+
 }
 
 #if 1//TRENDLOG
 
 // SPI_FLASH_SEC_SIZE = 4k
-uint16_t max_trend_page = MAX_TREND_PAGE;
-uint16_t get_max_trend_page(void)
-{
-	return max_trend_page;
-}
-
-
+#define 	MAX_TREND_PAGE 16	// max page is 16, 16 * 4k = 64k
 uint16_t current_page;  //
-//uint16_t total_page;
+uint16_t total_page;
 extern uint8_t flag_flash_covered;
 esp_err_t save_trendlog(void)
 {
@@ -2206,35 +1883,20 @@ esp_err_t save_trendlog(void)
 	uint16_t loop;
 	//  step 1: Ѱ���û�flash id
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
+
 	assert(partition != NULL);
 
 //	sprintf(debug_array,"save_trendlog current_page = %d \r",current_page);
 //	debug_info(debug_array);
-	if(partition->size == 0x20000)
-	{
-		max_trend_page = MAX_TREND_PAGE;
-		err = esp_partition_erase_range(partition, TRENDLOG_ADDR + (current_page % MAX_TREND_PAGE) * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);
-	}
-	else
-	{
-		max_trend_page = MAX_TREND_PAGE_NEW;
-		err = esp_partition_erase_range(partition, TRENDLOG_ADDR_NEW + (current_page % MAX_TREND_PAGE_NEW) * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);
-	}
+	err = esp_partition_erase_range(partition, TRENDLOG_ADDR + (current_page % MAX_TREND_PAGE) * SPI_FLASH_SEC_SIZE, SPI_FLASH_SEC_SIZE);
 	if(err != 0)
 	{//debug_info("erase error");
-
 	 return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
 	}
 	//else
 		//debug_info("erase ok");
-	if(partition->size == 0x20000)
-	{
-		err = esp_partition_write(partition, TRENDLOG_ADDR + (current_page % MAX_TREND_PAGE) * SPI_FLASH_SEC_SIZE,write_mon_point_buf_to_flash,SPI_FLASH_SEC_SIZE);
-	}
-	else
-	{
-		err = esp_partition_write(partition, TRENDLOG_ADDR_NEW + (current_page % MAX_TREND_PAGE_NEW) * SPI_FLASH_SEC_SIZE,write_mon_point_buf_to_flash,SPI_FLASH_SEC_SIZE);
-	}
+
+	err = esp_partition_write(partition, TRENDLOG_ADDR + (current_page % MAX_TREND_PAGE) * SPI_FLASH_SEC_SIZE,write_mon_point_buf_to_flash,SPI_FLASH_SEC_SIZE);
 
    if(err != 0)
    {//debug_info("flash write error");
@@ -2244,13 +1906,15 @@ esp_err_t save_trendlog(void)
 	  // debug_info("flash write ok");
    // save current_page
 
+
    current_page++;
    /*if(current_page >= MAX_TREND_PAGE)
    {
 	   current_page = 0;
 	   flag_flash_covered = 1;
    }*/
-
+   Test[22]++;
+   Test[23] = current_page;
    save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE,current_page);
 	return ESP_OK;
 }
@@ -2272,29 +1936,17 @@ esp_err_t read_trendlog(uint16_t page_total,uint8_t seg)
 	// bacnet trasfer length is defined 400 by us
 	// total 11 packets, 400 * 10 + 96 = 4096
 	uint8_t page;
+	page = page_total % MAX_TREND_PAGE;
 
-	if(partition->size == 0x20000) // old partion
-	{
-		max_trend_page = MAX_TREND_PAGE;
-		page = page_total % MAX_TREND_PAGE;
-		if(seg < 10)
-			err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 400);
-		else if(seg == 10)
-			err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 96);
-		else
-			err = 1;
-	}
-	else // 0x40000 new parition
-	{
-		max_trend_page = MAX_TREND_PAGE_NEW;
-		page = page_total % MAX_TREND_PAGE_NEW;
-		if(seg < 10)
-			err = esp_partition_read(partition, TRENDLOG_ADDR_NEW + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 400);
-		else if(seg == 10)
-			err = esp_partition_read(partition, TRENDLOG_ADDR_NEW + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 96);
-		else
-			err = 1;
-	}
+	Test[20]++;
+	Test[21] = page;
+	if(seg < 10)
+		err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 400);
+	else if(seg == 10)
+		err = esp_partition_read(partition, TRENDLOG_ADDR + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 96);
+	else
+		err = 1;
+
 	return err;
 
 }

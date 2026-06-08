@@ -94,8 +94,6 @@ typedef enum{
 #define SENSIRION_NUM_WORDS(x) (sizeof(x) / SENSIRION_WORD_SIZE)
 #define SENSIRION_MAX_BUFFER_WORDS 32
 
-typedef enum { BYTE = 1, SHORT = 2, INTEGER = 4, LONG_INTEGER = 8 } INT_TYPE;
-
 uint8_t sensirion_common_generate_crc(uint8_t *data, uint16_t count);
 
 int8_t sensirion_common_check_crc(uint8_t *data, uint16_t count,
@@ -332,31 +330,10 @@ int16_t sensirion_i2c_read_data_inplace(uint8_t address, uint8_t* buffer,
                                         uint16_t expected_data_length);
 
 uint16_t sensirion_common_bytes_to_uint16_t(const uint8_t* bytes);
-uint32_t sensirion_common_bytes_to_uint32_t(const uint8_t* bytes);
-int16_t sensirion_common_bytes_to_int16_t(const uint8_t* bytes);
-int32_t sensirion_common_bytes_to_int32_t(const uint8_t* bytes);
-float sensirion_common_bytes_to_float(const uint8_t* bytes);
 
 uint16_t sensirion_i2c_add_uint16_t_to_buffer(uint8_t* buffer, uint16_t offset,
                                               uint16_t data);
 
 int16_t sensirion_i2c_read_words_as_bytes(uint8_t address, uint8_t* data,
                                           uint16_t num_words);
-
-uint16_t sensirion_i2c_add_command16_to_buffer(uint8_t* buffer, uint16_t offset,
-                                               uint16_t command);
-uint16_t sensirion_i2c_add_command8_to_buffer(uint8_t* buffer, uint16_t offset,
-                                              uint8_t command);
-uint16_t sensirion_i2c_add_uint32_t_to_buffer(uint8_t* buffer, uint16_t offset,
-                                              uint32_t data);
-uint16_t sensirion_i2c_add_int32_t_to_buffer(uint8_t* buffer, uint16_t offset,
-                                             int32_t data);
-uint16_t sensirion_i2c_add_float_to_buffer(uint8_t* buffer, uint16_t offset,
-                                           float data);
-
-void sensirion_common_to_integer(const uint8_t* source, uint8_t* destination,
-                                 INT_TYPE int_type, uint8_t data_length);
-
-uint16_t sensirion_i2c_add_int16_t_to_buffer(uint8_t* buffer, uint16_t offset,
-                                             int16_t data);
 #endif /* SENSIRION_COMMON_H */

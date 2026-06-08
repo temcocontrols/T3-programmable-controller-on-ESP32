@@ -259,9 +259,8 @@ bool TemcoVars_Write_Property(
 						}*/
             break;
 				case PROP_OBJECT_NAME:
-
 					if (value.tag == BACNET_APPLICATION_TAG_CHARACTER_STRING) {
-					write_bacnet_name_to_buf(TEMCOAV,wp_data->priority,object_index,value.type.Character_String.value);
+					write_bacnet_name_to_buf(AV,wp_data->priority,object_index,value.type.Character_String.value);
                 status = true;
             } else {
                 wp_data->error_class = ERROR_CLASS_PROPERTY;

@@ -509,9 +509,9 @@ void apdu_handler(
 									
 
 						
-				if (service_choice == SERVICE_CONFIRMED_READ_PROPERTY) {								
-										handler_read_property(service_request,service_request_len,
-											src, &service_data, protocal);
+							if (service_choice == SERVICE_CONFIRMED_READ_PROPERTY) {								
+										handler_read_property(service_request,
+												service_request_len, src, &service_data, protocal);
 	            }else if (service_choice == SERVICE_CONFIRMED_READ_PROP_MULTIPLE) {	
 										handler_read_property_multiple(service_request,
 												service_request_len, src, &service_data,  protocal);
@@ -567,16 +567,12 @@ void apdu_handler(
 								handler_atomic_write_file(service_request,service_request_len, src,&service_data,protocal);
 							}							
 							
-#endif	
-							else if(service_choice == SERVICE_CONFIRMED_GET_EVENT_INFORMATION)
-							{
-								handler_get_event_information(service_request,service_request_len, src,&service_data,protocal);
-							}
+#endif
 							else
 							{ 
 								handler_unrecognized_service(service_request,
-										service_request_len, src, &service_data,protocal);
-							}
+	                service_request_len, src, &service_data,protocal);
+	            } 	
 											
                 break;
             case PDU_TYPE_UNCONFIRMED_SERVICE_REQUEST:

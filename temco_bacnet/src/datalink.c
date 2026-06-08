@@ -159,7 +159,7 @@ uint16_t datalink_receive (BACNET_ADDRESS * src, uint8_t * pdu,
 
 void datalink_get_broadcast_address ( BACNET_ADDRESS * dest,uint8_t protocal)
 {
-	if(protocal == BAC_MSTP)
+  if(protocal == BAC_MSTP)
 	{
 		dlmstp_get_broadcast_address(dest);
 	}

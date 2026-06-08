@@ -38,16 +38,14 @@ extern uint8_t count_lcd_time_off_delay;
 extern uint8_t count_hold_on_bip_to_mstp;
 extern uint32_t net_health[4];
 void Set_broadcast_bip_address(uint32_t net_address);
-void save_TemcoAV_value(uint16_t index, uint32_t value);
-uint16_t get_TemcoAVS_value(uint8_t index);
-//void save_TemcoAV_value(uint16_t index, uint32_t value);
-char* get_TemcoAV_description(uint8_t index);
-char* get_TemcoAV_label(uint8_t index);
+void save_TemcoAV_AIRALB(uint16_t index, uint16_t value);
+uint16_t get_TemcoAVS_airlab(uint8_t index);
+
+
 char get_current_mstp_port(void)
 {
 	return 0;
 }
-
 uint8_t get_max_internal_output(void);
 extern void set_output_raw(uint8_t point,uint16_t value);
 int save_point_info(uint8_t point_type);
@@ -63,7 +61,6 @@ U8_T base_var;
 extern U8_T max_aos;
 extern U8_T max_dos;
 extern S16_T timezone;
-extern uint8_t TemcoVars;
 
 //extern U16_T input_raw[64];
 //extern U16_T output_raw[64];
@@ -244,21 +241,21 @@ char* get_description(uint8_t type,uint8_t num)
 	if(type == AV)	
 	{	
 		Get_index_by_AVx(num,&io_index);
-		if(io_index >= max_vars) return NULL;
+		if(io_index >= MAX_AVS) return NULL;
 		ptr = put_io_buf(VAR,io_index);
 		return (char*)ptr.pvar->label;
 	}
 	if(type == BV)	
 	{	
 		Get_index_by_BVx(num,&io_index);
-		if(io_index >= max_vars) return NULL;
+		if(io_index >= MAX_BVS) return NULL;
 		ptr = put_io_buf(VAR,io_index);
 		return (char*)ptr.pvar->label;
 	}
 	if(type == AI)	
 	{		
 		Get_index_by_AIx(num,&io_index);
-		if(io_index >= max_inputs) return NULL;
+		if(io_index >= MAX_AIS) return NULL;
 		ptr = put_io_buf(IN,io_index);
 		return (char*)ptr.pin->label;
 		
@@ -266,27 +263,51 @@ char* get_description(uint8_t type,uint8_t num)
 	if(type == BI)	
 	{		
 		Get_index_by_BIx(num,&io_index);
-		if(io_index >= max_inputs) return NULL;
+		if(io_index >= MAX_AIS) return NULL;
 		ptr = put_io_buf(IN,io_index);
 		return (char*)ptr.pin->label;
 	}
 	if(type == AO)
 	{		
 		Get_index_by_AOx(num,&io_index);
-		if(io_index >= max_outputs) return NULL;
+		if(io_index >= MAX_AOS) return NULL;
 		ptr = put_io_buf(OUT,io_index);
 		return (char*)ptr.pout->label;
 	}
 	if(type == BO)
 	{
 		Get_index_by_BOx(num,&io_index);
-		if(io_index >= max_outputs) return NULL;
+		if(io_index >= MAX_BOS) return NULL;
 		ptr = put_io_buf(OUT,io_index);
 		return (char*)ptr.pout->label;
 	}
 	if(type == TEMCOAV)
 	{
-		return get_TemcoAV_description(num);
+		if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
+		{
+			if(num == 0) return "panel number";
+			/*else if(num == 1) return "dead master";
+			else if(num == 2) return "lcd time off delay";
+			else if(num == 3) return "disable icon";
+			else if(num == 4) return "lcd display configure";
+			else if(num == 5) return "icon configure";*/
+			else if(num == 1) return "range_IN1";
+			else if(num == 2) return "range_IN2";
+			else if(num == 3) return "range_IN3";
+			else if(num == 4) return "range_IN4";
+			else if(num == 5) return "range_IN5";
+			else if(num == 6) return "range_IN6";
+			else if(num == 7) return "range_IN7";
+			else if(num == 8) return "range_IN8";
+			else return "reserved";
+		}
+		else
+		{
+			if(num == 0) return "device id";  // id
+			if(num == 1) return "baudrate";
+			if(num == 2) return "protocal";
+			else return "reserved";
+		}
 
 	}
 
@@ -317,42 +338,42 @@ char* get_label(uint8_t type,uint8_t num)
 	if(type == AV)	
 	{
 		Get_index_by_AVx(num,&io_index);		
-		if(io_index >= max_vars) return NULL;
+		if(io_index >= MAX_AVS) return NULL;
 		ptr = put_io_buf(VAR,io_index);
 		return (char*)ptr.pvar->description;
 	}
 	if(type == BV)	
 	{
 		Get_index_by_BVx(num,&io_index);		
-		if(io_index >= max_vars) return NULL;
+		if(io_index >= MAX_BVS) return NULL;
 		ptr = put_io_buf(VAR,io_index);
 		return (char*)ptr.pvar->description;
 	}
 	if(type == AI)
 	{	
 		Get_index_by_AIx(num,&io_index);		
-		if(io_index >= max_inputs) return NULL;
+		if(io_index >= MAX_AIS) return NULL;
 		ptr = put_io_buf(IN,io_index);
 		return (char*)ptr.pin->description;
 	}
 	if(type == BI)
 	{		
 		Get_index_by_BIx(num,&io_index);
-		if(io_index >= max_inputs) return NULL;
+		if(io_index >= MAX_AIS) return NULL;
 		ptr = put_io_buf(IN,io_index);
 		return (char*)ptr.pin->description;
 	}
 	if(type == AO)
 	{		
 		Get_index_by_AOx(num,&io_index);
-		if(io_index >= max_outputs) return NULL;
+		if(io_index >= MAX_AOS) return NULL;
 		ptr = put_io_buf(OUT,io_index);
 		return (char*)ptr.pout->description;
 	}
 	if(type == BO)	
 	{
 		Get_index_by_BOx(num,&io_index);
-		if(io_index >= max_outputs) return NULL;
+		if(io_index >= MAX_BOS) return NULL;
 		ptr = put_io_buf(OUT,io_index);
 		return (char*)ptr.pout->description;
 	}
@@ -367,7 +388,32 @@ char* get_label(uint8_t type,uint8_t num)
 #if BAC_PROPRIETARY
 	if(type == TEMCOAV)
 	{
-		return get_TemcoAV_label(num);
+
+		if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
+		{
+			if(num == 0) return "panel number";
+			/*else if(num == 1) return "dead master";
+			else if(num == 2) return "lcd time off delay";
+			else if(num == 3) return "disable icon";
+			else if(num == 4) return "lcd display configure";
+			else if(num == 5) return "icon configure";*/
+			else if(num == 1) return "range_IN1";
+			else if(num == 2) return "range_IN2";
+			else if(num == 3) return "range_IN3";
+			else if(num == 4) return "range_IN4";
+			else if(num == 5) return "range_IN5";
+			else if(num == 6) return "range_IN6";
+			else if(num == 7) return "range_IN7";
+			else if(num == 8) return "range_IN8";
+			else return "reserved";
+		}
+		else
+		{
+			if(num == 0) return "device id";  // id
+			if(num == 1) return "baudrate";
+			if(num == 2) return "protocal";
+			else return "reserved";
+		}
 
 	}
 #endif
@@ -384,7 +430,7 @@ char get_range(uint8_t type,uint8_t num)
 		Get_index_by_AVx(num,&io_index);
 		ptr = put_io_buf(VAR,io_index);
 
-		if(io_index >= max_vars) return 0;
+		if(io_index >= MAX_AVS) return 0;
 // add unit
 		if(ptr.pvar->range == not_used_input)
 			return UNITS_NO_UNITS;  
@@ -428,7 +474,7 @@ char get_range(uint8_t type,uint8_t num)
 		Get_index_by_AIx(num,&io_index);		
 		ptr = put_io_buf(IN,io_index);
 
-		if(io_index >= max_inputs) return 0;
+		if(io_index >= MAX_AIS) return 0;
 		if(ptr.pin->digital_analog == 0)  // digital
 		{
 			return UNITS_NO_UNITS;	
@@ -469,12 +515,12 @@ char get_range(uint8_t type,uint8_t num)
 	}
 	if(type == BO)	
 	{
-		if(num >= max_outputs) return 0;
+		if(num >= MAX_BOS) return 0;
 		return UNITS_NO_UNITS;	
 	}
 	if(type == BI)	
 	{
-		if(num >= max_inputs) return 0;
+		if(num >= MAX_BIS) return 0;
 		return UNITS_NO_UNITS;	
 	}
 	return 0;
@@ -512,14 +558,14 @@ char Get_Out_Of_Service(uint8_t type,uint8_t num)
 	{
 		Get_index_by_AVx(num,&io_index);
 		ptr = put_io_buf(VAR,io_index);
-		if(io_index >= max_vars) return 0;
+		if(io_index >= MAX_AVS) return 0;
 		return ptr.pvar->auto_manual;
 	}
 	else if(type == BV)	
 	{
 		Get_index_by_BVx(num,&io_index);
 		ptr = put_io_buf(VAR,io_index);
-		if(io_index >= max_vars) return 0;
+		if(io_index >= MAX_BVS) return 0;
 		return ptr.pvar->auto_manual;
 	}
 	else
@@ -543,7 +589,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 				return ptr.pvar->value;
 			}
 			
-//			if(ptr.pvar->range > 0)
+			if(ptr.pvar->range > 0)
 			{
 				if(ptr.pvar->digital_analog == 1)  // av
 				{
@@ -555,7 +601,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		case BV:
 			Get_index_by_BVx(i,&io_index);
 			ptr = put_io_buf(VAR,io_index);
-//			if(ptr.pvar->range > 0)
+			if(ptr.pvar->range > 0)
 			{
 				if(ptr.pvar->digital_analog == 0)  // bv
 				{
@@ -590,7 +636,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		case BI:
 			Get_index_by_BIx(i,&io_index);
 			ptr = put_io_buf(IN,io_index);
-//			if(ptr.pin->range > 0)
+			if(ptr.pin->range > 0)
 			{
 				if(ptr.pin->digital_analog == 0)  // digital
 				{
@@ -621,19 +667,19 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 					}	
 				}
 			}
-//			else
-//				return input_raw[io_index];
+			else
+				return input_raw[io_index];
 		//break;
 		case AI:
 			Get_index_by_AIx(i,&io_index);
 			ptr = put_io_buf(IN,io_index);
-//			if(ptr.pin->range > 0)
+			if(ptr.pin->range > 0)
 			{
 				if(ptr.pin->digital_analog == 1)  // analog
 					return (float) (ptr.pin->value) / 1000;
 			}
-//			else
-//				return input_raw[io_index];
+			else
+				return input_raw[io_index];
 		//break;
 		case AO:
 		// find output index by AOx
@@ -750,8 +796,42 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		//break;	
 //#if BAC_PROPRIETARY
 		case TEMCOAV:
-		{			
-			return get_TemcoAVS_value(i);
+		{
+			uint32 value = 0;
+			if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
+			{
+				switch(i)
+				{
+					case 0: value = panel_number; 				
+						break;				
+/*					case 1:
+						if(Modbus.dead_master & 0x80)  // bit7 is tha flag whether enable deadmaster
+							value = Modbus.dead_master & 0x7f;
+						else  // disable deadmaster
+							value = 0;
+						break;
+					case 2:	value = Modbus.LCD_time_off_delay;					break;
+					case 3:	value = Modbus.disable_tstat10_display;			break;
+	//					case 4:		value = Modbus.display_lcd;		break;
+					case 5:	value = Modbus.icon_config;				break;*/
+					case 1: value = (inputs[0].digital_analog << 8) + inputs[0].range;					break;
+					case 2: value = (inputs[1].digital_analog << 8) + inputs[1].range;					break;
+					case 3: value = (inputs[2].digital_analog << 8) + inputs[2].range;					break;
+					case 4: value = (inputs[3].digital_analog << 8) + inputs[3].range;					break;
+					case 5: value = (inputs[4].digital_analog << 8) + inputs[4].range;					break;
+					case 6: value = (inputs[5].digital_analog << 8) + inputs[5].range;					break;
+					case 7: value = (inputs[6].digital_analog << 8) + inputs[6].range;					break;
+					case 8: value = (inputs[7].digital_analog << 8) + inputs[7].range;					break;
+					default:
+						value = 0;
+					break;
+				}
+			}
+			else
+			{
+				value = get_TemcoAVS_airlab(i);
+			}			
+			return value;
 		}
 //#endif
 		
@@ -761,8 +841,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 					switch(i)
 					{
 						case 0:
-							ptr = put_io_buf(VAR,7);
-							return ptr.pvar->value / 1000;
+							return vars[7].value / 1000;
 						default:
 							break;
 
@@ -1058,7 +1137,7 @@ void write_bacnet_unit_to_buf(uint8_t type,uint8_t priority,uint8_t i,uint8_t un
 		{
 			case AI:
 				Get_index_by_AIx(i,&io_index);
-				if(io_index >=  max_inputs) break;
+				if(io_index >=  MAX_AIS) break;
 				ptr = put_io_buf(IN,io_index);
 				if(unit == UNITS_NO_UNITS)
 				{
@@ -1104,7 +1183,7 @@ void write_bacnet_unit_to_buf(uint8_t type,uint8_t priority,uint8_t i,uint8_t un
 				break;
 			case BO:
 				Get_index_by_BOx(i,&io_index);
-				if(io_index >= max_outputs) break;
+				if(io_index >= MAX_BOS) break;
 				ptr = put_io_buf(OUT,io_index);
 				ptr.pout->digital_analog = 0;
 				if(unit == UNITS_NO_UNITS)
@@ -1118,7 +1197,7 @@ void write_bacnet_unit_to_buf(uint8_t type,uint8_t priority,uint8_t i,uint8_t un
 			case AO:
 				Get_index_by_AOx(i,&io_index);
 
-				if(io_index >= max_outputs) break;
+				if(io_index >= MAX_AOS) break;
 				ptr = put_io_buf(OUT,io_index);
 			
 				ptr.pout->digital_analog = 1;
@@ -1130,7 +1209,7 @@ void write_bacnet_unit_to_buf(uint8_t type,uint8_t priority,uint8_t i,uint8_t un
 				push_expansion_out_stack(ptr.pout,io_index,1);	
 			
 				break;
-			
+	
 			default:
 			break;
 		}
@@ -1145,7 +1224,7 @@ void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,cha
 		{
 			case AI:
 				Get_index_by_AIx(i,&io_index);
-				if(io_index >= max_inputs) break;
+				if(io_index >= MAX_AIS) break;
 				ptr = put_io_buf(IN,io_index);
 				memcpy(ptr.pin->label,str,8);
 
@@ -1154,7 +1233,7 @@ void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,cha
 				break;
 			case BI:
 				Get_index_by_BIx(i,&io_index);
-				if(io_index >= max_inputs) break;
+				if(io_index >= MAX_AIS) break;
 				ptr = put_io_buf(IN,io_index);
 				memcpy(ptr.pin->label,str,8);
 
@@ -1163,7 +1242,7 @@ void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,cha
 				break;
 			case BO:
 				Get_index_by_BOx(i,&io_index);
-				if(io_index >= max_outputs) break;
+				if(io_index >= MAX_BOS) break;
 				ptr = put_io_buf(OUT,io_index);
 				memcpy(ptr.pout->label,str,8);
 
@@ -1172,7 +1251,7 @@ void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,cha
 				break;
 			case AO:
 				Get_index_by_AOx(i,&io_index);
-				if(io_index >= max_outputs) break;
+				if(io_index >= MAX_AOS) break;
 				ptr = put_io_buf(OUT,io_index);
 				memcpy(ptr.pout->label,str,8);
 
@@ -1181,28 +1260,27 @@ void write_bacnet_description_to_buf(uint8_t type,uint8_t priority,uint8_t i,cha
 				break;
 			case AV:
 				Get_index_by_AVx(i,&io_index);
-				if(io_index >= max_vars) break;
+				if(io_index >= MAX_AVS) break;
 				ptr = put_io_buf(VAR,io_index);
 				memcpy(ptr.pvar->label,str,8);
 				break;
 			case BV:
 				Get_index_by_BVx(i,&io_index);
-				if(io_index >= max_vars) break;
+				if(io_index >= MAX_BVS) break;
 				ptr = put_io_buf(VAR,io_index);
 				memcpy(ptr.pvar->label,str,8);
 				break;
 			case SCHEDULE:
 				if(i >= MAX_SCHEDULES) break;
+
 				memcpy(weekly_routines[i].label,str,8);
 				break;
 			case CALENDAR:
 				if(i >= MAX_CALENDARS) break;
+
 				memcpy(annual_routines[i].label,str,8);
 				break;
-			case TEMCOAV:
-				if(i >= MAX_TEMCOVARS)	break;
-				memcpy(pvars[i].label,str,8);
-				break;
+
 			default:
 			break;
 		}
@@ -1220,23 +1298,23 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 			case AV:
 			Get_index_by_AVx(i,&io_index);
 			ptr = put_io_buf(VAR,io_index);
-			if(io_index >= max_vars) break;
+			if(io_index >= MAX_AVS) break;
 			if(ptr.pvar->digital_analog == 1)  // analog
 			{	
-//				if(ptr.pvar->range == 0)
-//					ptr.pvar->range = R10K_40_120DegC;
+				if(ptr.pvar->range == 0)
+					ptr.pvar->range = R10K_40_120DegC;
 				ptr.pvar->value =  (value * 1000) ;
 			}
 			ptr.pvar->value =  (value * 1000);
 				break;
 			case BV:
 			Get_index_by_BVx(i,&io_index);			
-			if(io_index >= max_vars) break;
+			if(io_index >= MAX_BVS) break;
 			ptr = put_io_buf(VAR,io_index);
 			if(ptr.pvar->digital_analog == 0)  // digital
 			{
-//				if(ptr.pvar->range == 0)
-//					ptr.pvar->range = OFF_ON;
+				if(ptr.pvar->range == 0)
+					ptr.pvar->range = OFF_ON;
 				ptr.pvar->value =  (value * 1000);	
 
 				if(( ptr.pvar->range >= ON_OFF && ptr.pvar->range <= HIGH_LOW )
@@ -1255,12 +1333,12 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 				break;
 			case AI:
 				Get_index_by_AIx(i,&io_index);
-				if(io_index >= max_inputs) break;
+				if(io_index >= MAX_AIS) break;
 				ptr = put_io_buf(IN,io_index);
 				if(ptr.pin->digital_analog == 1)  // digital
 				{	
-//					if(ptr.pin->range == 0)
-//						ptr.pin->range = R10K_40_120DegC;
+					if(ptr.pin->range == 0)
+						ptr.pin->range = R10K_40_120DegC;
 					ptr.pin->value =  (value * 1000) ;
 				}
 
@@ -1270,13 +1348,14 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 				
 			case BI:
 				Get_index_by_BIx(i,&io_index);
-				if(io_index >= max_inputs) break;
+				if(io_index >= MAX_AIS) break;
 				ptr = put_io_buf(IN,io_index);
 				if(ptr.pin->digital_analog == 0)  // digital
 				{
-//					if(ptr.pin->range == 0)
-//						ptr.pin->range = OFF_ON;
+					if(ptr.pin->range == 0)
+						ptr.pin->range = OFF_ON;
 					ptr.pin->value =  (value * 1000);	
+//					inputs[i].control = value ? 1 : 0;	
 
 					if(( ptr.pin->range >= ON_OFF && ptr.pin->range <= HIGH_LOW )
 					||(ptr.pin->range >= custom_digital1 // customer digital unit
@@ -1292,8 +1371,8 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 				}
 				else
 				{	
-//					if(ptr.pin->range == 0)
-//						ptr.pin->range = R10K_40_120DegC;
+					if(ptr.pin->range == 0)
+						ptr.pin->range = R10K_40_120DegC;
 					ptr.pin->value =  (value * 1000) ;
 				}
 
@@ -1302,7 +1381,7 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 				break;
 			case BO:
 				Get_index_by_BOx(i,&io_index);
-				if(io_index >= max_outputs) break;
+				if(io_index >= MAX_BOS) break;
 				ptr = put_io_buf(OUT,io_index);
 				if(value == 0xff)	
 					output_priority[io_index][priority] = 0xff;	
@@ -1354,19 +1433,19 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 					ptr.pout->auto_manual = 1;
 				}
 
-//				if( ptr.pout->range == 0)
-//					ptr.pout->range = OFF_ON;			
+				if( ptr.pout->range == 0)
+					ptr.pout->range = OFF_ON;			
 					
 				push_expansion_out_stack(ptr.pout,io_index,0);
 
 				break;
 			case AO:	
 				Get_index_by_AOx(i,&io_index);
-				if(io_index >= max_outputs) break;
+				if(io_index >= MAX_AOS) break;
 				ptr = put_io_buf(OUT,io_index);
 				
-//				if(ptr.pout->range == 0)
-//					ptr.pout->range = V0_10;
+				if(ptr.pout->range == 0)
+					ptr.pout->range = V0_10;
 				ptr.pout->digital_analog = 1;
 
 				if(io_index < max_aos + max_dos)
@@ -1410,11 +1489,44 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 				}
 				break;
 
-			case TEMCOAV:			
-			
-				save_TemcoAV_value(i,  value);
+			case TEMCOAV:
+			if(Get_Mini_Type() == 9/*MINI_TSTAT10*/)
+			{
+				/*if(i == 1)
+				{
+					//Modbus.dead_master = value;				
+					//E2prom_Write_Byte(EEP_DEAD_MASTER,Modbus.dead_master);
+					//clear_dead_master();
+				}
+				else if(i == 2)
+				{
+					//Modbus.LCD_time_off_delay = value;				
+					//E2prom_Write_Byte(EEP_LCD_TIME_OFF_DELAY,value);
+					//count_lcd_time_off_delay = 0;
+				}
+				else if(i == 3)
+				{
+					//Modbus.disable_tstat10_display = value;
+					//E2prom_Write_Byte(EEP_DISABLE_T10_DIS,value);
+				}
+				else if(i == 5)
+				{
+					save_icon_config(value);
+				}
+				else*/ if(i >= 1 && i<= 8)
+				{				
+					inputs[i - 1].digital_analog = (U16_T)value >> 8;
+					inputs[i - 1].range = (U8_T)value;
+					//write_page_en[IN] = 1;	
+					//ChangeFlash = 1;
+					save_point_info(0);
+				}
+			}
+			else
+			{
+				save_TemcoAV_AIRALB(i,  value);
 				
-			
+			}
 			break;
 
 
@@ -1470,28 +1582,28 @@ void write_bacnet_name_to_buf(uint8_t type,uint8_t priority,uint8_t i,char* str)
 	{
 		case AI:
 			Get_index_by_AIx(i,&io_index);
-			if(io_index >= max_inputs) break;
+			if(io_index >= MAX_AVS) break;
 			ptr = put_io_buf(IN,io_index);
 			memcpy(ptr.pin->description,str,21);
 			push_expansion_in_stack(ptr.pin);
 			break;
 		case BI:
 			Get_index_by_BIx(i,&io_index);
-			if(io_index >= max_inputs) break;
+			if(io_index >= MAX_AVS) break;
 			ptr = put_io_buf(IN,io_index);
 			memcpy(ptr.pin->description,str,21);
 			push_expansion_in_stack(ptr.pin);
 			break;
 		case BO:
 			Get_index_by_BOx(i,&io_index);
-			if(io_index >= max_outputs) break;
+			if(io_index >= MAX_BOS) break;
 			ptr = put_io_buf(OUT,io_index);
 			memcpy(ptr.pout->description,str,19);
 			push_expansion_out_stack(ptr.pout,io_index,1);
 			break;
 		case AO:
 			Get_index_by_AOx(i,&io_index);
-			if(io_index >= max_outputs) break;
+			if(io_index >= MAX_AOS) break;
 			ptr = put_io_buf(OUT,io_index);
 			memcpy(ptr.pout->description,str,19);
 			push_expansion_out_stack(ptr.pout,io_index,1);
@@ -1499,27 +1611,25 @@ void write_bacnet_name_to_buf(uint8_t type,uint8_t priority,uint8_t i,char* str)
 			break;
 		case AV:
 			Get_index_by_AVx(i,&io_index);
-			if(io_index >= max_vars) break;
+			if(io_index >= MAX_AVS) break;
 			ptr = put_io_buf(VAR,io_index);
 			memcpy(ptr.pvar->description,str,21);
 			break;
 		case BV:
 			Get_index_by_BVx(i,&io_index);
-			if(io_index >= max_vars) break;
+			if(io_index >= MAX_AVS) break;
 			ptr = put_io_buf(VAR,io_index);
 			memcpy(ptr.pvar->description,str,21);
 			break;
 		case SCHEDULE:
 			if(i >= MAX_SCHEDULES) break;
+
 			memcpy(weekly_routines[i].description,str,21);
 			break;
 		case CALENDAR:
 			if(i >= MAX_CALENDARS) break;
+
 			memcpy(annual_routines[i].description,str,21);
-			break;
-		case TEMCOAV:
-			if(i >= MAX_TEMCOVARS)	break;
-			memcpy(pvars[i].label,str,8);
 			break;
 		default:
 		break;
@@ -1843,48 +1953,39 @@ void adjust_trend_log(void)
 	for(i = 0;i < base_in;i++)
 	{
 		ptr = put_io_buf(IN,i);
-		if(ptr.pin->range != 0)
+		if(ptr.pin->digital_analog == 1)
+		{			
+			add_Trend_Log(OBJECT_ANALOG_INPUT,i + 1);
+		}
+		else
 		{
-			if(ptr.pin->digital_analog == 1)
-			{			
-				add_Trend_Log(OBJECT_ANALOG_INPUT,i + 1);
-			}
-			else
-			{
-				add_Trend_Log(OBJECT_BINARY_INPUT,i + 1);
-			}
+			add_Trend_Log(OBJECT_BINARY_INPUT,i + 1);
 		}
 	}
 	
 	for(i = 0;i < base_out;i++)
 	{
 		ptr = put_io_buf(OUT,i);
-		if(ptr.pout->range != 0)
+		if(ptr.pout->digital_analog == 1)
+		{			
+			add_Trend_Log(OBJECT_ANALOG_OUTPUT,i + 1);
+		}
+		else
 		{
-			if(ptr.pout->digital_analog == 1)
-			{			
-				add_Trend_Log(OBJECT_ANALOG_OUTPUT,i + 1);
-			}
-			else
-			{
-				add_Trend_Log(OBJECT_ANALOG_OUTPUT,i + 1);
-			}
+			add_Trend_Log(OBJECT_ANALOG_OUTPUT,i + 1);
 		}
 	}
 	
-	for(i = 0;i < max_vars;i++)
+	for(i = 0;i < MAX_VARS;i++)
 	{
 		ptr = put_io_buf(VAR,i);
-		if(ptr.pvar->range != 0)
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 		{
-			if(/*(ptr.pvar->range != 0) &&*/(ptr.pvar->digital_analog == 1))
-			{
-				add_Trend_Log(OBJECT_ANALOG_VALUE,i + 1);
-			}
-			if(/*(ptr.pvar->range != 0) &&*/(ptr.pvar->digital_analog == 0))
-			{			
-				add_Trend_Log(OBJECT_BINARY_VALUE,i + 1);
-			}
+			add_Trend_Log(OBJECT_ANALOG_VALUE,i + 1);
+		}
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
+		{			
+			add_Trend_Log(OBJECT_BINARY_VALUE,i + 1);
 		}
 	}
 
@@ -1904,16 +2005,13 @@ uint8_t BO_Instance_To_Index[MAX_AOS];
 uint8_t AV_Instance_To_Index[MAX_AVS];
 uint8_t BV_Instance_To_Index[MAX_AVS];
 
-uint8_t PVAR_Instance_To_Index[MAX_TEMCOVARS];
-uint8_t PVAR_Index_To_Instance[MAX_TEMCOVARS];
-
 void Count_IN_Object_Number(void)
 {
 	U8_T count1,count2,i;
 	Str_points_ptr ptr;
 	count1 = 0;
 	count2 = 0;
-	for(i = 0;i < max_inputs;i++)
+	for(i = 0;i < base_in;i++)
 	{
 		ptr = put_io_buf(IN,i);
 		if(ptr.pin->digital_analog == 1)
@@ -1946,7 +2044,7 @@ void Count_OUT_Object_Number(void)
 	count1 = 0;
 	count2 = 0;
 	
-	for(i = 0;i < max_outputs;i++)
+	for(i = 0;i < base_out;i++)
 	{
 		ptr = put_io_buf(OUT,i);
 		if(ptr.pout->digital_analog == 1)
@@ -1983,13 +2081,13 @@ void Count_VAR_Object_Number(uint8_t base_var)
 	for(i = 0;i < max_vars;i++)
 	{
 		ptr = put_io_buf(VAR,i);
-		if(/*(ptr.pvar->range != 0) && */(ptr.pvar->digital_analog == 1))
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 		{
 			AV_Index_To_Instance[count1] = i;
 			AV_Instance_To_Index[i] = count1;
 			count1++;			
 		}
-		if(/*(ptr.pvar->range != 0) && */(ptr.pvar->digital_analog == 0))
+		if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
 		{
 			BV_Index_To_Instance[count2] = i;
 			BV_Instance_To_Index[i] = count2;
@@ -2014,25 +2112,6 @@ void Count_VAR_Object_Number(uint8_t base_var)
 }
 
 
-void Count_PVAR_Object_Number(void)
-{
-	U8_T count,i;
-	Str_points_ptr ptr;
-	count = 0;
-
-	for(i = 0;i < TemcoVars;i++)
-	{
-		ptr = put_io_buf(TEMCOVAR,i);
-		if(ptr.ptvar->range != 0)
-		{
-			PVAR_Index_To_Instance[count] = i;
-			PVAR_Instance_To_Index[i] = count;
-			count++;			
-		}
-	}
-	TemcoVars = count;
-}
-
 int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 {
 	int count,i;
@@ -2041,7 +2120,7 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 	switch(type)
 	{
 		case OBJECT_ANALOG_INPUT:
-			for(i = 0;i < max_inputs/*base_in*/;i++)
+			for(i = 0;i < base_in;i++)
 			{
 				ptr = put_io_buf(IN,i);
 				if(ptr.pin->digital_analog == 1)
@@ -2053,7 +2132,7 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 			}
 			break;
 		case OBJECT_BINARY_INPUT:
-			for(i = 0;i < max_inputs/*base_in*/;i++)
+			for(i = 0;i < base_in;i++)
 			{
 				ptr = put_io_buf(IN,i);
 				if(ptr.pin->digital_analog == 0)
@@ -2065,7 +2144,7 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 			}
 			break;
 		case OBJECT_BINARY_OUTPUT:
-			for(i = 0;i < max_outputs/*base_out*/;i++)
+			for(i = 0;i < base_out;i++)
 			{
 				ptr = put_io_buf(OUT,i);
 				if(ptr.pout->digital_analog == 0)
@@ -2077,7 +2156,7 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 			}
 			break;
 		case OBJECT_ANALOG_OUTPUT:
-			for(i = 0;i < max_outputs/*base_out*/;i++)
+			for(i = 0;i < base_out;i++)
 			{
 				ptr = put_io_buf(OUT,i);
 				if(ptr.pout->digital_analog == 1)
@@ -2089,10 +2168,10 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 			}
 			break;
 		case OBJECT_ANALOG_VALUE:
-			for(i = 0;i < max_vars;i++)
+			for(i = 0;i < MAX_VARS;i++)
 			{
 				ptr = put_io_buf(VAR,i);
-				if(/*(ptr.pvar->range != 0) &&*/(ptr.pvar->digital_analog == 1))
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 				{					
 					if(i == number)
 						return count;
@@ -2101,10 +2180,10 @@ int Get_Bacnet_Index_by_Number(U8_T type,U8_T number)
 			}
 			break;
 		case OBJECT_BINARY_VALUE:
-			for(i = 0;i < max_vars;i++)
+			for(i = 0;i < MAX_INS;i++)
 			{
 				ptr = put_io_buf(VAR,i);
-				if(/*(ptr.pvar->range != 0) &&*/(ptr.pvar->digital_analog == 0))
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
 				{
 					if(i == number)
 						return count;
@@ -2127,7 +2206,7 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 	switch(type)
 	{
 		case OBJECT_ANALOG_INPUT:
-			for(i = 0;i < max_inputs/*base_in*/;i++)
+			for(i = 0;i < base_in;i++)
 			{
 				ptr = put_io_buf(IN,i);
 				if(ptr.pin->digital_analog == 1)
@@ -2139,7 +2218,7 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 			}
 			break;
 		case OBJECT_BINARY_INPUT:
-			for(i = 0;i < max_inputs/*base_in*/;i++)
+			for(i = 0;i < base_in;i++)
 			{
 				ptr = put_io_buf(IN,i);
 				if(ptr.pin->digital_analog == 0)
@@ -2151,7 +2230,7 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 			}
 			break;
 		case OBJECT_BINARY_OUTPUT:
-			for(i = 0;i < max_outputs/*base_out*/;i++)
+			for(i = 0;i < base_out;i++)
 			{
 				ptr = put_io_buf(OUT,i);
 				if(ptr.pout->digital_analog == 0)
@@ -2163,7 +2242,7 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 			}
 			break;
 		case OBJECT_ANALOG_OUTPUT:
-			for(i = 0;i < max_outputs/*base_out*/;i++)
+			for(i = 0;i < base_out;i++)
 			{
 				ptr = put_io_buf(OUT,i);
 				if(ptr.pout->digital_analog == 1)
@@ -2175,10 +2254,10 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 			}
 			break;
 		case OBJECT_ANALOG_VALUE:
-			for(i = 0;i < max_vars;i++)
+			for(i = 0;i < MAX_VARS;i++)
 			{
 				ptr = put_io_buf(VAR,i);
-				if(/*(ptr.pvar->range != 0) &&*/(ptr.pvar->digital_analog == 1))
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 1))
 				{
 					if(count == index)
 						return i;
@@ -2187,10 +2266,10 @@ int Get_Number_by_Bacnet_Index(U8_T type,U8_T index)
 			}
 			break;
 		case OBJECT_BINARY_VALUE:
-			for(i = 0;i < max_vars;i++)
+			for(i = 0;i < MAX_VARS;i++)
 			{
 				ptr = put_io_buf(VAR,i);
-				if(/*(ptr.pvar->range != 0) &&*/(ptr.pvar->digital_analog == 0))
+				if((ptr.pvar->range != 0) &&(ptr.pvar->digital_analog == 0))
 				{					
 					if(count == index)
 						return i;
@@ -2365,27 +2444,25 @@ bool Binary_Value_Polarity_Set(
 
 
 
-int32_t backup_IN_value[256];
+int32_t backup_IN_value[MAX_INS];
 bool Analog_Input_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
 	unsigned int err = 0;
-	Str_points_ptr ptr;
 	object_index = AI_Instance_To_Index[object_instance];
 
 	// 检查当前值与备份值的差值是否合理
 	// 如果range是温湿度或者电压电流，0.5的改变需要报告change
-	ptr = put_io_buf(IN,object_index);
-	if(ptr.pin->range <= 49 || ptr.pin->range == 57 ) // temprature or humdity
+	if(inputs[object_index].range <= 49 || inputs[object_index].range == 57 ) // temprature or humdity
 		err = 500; // 0.5
-	else if(ptr.pin->range == 58) // co2
+	else if(inputs[object_index].range == 58) // co2
 		err = 10000;
 	else
 		err = 5000;
 	
-    if (abs(ptr.pin->value - backup_IN_value[object_index]) > err) {
+    if (abs(inputs[object_index].value - backup_IN_value[object_index]) > err) {
         // 更新备份值
-        backup_IN_value[object_index] = ptr.pin->value;
+        backup_IN_value[object_index] = inputs[object_index].value;
         return true; // 值变化超过 10
     } else {
         return false; // 值变化未超过 10
@@ -2394,13 +2471,11 @@ bool Analog_Input_Change_Of_Value(unsigned int object_instance)
 bool Binary_Input_Change_Of_Value(uint32_t object_instance)
 {
 	unsigned object_index;
-	Str_points_ptr ptr;
 	object_index = BI_Instance_To_Index[object_instance];
-	
-	ptr = put_io_buf(IN,object_index);	
-	if(ptr.pin->control != backup_IN_value[object_index])
+			
+	if(inputs[object_index].control != backup_IN_value[object_index])
 	{
-		backup_IN_value[object_index] = ptr.pin->control;
+		backup_IN_value[object_index] = inputs[object_index].control;
 		return true;
 	}
 	else
@@ -2409,18 +2484,16 @@ bool Binary_Input_Change_Of_Value(uint32_t object_instance)
 	}
 }
 
-int32_t backup_VAR_value[256];
+int32_t backup_VAR_value[MAX_VARS];
 bool Analog_Value_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
 	bool status = false;
-	Str_points_ptr ptr;
-	
 	object_index = AV_Instance_To_Index[object_instance];
-	ptr = put_io_buf(VAR,object_index);
-	if(ptr.pvar->value != backup_VAR_value[object_index])
+
+	if(vars[object_index].value != backup_VAR_value[object_index])
 	{	
-		backup_VAR_value[object_index] = ptr.pvar->value;
+		backup_VAR_value[object_index] = vars[object_index].value;
 		status = true;
 	}
 	else
@@ -2435,14 +2508,11 @@ bool Binary_Value_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
 	bool status = false;
-	Str_points_ptr ptr;
-	
 	object_index = BV_Instance_To_Index[object_instance];
 
-	ptr = put_io_buf(VAR,object_index);
-	if(ptr.pvar->control != backup_VAR_value[object_index])
+	if(vars[object_index].control != backup_VAR_value[object_index])
 	{	
-		backup_VAR_value[object_index] = ptr.pvar->control;
+		backup_VAR_value[object_index] = vars[object_index].control;
 		status = true;
 	}
 	else
@@ -2454,17 +2524,15 @@ bool Binary_Value_Change_Of_Value(unsigned int object_instance)
 }
 
 
-int32_t backup_OUT_value[256];
+int32_t backup_OUT_value[MAX_OUTS];
 bool Analog_Output_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
-	Str_points_ptr ptr;
 	object_index = AO_Instance_To_Index[object_instance];
-		
-	ptr = put_io_buf(OUT,object_index);		
-	if(ptr.pout->value != backup_OUT_value[object_index])
+			
+	if(outputs[object_index].value != backup_OUT_value[object_index])
 	{
-		backup_OUT_value[object_index] = ptr.pout->value;
+		backup_OUT_value[object_index] = outputs[object_index].value;
 		return true;
 	}
 	else
@@ -2475,13 +2543,11 @@ bool Analog_Output_Change_Of_Value(unsigned int object_instance)
 bool Binary_Output_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
-	Str_points_ptr ptr;
 	object_index = BO_Instance_To_Index[object_instance];
-		
-	ptr = put_io_buf(OUT,object_index);	
-	if(ptr.pout->control != backup_OUT_value[object_index])
+			
+	if(outputs[object_index].control != backup_OUT_value[object_index])
 	{
-		backup_OUT_value[object_index] = ptr.pout->control;
+		backup_OUT_value[object_index] = outputs[object_index].control;
 		return true;
 	}
 	else
@@ -2601,18 +2667,15 @@ char Write_temcovars_string_to_buf(uint8_t number,char * str)
 
 extern uint8_t header_len;
 extern uint16_t transfer_len;
-void udp_client_send(uint16 time);
 void Send_UserList_Broadcast(U8_T start,U8_T end)
 {
 	BACNET_PRIVATE_TRANSFER_DATA private_data = { 0 };
 	BACNET_APPLICATION_DATA_VALUE data_value = { 0 };
-//	uint8_t  test_value[480] = { 0 };
+	uint8_t  test_value[480] = { 0 };
 	bool status = false;
 	int private_data_len = 0;	
 	BACNET_ADDRESS dest;
 	uint8_t  temp[500];
-	uint8_t invoke_id = 0;
-	uint8_t* test_value = (uint8_t*)malloc(512);
 	
 	private_data.vendorID = Get_Vendor_ID();//BACNET_VENDOR_ID;
 	private_data.serviceNumber = 1;	
@@ -2632,16 +2695,16 @@ void Send_UserList_Broadcast(U8_T start,U8_T end)
 	private_data_len = bacapp_encode_application_data(&test_value[0], &data_value);
 	private_data.serviceParameters = &test_value[0];
 	private_data.serviceParametersLen = private_data_len;
-
-	Set_broadcast_bip_address(0xffffffff);
-	bip_get_broadcast_address(&dest);
-	invoke_id = Send_ConfirmedPrivateTransfer(&dest,&private_data,BAC_IP_CLIENT);
-	if(invoke_id >= 0)
-		udp_client_send(5);
 	
-	free(test_value);
+		
+//	Send_bip_Flag = 1;	
+//	count_send_bip = 0;
+//	Send_bip_count = MAX_RETRY_SEND_BIP;	
+//	Set_broadcast_bip_address(0xffffffff);
+//	bip_get_broadcast_address(&dest);
+	Send_ConfirmedPrivateTransfer(&dest,&private_data,BAC_IP_CLIENT);
+	
 }
-
 
 void uart_send_string(U8_T *p, U16_T length,U8_T port);
 int Send_private_scan(U8_T index)
@@ -2675,14 +2738,13 @@ int Send_private_scan(U8_T index)
 	private_data_len = bacapp_encode_application_data(&test_value[0], &data_value);
 	private_data.serviceParameters = &test_value[0];
 	private_data.serviceParametersLen = private_data_len;
-	Test[23]++;
+
 	if(count_hold_on_bip_to_mstp > 0)
 	{
 		free(test_value);
 		//free(temp);
 		return -1;
 	}
-	
 	if(remote_panel_db[index].sub_id != 0)
 	{
 		flag_mstp_source = 2;   // T3-CONTROLLER

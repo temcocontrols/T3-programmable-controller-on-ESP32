@@ -376,7 +376,7 @@ extern EXT_RAM_BSS_ATTR Str_Setting_Info     		Setting_Info;
 extern EXT_RAM_BSS_ATTR Str_MISC  						 	MISC_Info;
 extern EXT_RAM_BSS_ATTR Str_Special  Write_Special;
 
-extern Str_TemcoVar_point pvars[MAX_TEMCOVARS];
+
 extern Str_in_point 		*new_inputs;
 extern Str_out_point 		*new_outputs;
 extern Str_variable_point 	*new_vars;
@@ -543,7 +543,6 @@ extern U8_T  ID_Config_Sche[254];
 extern U8_T  output_pri_live[MAX_OUTS];
 extern float  output_priority[MAX_OUTS][16];
 extern float  output_relinquish[MAX_OUTS];
-extern uint8_t TemcoVars;
 
 
 U16_T convert_pointer_to_word( U8_T *iAddr );  //	 mGetPointWord
@@ -575,10 +574,6 @@ void put_remote_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op , uint8_
 void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
 void put_network_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op );
 void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
-uint8_t find_next_remote_bacnet_point(uint8_t current_index);
-uint8_t find_next_remote_modbus_point(uint8_t current_index);
-uint8_t find_next_network_bacnet_point(uint8_t current_index);
-uint8_t find_next_network_modbus_point(uint8_t current_index);
 
 void change_panel_number_in_code(U8_T old, U8_T new_panel);
 

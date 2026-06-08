@@ -76,7 +76,7 @@ unsigned char wifi_retry_count = 0;
 //锟斤拷 wifi 锟斤拷锟斤拷锟劫次筹拷锟斤拷锟斤拷锟饺点建锟斤拷锟斤拷锟接★拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷晒锟斤拷锟斤拷锟斤拷锟劫次斤拷锟斤拷 CONNECT锟斤拷GOTIP 锟斤拷锟斤拷锟斤拷状态锟斤拷
 //锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟绞э拷埽锟斤拷锟斤拷俅谓锟斤拷锟� DISCONNECT 状态锟斤拷锟斤拷锟轿凤拷锟斤拷循锟斤拷锟斤拷直锟斤拷锟斤拷锟接成癸拷为止锟斤拷 锟斤拷锟斤拷锟斤拷锟斤拷
 //锟斤拷太锟斤拷锟斤拷为什么 event_handler 为什么锟斤拷锟斤拷锟斤拷时锟津不达拷锟斤拷 SYSTEM_EVENT_STA_DISCONNECTED
-#if 0
+
 static void wifi_event_handler(
         void *arg,
         esp_event_base_t event_base,
@@ -188,13 +188,11 @@ static void wifi_event_handler(
         }
     }
 }
-#endif
+
 
 static void event_handler(void* arg, esp_event_base_t event_base,
-                                int32_t event_id, void* event_data)
+                               int32_t event_id, void* event_data)
 {
-
-
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
         esp_wifi_connect();
@@ -204,15 +202,15 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     {
         if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY)
         {
-        	//debug_info("s_retry_num ++ ");
+            //debug_info("s_retry_num ++ ");
             esp_wifi_connect();
             s_retry_num++;
             //ESP_LOGI(TAG, "retry to connect to the AP");
         }
         else
         {
-        	//debug_info("s_retry_num  big ,stop try!");
-        	 esp_wifi_connect();
+            //debug_info("s_retry_num  big ,stop try!");
+            esp_wifi_connect();
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
         //ESP_LOGI(TAG,"connect to the AP fail");
@@ -241,6 +239,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         SSID_Info.getway[3] = esp_ip4_addr4(&ip_info->gw);
 
         SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
+
         if(Modbus.ethernet_status != 4)
             multicast_addr = Get_multicast_addr((unsigned char*)&SSID_Info.ip_addr);
 
@@ -265,11 +264,10 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             dns_info.ip.type = ESP_IPADDR_TYPE_V4;
             ESP_ERROR_CHECK(esp_netif_set_dns_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), ESP_NETIF_DNS_FALLBACK, &dns_info));
         }
-#endif
+    #endif
+
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-
     }
-
 }
 
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
@@ -291,7 +289,6 @@ void wifi_init_sta(void)
     esp_err_t ret;
 
     s_wifi_event_group = xEventGroupCreate();
-
     CountHandle = xSemaphoreCreateCounting(7,7);
 #if 0
     /* -------- NETIF INIT (Continue if already done) -------- */
@@ -312,8 +309,8 @@ void wifi_init_sta(void)
         return;
     }
 
-    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL);
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ret = esp_wifi_init(&cfg);
@@ -488,6 +485,7 @@ void wifi_task(void *pvParameters)
 	//modbus_init();
 	//debug_info("Finish flash init........");
 	//ESP_ERROR_CHECK(ret);
+
 	//if(SSID_Info.MANUEL_EN != 0){Test[18] = 600;
 		wifi_init_sta();
 	//}
