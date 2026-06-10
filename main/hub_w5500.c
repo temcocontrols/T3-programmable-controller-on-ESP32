@@ -13,8 +13,37 @@
 
 static const char *TAG = "hub_w5500";
 
+#define HUB_W5500_GPIO14_TEST 1
+
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 extern esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config);
+
+#if HUB_W5500_GPIO14_TEST
+static void hub_w5500_gpio14_test(void)
+{
+    gpio_config_t io_conf = {
+        .pin_bit_mask = 1ULL << GPIO_NUM_14,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    esp_err_t ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "GPIO14 test config failed: %s", esp_err_to_name(ret));
+        return;
+    }
+
+    ESP_LOGW(TAG, "GPIO14 test mode enabled; W5500 init is paused. GPIO14 toggles every 500 ms.");
+    while (1) {
+        gpio_set_level(GPIO_NUM_14, 0);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        gpio_set_level(GPIO_NUM_14, 1);
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
+#endif
 
 static esp_err_t hub_w5500_reset(void)
 {
@@ -87,6 +116,11 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
     if (*eth_handle != NULL) {
         return ESP_OK;
     }
+
+#if HUB_W5500_GPIO14_TEST
+    hub_w5500_gpio14_test();
+    return ESP_ERR_INVALID_STATE;
+#endif
 
     esp_err_t ret = hub_w5500_reset();
     if (ret != ESP_OK) {
