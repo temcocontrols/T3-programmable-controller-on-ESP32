@@ -13,7 +13,7 @@
 
 static const char *TAG = "hub_w5500";
 
-#define HUB_W5500_GPIO14_TEST 1
+#define HUB_W5500_GPIO14_TEST 0
 
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 extern esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config);
@@ -48,8 +48,11 @@ static void hub_w5500_gpio14_test(void)
 static esp_err_t hub_w5500_reset(void)
 {
     if (HUB_W5500_RST_GPIO == GPIO_NUM_NC) {
+        ESP_LOGW(TAG, "W5500 reset skipped: reset GPIO is NC");
         return ESP_OK;
     }
+
+    ESP_LOGI(TAG, "W5500 reset begin on GPIO%d", HUB_W5500_RST_GPIO);
 
     gpio_config_t io_conf = {
         .pin_bit_mask = 1ULL << HUB_W5500_RST_GPIO,
@@ -76,6 +79,14 @@ static esp_err_t hub_w5500_reset(void)
 
 static esp_err_t hub_w5500_init_spi_bus(void)
 {
+    ESP_LOGI(TAG,
+             "W5500 SPI bus init: host=%d miso=%d mosi=%d sclk=%d max_transfer=%d",
+             HUB_W5500_SPI_HOST,
+             HUB_W5500_MISO_GPIO,
+             HUB_W5500_MOSI_GPIO,
+             HUB_W5500_SCLK_GPIO,
+             4096);
+
     spi_bus_config_t bus_config = {
         .miso_io_num = HUB_W5500_MISO_GPIO,
         .mosi_io_num = HUB_W5500_MOSI_GPIO,
@@ -91,18 +102,29 @@ static esp_err_t hub_w5500_init_spi_bus(void)
         return ESP_OK;
     }
 
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "W5500 SPI bus init OK");
+    }
+
     return ret;
 }
 
 static esp_err_t hub_w5500_init_gpio_isr_service(void)
 {
     if (HUB_W5500_INT_GPIO == GPIO_NUM_NC) {
+        ESP_LOGW(TAG, "W5500 GPIO ISR service skipped: INT GPIO is NC");
         return ESP_OK;
     }
 
+    ESP_LOGI(TAG, "W5500 GPIO ISR service init for INT GPIO%d", HUB_W5500_INT_GPIO);
     esp_err_t ret = gpio_install_isr_service(0);
     if (ret == ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "GPIO ISR service already installed, reusing it");
         return ESP_OK;
+    }
+
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "W5500 GPIO ISR service init OK");
     }
 
     return ret;
@@ -114,8 +136,20 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
         return ESP_ERR_INVALID_ARG;
     }
     if (*eth_handle != NULL) {
+        ESP_LOGW(TAG, "W5500 install skipped: eth_handle already set (%p)", *eth_handle);
         return ESP_OK;
     }
+
+    ESP_LOGI(TAG,
+             "W5500 install begin: host=%d miso=%d mosi=%d sclk=%d cs=%d int=%d rst=%d clock=%d",
+             HUB_W5500_SPI_HOST,
+             HUB_W5500_MISO_GPIO,
+             HUB_W5500_MOSI_GPIO,
+             HUB_W5500_SCLK_GPIO,
+             HUB_W5500_CS_GPIO,
+             HUB_W5500_INT_GPIO,
+             HUB_W5500_RST_GPIO,
+             HUB_W5500_SPI_CLOCK_HZ);
 
 #if HUB_W5500_GPIO14_TEST
     hub_w5500_gpio14_test();
@@ -146,6 +180,13 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
         .queue_size = 20,
     };
 
+    ESP_LOGI(TAG,
+             "W5500 SPI device config: mode=%d clock=%d cs=%d queue=%d",
+             spi_device_config.mode,
+             spi_device_config.clock_speed_hz,
+             spi_device_config.spics_io_num,
+             spi_device_config.queue_size);
+
     eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(HUB_W5500_SPI_HOST, &spi_device_config);
     w5500_config.int_gpio_num = HUB_W5500_INT_GPIO;
     if (HUB_W5500_INT_GPIO == GPIO_NUM_NC) {
@@ -162,6 +203,7 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
         ESP_LOGE(TAG, "W5500 MAC init failed");
         return ESP_FAIL;
     }
+    ESP_LOGI(TAG, "W5500 MAC init OK");
 
     esp_eth_phy_t *phy = esp_eth_phy_new_w5500(&phy_config);
     if (phy == NULL) {
@@ -169,6 +211,10 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
         mac->del(mac);
         return ESP_FAIL;
     }
+    ESP_LOGI(TAG, "W5500 PHY init OK: phy_addr=%d reset_gpio=%d int_gpio=%d",
+             phy_config.phy_addr,
+             phy_config.reset_gpio_num,
+             w5500_config.int_gpio_num);
 
     esp_eth_config_t eth_config = ETH_DEFAULT_CONFIG(mac, phy);
     ret = esp_eth_driver_install(&eth_config, eth_handle);
@@ -179,10 +225,20 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
         *eth_handle = NULL;
         return ret;
     }
+    ESP_LOGI(TAG, "W5500 driver install OK, handle=%p", *eth_handle);
 
     uint8_t mac_addr[ETH_ADDR_LEN] = {0};
     if (esp_read_mac(mac_addr, ESP_MAC_ETH) == ESP_OK) {
-        esp_eth_ioctl(*eth_handle, ETH_CMD_S_MAC_ADDR, mac_addr);
+        ESP_LOGI(TAG, "W5500 base ETH MAC: %02x:%02x:%02x:%02x:%02x:%02x",
+                 mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+        ret = esp_eth_ioctl(*eth_handle, ETH_CMD_S_MAC_ADDR, mac_addr);
+        if (ret == ESP_OK) {
+            ESP_LOGI(TAG, "W5500 MAC address set OK");
+        } else {
+            ESP_LOGW(TAG, "W5500 MAC address set failed: %s", esp_err_to_name(ret));
+        }
+    } else {
+        ESP_LOGW(TAG, "W5500 base ETH MAC read failed");
     }
 
     ESP_LOGI(TAG,
