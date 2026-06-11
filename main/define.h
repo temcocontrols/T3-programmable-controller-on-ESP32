@@ -100,18 +100,6 @@ typedef struct
 	U8_T mstp_master;
 	U16_T write_flash;
 
-	/* WireGuard configuration */
-	U8_T wireguard_enable;
-	U8_T wireguard_private_key[64];
-	U8_T wireguard_peer_public_key[64];
-	U8_T wireguard_preshared_key[64];
-	U8_T wireguard_local_ip[4];
-	/* Netmask is fixed to 255.255.255.0 */
-	U16_T wireguard_port;  /* Both local and peer use same port */
-	U8_T wireguard_peer_ip[4];
-	/* Keepalive is fixed to 25 seconds */
-	/* Ping address is fixed to 10.0.0.1 */
-
 }STR_MODBUS;
 
 typedef struct

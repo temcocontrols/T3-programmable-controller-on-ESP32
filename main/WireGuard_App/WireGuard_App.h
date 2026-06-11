@@ -8,7 +8,7 @@
  *
  * Configuration notes:
  * - All WireGuard configuration (keys, addresses, ports, etc.) can be configured
- *   via Modbus registers (see define.h: Modbus.wireguard_* fields)
+ *   via Modbus registers (see define.h: wireguard_point.reg.wireguard_* fields)
  * - Configuration is also stored in flash memory (see flash.h: FLASH_WIREGUARD_*)
  * - If Modbus values are not set, the #define defaults below are used as fallback
  * - For Modbus register addresses, see modbus.h (MODBUS_WIREGUARD_* enums)
@@ -19,48 +19,6 @@
 
 #include <esp_err.h>
 #include <esp_wireguard.h>
-
-/**
- * @brief WireGuard private key for this device.
- */
-#define WG_PRIVATE_KEY             "KGktoZPaxM0edqvBXXU/tXKtMb3PA/IC3mf9BktAvV4="
-
-/**
- * @brief WireGuard public key of the peer.
- */
-#define WG_PEER_PUBLIC_KEY         "n1SJMzFgWJgb+Xvy7Skh5uVrL7PKw37Q3IVVPnFfhDg="
-
-/**
- * @brief Optional WireGuard preshared key.
- */
-#define WG_PRESHARED_KEY           "dVUoxq7kZ1WYCs8AsL6NSp0YkHMtkfWLgW1q0rrCTGw="
-
-/**
- * @brief Local WireGuard address for the ESP device.
- */
-#define WG_LOCAL_IP_ADDRESS        "10.0.0.2"
-
-/**
- * @brief Local WireGuard netmask.
- */
-#define WG_LOCAL_IP_NETMASK        "255.255.255.0"
-
-/**
- * @brief Local WireGuard UDP listening port.
- */
-#define WG_LOCAL_PORT              51821
-
-/**
- * @brief Remote WireGuard peer endpoint address.
- */
-#define WG_PEER_ADDRESS            "223.236.26.80"
-// #define WG_PEER_ADDRESS            "152.59.50.144"
-// #define WG_PEER_ADDRESS            "192.168.31.135"
-
-/**
- * @brief Remote WireGuard peer UDP port.
- */
-#define WG_PEER_PORT               51820
 
 /**
  * @brief WireGuard persistent keepalive interval in seconds.

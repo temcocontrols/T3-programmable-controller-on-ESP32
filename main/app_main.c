@@ -4591,7 +4591,11 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
-	Modbus.mini_type = PROJECT_WIREGUARD_GATEWAY;
+	if(Modbus.mini_type == MINI_SMALL_ARM)
+	{
+		Modbus.mini_type = MINI_TSTAT11;
+		save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
+	}
 
 	uart_init(0);
 

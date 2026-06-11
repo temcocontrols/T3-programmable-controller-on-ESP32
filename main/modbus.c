@@ -60,6 +60,7 @@ extern SemaphoreHandle_t xSem_comport[3];
 //#define MAIN_EN_PIN_SEL	(1ULL<<GPIO_MAIN_EN_PIN)
 //static const char *TAG = "MODBUS_SLAVE_APP";
 //uint8_t uart_sendB[512];
+QueueHandle_t uart_event_queue;
 const int uart_num_sub = UART_NUM_0;
 const int uart_num_main = UART_NUM_2;
 STR_MODBUS Modbus;
@@ -452,7 +453,7 @@ void uart_init(uint8_t uart)
 		else
 			uart_set_pin(uart_num_sub, GPIO_NUM_1, GPIO_NUM_3, GPIO_SUB_EN_PIN, UART_PIN_NO_CHANGE);
 
-		uart_driver_install(uart_num_sub, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
+		uart_driver_install(uart_num_sub, MB_BUF_SIZE * 2, 0, 10, &uart_event_queue, 0);
 
 		uart_set_mode(uart_num_sub, UART_MODE_RS485_HALF_DUPLEX);
 	}
@@ -566,58 +567,38 @@ void uart0_rx_task(void *pvParameters)
 	debug_info("modbous initial \r\n");
 
 	task_test.enable[7] = 1;
-	while (1) {
+	while (1)
+	{
 		task_test.count[7]++;
 
-			if(Modbus.com_config[0] == MODBUS_SLAVE)
+		if(Modbus.com_config[0] == MODBUS_SLAVE)
+		{
+			uart_event_t event;
+			if (xQueueReceive(uart_event_queue, &event, pdMS_TO_TICKS(100)))
 			{
-				uint8_t block_time = 0;
-				// block time < 90ms
-				if(Modbus.baudrate[0] == 9)
-					block_time = 20;
-				else //if(Modbus.baudrate <= 6)
-					block_time = 70;
-
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_PERIOD_MS);
-
-				if(len > 0)
+				if(event.type == UART_DATA)
 				{
-					led_sub_rx++;
-					com_rx[0] += len;
-					flagLED_sub_rx = 1;
-					//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
-
-					if(checkdata(uart_rsv,len))
+					// If split frame, wait for second event to arrive
+					// Wait for all split frames to arrive in queue
+					if (event.size == 120)
 					{
-						count_modbus_slave[0] = 1;
-						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
+						uart_event_t next_event;
+						while (xQueuePeek(uart_event_queue, &next_event, pdMS_TO_TICKS(10)) == pdTRUE
+							&& next_event.type == UART_DATA
+							&& next_event.size == 120)
 						{
-							if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
-							{
-								handler_private_transfer(uart_rsv,0,NULL,0xa0);
-							}
+							xQueueReceive(uart_event_queue, &next_event, 0); // consume it
 						}
-						else
+						// Wait for final partial chunk to also arrive
+						if (xQueuePeek(uart_event_queue, &next_event, pdMS_TO_TICKS(10)) == pdTRUE
+							&& next_event.type == UART_DATA)
 						{
-							if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
-							{
-								init_crc16();
-								responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
-							}
+							xQueueReceive(uart_event_queue, &next_event, 0); // consume final chunk
 						}
 					}
-					else
-					{
-						check_whether_modbus_slave(uart_rsv,len,0);
-					}
-				}
 
-			}
-			else if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
-			{
-				if(system_timer / 1000 > 10)
-				{
-					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
+					// Read everything available in one shot
+					int len = uart_read_bytes(0, uart_rsv, sizeof(uart_rsv), 0);
 
 					if(len > 0)
 					{
@@ -625,38 +606,76 @@ void uart0_rx_task(void *pvParameters)
 						com_rx[0] += len;
 						flagLED_sub_rx = 1;
 						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
-						Timer_Silence_Reset();
-						//check_mstp_packet(uart_rsv, len , 0);
-						//Test[32]++;
-						//Test[33] = len;
 
+						if(checkdata(uart_rsv,len))
+						{
+							count_modbus_slave[0] = 1;
+							if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
+							{
+								if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+								{
+									handler_private_transfer(uart_rsv,0,NULL,0xa0);
+								}
+							}
+							else
+							{
+								if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+								{
+									init_crc16();
+									responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
+								}
+							}
+						}
+						else
+						{
+							check_whether_modbus_slave(uart_rsv,len,0);
+						}
 					}
 				}
-				else
-					vTaskDelay(500 / portTICK_PERIOD_MS);
+			}
+		}
+		else if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
+		{
+			if(system_timer / 1000 > 10)
+			{
+				int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
+
+				if(len > 0)
+				{
+					led_sub_rx++;
+					com_rx[0] += len;
+					flagLED_sub_rx = 1;
+					//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+					Timer_Silence_Reset();
+					//check_mstp_packet(uart_rsv, len , 0);
+					//Test[32]++;
+					//Test[33] = len;
+
+				}
 			}
 			else
+				vTaskDelay(500 / portTICK_PERIOD_MS);
+		}
+		else
+		{
+			if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
 			{
-				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
-				{
-					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 
-					if(len>0)
-					{Test[24]++;
-						led_sub_rx++;
-						com_rx[0] += len;
-						flagLED_sub_rx = 1;
-						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
-						check_whether_modbus_slave(uart_rsv,len,0);
-					}
-
+				if(len>0)
+				{Test[24]++;
+					led_sub_rx++;
+					com_rx[0] += len;
+					flagLED_sub_rx = 1;
+					//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+					check_whether_modbus_slave(uart_rsv,len,0);
 				}
-				else
-					vTaskDelay(50 / portTICK_PERIOD_MS);
+
 			}
-
+			else
+				vTaskDelay(50 / portTICK_PERIOD_MS);
+		}
 	}
-
 }
 
 void uart2_rx_task(void *pvParameters)
@@ -3781,8 +3800,6 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			ptr->reg.reset_default = 0;
 			clear_scan_db();
 		}
-
-
 
 		if((memcmp(Modbus.ip_addr,ptr->reg.ip_addr,4) && !((ptr->reg.ip_addr[0] == 0) && (ptr->reg.ip_addr[1] == 0) \
 				&& (ptr->reg.ip_addr[2] == 0) && (ptr->reg.ip_addr[3] == 0)))
