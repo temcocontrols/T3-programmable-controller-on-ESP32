@@ -18,7 +18,8 @@
 7. [抓包判定参考](#7-抓包判定参考)
 8. [常见问题排查](#8-常见问题排查)
 9. [实现检查清单](#9-实现检查清单)
-10. [附录：关键文件索引](#附录关键文件索引)
+10. [已知问题与修复指引](#10-已知问题与修复指引)
+11. [附录：关键文件索引](#附录关键文件索引)
 
 ---
 
@@ -65,17 +66,53 @@ BBMD 在子网边界转发广播，使跨子网通信成为可能。
 | `CMakeLists.txt` | 已完成 | 增加 `lwip` 依赖 |
 | `main/tcp_server.c` | 已完成 | `bip_set_udp_sock`、`bip_set_source_addr`、`bip_mpdu_dest` |
 
-### 2.2 未完成（本手册后续阶段）
+### 2.2 已完成（阶段 1~9 主体）
 
-| 模块 | 状态 | 影响 |
+| 模块 | 状态 | 位置 |
 |------|------|------|
-| `BBMD_EN` 配置绑定 | 未完成 | 字段存在但未驱动 `bbmd_en` |
-| BBMD IP/Port/TTL 配置字段 | 未完成 | 无存储位置 |
-| `src/dlenv.c` 编译 | 未完成 | FD 自动注册/续约定时器未链接 |
-| `bvlc_intial()` 初始化调用 | 未完成 | BDT/FDT 表未清零初始化 |
-| `bvlc_maintenance_timer()` | 未完成 | FDT/BDT 条目不会过期清理 |
-| `bvlc_encode_register_foreign_device` TTL 硬编码 | 待修复 | 固定 100 秒，应改为参数 |
-| T3000/Modbus 配置入口 | 未完成 | 无法从工具配置 BBMD |
+| `Str_Setting_Info` 扩展 | 已完成 | `main/user_data.h`、`temco_bacnet/private/user_data.h` |
+| `bbmd_apply_config()` | 已完成 | `main/modbus.c` — 模式映射、`register_ftd()` 调用、port/ttl 默认值 |
+| `dealwith_write_setting()` 挂钩 | 已完成 | `main/modbus.c` — T3000 写 400 字节块时触发 |
+| `src/dlenv.c` 编译 | 已完成 | `temco_bacnet/CMakeLists.txt` 第 43 行 |
+| `bvlc_intial()` + `bbmd_apply_config()` | 已完成 | `main/tcp_server.c` → `Inital_Bacnet_Server()` |
+| 定时维护 | 已完成 | `Timer_task()` 每秒调用 `bvlc_maintenance_timer(1)`、`dlenv_maintenance_timer(1)` |
+| FD 注册 TTL 参数化 | 已完成 | `bvlc_encode_register_foreign_device()` 使用 `time_to_live_seconds` |
+| IP 变更处理 | 已完成 | `Eth_IP_Change == 1` 时先 `bbmd_apply_config()`，约 5 秒后软复位 |
+| Flash 默认值 | 部分完成 | NVS 键 `FLASH_BBMD_EN` 默认 0；`user_data.c` 中 port/ttl 默认 47808/600 |
+| Modbus `BBMD_EN` 寄存器 | 已完成 | 寄存器 48（`MODBUS_BBMD_EN`）读写 + flash 保存 |
+
+### 2.3 待完成 / 待修复（阶段 10~12）
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| `bbmd_test_demo()` 临时测试代码 | **需移除** | `Inital_Bacnet_Server()` 中硬编码 BDT 192.168.0.95，量产前必须删除或 `#ifdef` 保护 |
+| `bvlc_test_*` API 同步 | **需同步** | IDF 组件 `temco_bacnet` 已有 `bvlc_test_clear_bdt/set_bdt_entry` 等；`work/temco_bacnet` 尚未同步 |
+| `dealwith_write_setting()` 遗留逻辑 | **需修复** | 约 3762 行：`bbmd_en = ptr->reg.BBMD_EN` 直接赋值错误（mode 2/3 应设 `bbmd_en=1`）；与下方 3818 行新逻辑重复 |
+| Modbus IP/Port/TTL 寄存器 | 未完成 | 仅 `MODBUS_BBMD_EN`（48），缺少 ip/port/ttl 映射（见阶段 11） |
+| NVS 独立持久化 ip/port/ttl | 未完成 | 目前仅 `BBMD_EN` 存 NVS；ip/port/ttl 依赖 T3000 400 字节块或 RAM 默认值 |
+| `_Static_assert(sizeof <= 400)` | 未完成 | 结构体扩展后未加编译期校验 |
+| `bbmd_port` 字节序约定 | 待统一 | 代码中默认 `47808`（主机序）；Annex J 端口字段为网络序 `0xBAC0`；当前 `register_ftd` 经 `htons` 处理，但存储格式需文档化 |
+| T3000 界面 BDT 配置 | 未完成 | 仅支持 BACnet 工具 Write-BDT 或临时 `bbmd_test_demo` |
+| 模式热切换软复位 | 建议启用 | `dealwith_write_setting` 中 `esp_retboot()` 仍被注释 |
+| 联调测试 T0~T4 | 未完成 | 见第 6 节 |
+
+### 2.4 实现进度快照（2026-06-08）
+
+```
+阶段 0  收发合并          ████████████ 100%
+阶段 1  IDF 编译验证       ██████████░░  85%  （bvlc_test API 待同步）
+阶段 2  结构体扩展         ████████████ 100%
+阶段 3  bbmd_apply_config  ██████████░░  90%  （遗留 bbmd_en 赋值 bug）
+阶段 4  dlenv.c 链接       ████████████ 100%
+阶段 5  BACnet 初始化      ██████████░░  90%  （含临时 bbmd_test_demo）
+阶段 6  定时维护          ████████████ 100%
+阶段 7  TTL 修复           ████████████ 100%
+阶段 8  Flash 持久化       ██████░░░░░░  50%  （仅 BBMD_EN NVS）
+阶段 9  IP 变更            ████████████ 100%
+阶段 10 BDT 配置           ████░░░░░░░░  30%  （仅工具/硬编码）
+阶段 11 Modbus 扩展        ███░░░░░░░░░  25%  （仅 EN 寄存器）
+阶段 12 量产清理           ░░░░░░░░░░░░   0%
+```
 
 ---
 
@@ -186,25 +223,26 @@ _Static_assert(sizeof(Str_Setting_Info) <= 400, "Str_Setting_Info overflow");
 ```c
 Setting_Info.reg.BBMD_EN   = 0;
 Setting_Info.reg.bbmd_ip   = 0;
-Setting_Info.reg.bbmd_port = 0xBAC0;   // htons(47808)
+Setting_Info.reg.bbmd_port = 47808;    // 主机序；register_ftd 内部经 htons 转换
 Setting_Info.reg.bbmd_ttl  = 600;
 bbmd_en = 0;
 ```
+
+> **持久化说明：** `BBMD_EN` 单独存 NVS（`FLASH_BBMD_EN`）。`bbmd_ip/port/ttl` 随 T3000 私有传输 400 字节块读写；Modbus 仅写 `BBMD_EN` 时会单独存 NVS，ip/port/ttl 需通过 T3000 设置界面写入。
 
 ---
 
 ## 5. 实现步骤（按顺序执行）
 
-### 阶段 1：确认阶段 0 合并在 IDF 中生效
-
-**目的：** 确保收发合并代码已同步到 IDF 工程。
+### 阶段 1：确认阶段 0 合并在 IDF 中生效 ✅ 基本完成
 
 **检查文件：**
 
-- [ ] `temco_bacnet/private/bip.c` — 含 `bvlc_handle_npdu` 调用
-- [ ] `temco_bacnet/src/bvlc.c` — 含 `bvlc_handle_npdu()`，无 `bvlc_receive`
-- [ ] `temco_bacnet/CMakeLists.txt` — `REQUIRES lwip`
-- [ ] `main/tcp_server.c` — 含 `bip_set_udp_sock`、`bip_set_source_addr`
+- [x] `temco_bacnet/private/bip.c` — 含 `bvlc_handle_npdu` 调用
+- [x] `temco_bacnet/src/bvlc.c` — 含 `bvlc_handle_npdu()`，无 `bvlc_receive`
+- [x] `temco_bacnet/CMakeLists.txt` — `REQUIRES lwip`
+- [x] `main/tcp_server.c` — 含 `bip_set_udp_sock`、`bip_set_source_addr`
+- [ ] `work/temco_bacnet` 与 IDF 组件同步 `bvlc_test_*` API（若保留 `bbmd_test_demo`）
 
 **编译验证：**
 
@@ -212,179 +250,152 @@ bbmd_en = 0;
 idf.py build
 ```
 
-预期：无 `bvlc_receive` / `bvlc_send_pdu` 链接错误。
+预期：无 `bvlc_receive` / `bvlc_send_pdu` 链接错误。若 `bbmd_test_demo` 启用且 work 树无 `bvlc_test_*`，会报链接错误。
 
 ---
 
-### 阶段 2：扩展配置结构体
+### 阶段 2：扩展配置结构体 ✅ 已完成
 
 **文件：**
 
-1. `main/user_data.h`
-2. `temco_bacnet/private/user_data.h`（保持与 main 同步）
+1. `main/user_data.h` — 已增加 `bbmd_ip`、`bbmd_port`、`bbmd_ttl`
+2. `temco_bacnet/private/user_data.h` — 已同步
 
-**操作：** 按 4.1 节增加 `bbmd_ip`、`bbmd_port`、`bbmd_ttl` 字段。
-
-**验证：** 编译通过；`_Static_assert` 不报错。
+**待验证：** 增加 `_Static_assert(sizeof(Str_Setting_Info) <= 400)`。
 
 ---
 
-### 阶段 3：实现 BBMD 配置应用函数
+### 阶段 3：实现 BBMD 配置应用函数 ✅ 已实现（待修复遗留逻辑）
 
-**添加到 `main/modbus.c`（或独立 `bbmd_config.c`）：**
+**当前实现位置：** `main/modbus.c` → `bbmd_apply_config()`
 
 ```c
-#include "bvlc.h"
-#include "bip.h"
-
 void bbmd_apply_config(void)
 {
     uint8_t mode = Setting_Info.reg.BBMD_EN;
+    uint16_t port = Setting_Info.reg.bbmd_port;
+    uint16_t ttl = Setting_Info.reg.bbmd_ttl;
 
-    /* BBMD Server 角色 */
+    if (mode > 3) {
+        mode = 0;
+        Setting_Info.reg.BBMD_EN = 0;
+    }
+    if (port == 0) port = 47808;
+    if (ttl == 0) ttl = 600;
+
     if (mode == 2 || mode == 3) {
         bbmd_en = 1;
     } else {
         bbmd_en = 0;
     }
 
-    /* Foreign Device 角色 */
-    if (mode == 1 || mode == 3) {
-        if (Setting_Info.reg.bbmd_ip != 0) {
-            register_ftd(
-                (long)Setting_Info.reg.bbmd_ip,
-                (int)Setting_Info.reg.bbmd_port,
-                (int)Setting_Info.reg.bbmd_ttl);
-        }
+    if ((mode == 1 || mode == 3) && (Setting_Info.reg.bbmd_ip != 0)) {
+        register_ftd(
+            (long) Setting_Info.reg.bbmd_ip,
+            (int) port,
+            (int) ttl);
     }
 }
 ```
 
-在 `main/modbus.c` 的 `dealwith_write_setting()` 末尾（SN 校验通过的分支内）增加：
+**T3000 写设置挂钩**（`dealwith_write_setting()` 约 3818 行）已实现：
 
 ```c
-if (Setting_Info.reg.BBMD_EN   != ptr->reg.BBMD_EN
-    || Setting_Info.reg.bbmd_ip   != ptr->reg.bbmd_ip
-    || Setting_Info.reg.bbmd_port != ptr->reg.bbmd_port
-    || Setting_Info.reg.bbmd_ttl  != ptr->reg.bbmd_ttl)
+if ((Setting_Info.reg.BBMD_EN != ptr->reg.BBMD_EN)
+    || (Setting_Info.reg.bbmd_ip != ptr->reg.bbmd_ip)
+    || (Setting_Info.reg.bbmd_port != ptr->reg.bbmd_port)
+    || (Setting_Info.reg.bbmd_ttl != ptr->reg.bbmd_ttl))
 {
     Setting_Info.reg.BBMD_EN   = ptr->reg.BBMD_EN;
     Setting_Info.reg.bbmd_ip   = ptr->reg.bbmd_ip;
     Setting_Info.reg.bbmd_port = ptr->reg.bbmd_port;
     Setting_Info.reg.bbmd_ttl  = ptr->reg.bbmd_ttl;
     bbmd_apply_config();
-    /* 建议：模式变更后软复位，避免 socket/表项状态不一致 */
-    /* esp_retboot(); */
 }
 ```
 
-**头文件声明：** 在 `modbus.h` 或 `user_data.h` 添加 `void bbmd_apply_config(void);`
+**Modbus 寄存器 48**（`MODBUS_BBMD_EN`）写操作已调用 `bbmd_apply_config()` 并保存 NVS。
+
+**待修复：** 约 3762 行遗留代码 `bbmd_en = ptr->reg.BBMD_EN` 应删除，改由上方统一块处理（见 [10.1](#101-dealwith_write_setting-遗留逻辑)）。
 
 ---
 
-### 阶段 4：启用 `dlenv.c` 编译
+### 阶段 4：启用 `dlenv.c` 编译 ✅ 已完成
 
-**文件：** `temco_bacnet/CMakeLists.txt`
-
-```cmake
-# 第 43 行，取消注释：
-"src/dlenv.c"
-```
-
-**验证：** `idf.py build`，确认 `register_ftd`、`dlenv_maintenance_timer` 链接成功。
+**文件：** `temco_bacnet/CMakeLists.txt` 第 43 行 `"src/dlenv.c"` 已启用。
 
 ---
 
-### 阶段 5：BACnet 初始化挂钩
+### 阶段 5：BACnet 初始化挂钩 ✅ 已实现（含临时测试代码）
 
-**文件：** `main/tcp_server.c` -> `Inital_Bacnet_Server()`
+**文件：** `main/tcp_server.c` → `Inital_Bacnet_Server()`
 
-在 `bip_set_broadcast_addr(0xffffffff);` 之后添加：
+当前代码（约 1927~1930 行）：
 
 ```c
-#include "bvlc.h"
-
-bvlc_intial();          // 清零 BDT/FDT 表
-bbmd_apply_config();    // 按 flash 中配置应用 BBMD 模式
+bip_set_broadcast_addr(0xffffffff);
+bvlc_intial();
+bbmd_apply_config();
+bbmd_test_demo();   // ⚠️ 临时测试，量产前删除
 ```
+
+**`bbmd_test_demo()` 说明：** 硬编码 BDT 条目 `192.168.0.95:47808`，仅用于开发联调。正式固件必须移除或加 `#ifdef BBMD_TEST_DEMO` 保护。
 
 **说明：**
 
-- `bvlc_intial()` 在 `bvlc.c` 中，清零 `BBMD_Table` 和 `FD_Table`
-- 以太网 IP 就绪后才有效；若 IP 未获取，可延迟到 `ethernet_task.c` IP 分配成功后再次调用 `bbmd_apply_config()`
+- `bvlc_intial()` 清零 `BBMD_Table` 和 `FD_Table`
+- 以太网 IP 就绪后才有效；IP 变更时 `Timer_task` 中 `Eth_IP_Change` 分支会再次调用 `bbmd_apply_config()`
 
 ---
 
-### 阶段 6：定时维护
+### 阶段 6：定时维护 ✅ 已完成
 
-**文件：** `main/tcp_server.c` -> `Timer_task()`
-
-在 1 秒定时分支（`system_timer % 1000 == 0`）内添加：
+**文件：** `main/tcp_server.c` → `Timer_task()` 约 2750 行
 
 ```c
-bvlc_maintenance_timer(1);      // FDT/BDT 条目 TTL 递减与清理
-dlenv_maintenance_timer(1);     // FD 租约到期后自动重注册
-```
-
-**作用：**
-
-| 函数 | 周期 | 作用 |
-|------|------|------|
-| `bvlc_maintenance_timer(1)` | 每秒 | FDT 条目过期删除（含 30s 宽限期） |
-| `dlenv_maintenance_timer(1)` | 每秒 | FD 租约倒计时，到期重发 Register-Foreign-Device |
-
----
-
-### 阶段 7：修复 FD 注册 TTL 硬编码
-
-**文件：** `temco_bacnet/src/bvlc.c` -> `bvlc_encode_register_foreign_device()`
-
-**当前（错误）：**
-
-```c
-encode_unsigned16(&pdu[2], 10);
-encode_unsigned16(&pdu[4], 100);   // 硬编码 100 秒
-len = 10;
-```
-
-**改为：**
-
-```c
-encode_unsigned16(&pdu[2], 6);
-encode_unsigned16(&pdu[4], time_to_live_seconds);
-len = 6;
+bvlc_maintenance_timer(1);
+dlenv_maintenance_timer(1);
 ```
 
 ---
 
-### 阶段 8：Flash 持久化
+### 阶段 7：修复 FD 注册 TTL 硬编码 ✅ 已完成
 
-**文件：** `main/flash.c`
+**文件：** `temco_bacnet/src/bvlc.c` → `bvlc_encode_register_foreign_device()`
 
-1. 加载设置时，确保 `BBMD_EN` 等字段从 flash 读出（若随 `Str_Setting_Info` 整体读写则自动包含）
-2. 出厂初始化时设默认值（4.3 节）
-3. 启动时调用 `bbmd_apply_config()`（若不在 `Inital_Bacnet_Server` 中调用）
-
-**文件：** `temco_bacnet/private/user_data.c` / `ptransfer.c`
-
-- 确认 T3000 私有传输读写 `Str_Setting_Info` 时，新字段随 400 字节块一起传输
-- 结构体偏移变化后，旧 flash 数据需做版本兼容或恢复出厂
+当前实现已使用参数 `time_to_live_seconds`，BVLC Length = 6。
 
 ---
 
-### 阶段 9：IP 变更处理
+### 阶段 8：Flash 持久化 ⚠️ 部分完成
 
-**文件：** `main/tcp_server.c` 或 `main/ethernet_task.c`
+**已完成：**
 
-当 `Eth_IP_Change == 1` 触发重启前，或在 IP 重新分配后：
+- `flash.c`：NVS 键 `FLASH_BBMD_EN`，默认 0
+- `user_data.c`：`Sync_Panel_Info()` 中 `bbmd_port/ttl` 为 0 时设默认 47808/600
+- T3000 私有传输：`ptransfer.c` 读写 `Setting_Info.all[400]` 整块，新字段随结构体偏移自动包含
+
+**待完成：**
+
+1. 在 `user_data.h` 或 `flash.c` 增加 `_Static_assert(sizeof(Str_Setting_Info) <= 400)`
+2. 可选：为 `bbmd_ip/port/ttl` 增加独立 NVS 键（Modbus 单独配置时不依赖 T3000）
+3. 结构体偏移变化后，旧 flash 数据需版本兼容或恢复出厂
+
+---
+
+### 阶段 9：IP 变更处理 ✅ 已完成
+
+**文件：** `main/tcp_server.c` → `Timer_task()` 约 2690 行
 
 ```c
-bip_set_broadcast_addr(multicast_addr);   // 已有逻辑
-if (Setting_Info.reg.BBMD_EN == 1 || Setting_Info.reg.BBMD_EN == 3) {
-    register_ftd(
-        (long)Setting_Info.reg.bbmd_ip,
-        (int)Setting_Info.reg.bbmd_port,
-        (int)Setting_Info.reg.bbmd_ttl);
+if (Eth_IP_Change == 1) {
+    if (ip_change_count == 0) {
+        bbmd_apply_config();   // IP 变更后立即重注册 FD
+    }
+    if (ip_change_count++ > 5) {
+        /* ... Save_Ethernet_Info ... */
+        esp_retboot();         // 约 5 秒后软复位
+    }
 }
 ```
 
@@ -418,18 +429,33 @@ BBMD 启动后 BDT 为空，需通过外部工具写入。
 
 ---
 
-### 阶段 11：可选 Modbus 寄存器映射
+### 阶段 11：Modbus 寄存器映射 ⚠️ 部分完成
 
-若需通过 Modbus 配置（T3000 未支持前），在 `main/modbus.h` 增加寄存器：
+**已完成：** 寄存器 48（`MODBUS_BBMD_EN`）读写 + NVS 保存。
 
-| 寄存器 | 内容 |
-|--------|------|
-| Holding N | `BBMD_EN` |
-| Holding N+1..N+2 | `bbmd_ip`（32位，高低字） |
-| Holding N+3 | `bbmd_port` |
-| Holding N+4 | `bbmd_ttl` |
+**待扩展**（若 T3000 未支持 BBMD 全参数前需 Modbus 配置）：
 
-在 `modbus.c` 读写处理中映射到 `Setting_Info.reg.*`。
+| 寄存器 | 内容 | 状态 |
+|--------|------|------|
+| Holding 48 | `BBMD_EN` | ✅ 已实现 |
+| Holding 49~50 | `bbmd_ip`（32 位，高低字） | ❌ 待实现 |
+| Holding 51 | `bbmd_port` | ❌ 待实现 |
+| Holding 52 | `bbmd_ttl` | ❌ 待实现 |
+
+在 `modbus.c` 读写处理中映射到 `Setting_Info.reg.*`，写后调用 `bbmd_apply_config()`。
+
+---
+
+### 阶段 12：量产前清理（必做）
+
+| 序号 | 操作 | 文件 |
+|------|------|------|
+| 12-1 | 删除或 `#ifdef BBMD_TEST_DEMO` 保护 `bbmd_test_demo()` 调用 | `tcp_server.c` |
+| 12-2 | 删除 `dealwith_write_setting()` 3762~3765 行遗留 `bbmd_en` 直接赋值 | `modbus.c` |
+| 12-3 | 将 IDF 组件中 `bvlc_test_*` API 同步到 `work/temco_bacnet`（或移除对它们的依赖） | `bvlc.c`、`bvlc.h` |
+| 12-4 | 增加 `_Static_assert(sizeof(Str_Setting_Info) <= 400)` | `user_data.h` |
+| 12-5 | 模式变更后考虑启用 `esp_retboot()` | `modbus.c` |
+| 12-6 | 执行 T0~T4 全部测试并记录结果 | — |
 
 ---
 
@@ -637,8 +663,10 @@ BVLC: Original-Broadcast-NPDU
 | FD 注册 TTL 总是 100s | 硬编码未修复 | 检查阶段 7 修改是否生效 |
 | 跨子网 Who-Is 失败 | FD 未注册或 BDT 为空 | 抓包确认 Register-FD 和 Distribute-Broadcast |
 | 同子网正常，跨子网失败 | 仅 FD 路径问题 | 先过 T1，再测 T2 |
-| 模式切换后行为异常 | 未重启 | 模式变更后执行 `esp_retboot()` |
+| 模式切换后行为异常 | 未重启 / 遗留 bbmd_en 赋值 | 删除 modbus.c 3762 行；模式变更后 `esp_retboot()` |
 | T3000 设置不生效 | 结构体未同步 / SN 校验失败 | 检查 `dealwith_write_setting` 中 SN 匹配逻辑 |
+| 启动后 BDT 含 192.168.0.95 | `bbmd_test_demo()` 未移除 | 删除阶段 12-1 临时测试代码 |
+| 链接错误 `bvlc_test_*` | work 树未同步 IDF 组件 | 同步 `bvlc_test_clear_bdt` 等 API 或移除调用 |
 
 ---
 
@@ -646,17 +674,19 @@ BVLC: Original-Broadcast-NPDU
 
 ### 代码实现
 
-- [ ] **阶段 0** — `bip.c`/`bvlc.c` 收发合并已同步到 IDF
-- [ ] **阶段 1** — IDF 编译通过
-- [ ] **阶段 2** — `Str_Setting_Info` 扩展，`sizeof <= 400`
-- [ ] **阶段 3** — `bbmd_apply_config()` + `dealwith_write_setting()` 挂钩
-- [ ] **阶段 4** — `dlenv.c` 加入 CMakeLists
-- [ ] **阶段 5** — `Inital_Bacnet_Server()` 调用 `bvlc_intial()` + `bbmd_apply_config()`
-- [ ] **阶段 6** — `Timer_task()` 调用两个 maintenance_timer
-- [ ] **阶段 7** — 修复 FD 注册 TTL 硬编码
-- [ ] **阶段 8** — Flash 默认值 `BBMD_EN=0`
-- [ ] **阶段 9** — IP 变更后 FD 重注册
-- [ ] **阶段 10** — BDT 配置方式确认（工具或 T3000）
+- [x] **阶段 0** — `bip.c`/`bvlc.c` 收发合并已同步到 IDF
+- [ ] **阶段 1** — IDF 编译通过（`bvlc_test_*` API 待 work 树同步）
+- [x] **阶段 2** — `Str_Setting_Info` 扩展（待 `_Static_assert`）
+- [x] **阶段 3** — `bbmd_apply_config()` + `dealwith_write_setting()` 挂钩（待删遗留逻辑）
+- [x] **阶段 4** — `dlenv.c` 加入 CMakeLists
+- [x] **阶段 5** — `Inital_Bacnet_Server()` 调用 `bvlc_intial()` + `bbmd_apply_config()`（待删 `bbmd_test_demo`）
+- [x] **阶段 6** — `Timer_task()` 调用两个 maintenance_timer
+- [x] **阶段 7** — FD 注册 TTL 参数化
+- [ ] **阶段 8** — Flash 默认值与 NVS（仅 `BBMD_EN` 完成）
+- [x] **阶段 9** — IP 变更后 FD 重注册
+- [ ] **阶段 10** — BDT 配置方式（工具可用；T3000 未实现）
+- [ ] **阶段 11** — Modbus 扩展（仅 EN 寄存器）
+- [ ] **阶段 12** — 量产清理（6 项）
 
 ### 测试验证
 
@@ -665,6 +695,56 @@ BVLC: Original-Broadcast-NPDU
 - [ ] **T2** — BBMD Server 模式（9 项）
 - [ ] **T3** — 双模式（可选，2 项）
 - [ ] **T4** — 边界异常（7 项）
+
+---
+
+## 10. 已知问题与修复指引
+
+### 10.1 `dealwith_write_setting` 遗留逻辑
+
+**位置：** `main/modbus.c` 约 3762~3765 行
+
+**问题：**
+
+```c
+if (bbmd_en != ptr->reg.BBMD_EN) {
+    bbmd_en = ptr->reg.BBMD_EN;   // 错误：mode=2 时 BBMD_EN=2 但 bbmd_en 应为 1
+    save_uint8_to_flash(FLASH_BBMD_EN, bbmd_en);
+}
+```
+
+`BBMD_EN` 是模式编码（0~3），`bbmd_en` 是 BBMD Server 开关（0/1）。直接赋值会导致 mode=2 时 `bbmd_en=2`，Write-BDT 等 BBMD 管理报文无法正确处理。
+
+**修复：** 删除此块，统一由 3818 行的四字段比较 + `bbmd_apply_config()` 处理；NVS 保存 `Setting_Info.reg.BBMD_EN` 而非 `bbmd_en`。
+
+### 10.2 `bbmd_test_demo()` 硬编码 BDT
+
+**位置：** `main/modbus.c` + `tcp_server.c` 启动调用
+
+硬编码 `192.168.0.95` 作为 BDT 条目，会污染所有启动实例的 BDT 表。联调完成后必须移除。
+
+**依赖 API**（IDF 组件已有，work 树待同步）：
+
+```c
+void bvlc_test_clear_bdt(void);
+void bvlc_test_clear_fdt(void);
+bool bvlc_test_set_bdt_entry(int index, uint32_t ip, uint16_t port, uint32_t mask);
+```
+
+### 10.3 `bbmd_port` 字节序
+
+- 存储：`Setting_Info.reg.bbmd_port` 当前以主机序 `47808` 保存
+- 传输：`register_ftd()` → `dlenv_bbmd_port_set()` → `htons()` 转为网络序
+- T3000 写入时应与现有 IP 字段约定一致（建议统一文档说明）
+
+### 10.4 下一步建议执行顺序
+
+1. 修复 10.1 遗留逻辑（5 分钟）
+2. 同步或移除 `bvlc_test_*` + 删除 `bbmd_test_demo` 调用
+3. 加 `_Static_assert`
+4. 执行 T0 回归测试
+5. 按网络拓扑执行 T1/T2
+6. 按需扩展 Modbus 寄存器 49~52
 
 ---
 
@@ -677,10 +757,12 @@ BVLC: Original-Broadcast-NPDU
 | `temco_bacnet/src/dlenv.c` | FD 注册与续租 |
 | `temco_bacnet/src/datalink.c` | 协议路由（不改） |
 | `main/tcp_server.c` | `bip_task`、初始化、定时器 |
-| `main/modbus.c` | 设置应用 |
+| `main/modbus.c` | `bbmd_apply_config()`、Modbus 寄存器 48、T3000 设置应用 |
+| `main/modbus.h` | `MODBUS_BBMD_EN`、`bbmd_apply_config()` 声明 |
 | `main/user_data.h` | 配置结构体 |
-| `main/flash.c` | 持久化 |
+| `main/flash.c` | NVS `FLASH_BBMD_EN` 持久化 |
+| `temco_bacnet/private/ptransfer.c` | T3000 400 字节块读写 |
 
 ---
 
-*文档版本：2026-06-05*
+*文档版本：2026-06-08（同步代码实现进度，新增阶段 12 与已知问题章节）*
