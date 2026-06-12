@@ -36,6 +36,7 @@
 #include "dlenv.h"
 #include "tsm.h"
 #include "bip.h"
+#include "bvlc.h"
 
 //#include "func_linux.h"
 

@@ -78,6 +78,7 @@ typedef enum
 #define FLASH_MAX_OUTS		"MAX_OUTS"
 #define FLASH_TCP_PORT      "TCP_PORT"
 #define FLASH_TCP_TYPE		"TCP_TYPE"
+#define FLASH_BBMD_EN		"BBMD_EN"
 
 #define FLASH_IN1_CAL		"IN1_CAL"
 #define FLASH_IN2_CAL		"IN2_CAL"

@@ -183,6 +183,9 @@ typedef	union
 	UN_Time update_dyndns;
 	uint16_t mstp_network_number;
 	uint8_t BBMD_EN;
+	uint32_t bbmd_ip;
+	uint16_t bbmd_port;
+	uint16_t bbmd_ttl;
 	uint8_t sd_exist;
 
 	uint16_t tcp_port;
@@ -234,6 +237,7 @@ typedef	union
 	}reg;
 }Str_Setting_Info;
 
+_Static_assert(sizeof(Str_Setting_Info) <= 400, "Str_Setting_Info overflow");
 
 typedef union
 {

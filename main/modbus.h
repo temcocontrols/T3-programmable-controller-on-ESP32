@@ -95,6 +95,7 @@ enum {
 	MODBUS_STATION_NUM = 42,  // MSTP ID
 	MODBUS_NETWORK_NUMBER = 46,
 	MODBUS_MSTP_NETWORK, // 47
+	MODBUS_BBMD_EN,  // 48
 
 	MAC_ADDR_1 = 60,
 	MAC_ADDR_2,
@@ -608,6 +609,11 @@ extern void uart_init(uint8_t uart) ;
 extern void stm32_uart_init(void);
 //uint8_t checkCrc(void);
 
+extern U8_T bbmd_en;
+void bbmd_apply_config(void);
+#ifdef BBMD_TEST_DEMO
+bool bbmd_test_demo(void);
+#endif
 
 #endif
 void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port);

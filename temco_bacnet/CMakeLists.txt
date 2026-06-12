@@ -40,7 +40,7 @@ idf_component_register(SRCS
 				"src/datetime.c"
 				"src/dcc.c"
 				"src/device.c"
-		#		"src/dlenv.c"
+				"src/dlenv.c"
 				"src/dlmstp.c"
 				"src/fifo.c"
 		#		"src/h_arf.c"
@@ -115,4 +115,5 @@ idf_component_register(SRCS
 				INCLUDE_DIRS "include"
 				REQUIRES esp_timer
 						 driver
+						 lwip
                     )

@@ -11,6 +11,7 @@
 #include "flash.h"
 #include "wifi.h"
 #include "bacnet.h"
+#include "bvlc.h"
 #include "commsub.h"
 #include "scan.h"
 #include "user_data.h"
@@ -88,6 +89,7 @@ void set_output_raw(U8_T point,U16_T value);
 void Set_AO_raw(uint8 i,float value);
 void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS);
 void dealwith_write_setting(Str_Setting_Info * ptr);
+void bbmd_apply_config(void);
 uint16_t read_user_data_by_block(uint16_t addr);
 uint16_t read_tstat10_data_by_block(uint16_t addr);
 uint8_t flag_change_uart0 = 0;
@@ -441,6 +443,9 @@ void uart_init(uint8_t uart)
 // Configure UART parameters
 	if(uart == 0) // sub port
 	{
+		if (uart_is_driver_installed(uart_num_sub)) {
+			uart_driver_delete(uart_num_sub);
+		}
 		uart_param_config(uart_num_sub, &uart_config);
 		uart_set_pin(uart_num_sub, GPIO_NUM_1, GPIO_NUM_3, GPIO_SUB_EN_PIN, UART_PIN_NO_CHANGE);
 		uart_driver_install(uart_num_sub, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
@@ -448,6 +453,9 @@ void uart_init(uint8_t uart)
 	}
 	else if(uart == 2)//  (uart == 1) main port
 	{
+		if (uart_is_driver_installed(uart_num_main)) {
+			uart_driver_delete(uart_num_main);
+		}
 		if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		{
 			uart_param_config(uart_num_main, &uart_config);
@@ -1012,6 +1020,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		{
 			temp1 = Modbus.mstp_network >> 8;
 			temp2 = Modbus.mstp_network;
+		}
+		else if(address == MODBUS_BBMD_EN)
+		{
+			temp1 = 0;
+			temp2 = Setting_Info.reg.BBMD_EN;
 		}
 		else if(address == MODBUS_TIME_ZONE)
 		{
@@ -2418,6 +2431,12 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			Modbus.mstp_network = (*(bufadd + 5)) + (*(bufadd + 4)) * 256;
 			save_uint16_to_flash(FLASH_MSTP_NETWORK,Modbus.mstp_network);
 		}
+		else if(address == MODBUS_BBMD_EN)
+		{
+			Setting_Info.reg.BBMD_EN = (*(bufadd + 5));
+			bbmd_apply_config();
+			save_uint8_to_flash(FLASH_BBMD_EN,Setting_Info.reg.BBMD_EN);
+		}
 		else if(address == MODBUS_EN_USER)
 		{
 			Modbus.en_username = *(bufadd + 5);
@@ -3535,6 +3554,51 @@ void MulWrite_IO_reg(uint16_t StartAdd,uint8_t * pData)
 
 
 
+void bbmd_apply_config(void)
+{
+	uint8_t mode = Setting_Info.reg.BBMD_EN;
+	uint16_t port = Setting_Info.reg.bbmd_port;
+	uint16_t ttl = Setting_Info.reg.bbmd_ttl;
+
+	if (mode > 3) {
+		mode = 0;
+		Setting_Info.reg.BBMD_EN = 0;
+	}
+	if (port == 0) {
+		port = 47808;
+	}
+	if (ttl == 0) {
+		ttl = 600;
+	}
+
+	if (mode == 2 || mode == 3) {
+		bbmd_en = 1;
+	} else {
+		bbmd_en = 0;
+	}
+
+	if ((mode == 1 || mode == 3) && (Setting_Info.reg.bbmd_ip != 0)) {
+		register_ftd(
+			(long) Setting_Info.reg.bbmd_ip,
+			(int) port,
+			(int) ttl);
+	}
+}
+
+
+#ifdef BBMD_TEST_DEMO
+bool bbmd_test_demo(void)
+{
+	bool ok = true;
+
+	bvlc_test_clear_bdt();
+	bvlc_test_clear_fdt();
+	ok = ok && bvlc_test_set_bdt_entry(0, 0xC0A8005f, 0xBAC0, 0xFFFFFFFF); /* 192.168.0.95 */
+
+	return ok;
+}
+#endif
+
 void dealwith_write_setting(Str_Setting_Info * ptr)
 {
 // compare sn to check whether it is current panel
@@ -3701,7 +3765,6 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			Modbus.cus_unit = ptr->reg.cus_unit;
 			//E2prom_Write_Byte(EEP_USER_NAME,Modbus.cus_unit);
 		}
-
 		if(Modbus.address != ptr->reg.modbus_id)
 		{
 			if(ptr->reg.modbus_id > 0 && ptr->reg.modbus_id < 255)
@@ -3751,6 +3814,19 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		{
 			Modbus.mstp_network = ptr->reg.mstp_network_number;
 			save_uint16_to_flash( FLASH_MSTP_NETWORK, Modbus.mstp_network);
+		}
+
+		if ((Setting_Info.reg.BBMD_EN != ptr->reg.BBMD_EN)
+			|| (Setting_Info.reg.bbmd_ip != ptr->reg.bbmd_ip)
+			|| (Setting_Info.reg.bbmd_port != ptr->reg.bbmd_port)
+			|| (Setting_Info.reg.bbmd_ttl != ptr->reg.bbmd_ttl))
+		{
+			Setting_Info.reg.BBMD_EN = ptr->reg.BBMD_EN;
+			Setting_Info.reg.bbmd_ip = ptr->reg.bbmd_ip;
+			Setting_Info.reg.bbmd_port = ptr->reg.bbmd_port;
+			Setting_Info.reg.bbmd_ttl = ptr->reg.bbmd_ttl;
+			bbmd_apply_config();
+			save_uint8_to_flash(FLASH_BBMD_EN, Setting_Info.reg.BBMD_EN);
 		}
 
 		if((Instance != ptr->reg.instance) && (ptr->reg.instance != 0))

@@ -28,11 +28,14 @@
 
 #include "stdint.h"
 
+#if defined(ESP_PLATFORM)
+#include "lwip/sockets.h"
+#else
+
 struct sockaddr {
     uint16_t sa_family;
     char sa_data[14];
 };
-
 
 struct in_addr {
     uint32_t s_addr;    /* load with inet_aton() */
@@ -44,7 +47,6 @@ struct sockaddr_in {
     struct in_addr sin_addr;    /* see struct in_addr, below */
     char sin_zero[8];   /* zero this if you want to */
 };
-
 
 typedef int socklen_t;
 
@@ -71,7 +73,6 @@ typedef int socklen_t;
                   ((((uint32_t)(n) & 0xFF00)) << 8) | \
                   ((((uint32_t)(n) & 0xFF0000)) >> 8) | \
                   ((((uint32_t)(n) & 0xFF000000)) >> 24))
-
 
 #define AF_UNIX         1       /* local to host (pipes, portals) */
 #define AF_INET         2       /* internetwork: UDP, TCP, etc. */
@@ -108,6 +109,8 @@ typedef int socklen_t;
 #define AF_ICLFXBM      31
 
 #define AF_MAX          32
+
+#endif /* ESP_PLATFORM */
 
 extern void set_address(
     uint32_t * net_address,

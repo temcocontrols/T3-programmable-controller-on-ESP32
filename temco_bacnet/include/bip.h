@@ -29,6 +29,7 @@
 #include <stddef.h>
 #include "bacdef.h"
 #include "npdu.h"
+#include "net.h"
 
 
 
@@ -60,8 +61,21 @@ extern "C" {
     /* common BACnet/IP functions */
     void bip_set_socket(
         int sock_fd);
+    void bip_set_udp_sock(
+        int sock_fd);
     int bip_socket(
         void);
+    int bip_get_udp_sock(
+        void);
+    int bip_send_mpdu_addr(
+        uint32_t dest_addr,
+        uint16_t dest_port,
+        uint8_t * mtu,
+        uint16_t mtu_len);
+    void bip_set_source_addr(
+        struct sockaddr_in *sin);
+    void bip_get_source_addr(
+        struct sockaddr_in *sin);
     bool bip_valid(
         void);
     void bip_get_broadcast_address(
@@ -128,6 +142,8 @@ extern "C" {
     long bip_getaddrbyname(
         const char *host_name);
 
+extern uint8_t bip_mpdu_dest_valid;
+extern struct sockaddr_in bip_mpdu_dest;
 
 #ifdef __cplusplus
 }

@@ -45,10 +45,22 @@ extern "C" {
 #endif /* __cplusplus */
 
 	void bvlc_intial(void);
-	
-
+	void bvlc_test_clear_bdt(void);
+	void bvlc_test_clear_fdt(void);
 	void bvlc_maintenance_timer(
 			uint16_t seconds);	   // changed by chelsea
+	bool bvlc_test_set_bdt_entry(
+	    unsigned index,
+	    long address,
+	    uint16_t port,
+	    long mask);
+	bool bvlc_test_add_fdt_entry(
+	    long address,
+	    uint16_t port,
+	    uint16_t time_to_live);
+	bool bvlc_test_delete_fdt_entry(
+	    long address,
+	    uint16_t port);
 
 void dlenv_maintenance_timer(
     uint16_t elapsed_seconds);
@@ -93,21 +105,26 @@ int bvlc_send_fdt(
     struct sockaddr_in *dest);
 void bvlc_internet_to_bacnet_address(
     BACNET_ADDRESS * src,       /* returns the BACnet source address */
-    struct sockaddr_in *sin);		
-		
-    uint16_t bvlc_receive(
-        BACNET_ADDRESS * src,   /* returns the source address */
-        uint8_t * npdu, /* returns the NPDU */
-        uint16_t max_npdu,      /* amount of space available in the NPDU  */
-        unsigned timeout);      /* number of milliseconds to wait for a packet */
+    struct sockaddr_in *sin);
 
-    int bvlc_send_pdu(
-        BACNET_ADDRESS * dest,  /* destination address */
-        BACNET_NPDU_DATA * npdu_data,   /* network information */
-        uint8_t * pdu,  /* any data to be sent - may be null */
-        unsigned pdu_len);
+extern uint8_t bbmd_en;
 
-    int bvlc_send_mpdu(
+uint16_t bvlc_handle_npdu(
+    BACNET_ADDRESS * src,
+    uint8_t * pdu,
+    int function,
+    uint16_t pdu_len,
+    uint16_t max_pdu,
+    struct sockaddr_in * sin);
+
+bool bvlc_is_foreign_device(
+    void);
+uint32_t bvlc_get_bbmd_addr(
+    void);
+uint16_t bvlc_get_bbmd_port(
+    void);
+
+int bvlc_send_mpdu(
         struct sockaddr_in *dest,
         uint8_t * mtu,
         uint16_t mtu_len);

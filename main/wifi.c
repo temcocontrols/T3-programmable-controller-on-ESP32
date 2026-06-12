@@ -49,7 +49,7 @@ void debug_print(char *string,char task_index)
 
 void debug_info(char *string)
 {
-#if 1//DEBUG_INFO_UART0
+#if 0//DEBUG_INFO_UART0
  	//uart_write_bytes(UART_NUM_0, "\r\n", 1);
  	uart_write_bytes(UART_NUM_0, (const char *)string, strlen(string));
 
@@ -288,6 +288,10 @@ void wifi_init_sta(void)
 {
     esp_err_t ret;
 
+    if (SSID_Info.MANUEL_EN != 1) {
+        return;
+    }
+
     s_wifi_event_group = xEventGroupCreate();
     CountHandle = xSemaphoreCreateCounting(7,7);
 #if 0
@@ -316,12 +320,6 @@ void wifi_init_sta(void)
     ret = esp_wifi_init(&cfg);
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         debug_info("esp_wifi_init failed");
-        return;
-    }
-
-    if(SSID_Info.MANUEL_EN != 1)
-    {
-        disable_wifi();
         return;
     }
 

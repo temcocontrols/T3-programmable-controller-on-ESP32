@@ -101,6 +101,7 @@ typedef struct
 	U16_T write_flash;
 
 
+
 }STR_MODBUS;
 
 typedef struct
@@ -214,6 +215,8 @@ extern uint8 flag_change_uart0;
 extern uint8 flag_change_uart2;
 extern uint8 count_change_uart0;
 extern uint8 count_change_uart2;
+
+extern U8_T bbmd_en;
 
 void modbus_task0(void *arg);
 void modbus_task2(void *arg);
