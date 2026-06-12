@@ -21,7 +21,11 @@ void eth_start(void);
 static const char *TAG = "ethernet_task";
 //uint8_t mac_addr[6] = {0};
 
+#define W5500_MR_REG_ADDR               ((uint32_t)(0x0000 << 16))
 #define W5500_PHYCFGR_REG_ADDR          ((uint32_t)(0x002E << 16))
+#define W5500_VERSIONR_REG_ADDR         ((uint32_t)(0x0039 << 16))
+#define W5500_EXPECTED_VERSION          0x04
+#define W5500_DEBUG_MAX_PHY_RESETS      3
 
 static const char *eth_event_name(int32_t event_id)
 {
@@ -169,6 +173,98 @@ esp_eth_handle_t eth_handle = NULL;
 
 extern uint8_t count_reboot;
 
+static void w5500_force_phy_all_capable(esp_eth_handle_t handle);
+
+static esp_err_t w5500_read_reg_u8(esp_eth_handle_t handle, uint32_t reg_addr, uint32_t *value)
+{
+    if (value == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    *value = 0;
+    esp_eth_phy_reg_rw_data_t reg = {
+        .reg_addr = reg_addr,
+        .reg_value_p = value,
+    };
+
+    return esp_eth_ioctl(handle, ETH_CMD_READ_PHY_REG, &reg);
+}
+
+static void w5500_log_gpio_snapshot(const char *reason)
+{
+    int rst = HUB_W5500_RST_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_RST_GPIO);
+    int cs = HUB_W5500_CS_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_CS_GPIO);
+    int miso = HUB_W5500_MISO_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_MISO_GPIO);
+    int mosi = HUB_W5500_MOSI_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_MOSI_GPIO);
+    int sclk = HUB_W5500_SCLK_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_SCLK_GPIO);
+    int intr = HUB_W5500_INT_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_INT_GPIO);
+
+    ESP_LOGW(TAG,
+             "W5500 GPIO snapshot (%s): RST%d=%d CS%d=%d MISO%d=%d MOSI%d=%d SCLK%d=%d INT%d=%d",
+             reason,
+             HUB_W5500_RST_GPIO,
+             rst,
+             HUB_W5500_CS_GPIO,
+             cs,
+             HUB_W5500_MISO_GPIO,
+             miso,
+             HUB_W5500_MOSI_GPIO,
+             mosi,
+             HUB_W5500_SCLK_GPIO,
+             sclk,
+             HUB_W5500_INT_GPIO,
+             intr);
+}
+
+static void w5500_log_common_regs(esp_eth_handle_t handle, const char *reason)
+{
+    uint32_t mr = 0;
+    uint32_t version = 0;
+    uint32_t phycfg = 0;
+    esp_err_t mr_ret = w5500_read_reg_u8(handle, W5500_MR_REG_ADDR, &mr);
+    esp_err_t version_ret = w5500_read_reg_u8(handle, W5500_VERSIONR_REG_ADDR, &version);
+    esp_err_t phycfg_ret = w5500_read_reg_u8(handle, W5500_PHYCFGR_REG_ADDR, &phycfg);
+
+    ESP_LOGW(TAG,
+             "W5500 common regs (%s): MR=0x%02lx(%s) VERSIONR=0x%02lx expected=0x%02x(%s) PHYCFGR=0x%02lx(%s)",
+             reason,
+             mr & 0xff,
+             esp_err_to_name(mr_ret),
+             version & 0xff,
+             W5500_EXPECTED_VERSION,
+             esp_err_to_name(version_ret),
+             phycfg & 0xff,
+             esp_err_to_name(phycfg_ret));
+}
+
+static void w5500_debug_reset_gpio_pulse(void)
+{
+    if (HUB_W5500_RST_GPIO == GPIO_NUM_NC) {
+        ESP_LOGW(TAG, "W5500 debug reset skipped: reset GPIO is NC");
+        return;
+    }
+
+    gpio_config_t io_conf = {
+        .pin_bit_mask = 1ULL << HUB_W5500_RST_GPIO,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    esp_err_t ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "W5500 debug reset GPIO config failed: %s", esp_err_to_name(ret));
+        return;
+    }
+
+    ESP_LOGW(TAG, "W5500 debug hardware reset pulse on GPIO%d", HUB_W5500_RST_GPIO);
+    gpio_set_level(HUB_W5500_RST_GPIO, 0);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    gpio_set_level(HUB_W5500_RST_GPIO, 1);
+    vTaskDelay(pdMS_TO_TICKS(250));
+}
+
 static void w5500_status_poll_task(void *pvParameters)
 {
     esp_eth_handle_t handle = (esp_eth_handle_t)pvParameters;
@@ -176,11 +272,7 @@ static void w5500_status_poll_task(void *pvParameters)
 
     while (1) {
         uint32_t phycfg = 0;
-        esp_eth_phy_reg_rw_data_t reg = {
-            .reg_addr = W5500_PHYCFGR_REG_ADDR,
-            .reg_value_p = &phycfg,
-        };
-        esp_err_t phy_ret = esp_eth_ioctl(handle, ETH_CMD_READ_PHY_REG, &reg);
+        esp_err_t phy_ret = w5500_read_reg_u8(handle, W5500_PHYCFGR_REG_ADDR, &phycfg);
 
         eth_speed_t speed = ETH_SPEED_10M;
         eth_duplex_t duplex = ETH_DUPLEX_HALF;
@@ -203,6 +295,15 @@ static void w5500_status_poll_task(void *pvParameters)
                      duplex == ETH_DUPLEX_FULL ? "full" : "half",
                      esp_err_to_name(duplex_ret),
                      Modbus.ethernet_status);
+
+            if (((phycfg & 0xff) == 0x00) || (((phycfg >> 7) & 0x01) == 0)) {
+                ESP_LOGW(TAG,
+                         "W5500 poll[%lu]: PHYCFGR abnormal, try force all-capable auto-negotiation again",
+                         (unsigned long)count);
+                w5500_log_common_regs(handle, "poll abnormal before force");
+                w5500_log_gpio_snapshot("poll abnormal before force");
+                w5500_force_phy_all_capable(handle);
+            }
         } else {
             ESP_LOGE(TAG,
                      "W5500 poll[%lu]: PHYCFGR read failed: %s speed_ret=%s duplex_ret=%s eth_status=%u",
@@ -220,6 +321,7 @@ static void w5500_status_poll_task(void *pvParameters)
 
 static void w5500_force_phy_all_capable(esp_eth_handle_t handle)
 {
+    static uint32_t debug_reset_count = 0;
     uint32_t phycfg = 0xf8;
     esp_eth_phy_reg_rw_data_t reg = {
         .reg_addr = W5500_PHYCFGR_REG_ADDR,
@@ -243,6 +345,40 @@ static void w5500_force_phy_all_capable(esp_eth_handle_t handle)
                  (phycfg >> 3) & 0x07,
                  (phycfg >> 6) & 0x01,
                  (phycfg >> 7) & 0x01);
+
+        if (((phycfg & 0xff) == 0x00) && (debug_reset_count < W5500_DEBUG_MAX_PHY_RESETS)) {
+            debug_reset_count++;
+            ESP_LOGW(TAG,
+                     "W5500 force readback stayed 0x00, run debug hardware reset %lu/%u",
+                     (unsigned long)debug_reset_count,
+                     W5500_DEBUG_MAX_PHY_RESETS);
+            w5500_debug_reset_gpio_pulse();
+
+            w5500_log_gpio_snapshot("after debug hardware reset pulse");
+            w5500_log_common_regs(handle, "after debug hardware reset before rewrite");
+
+            phycfg = 0xf8;
+            ret = esp_eth_ioctl(handle, ETH_CMD_WRITE_PHY_REG, &reg);
+            ESP_LOGW(TAG, "W5500 post-reset PHYCFGR write 0x%02lx: %s", phycfg & 0xff, esp_err_to_name(ret));
+            vTaskDelay(pdMS_TO_TICKS(20));
+
+            phycfg = 0;
+            ret = esp_eth_ioctl(handle, ETH_CMD_READ_PHY_REG, &reg);
+            if (ret == ESP_OK) {
+                ESP_LOGW(TAG,
+                         "W5500 post-reset PHYCFGR readback: 0x%02lx link=%lu speed_bit=%lu duplex_bit=%lu opmode=%lu opsel=%lu reset=%lu",
+                         phycfg & 0xff,
+                         phycfg & 0x01,
+                         (phycfg >> 1) & 0x01,
+                         (phycfg >> 2) & 0x01,
+                         (phycfg >> 3) & 0x07,
+                         (phycfg >> 6) & 0x01,
+                         (phycfg >> 7) & 0x01);
+                w5500_log_common_regs(handle, "after debug hardware reset rewrite");
+            } else {
+                ESP_LOGE(TAG, "W5500 post-reset PHYCFGR readback failed: %s", esp_err_to_name(ret));
+            }
+        }
     } else {
         ESP_LOGE(TAG, "W5500 force PHYCFGR readback failed: %s", esp_err_to_name(ret));
     }
