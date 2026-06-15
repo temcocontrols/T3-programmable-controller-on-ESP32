@@ -105,6 +105,7 @@ jobs:
         with:
           name: firmware
           path: |
-            build/*.bin
-            build/*.elf
-            build/*.map
+            build/temco_app.bin
+            build/bootloader/bootloader.bin
+            build/partition_table/partition-table.bin
+            build/ota_data_initial.bin
