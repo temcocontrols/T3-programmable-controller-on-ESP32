@@ -42,6 +42,14 @@ extern "C" {
 #define HUB_W5500_SPI_CLOCK_HZ          (1 * 1000 * 1000)
 #endif
 
+#ifndef HUB_W5500_SPI_ONLY_TEST
+#define HUB_W5500_SPI_ONLY_TEST         0
+#endif
+
+#ifndef HUB_W5500_DRIVER_REG_DEBUG
+#define HUB_W5500_DRIVER_REG_DEBUG      0
+#endif
+
 #ifndef HUB_W5500_POLL_PERIOD_MS
 #define HUB_W5500_POLL_PERIOD_MS        100
 #endif

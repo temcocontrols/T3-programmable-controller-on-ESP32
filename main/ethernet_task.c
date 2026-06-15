@@ -21,11 +21,13 @@ void eth_start(void);
 static const char *TAG = "ethernet_task";
 //uint8_t mac_addr[6] = {0};
 
+#if HUB_W5500_DRIVER_REG_DEBUG
 #define W5500_MR_REG_ADDR               ((uint32_t)(0x0000 << 16))
 #define W5500_PHYCFGR_REG_ADDR          ((uint32_t)(0x002E << 16))
 #define W5500_VERSIONR_REG_ADDR         ((uint32_t)(0x0039 << 16))
 #define W5500_EXPECTED_VERSION          0x04
 #define W5500_DEBUG_MAX_PHY_RESETS      3
+#endif
 
 static const char *eth_event_name(int32_t event_id)
 {
@@ -43,28 +45,38 @@ static const char *eth_event_name(int32_t event_id)
     }
 }
 
+#if HUB_W5500_DRIVER_REG_DEBUG
 static void eth_log_mac(const char *prefix, const uint8_t mac[6])
 {
     ESP_LOGI(TAG, "%s %02x:%02x:%02x:%02x:%02x:%02x",
              prefix,
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
+#endif
 
 /** Event handler for Ethernet events */
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
 {
 
+#if HUB_W5500_DRIVER_REG_DEBUG
     /* we can get the ethernet driver handle from event data */
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
+#else
+    (void)event_data;
+#endif
     ESP_LOGI(TAG, "ETH event: %s (%ld)", eth_event_name(event_id), (long)event_id);
     switch (event_id) {
     case ETHERNET_EVENT_CONNECTED:
+#if HUB_W5500_DRIVER_REG_DEBUG
         if (esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr) == ESP_OK) {
             eth_log_mac("Ethernet Link Up, MAC:", Modbus.mac_addr);
         } else {
             ESP_LOGW(TAG, "Ethernet Link Up, MAC read failed");
         }
+#else
+        ESP_LOGI(TAG, "Ethernet Link Up");
+#endif
         debug_info("Ethernet Link Up");
         //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
@@ -173,6 +185,7 @@ esp_eth_handle_t eth_handle = NULL;
 
 extern uint8_t count_reboot;
 
+#if HUB_W5500_DRIVER_REG_DEBUG
 static void w5500_force_phy_all_capable(esp_eth_handle_t handle);
 
 static esp_err_t w5500_read_reg_u8(esp_eth_handle_t handle, uint32_t reg_addr, uint32_t *value)
@@ -383,6 +396,7 @@ static void w5500_force_phy_all_capable(esp_eth_handle_t handle)
         ESP_LOGE(TAG, "W5500 force PHYCFGR readback failed: %s", esp_err_to_name(ret));
     }
 }
+#endif
 
 static esp_err_t ethernet_attach_and_start(esp_netif_t *eth_netif)
 {
@@ -401,8 +415,10 @@ static esp_err_t ethernet_attach_and_start(esp_netif_t *eth_netif)
             if(ret == ESP_OK) {
                 ESP_LOGI(TAG, "esp_eth_start OK");
                 debug_info("esp_eth_start finished^^^^^^^^");
+#if HUB_W5500_DRIVER_REG_DEBUG
                 w5500_force_phy_all_capable(eth_handle);
                 xTaskCreate(w5500_status_poll_task, "w5500_poll", 4096, eth_handle, 4, NULL);
+#endif
             } else {
                 ESP_LOGE(TAG, "esp_eth_start failed: %s", esp_err_to_name(ret));
                 debug_info("esp_eth_start failed");
@@ -429,6 +445,15 @@ esp_err_t ethernet_init(void)
     esp_err_t ret = ESP_OK;
 
     ESP_LOGI(TAG, "ethernet_init begin: mini_type=%u tcp_type=%u", Modbus.mini_type, Modbus.tcp_type);
+
+#if CONFIG_IDF_TARGET_ESP32S3 && HUB_W5500_SPI_ONLY_TEST
+    if (Modbus.mini_type == PROJECT_HUB)
+    {
+        ESP_LOGW(TAG, "HUB_W5500_SPI_ONLY_TEST enabled: skip netif/events/esp_eth_start and enter W5500 raw SPI loop");
+        eth_handle = NULL;
+        return hub_w5500_install(&eth_handle);
+    }
+#endif
 
     ESP_ERROR_CHECK(esp_netif_init());
 
