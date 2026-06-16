@@ -111,6 +111,7 @@ static void wifi_event_handler(
 
             //wifi_task_running = 0;
             SSID_Info.IP_Wifi_Status = WIFI_DISCONNECTED;
+            xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             if(ReconnectWithWifi == false)
             {
                 break;
@@ -194,6 +195,7 @@ static void wifi_event_handler(
             //wifi_task_running = 1;
             //xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
+            xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             break;
 
         default:
@@ -226,6 +228,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             esp_wifi_connect();
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
+        xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         //ESP_LOGI(TAG,"connect to the AP fail");
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
@@ -506,6 +509,7 @@ void disable_wifi() {
 void wifi_task(void *pvParameters)
 {
 	uint8_t temp_rssi = 0;
+    esp_log_level_set("wifi", ESP_LOG_ERROR);
 
     wifi_init_sta();
 

@@ -64,6 +64,7 @@
 #include "LcdTheme.h"
 #include "LCD_Driver/lcd_drv.h"
 #include "lora.h"
+#include "WireGuard_App.h"
 
 //#include "lowPower.h"
 
@@ -198,10 +199,8 @@ void start_fw_update(void)
    esp_retboot();
 }
 
-
 void esp_retboot(void)
 {
-
    esp_restart();
 }
 
@@ -314,7 +313,6 @@ void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len)
 		sendto(bip_sock, (uint8_t *)buf, len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
 		len = 0;
 	}
-
 }
 #if 0
 char udp_debug_str[100] = "udp test";
@@ -2632,7 +2630,7 @@ void Timer_task(void *pvParameters)
 	timezone = 800;
 	Daylight_Saving_Time = 0;
 	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
-			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
+			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR))
 	{
 		i2c_master_init();
 		PCF_hctosys();
@@ -4575,6 +4573,7 @@ void ddns_task(void *pvParameters);
 #endif
 
 void phy_reset(void);
+
 void app_main()
 {
 
@@ -4592,7 +4591,11 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
-	Modbus.mini_type = MINI_TSTAT11;
+	if(Modbus.mini_type == MINI_SMALL_ARM)
+	{
+		Modbus.mini_type = MINI_TSTAT11;
+		save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
+	}
 
 	uart_init(0);
 
@@ -4697,7 +4700,6 @@ void app_main()
 
     Set_Device_Stage(DEVICE_STAGE_RUNNING);
 
-
  #if 1
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
 #endif
@@ -4706,6 +4708,12 @@ void app_main()
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
 #endif
 
+	/* WireGuard Gateway initialization: only requires WiFi, modbus, and flash */
+	if(Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
+	{
+		ESP_LOGI("app_main", "Initializing WireGuard Gateway...");
+		xTaskCreate(wireguard_gateway_task, "wireguard_gw", 4096, NULL, tskIDLE_PRIORITY + 2, &main_task_handle[18]);
+	}
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
 
