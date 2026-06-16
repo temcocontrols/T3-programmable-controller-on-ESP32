@@ -2631,31 +2631,47 @@ void Timer_task(void *pvParameters)
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	uint16_t count = 0;
 	uint16_t count_1s = 0;
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	timezone = 800;
 	Daylight_Saving_Time = 0;
-	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_I2C_RTC_INIT
+	if((Modbus.mini_type != PROJECT_HUB) && (Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
 			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
 	{
 		i2c_master_init();
 		PCF_hctosys();
 		PCF_systohc();
 	}
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	Eth_IP_Change = 0;
 
 	update_timers();
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK || PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	system_timer = 0;
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	Mstp_ForUs = 0;
 	Mstp_NotForUs = 0;
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK
 	task_test.enable[13] = 1;
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	monitor_init();
 	//FOR TEST
 	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
 	if(Modbus.mini_type == PROJECT_LIGHT_PWM)
 		Light_PWM_Init();
+#endif
 
 	for (;;)
 	{// 10ms
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK
 		task_test.count[13]++;
+#endif
 
 		/*if(Test[20] == 100)
 		{
@@ -2676,6 +2692,7 @@ void Timer_task(void *pvParameters)
 
 
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 #if COV
 		handler_cov_task(BAC_IP_CLIENT);
 #endif
@@ -2693,7 +2710,9 @@ void Timer_task(void *pvParameters)
 		{// MSTP error, reboot
 			//
 		}
+#endif
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK
 		SilenceTime = SilenceTime + TIMER_INTERVAL;
 		if(SilenceTime > 10000) // 10s
 		{
@@ -2707,6 +2726,7 @@ void Timer_task(void *pvParameters)
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
 		{
 			run_time = run_time + 1;
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 #if LSW_ON_OFF
 			if(Modbus.mini_type == PROJECT_LSW_SENSOR)
 			{
@@ -2735,8 +2755,10 @@ void Timer_task(void *pvParameters)
 			}
 			else
 				flag_start_scan_mstp = 0;
+#endif
 
-			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
+#if PROJECT_HUB_W5500_TIMER_RESTORE_I2C_RTC_INIT
+			if((Modbus.mini_type != PROJECT_HUB) && (Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
 					 && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR))
 			{
 				PCF_GetDateTime(&rtc_date);
@@ -2747,17 +2769,26 @@ void Timer_task(void *pvParameters)
 					PCF_systohc();
 				}
 			}
+#endif
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 			if(count_hold_on_bip_to_mstp > 0)
 				count_hold_on_bip_to_mstp--;
 			count = 0;
+#endif
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_NETWORK_HEALTH
 			check_net_health(60);
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_UART_CHECK
 			Check_change_uart();
+#endif
 
 		}
+#endif
 
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 		if((run_time > 15) && (flag_clear_count_reboot == 0))
 		{ // 20s clear reboot count
 			flag_clear_count_reboot = 1;
@@ -2792,6 +2823,7 @@ void Timer_task(void *pvParameters)
 		}
 
 		check_task();
+#endif
 
 		//vTaskDelay(TIMER_INTERVAL / portTICK_PERIOD_MS);
 		vTaskDelayUntil( &xLastWakeTime,TIMER_INTERVAL); // 10ms
@@ -4681,7 +4713,24 @@ void app_main()
 
     flag_ethernet_initial = ethernet_init();
 
+#if PROJECT_HUB_W5500_DRIVER_ISOLATION_TEST && !PROJECT_HUB_W5500_RESTORE_NETWORK_TASKS
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		ESP_LOGW(TCP_TASK_TAG, "PROJECT_HUB W5500 driver isolation enabled: skip WiFi, UDP/network, A7608, and app tasks");
+		return;
+	}
+#endif
+
+#if PROJECT_HUB_W5500_DRIVER_ISOLATION_TEST && !PROJECT_HUB_W5500_RESTORE_WIFI
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		ESP_LOGW(TCP_TASK_TAG, "PROJECT_HUB W5500 staged test: skip WiFi task");
+	}
+	else
+#endif
+	{
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
+	}
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server
@@ -4692,6 +4741,45 @@ void app_main()
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
+#endif
+
+#if PROJECT_HUB_W5500_DRIVER_ISOLATION_TEST
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+#if PROJECT_HUB_W5500_RESTORE_A7608_AT_DEBUG
+		xTaskCreate(a7608_at_debug_task,"a7608_at_debug",8192, NULL, 10, &main_task_handle[9]);
+#else
+		ESP_LOGW(TCP_TASK_TAG, "PROJECT_HUB W5500 staged test: network tasks restored; skip A7608 and app tasks");
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_SCAN_TASK
+		vStartScanTask(5);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_MSTP0_TASK
+		xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_BACNET_CONTROL_TASK || PROJECT_HUB_W5500_STAGE4_RESTORE_TIMER_TASK
+		Set_Device_Stage(DEVICE_STAGE_RUNNING);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_BACNET_CONTROL_TASK
+		xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_TIMER_TASK
+		xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
+#endif
+
+		ESP_LOGW(TCP_TASK_TAG,
+				 "PROJECT_HUB W5500 Stage 4: network/WiFi/A7608 restored; scan=%d mstp0=%d bacnet=%d timer=%d; skip remaining app flow",
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_SCAN_TASK,
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_MSTP0_TASK,
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_BACNET_CONTROL_TASK,
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_TIMER_TASK);
+		return;
+	}
 #endif
 
     if(Modbus.mini_type == PROJECT_MPPT)

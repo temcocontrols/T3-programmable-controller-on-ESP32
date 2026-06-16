@@ -23,10 +23,11 @@ static const char *TAG = "ethernet_task";
 
 #if HUB_W5500_DRIVER_REG_DEBUG
 #define W5500_MR_REG_ADDR               ((uint32_t)(0x0000 << 16))
-#define W5500_PHYCFGR_REG_ADDR          ((uint32_t)(0x002E << 16))
-#define W5500_VERSIONR_REG_ADDR         ((uint32_t)(0x0039 << 16))
-#define W5500_EXPECTED_VERSION          0x04
 #define W5500_DEBUG_MAX_PHY_RESETS      3
+#endif
+
+#if HUB_W5500_DRIVER_REG_DEBUG || HUB_W5500_PHYCFGR_READ_DEBUG
+#define W5500_PHYCFGR_REG_ADDR          ((uint32_t)(0x002E << 16))
 #endif
 
 static const char *eth_event_name(int32_t event_id)
@@ -185,9 +186,7 @@ esp_eth_handle_t eth_handle = NULL;
 
 extern uint8_t count_reboot;
 
-#if HUB_W5500_DRIVER_REG_DEBUG
-static void w5500_force_phy_all_capable(esp_eth_handle_t handle);
-
+#if HUB_W5500_DRIVER_REG_DEBUG || HUB_W5500_PHYCFGR_READ_DEBUG
 static esp_err_t w5500_read_reg_u8(esp_eth_handle_t handle, uint32_t reg_addr, uint32_t *value)
 {
     if (value == NULL) {
@@ -202,6 +201,41 @@ static esp_err_t w5500_read_reg_u8(esp_eth_handle_t handle, uint32_t reg_addr, u
 
     return esp_eth_ioctl(handle, ETH_CMD_READ_PHY_REG, &reg);
 }
+#endif
+
+#if HUB_W5500_PHYCFGR_READ_DEBUG
+static void w5500_phycfg_read_poll_task(void *pvParameters)
+{
+    esp_eth_handle_t handle = (esp_eth_handle_t)pvParameters;
+    uint32_t count = 0;
+
+    while (1) {
+        uint32_t phycfg = 0;
+        esp_err_t phycfg_ret = w5500_read_reg_u8(handle, W5500_PHYCFGR_REG_ADDR, &phycfg);
+        int rst_level = HUB_W5500_RST_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_RST_GPIO);
+
+        ESP_LOGW(TAG,
+             "W5500 PHYCFGR read-only[%lu]: raw=0x%02lx(%s) rst_gpio%d=%d link=%lu reset=%lu speed=%lu duplex=%lu opmode=%lu opsel=%lu",
+                 (unsigned long)count,
+                 phycfg & 0xff,
+                 esp_err_to_name(phycfg_ret),
+             HUB_W5500_RST_GPIO,
+             rst_level,
+                 phycfg & 0x01,
+                 (phycfg >> 7) & 0x01,
+                 (phycfg >> 1) & 0x01,
+                 (phycfg >> 2) & 0x01,
+                 (phycfg >> 3) & 0x07,
+                 (phycfg >> 6) & 0x01);
+
+        count++;
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+#endif
+
+#if HUB_W5500_DRIVER_REG_DEBUG
+static void w5500_force_phy_all_capable(esp_eth_handle_t handle);
 
 static void w5500_log_gpio_snapshot(const char *reason)
 {
@@ -232,20 +266,15 @@ static void w5500_log_gpio_snapshot(const char *reason)
 static void w5500_log_common_regs(esp_eth_handle_t handle, const char *reason)
 {
     uint32_t mr = 0;
-    uint32_t version = 0;
     uint32_t phycfg = 0;
     esp_err_t mr_ret = w5500_read_reg_u8(handle, W5500_MR_REG_ADDR, &mr);
-    esp_err_t version_ret = w5500_read_reg_u8(handle, W5500_VERSIONR_REG_ADDR, &version);
     esp_err_t phycfg_ret = w5500_read_reg_u8(handle, W5500_PHYCFGR_REG_ADDR, &phycfg);
 
     ESP_LOGW(TAG,
-             "W5500 common regs (%s): MR=0x%02lx(%s) VERSIONR=0x%02lx expected=0x%02x(%s) PHYCFGR=0x%02lx(%s)",
+             "W5500 common regs (%s): MR=0x%02lx(%s) PHYCFGR=0x%02lx(%s)",
              reason,
              mr & 0xff,
              esp_err_to_name(mr_ret),
-             version & 0xff,
-             W5500_EXPECTED_VERSION,
-             esp_err_to_name(version_ret),
              phycfg & 0xff,
              esp_err_to_name(phycfg_ret));
 }
@@ -418,6 +447,9 @@ static esp_err_t ethernet_attach_and_start(esp_netif_t *eth_netif)
 #if HUB_W5500_DRIVER_REG_DEBUG
                 w5500_force_phy_all_capable(eth_handle);
                 xTaskCreate(w5500_status_poll_task, "w5500_poll", 4096, eth_handle, 4, NULL);
+#endif
+#if HUB_W5500_PHYCFGR_READ_DEBUG
+                xTaskCreate(w5500_phycfg_read_poll_task, "w5500_phycfg", 4096, eth_handle, 4, NULL);
 #endif
             } else {
                 ESP_LOGE(TAG, "esp_eth_start failed: %s", esp_err_to_name(ret));

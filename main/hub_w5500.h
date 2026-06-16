@@ -50,6 +50,10 @@ extern "C" {
 #define HUB_W5500_DRIVER_REG_DEBUG      0
 #endif
 
+#ifndef HUB_W5500_PHYCFGR_READ_DEBUG
+#define HUB_W5500_PHYCFGR_READ_DEBUG    1
+#endif
+
 #ifndef HUB_W5500_POLL_PERIOD_MS
 #define HUB_W5500_POLL_PERIOD_MS        100
 #endif
