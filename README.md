@@ -6,6 +6,10 @@ It provides Ethernet, WiFi, and RS485 connectivity, and exposes sensors, I/O, an
 
 The same codebase is shared across multiple TEMCO products to provide a consistent, fully programmable building automation platform.
 
+## Documentation
+
+- [Multi-Interface Edge Router & BBMD Gateway](docs/bbmd-technical-architecture.md) — **planned architecture only; not implemented yet.** Describes the intended design for W5500 Ethernet, cellular PPPoS (A7608E), WireGuard tunneling, and BACnet BBMD routing on the T3 controller.
+
 ## Products Using This Project
 
 ### T3 Series Programmable Bacnet & Modbus Controller
