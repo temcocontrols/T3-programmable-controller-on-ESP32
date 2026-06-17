@@ -10,19 +10,25 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "sdkconfig.h"
+// explicit driver includes used by debug SPI helper
+#include "driver/spi_master.h"
+#include "driver/gpio.h"
+#include "freertos/semphr.h"
 
 static const char *TAG = "hub_w5500";
+
+static spi_device_handle_t s_w5500_debug_spi = NULL;
+static SemaphoreHandle_t s_w5500_debug_lock = NULL;
+static bool s_w5500_spi_bus_ready = false;
 
 #define HUB_W5500_GPIO14_TEST 0
 #define W5500_COMMON_BLOCK_CTRL_READ    0x00
 #define W5500_COMMON_BLOCK_CTRL_WRITE   0x04
-#define W5500_SOCKET0_BLOCK_CTRL_READ   0x08
 #define W5500_MR_ADDR                   0x0000
 #define W5500_PHYCFGR_ADDR              0x002E
 #define W5500_VERSIONR_ADDR             0x0039
-#define W5500_S0_SR_ADDR                0x0003
 #define W5500_EXPECTED_VERSION          0x04
-#define W5500_PHYCFGR_TEST_VALUE        0xF8
+#define W5500_PHYCFGR_RST_BIT           0x80
 
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 extern esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config);
@@ -108,17 +114,146 @@ static esp_err_t hub_w5500_init_spi_bus(void)
     esp_err_t ret = spi_bus_initialize(HUB_W5500_SPI_HOST, &bus_config, SPI_DMA_CH_AUTO);
     if (ret == ESP_ERR_INVALID_STATE) {
         ESP_LOGW(TAG, "SPI host already initialized, reusing it");
+        s_w5500_spi_bus_ready = true;
         return ESP_OK;
     }
 
     if (ret == ESP_OK) {
         ESP_LOGI(TAG, "W5500 SPI bus init OK");
+        s_w5500_spi_bus_ready = true;
     }
 
     return ret;
 }
 
-#if HUB_W5500_SPI_ONLY_TEST
+static esp_err_t hub_w5500_init_debug_spi_device(void)
+{
+    if (s_w5500_debug_spi != NULL) {
+        return ESP_OK;
+    }
+    if (!s_w5500_spi_bus_ready) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    spi_device_interface_config_t spi_device_config = {
+        .mode = 0,
+        .clock_speed_hz = HUB_W5500_SPI_CLOCK_HZ,
+        .spics_io_num = HUB_W5500_CS_GPIO,
+        .queue_size = 1,
+    };
+
+    esp_err_t ret = spi_bus_add_device(HUB_W5500_SPI_HOST, &spi_device_config, &s_w5500_debug_spi);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "W5500 debug SPI add device failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    if (s_w5500_debug_lock == NULL) {
+        s_w5500_debug_lock = xSemaphoreCreateMutex();
+        if (s_w5500_debug_lock == NULL) {
+            spi_bus_remove_device(s_w5500_debug_spi);
+            s_w5500_debug_spi = NULL;
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    ESP_LOGI(TAG, "W5500 debug SPI device ready (shared, hw CS)");
+    return ESP_OK;
+}
+
+// Production helper: perform a single-byte SPI read from W5500 common block.
+// Uses a shared device handle created once at install time.
+static esp_err_t hub_w5500_do_spi_read(spi_device_handle_t spi, uint8_t block_ctrl, uint16_t addr, uint8_t *value)
+{
+    if (value == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    spi_transaction_t transaction = {0};
+    transaction.flags = SPI_TRANS_USE_TXDATA | SPI_TRANS_USE_RXDATA;
+    transaction.length = 32; // 4 bytes
+    transaction.tx_data[0] = (uint8_t)(addr >> 8);
+    transaction.tx_data[1] = (uint8_t)(addr & 0xff);
+    transaction.tx_data[2] = block_ctrl;
+    transaction.tx_data[3] = 0x00;
+
+    esp_err_t ret = spi_device_polling_transmit(spi, &transaction);
+    if (ret == ESP_OK) {
+        *value = transaction.rx_data[3];
+    }
+
+    return ret;
+}
+
+esp_err_t hub_w5500_read_common_regs(uint8_t *mr, uint8_t *versionr, uint8_t *phycfg)
+{
+    esp_err_t ret = ESP_OK;
+
+    if ((mr == NULL) && (versionr == NULL) && (phycfg == NULL)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_w5500_debug_spi == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_w5500_debug_lock == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (xSemaphoreTake(s_w5500_debug_lock, pdMS_TO_TICKS(50)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    ret = spi_device_acquire_bus(s_w5500_debug_spi, portMAX_DELAY);
+    if (ret != ESP_OK) {
+        xSemaphoreGive(s_w5500_debug_lock);
+        return ret;
+    }
+
+    esp_err_t final_ret = ESP_OK;
+    uint8_t mr_v = 0;
+    ret = hub_w5500_do_spi_read(s_w5500_debug_spi, W5500_COMMON_BLOCK_CTRL_READ, W5500_MR_ADDR, &mr_v);
+    if (ret != ESP_OK) {
+        final_ret = ret;
+    }
+
+    uint8_t ver_v = 0;
+    ret = hub_w5500_do_spi_read(s_w5500_debug_spi, W5500_COMMON_BLOCK_CTRL_READ, W5500_VERSIONR_ADDR, &ver_v);
+    if (ret != ESP_OK) {
+        final_ret = ret;
+    }
+
+    uint8_t phycfg_v = 0;
+    ret = hub_w5500_do_spi_read(s_w5500_debug_spi, W5500_COMMON_BLOCK_CTRL_READ, W5500_PHYCFGR_ADDR, &phycfg_v);
+    if (ret != ESP_OK) {
+        final_ret = ret;
+    }
+
+    if (mr != NULL) {
+        *mr = mr_v;
+    }
+    if (versionr != NULL) {
+        *versionr = ver_v;
+    }
+    if (phycfg != NULL) {
+        *phycfg = phycfg_v;
+    }
+
+    // Hardware-CS transaction should leave CS idle high; detect and report if not.
+    if (HUB_W5500_CS_GPIO != GPIO_NUM_NC) {
+        int cs_level = gpio_get_level(HUB_W5500_CS_GPIO);
+        if (cs_level == 0) {
+            gpio_set_level(HUB_W5500_CS_GPIO, 1);
+            ESP_LOGW(TAG, "W5500 debug SPI read finished and forced CS GPIO%d back to high", HUB_W5500_CS_GPIO);
+        }
+    }
+
+    spi_device_release_bus(s_w5500_debug_spi);
+    xSemaphoreGive(s_w5500_debug_lock);
+
+    return final_ret;
+}
+
+#if HUB_W5500_SPI_ONLY_TEST || HUB_W5500_RAW_SPI_READONLY_TEST
 static esp_err_t hub_w5500_spi_read_u8(spi_device_handle_t spi, uint8_t block_ctrl, uint16_t addr, uint8_t *value)
 {
     if ((spi == NULL) || (value == NULL)) {
@@ -158,6 +293,42 @@ static esp_err_t hub_w5500_spi_write_u8(spi_device_handle_t spi, uint8_t block_c
     return spi_device_polling_transmit(spi, &transaction);
 }
 
+static void hub_w5500_raw_phy_reset_once(spi_device_handle_t spi)
+{
+#if HUB_W5500_RAW_PHY_RESET_TEST
+    uint8_t before = 0;
+    esp_err_t read_ret = hub_w5500_spi_read_u8(spi, W5500_COMMON_BLOCK_CTRL_READ, W5500_PHYCFGR_ADDR, &before);
+    if (read_ret != ESP_OK) {
+        ESP_LOGW(TAG, "W5500 raw PHY reset skipped: PHYCFGR read failed: %s", esp_err_to_name(read_ret));
+        return;
+    }
+
+    uint8_t reset_value = before & (uint8_t)~W5500_PHYCFGR_RST_BIT;
+    esp_err_t reset_ret = hub_w5500_spi_write_u8(spi, W5500_COMMON_BLOCK_CTRL_WRITE, W5500_PHYCFGR_ADDR, reset_value);
+    ESP_LOGW(TAG,
+             "W5500 raw PHY reset assert: before=0x%02x write=0x%02x(%s)",
+             before,
+             reset_value,
+             esp_err_to_name(reset_ret));
+    if (reset_ret != ESP_OK) {
+        return;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    uint8_t release_value = before | W5500_PHYCFGR_RST_BIT;
+    esp_err_t release_ret = hub_w5500_spi_write_u8(spi, W5500_COMMON_BLOCK_CTRL_WRITE, W5500_PHYCFGR_ADDR, release_value);
+    ESP_LOGW(TAG,
+             "W5500 raw PHY reset release: write=0x%02x(%s)",
+             release_value,
+             esp_err_to_name(release_ret));
+
+    vTaskDelay(pdMS_TO_TICKS(500));
+#else
+    (void)spi;
+#endif
+}
+
 static const char *hub_w5500_spi_ret_name(esp_err_t ret)
 {
     return ret == ESP_OK ? "OK" : esp_err_to_name(ret);
@@ -168,31 +339,45 @@ static void hub_w5500_spi_only_log_regs(spi_device_handle_t spi, uint32_t count)
     uint8_t mr = 0;
     uint8_t version = 0;
     uint8_t phycfg = 0;
-    uint8_t s0_sr = 0;
 
     esp_err_t mr_ret = hub_w5500_spi_read_u8(spi, W5500_COMMON_BLOCK_CTRL_READ, W5500_MR_ADDR, &mr);
     esp_err_t version_ret = hub_w5500_spi_read_u8(spi, W5500_COMMON_BLOCK_CTRL_READ, W5500_VERSIONR_ADDR, &version);
     esp_err_t phycfg_ret = hub_w5500_spi_read_u8(spi, W5500_COMMON_BLOCK_CTRL_READ, W5500_PHYCFGR_ADDR, &phycfg);
-    esp_err_t s0_sr_ret = hub_w5500_spi_read_u8(spi, W5500_SOCKET0_BLOCK_CTRL_READ, W5500_S0_SR_ADDR, &s0_sr);
+    int rst_bit = phycfg_ret == ESP_OK ? (int)((phycfg >> 7) & 0x01) : -1;
+    int opmd_bit = phycfg_ret == ESP_OK ? (int)((phycfg >> 6) & 0x01) : -1;
+    int opmdc_bits = phycfg_ret == ESP_OK ? (int)((phycfg >> 3) & 0x07) : -1;
+    int dpx_bit = phycfg_ret == ESP_OK ? (int)((phycfg >> 2) & 0x01) : -1;
+    int spd_bit = phycfg_ret == ESP_OK ? (int)((phycfg >> 1) & 0x01) : -1;
+    int link_bit = phycfg_ret == ESP_OK ? (int)(phycfg & 0x01) : -1;
+    int cs_level = HUB_W5500_CS_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_CS_GPIO);
+    int rst_level = HUB_W5500_RST_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_RST_GPIO);
 
     ESP_LOGW(TAG,
-             "W5500 SPI-only[%lu]: MR=0x%02x(%s) VERSIONR=0x%02x expected=0x%02x(%s) PHYCFGR=0x%02x(%s) S0_SR=0x%02x(%s)",
+             "W5500 raw SPI-only[%lu]: VERSIONR=0x%02x expected=0x%02x(%s) MR=0x%02x(%s) PHYCFGR=0x%02x(%s) RST=%d OPMD=%d OPMDC=%d DPX=%d SPD=%d LNK=%d cs_gpio%d=%d rst_gpio%d=%d",
              (unsigned long)count,
-             mr,
-             hub_w5500_spi_ret_name(mr_ret),
              version,
              W5500_EXPECTED_VERSION,
              hub_w5500_spi_ret_name(version_ret),
+             mr,
+             hub_w5500_spi_ret_name(mr_ret),
              phycfg,
              hub_w5500_spi_ret_name(phycfg_ret),
-             s0_sr,
-             hub_w5500_spi_ret_name(s0_sr_ret));
+             rst_bit,
+             opmd_bit,
+             opmdc_bits,
+             dpx_bit,
+             spd_bit,
+             link_bit,
+             HUB_W5500_CS_GPIO,
+             cs_level,
+             HUB_W5500_RST_GPIO,
+             rst_level);
 }
 
 static esp_err_t hub_w5500_spi_only_test(void)
 {
     ESP_LOGW(TAG,
-             "HUB_W5500_SPI_ONLY_TEST enabled: Ethernet driver/netif/start are paused; INT is unused");
+             "W5500 raw SPI-only read test enabled: esp_eth driver/netif/start are paused; keep cable unplugged");
     ESP_LOGW(TAG,
              "W5500 SPI-only pins: rst=%d miso=%d mosi=%d sclk=%d cs=%d clock=%d mode=0",
              HUB_W5500_RST_GPIO,
@@ -227,26 +412,9 @@ static esp_err_t hub_w5500_spi_only_test(void)
         return ret;
     }
 
+    hub_w5500_raw_phy_reset_once(spi);
+
     hub_w5500_spi_only_log_regs(spi, 0);
-
-    ret = hub_w5500_spi_write_u8(spi,
-                                 W5500_COMMON_BLOCK_CTRL_WRITE,
-                                 W5500_PHYCFGR_ADDR,
-                                 W5500_PHYCFGR_TEST_VALUE);
-    ESP_LOGW(TAG,
-             "W5500 SPI-only write PHYCFGR=0x%02x: %s",
-             W5500_PHYCFGR_TEST_VALUE,
-             hub_w5500_spi_ret_name(ret));
-
-    uint8_t phycfg = 0;
-    esp_err_t readback_ret = hub_w5500_spi_read_u8(spi,
-                                                   W5500_COMMON_BLOCK_CTRL_READ,
-                                                   W5500_PHYCFGR_ADDR,
-                                                   &phycfg);
-    ESP_LOGW(TAG,
-             "W5500 SPI-only PHYCFGR immediate readback: 0x%02x(%s)",
-             phycfg,
-             hub_w5500_spi_ret_name(readback_ret));
 
     uint32_t count = 1;
     while (1) {
@@ -305,7 +473,7 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
     return ESP_ERR_INVALID_STATE;
 #endif
 
-#if HUB_W5500_SPI_ONLY_TEST
+#if HUB_W5500_SPI_ONLY_TEST || HUB_W5500_RAW_SPI_READONLY_TEST
     return hub_w5500_spi_only_test();
 #endif
 
@@ -319,6 +487,16 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
         ESP_LOGE(TAG, "W5500 SPI bus init failed: %s", esp_err_to_name(ret));
         return ret;
     }
+
+#if HUB_W5500_PHYCFGR_READ_DEBUG
+    // Full-driver direct SPI debug is disabled by default. Only create this
+    // second SPI device when the monitor is explicitly enabled.
+    ret = hub_w5500_init_debug_spi_device();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "W5500 debug SPI init failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+#endif
 
     ret = hub_w5500_init_gpio_isr_service();
     if (ret != ESP_OK) {

@@ -21,13 +21,15 @@ void eth_start(void);
 static const char *TAG = "ethernet_task";
 //uint8_t mac_addr[6] = {0};
 
-#if HUB_W5500_DRIVER_REG_DEBUG
+#if HUB_W5500_DRIVER_REG_DEBUG || HUB_W5500_PHYCFGR_READ_DEBUG
 #define W5500_MR_REG_ADDR               ((uint32_t)(0x0000 << 16))
-#define W5500_DEBUG_MAX_PHY_RESETS      3
+#define W5500_PHYCFGR_REG_ADDR          ((uint32_t)(0x002E << 16))
+#define W5500_VERSIONR_REG_ADDR         ((uint32_t)(0x0039 << 16))
+#define W5500_EXPECTED_VERSIONR         0x04
 #endif
 
-#if HUB_W5500_DRIVER_REG_DEBUG || HUB_W5500_PHYCFGR_READ_DEBUG
-#define W5500_PHYCFGR_REG_ADDR          ((uint32_t)(0x002E << 16))
+#if HUB_W5500_DRIVER_REG_DEBUG
+#define W5500_DEBUG_MAX_PHY_RESETS      3
 #endif
 
 static const char *eth_event_name(int32_t event_id)
@@ -117,6 +119,9 @@ static void got_ip_event_handler(void *arg,
     debug_info("~~~~~~~~~~~");
 
     ESP_LOGI(TAG, "Ethernet Got IP Address");
+    if (Modbus.mini_type == PROJECT_HUB) {
+        ESP_LOGW(TAG, "PROJECT_HUB Got IP is not cable proof; confirm W5500 VERSIONR=0x04 and PHYCFGR link=1");
+    }
 
     Modbus.ip_addr[0] = esp_ip4_addr1(&ip_info->ip);
     Modbus.ip_addr[1] = esp_ip4_addr2(&ip_info->ip);
@@ -206,30 +211,81 @@ static esp_err_t w5500_read_reg_u8(esp_eth_handle_t handle, uint32_t reg_addr, u
 #if HUB_W5500_PHYCFGR_READ_DEBUG
 static void w5500_phycfg_read_poll_task(void *pvParameters)
 {
-    esp_eth_handle_t handle = (esp_eth_handle_t)pvParameters;
+    (void)pvParameters;
     uint32_t count = 0;
+    int last_link_bit = -1;
 
     while (1) {
-        uint32_t phycfg = 0;
-        esp_err_t phycfg_ret = w5500_read_reg_u8(handle, W5500_PHYCFGR_REG_ADDR, &phycfg);
-        int rst_level = HUB_W5500_RST_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_RST_GPIO);
+        uint8_t mr = 0;
+        uint8_t version = 0;
+        uint8_t phycfg = 0;
+        esp_err_t spi_ret = hub_w5500_read_common_regs(&mr, &version, &phycfg);
 
-        ESP_LOGW(TAG,
-             "W5500 PHYCFGR read-only[%lu]: raw=0x%02lx(%s) rst_gpio%d=%d link=%lu reset=%lu speed=%lu duplex=%lu opmode=%lu opsel=%lu",
-                 (unsigned long)count,
-                 phycfg & 0xff,
-                 esp_err_to_name(phycfg_ret),
-             HUB_W5500_RST_GPIO,
-             rst_level,
-                 phycfg & 0x01,
-                 (phycfg >> 7) & 0x01,
-                 (phycfg >> 1) & 0x01,
-                 (phycfg >> 2) & 0x01,
-                 (phycfg >> 3) & 0x07,
-                 (phycfg >> 6) & 0x01);
+        int cs_level = HUB_W5500_CS_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_CS_GPIO);
+        int rst_level = HUB_W5500_RST_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_RST_GPIO);
+        int link_bit = spi_ret == ESP_OK ? (int)(phycfg & 0x01) : -1;
+        unsigned int ethernet_status = Modbus.ethernet_status;
+
+        if ((last_link_bit >= 0) && (link_bit >= 0) && (link_bit != last_link_bit)) {
+            ESP_LOGW(TAG,
+                     "W5500 cable link changed: %d -> %d directSPI.PHYCFGR=0x%02x VERSIONR=0x%02x MR=0x%02x cs_gpio%d=%d rst_gpio%d=%d eth_status=%u",
+                     last_link_bit,
+                     link_bit,
+                     (unsigned int)(phycfg & 0xff),
+                     (unsigned int)(version & 0xff),
+                     (unsigned int)(mr & 0xff),
+                     HUB_W5500_CS_GPIO,
+                     cs_level,
+                     HUB_W5500_RST_GPIO,
+                     rst_level,
+                     ethernet_status);
+        }
+        if (link_bit >= 0) {
+            last_link_bit = link_bit;
+        }
+
+        if (spi_ret != ESP_OK) {
+            ESP_LOGW(TAG, "W5500 SPI read failed: %s directSPI.PHYCFGR=0x%02x VERSIONR=0x%02x MR=0x%02x cs_gpio%d=%d rst_gpio%d=%d eth_status=%u",
+                     esp_err_to_name(spi_ret),
+                     (unsigned int)(phycfg & 0xff),
+                     (unsigned int)(version & 0xff),
+                     (unsigned int)(mr & 0xff),
+                     HUB_W5500_CS_GPIO,
+                     cs_level,
+                     HUB_W5500_RST_GPIO,
+                     rst_level,
+                     ethernet_status);
+        } else {
+            if (version != W5500_EXPECTED_VERSIONR) {
+                ESP_LOGW(TAG, "W5500 VERSIONR unexpected over SPI: 0x%02x (expected 0x%02x) cs_gpio%d=%d rst_gpio%d=%d eth_status=%u",
+                         (unsigned int)version, W5500_EXPECTED_VERSIONR,
+                         HUB_W5500_CS_GPIO, cs_level,
+                         HUB_W5500_RST_GPIO, rst_level,
+                         ethernet_status);
+            }
+
+            ESP_LOGW(TAG,
+                 "W5500 link monitor[%lu]: directSPI.PHYCFGR=0x%02x VERSIONR=0x%02x expected=0x%02x MR=0x%02x link=%d eth_status=%u cs_gpio%d=%d rst_gpio%d=%d reset=%lu speed=%lu duplex=%lu opmode=%lu opsel=%lu",
+                     (unsigned long)count,
+                     (unsigned int)(phycfg & 0xff),
+                     (unsigned int)(version & 0xff),
+                     W5500_EXPECTED_VERSIONR,
+                     (unsigned int)(mr & 0xff),
+                     link_bit,
+                     ethernet_status,
+                     HUB_W5500_CS_GPIO,
+                     cs_level,
+                     HUB_W5500_RST_GPIO,
+                     rst_level,
+                     (unsigned long)((phycfg >> 7) & 0x01),
+                     (unsigned long)((phycfg >> 1) & 0x01),
+                     (unsigned long)((phycfg >> 2) & 0x01),
+                     (unsigned long)((phycfg >> 3) & 0x07),
+                     (unsigned long)((phycfg >> 6) & 0x01));
+        }
 
         count++;
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 #endif
@@ -478,10 +534,10 @@ esp_err_t ethernet_init(void)
 
     ESP_LOGI(TAG, "ethernet_init begin: mini_type=%u tcp_type=%u", Modbus.mini_type, Modbus.tcp_type);
 
-#if CONFIG_IDF_TARGET_ESP32S3 && HUB_W5500_SPI_ONLY_TEST
+#if CONFIG_IDF_TARGET_ESP32S3 && (HUB_W5500_SPI_ONLY_TEST || HUB_W5500_RAW_SPI_READONLY_TEST)
     if (Modbus.mini_type == PROJECT_HUB)
     {
-        ESP_LOGW(TAG, "HUB_W5500_SPI_ONLY_TEST enabled: skip netif/events/esp_eth_start and enter W5500 raw SPI loop");
+        ESP_LOGW(TAG, "W5500 raw SPI-only mode enabled: skip netif/events/esp_eth_start and enter W5500 direct SPI loop");
         eth_handle = NULL;
         return hub_w5500_install(&eth_handle);
     }

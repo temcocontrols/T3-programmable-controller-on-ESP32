@@ -1,0 +1,437 @@
+
+[07:03:56.354]收←◆I (609) esp_image: segment 4: paddr=0020299c vaddr=4037b2bc size=15438h ( 87096) load
+I (634) esp_image: segment 5: paddr=00217ddc vaddr=50000000 size=00020h (    32) load
+I (645) boot: Loaded app from partition at offset 0x20000
+I (645) boot: Disabling RNG early entropy source...
+I (656) octal_psram: vendor id    : 0x0d (AP)
+I (656) octal_psram: dev id       : 0x03 (generation 4)
+I (656) octal_psram: density      : 0x05 (128 Mbit)
+I (658) octal_psram: good-die     : 0x01 (Pass)
+I (663) octal_psram: Latency      : 0x01 (Fixed)
+I (667) octal_psram: VCC          : 0x00 (1.8V)
+I (671) octal_psram: SRF          : 0x01 (Fast Refresh)
+I (676) octal_psram: BurstType    : 0x01 (Hybrid Wrap)
+I (681) octal_psram: BurstLen     : 0x01 (32 Byte)
+I (686) octal_psram: Readlatency  : 0x02 (10 cycles@Fixed)
+I (691) octal_psram: DriveStrength: 0x00 (1/1)
+I (695) MSPI Timing: Enter psram timing tuning
+I (700) esp_psram: Found 16MB PSRAM device
+I (703) esp_psram: Speed: 80MHz
+I (706) cpu_start: Multicore app
+
+[07:03:57.296]收←◆I (1561) esp_psram: SPI SRAM memory test OK
+I (1578) cpu_start: GPIO 44 and 43 are used as console UART I/O pins
+I (1578) cpu_start: Pro cpu start user code
+I (1578) cpu_start: cpu freq: 160000000 Hz
+I (1580) app_init: Application information:
+I (1584) app_init: Project name:     temco_app
+I (1588) app_init: App version:      398b95a
+I (1592) app_init: Compile time:     Jun 16 2026 09:51:36
+I (1598) app_init: ELF file SHA256:  4b785db1a...
+I (1602) app_init: ESP-IDF:          v5.5.3
+I (1606) efuse_init: Min chip rev:     v0.0
+I (1610) efuse_init: Max chip rev:     v0.99 
+I (1614) efuse_init: Chip rev:         v0.2
+I (1618) heap_init: Initializing. RAM available for dynamic allocation:
+I (1624) heap_init: At 3FCB49F0 len 00034D20 (211 KiB): RAM
+I (1629) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM
+I (1635) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM
+I (1640) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM
+I (1646) esp_psram: Adding pool of 16101K of PSRAM memory to heap allocator
+I (1653) spi_flash: detected chip: mxic (opi)
+I (1656) spi_flash: flash io: opi_str
+W (1660) pcnt(legacy): legacy driver is deprecated, please migrate to `driver/pulse_cnt.h`
+W (1667) i2c: This driver is an old driver, please migrate your application code to adapt `driver/i2c_master.h`
+W (1677) ADC: legacy driver is deprecated, please migrate to `esp_adc/adc_oneshot.h`
+I (1685) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (1691) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (1698) main_task: Started on CPU0
+I (1708) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+I (1708) main_task: Calling app_main()
+
+[07:03:57.483]收←◆E (1738) uart: uart_write_bytes(1629): uart driver error
+E (1748) uart: uart_write_bytes(1629): uart driver error
+E (1758) uart: uart_write_bytes(1629): uart driver error
+E (1758) uart: uart_write_bytes(1629): uart driver error
+app 6602, mini_type 30, count_reboot = 3I (1768) ethernet_task: ethernet_init begin: mini_type=30 tcp_type=0
+I (1768) ethernet_task: esp_event_loop_create_default OK
+I (1788) ethernet_task: eth_netif created: 0x3fced1f8
+I (1788) ethernet_task: Ethernet static IP configured: ip=192.168.0.103 mask=255.255.255.0 gw=192.168.0.1
+I (1808) ethernet_task: ETH event handler registered
+I (1818) ethernet_task: ETH got-ip handler registered
+I (1828) ethernet_task: Installing PROJECT_HUB W5500 driver
+I (1828) hub_w5500: W5500 install begin: host=2 miso=12 mosi=11 sclk=13 cs=14 int=-1 rst=9 clock=1000000
+I (1838) hub_w5500: W5500 reset begin on GPIO9
+
+[07:03:57.796]收←◆I (2058) hub_w5500: W5500 reset pulse done on GPIO9
+I (2058) hub_w5500: W5500 SPI bus init: host=2 miso=12 mosi=11 sclk=13 max_transfer=4096
+I (2058) hub_w5500: W5500 SPI bus init OK
+W (2058) hub_w5500: W5500 GPIO ISR service skipped: INT GPIO is NC
+I (2068) hub_w5500: W5500 SPI device config: mode=0 clock=1000000 cs=14 queue=20
+I (2068) hub_w5500: W5500 MAC init OK
+I (2078) hub_w5500: W5500 PHY init OK: phy_addr=0 reset_gpio=9 int_gpio=-1
+I (2098) hub_w5500: W5500 driver install OK, handle=0x3fceedc4
+I (2098) hub_w5500: W5500 base ETH MAC: 90:e5:b1:d4:39:63
+I (2098) hub_w5500: W5500 MAC address set OK
+I (2098) hub_w5500: W5500 installed: host=2 miso=12 mosi=11 sclk=13 cs=14 int=-1 rst=9 clock=1000000
+I (2108) ethernet_task: hub_w5500_install OK, handle=0x3fceedc4
+I (2118) ethernet_task: Attaching Ethernet netif to driver handle 0x3fceedc4
+I (2118) esp_eth.netif.netif_glue: 90:e5:b1:d4:39:63
+I (2128) esp_eth.netif.netif_glue: ethernet attached to netif
+I (2128) ethernet_task: esp_netif_attach OK, starting Ethernet
+I (2148) ethernet_task: ETH event: START (0)
+I (2148) ethernet_task: Ethernet Started
+I (2148) ethernet_task: esp_eth_start OK
+W (2158) ethernet_task: W5500 PHYCFGR read-only[0]: raw=0xfa(ESP_OK) rst_gpio9=0 link=0 reset=1 speed=1 duplex=0 opmode=7 opsel=1
+I (2158) ethernet_task: ethernet_init end: ret=ESP_OK eth_handle=0x3fceedc4 status=0
+I (2168) pp: pp rom version: e7ae62f
+I (2178) net80211: net80211 rom version: e7ae62f
+[A7608] UART1 ready modem_tx=17 modem_rx=18 baud=115200
+
+[A7608 AT DEBUG]
+UART1 baud=115200 ESP_TX/MODEM_RX=17 ESP_RX/MODEM_TX=18 PWRKEY=15(active=1) RESET=16(active=0)
+Set DTR pin 7 LOW before AT probe
+Checking modem response before power key pulse...
+I (2188) wifi:wifi driver task: 3fcc6b04, prio:23, stack:6656, core=0
+I (2188) UDP_TASK: Socket created
+I (2198) UDP_TASK: Socket bound, port 3333
+I (2198) wifi:wifi firmware version: 4df78f2
+I (2198) wifi:wifi certification version: v7.0
+I (2208) wifi:config NVS flash: enabled
+I (2208) wifi:config nano formatting: disabled
+I (2218) wifi:Init data frame dynamic rx buffer num: 32
+I (2218) wifi:Init static rx mgmt buffer num: 5
+I (2218) wifi:Init management short buffer num: 32
+I (2228) wifi:Init dynamic tx buffer num: 32
+I (2228) wifi:Init static tx FG buffer num: 2
+I (2238) wifi:Init static rx buffer size: 1600
+I (2238) wifi:Init static rx buffer num: 10
+I (2248) wifi:Init dynamic rx buffer num: 32
+I (2248) wifi_init: rx ba win: 6
+I (2248) wifi_init: accept mbox: 6
+I (2258) wifi_init: tcpip mbox: 32
+I (2258) wifi_init: udp mbox: 6
+I (2258) wifi_init: tcp mbox: 6
+I (2258) wifi_init: tcp tx win: 5760
+I (2268) wifi_init: tcp rx win: 5760
+I (2268) wifi_init: tcp mss: 1440
+I (2268) wifi_init: WiFi IRAM OP enabled
+I (2278) wifi_init: WiFi RX IRAM OP enabled
+Wi-Fi disabled successfully.
+W (2278) TCP_TASK: PROJECT_HUB W5500 Stage 4: network/WiFi/A7608 restored; scan=1 mstp0=1 bacnet=1 timer=1; skip remaining app flow
+I (2278) WIFI: Finish wifi init1
+I (2298) main_task: Returned from app_main()
+
+[07:03:58.921]收←◆Modem already responds; skip reset/PWRKEY boot sequence.
+Control levels: PWRKEY=0 RESET=0 DTR=0 RING=1
+Checking modem response...
+
+[07:03:59.890]收←◆I (4148) ethernet_task: ETH event: CONNECTED (2)
+I (4148) ethernet_task: Ethernet Link Up
+I (4158) ethernet_task: Ethernet Got IP Address
+I (4158) ethernet_task: ETHIP:192.168.0.103
+I (4158) ethernet_task: ETHMASK:255.255.255.0
+I (4158) ethernet_task: ETHGW:192.168.0.1
+W (4168) ethernet_task: W5500 PHYCFGR read-only[1]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+Transparent AT bridge ready. Type AT commands with CR/LF.
+
+[A7608 STATUS SNAPSHOT]
+
+>>> AT
+I (4188) esp_netif_handlers: eth ip: 192.168.0.103, mask: 255.255.255.0, gw: 192.168.0.1
+
+[07:03:59.968]收←◆AT
+OK
+
+[07:04:00.171]收←◆
+>>> ATI
+ATI
+Manufacturer: INCORPORATED
+Model: A7608E-H
+Revision: A7600M7_V5.0
+IMEI: 865223073672497
++GCAP: +CGSM,+FCLASS,+DS
+
+OK
+[07:04:00.374]收←◆
+Waiting 5 seconds for SIM/network stack to settle...
+
+[07:04:01.905]收←◆W (6178) ethernet_task: W5500 PHYCFGR read-only[2]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:03.912]收←◆W (8178) ethernet_task: W5500 PHYCFGR read-only[3]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:05.381]收←◆Rechecking modem response after ATI settle wait...
+
+>>> AT
+
+[07:04:05.428]收←◆AT
+OK
+
+[07:04:05.631]收←◆
+>>> AT+CPIN?
+
+[07:04:05.678]收←◆AT+CPIN?
++CPIN: READY
+
+OK
+
+[07:04:05.881]收←◆
+>>> AT+CSQ
+
+[07:04:05.912]收←◆W (10178) ethernet_task: W5500 PHYCFGR read-only[4]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+AT+CSQ
++CSQ: 19,99
+
+OK
+
+[07:04:06.131]收←◆
+>>> AT+CEREG?
+
+[07:04:06.178]收←◆AT+CEREG?
++CEREG: 0,1
+
+OK
+
+[07:04:06.381]收←◆
+>>> AT+CREG?
+
+[07:04:06.428]收←◆AT+CREG?
++CREG: 0,1
+
+OK
+
+[07:04:06.631]收←◆
+>>> AT+CGATT?
+
+[07:04:06.678]收←◆AT+CGATT?
++CGATT: 1
+
+OK
+
+[07:04:06.881]收←◆
+>>> AT+COPS?
+
+[07:04:06.928]收←◆AT+COPS?
++COPS: 0,2,"46001",7
+
+OK
+
+[07:04:07.131]收←◆
+>>> AT+CGDCONT?
+
+[07:04:07.162]收←◆AT+CGDCONT?
++CGDCONT: 1,"IPV4V6","3GNET","10.2.183.228 254.128.0.0.0.0.0.0.0.0.0.0.234.146.40.132",0,0,,,,
+
++CGDCONT: 8,"IPV
+[07:04:07.209]收←◆4V6","IMS","254.128.0.0.0.0.0.0.0.0.0.0.234.146.40.244",0,0,0,2,1,1
+
+OK
+
+[07:04:07.412]收←◆
+>>> AT+CGPADDR
+AT+CGPADDR
++CGPADDR: 1,10.2.183.228,254.128.0.0.0.0.0.0.0.0.0.0.234.146.40.132
+
++CGPADDR: 8,254.128.0.0.0.0.0.0.0.0.0.0.234.
+[07:04:07.475]收←◆146.40.244
+
+OK
+
+[07:04:07.678]收←◆
+[A7608 STATUS SNAPSHOT END]
+
+[07:04:07.912]收←◆W (12178) ethernet_task: W5500 PHYCFGR read-only[5]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:08.037]收←◆
+[A7608 PARSED STATUS]
+refresh=ESP_OK state=CONNECTED at=1 sim=1 reg_home=1 reg_roam=0 attached=1 connected=1
+csq=19 rssi_dbm=-75 operator=46001 ip=10.2.183.228 last_error=-
+[A7608 PARSED STATUS END]
+
+[A7608 GNSS STATUS]
+
+[07:04:08.084]收←◆enable=ESP_OK
+[GNSS ENABLE RAW]
+AT+CGNSSPWR=1
+OK
+[GNSS ENABLE RAW END]
+
+[07:04:09.912]收←◆W (14178) ethernet_task: W5500 PHYCFGR read-only[6]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:10.131]收←◆power_query=ESP_OK
+[GNSS POWER QUERY RAW]
+AT+CGNSSPWR?
++CGNSSPWR: 0,1,1
+
+OK
+[GNSS POWER QUERY RAW END]
+
+[07:04:10.178]收←◆info_CGNSSINFO=ESP_FAIL
+[CGNSSINFO RAW]
+AT+CGNSSINFO
+ERROR
+[CGNSSINFO RAW END]
+
+[07:04:10.225]收←◆info_CGNSSINFO=1=ESP_FAIL
+[CGNSSINFO=1 RAW]
+AT+CGNSSINFO=1
+ERROR
+[CGNSSINFO=1 RAW END]
+
+[07:04:10.287]收←◆info_CGNSSINFO=0=ESP_FAIL
+[CGNSSINFO=0 RAW]
+AT+CGNSSINFO=0
+ERROR
+[CGNSSINFO=0 RAW END]
+
+[07:04:10.334]收←◆info_CGPSINFO=ESP_FAIL
+[CGPSINFO RAW]
+AT+CGPSINFO
+ERROR
+[CGPSINFO RAW END]
+
+[07:04:10.381]收←◆info_CGPSINFO=1=ESP_FAIL
+[CGPSINFO=1 RAW]
+AT+CGPSINFO=1
+ERROR
+[CGPSINFO=1 RAW END]
+
+[07:04:10.428]收←◆info_CGPSINFO=0=ESP_FAIL
+[CGPSINFO=0 RAW]
+AT+CGPSINFO=0
+ERROR
+[CGPSINFO=0 RAW END]
+
+[07:04:10.475]收←◆info_CGNSINF=ESP_FAIL
+[CGNSINF RAW]
+AT+CGNSINF
+ERROR
+[CGNSINF RAW END]
+
+[A7608 GNSS COMMAND PROBE]
+
+[07:04:10.537]收←◆probe_CGNSSPWR=?=ESP_OK
+[CGNSSPWR=? RAW]
+AT+CGNSSPWR=?
++CGNSSPWR: (0-2),(0,1),(0,1)
+
+OK
+[CGNSSPWR=? RAW END]
+
+[07:04:10.678]收←◆probe_CGNSSPWR?=ESP_OK
+[CGNSSPWR? RAW]
+AT+CGNSSPWR?
++CGNSSPWR: 0,1,1
+
+OK
+[CGNSSPWR? RAW END]
+
+[07:04:10.834]收←◆probe_CGNSSINFO=?=ESP_OK
+[CGNSSINFO=? RAW]
+AT+CGNSSINFO=?
++CGNSSINFO: (0-255)
+
+OK
+[CGNSSINFO=? RAW END]
+
+[07:04:10.975]收←◆probe_CGNSSINFO?=ESP_OK
+[CGNSSINFO? RAW]
+AT+CGNSSINFO?
++CGNSSINFO: 0
+
+OK
+[CGNSSINFO? RAW END]
+
+[07:04:11.131]收←◆probe_CGPS=?=ESP_FAIL
+[CGPS=? RAW]
+AT+CGPS=?
+ERROR
+[CGPS=? RAW END]
+
+[07:04:11.287]收←◆probe_CGPS?=ESP_FAIL
+[CGPS? RAW]
+AT+CGPS?
+ERROR
+[CGPS? RAW END]
+
+[07:04:11.428]收←◆probe_CGPSINFO=?=ESP_OK
+[CGPSINFO=? RAW]
+AT+CGPSINFO=?
++CGPSINFO: (0-255)
+
+OK
+[CGPSINFO=? RAW END]
+
+[07:04:11.584]收←◆probe_CGPSINFO?=ESP_OK
+[CGPSINFO? RAW]
+AT+CGPSINFO?
++CGPSINFO: 0
+
+OK
+[CGPSINFO? RAW END]
+
+[07:04:11.725]收←◆probe_CGPSSTATUS?=ESP_FAIL
+[CGPSSTATUS? RAW]
+AT+CGPSSTATUS?
+ERROR
+[CGPSSTATUS? RAW END]
+
+[07:04:11.881]收←◆probe_CGNSINF=?=ESP_FAIL
+[CGNSINF=? RAW]
+AT+CGNSINF=?
+ERROR
+[CGNSINF=? RAW END]
+
+[07:04:11.912]收←◆W (16178) ethernet_task: W5500 PHYCFGR read-only[7]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:12.037]收←◆probe_CGNSINF?=ESP_FAIL
+[CGNSINF? RAW]
+AT+CGNSINF?
+ERROR
+[CGNSINF? RAW END]
+
+[07:04:12.178]收←◆probe_CGNSSMODE=?=ESP_OK
+[CGNSSMODE=? RAW]
+AT+CGNSSMODE=?
++CGNSSMODE: (1-4)
+
+OK
+[CGNSSMODE=? RAW END]
+
+[07:04:12.334]收←◆probe_CGNSSMODE?=ESP_OK
+[CGNSSMODE? RAW]
+AT+CGNSSMODE?
++CGNSSMODE: 3
+
+OK
+[CGNSSMODE? RAW END]
+
+[07:04:12.475]收←◆probe_CGNSSPORTSWITCH=?=ESP_OK
+[CGNSSPORTSWITCH=? RAW]
+AT+CGNSSPORTSWITCH=?
++CGNSSPORTSWITCH: (0,1),(0,1)
+
+OK
+[CGNSSPORTSWITCH=? RAW END]
+
+[07:04:12.631]收←◆probe_CGNSSPORTSWITCH?=ESP_OK
+[CGNSSPORTSWITCH? RAW]
+AT+CGNSSPORTSWITCH?
++CGNSSPORTSWITCH: 0,0
+
+OK
+[CGNSSPORTSWITCH? RAW END]
+
+[07:04:12.725]收←◆[A7608 GNSS COMMAND PROBE END]
+summary powered=1 fix=0 utc=- lat=-  lon=-  last_error=-
+GNSS remains enabled for manual AT+CGNSSINFO checks.
+[A7608 GNSS STATUS END]
+
+[07:04:13.912]收←◆W (18178) ethernet_task: W5500 PHYCFGR read-only[8]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:15.912]收←◆W (20178) ethernet_task: W5500 PHYCFGR read-only[9]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:17.912]收←◆W (22178) ethernet_task: W5500 PHYCFGR read-only[10]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1
+
+[07:04:19.912]收←◆W (24178) ethernet_task: W5500 PHYCFGR read-only[11]: raw=0xff(ESP_OK) rst_gpio9=0 link=1 reset=1 speed=1 duplex=1 opmode=7 opsel=1

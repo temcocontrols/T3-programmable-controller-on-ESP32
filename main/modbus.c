@@ -165,6 +165,15 @@ void check_modbus_slave(void)
 
 void Check_change_uart(void)
 {
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		flag_change_uart0 = 0;
+		flag_change_uart2 = 0;
+		count_change_uart0 = 0;
+		count_change_uart2 = 0;
+		return;
+	}
+
 	if(flag_change_uart0 == 1)
 	{
 		if(count_change_uart0++ > 3)
