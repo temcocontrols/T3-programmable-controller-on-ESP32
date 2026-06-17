@@ -384,6 +384,13 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_EN_USERNAME, Modbus.en_username);
 	}
 
+	err = nvs_get_u8(my_handle, FLASH_ENABLE_MQTT, &Modbus.enable_mqtt);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.enable_mqtt = 0; // Default off
+		nvs_set_u8(my_handle, FLASH_ENABLE_MQTT, Modbus.enable_mqtt);
+	}
+
 	err = nvs_get_u8(my_handle, FLASH_BOOTLOADER, &Modbus.IspVer);
 	err = nvs_get_u8(my_handle, FLASH_COUNT_REBOOT, &count_reboot);
 	Test[21]++;

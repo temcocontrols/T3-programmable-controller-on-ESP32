@@ -94,6 +94,7 @@ typedef struct
 	U8_T led_rx485_rx;
 
 	U8_T enable_debug;
+	U8_T enable_mqtt;
 	U16_T mstp_network;
 
 	U8_T icon_config;

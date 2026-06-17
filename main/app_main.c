@@ -65,6 +65,7 @@
 #include "LCD_Driver/lcd_drv.h"
 #include "lora.h"
 #include "WireGuard_App.h"
+#include "Mqtt_Handler.h"
 
 //#include "lowPower.h"
 
@@ -2423,6 +2424,9 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 			put_net_point_value(&point,&value,0,1,cov->timeRemaining);
 		}
 
+#if BACNET_SUB_COV
+		Mqtt_Handler_Send_COV(cov);
+#endif
 }
 
 // update the value subscribed object
@@ -2430,6 +2434,7 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 void Update_Value_List(uint8_t type, uint32_t instance)
 {
 	char text[10];
+	uint32_t original_instance = instance;
 	cov_data_value_list_link(&cov_data, &value_list, 1);
 	value_list.propertyIdentifier = PROP_PRESENT_VALUE;
 	value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
@@ -2506,6 +2511,16 @@ void Update_Value_List(uint8_t type, uint32_t instance)
 
 	}
 
+#if BACNET_SUB_COV
+	extern uint32_t Instance;
+	cov_data.monitoredObjectIdentifier.type = type;
+	cov_data.monitoredObjectIdentifier.instance = original_instance;
+	cov_data.initiatingDeviceIdentifier = Instance;
+	cov_data.subscriberProcessIdentifier = 1;
+	cov_data.timeRemaining = 60;
+
+	Mqtt_Handler_Send_COV(&cov_data);
+#endif
 }
 
 int send_cov_demo(void) {
@@ -4634,6 +4649,8 @@ void app_main()
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
+
+	Mqtt_Handler_Init();
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
