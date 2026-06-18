@@ -146,6 +146,40 @@ When `#define BACNET_SUB_COV 1`, the MQTT engine intercepts changes triggered du
 
 ---
 
+### Mechanism C: MQTT Initiated Point Subscription Mode (Hybrid Subscription)
+
+This mode allows remote clients on the MQTT broker to explicitly subscribe to specific points. The controller then monitors these points, and on change, sends updates to both MQTT and BACnet.
+
+#### 1. State Tracking Arrays
+Three in-memory arrays track the remaining lifetime (in seconds) of active MQTT subscriptions:
+```c
+static int32_t mqtt_sub_inputs[MAX_INS] = {0};
+static int32_t mqtt_sub_outputs[MAX_OUTS] = {0};
+static int32_t mqtt_sub_vars[MAX_VARS + 12] = {0};
+```
+
+#### 2. Command Reception and Parsing
+1.  **Topic Subscriptions:** During connection handshake (`MQTT_EVENT_CONNECTED`), the client subscribes to:
+    *   `temco/test/tstat11/sub`
+    *   `temco/cov/tstat11/sub`
+2.  **JSON Packet Decoding:** Upon receiving `MQTT_EVENT_DATA` on either topic, the payload is parsed using `cJSON`. The fields `action` (`"subscribe"` or `"unsubscribe"`), `object_type` (string name or integer), `instance` (1-based), and `lifetime` (defaults to 300s) are extracted.
+3.  **Active Lifetime Updates:** The in-memory tracking array index matching the point is set to the decoded `lifetime` value.
+
+#### 3. Change Detection & Dual-Network Dispatch
+Every **1000ms**, `Mqtt_HandlerTask` calls:
+*   `mqtt_update_sub_lifetimes(1)`: Decrements all non-zero array entries by 1 second.
+*   `mqtt_check_subscribed_cov()`: Checks values for points that have active MQTT subscriptions (`lifetime > 0`):
+    *   It compares current values against backup registers (`backup_mqtt_X[i]`) using standard deadband thresholds.
+    *   If a change is detected, it formats a `BACNET_COV_DATA` struct and publishes the JSON payload to the appropriate MQTT topic.
+    *   **Simultaneously**, it broadcasts the change to the BACnet network by calling:
+        ```c
+        Send_UCOV_Notify(tx_buf, &mock_cov, BAC_IP_CLIENT);
+        udp_client_send(5);
+        ```
+    *   This fulfills the requirement to update **both** MQTT and BACnet without modifying the BACnet protocol stack code.
+
+---
+
 ## 5. JSON Serialization and Type Mapping
 
 `Mqtt_Handler_Send_COV` translates structured C structures into a nested JSON schema using cJSON.

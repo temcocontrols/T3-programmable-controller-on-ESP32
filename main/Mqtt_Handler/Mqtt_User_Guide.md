@@ -138,6 +138,51 @@ When a point's value changes, the controller publishes to a topic structured by 
     }
     ```
 
+#### E. Initiating Point Subscriptions via MQTT
+If you do not want to use a BACnet tool to subscribe to points, you can initiate subscriptions directly via MQTT by publishing a subscription control JSON payload.
+
+The controller listens for subscription messages on the following topics:
+*   `temco/test/tstat11/sub`
+*   `temco/cov/tstat11/sub`
+
+##### 1. JSON Subscription Request Format
+Publish a JSON message containing the target point details:
+```json
+{
+  "action": "subscribe",
+  "object_type": "ANALOG_INPUT",
+  "instance": 1,
+  "lifetime": 300
+}
+```
+*   `action`: Must be `"subscribe"`.
+*   `object_type`: The BACnet object type. Can be numeric (e.g. `0` for Analog Input) or a string:
+    *   `0` or `"ANALOG_INPUT"`
+    *   `1` or `"ANALOG_OUTPUT"`
+    *   `2` or `"ANALOG_VALUE"`
+    *   `3` or `"BINARY_INPUT"`
+    *   `4` or `"BINARY_OUTPUT"`
+    *   `5` or `"BINARY_VALUE"`
+*   `instance`: The 1-based point number (e.g. `1` for Input 1).
+*   `lifetime`: (Optional) Remaining time in seconds before subscription expires. Defaults to `300` (5 minutes) if omitted.
+
+##### 2. JSON Unsubscribe Request Format
+To cancel a subscription before it expires, publish an unsubscribe message:
+```json
+{
+  "action": "unsubscribe",
+  "object_type": "ANALOG_INPUT",
+  "instance": 1
+}
+```
+
+##### 3. Simultaneous Response Behavior (Dual-Network Notifications)
+When a point is subscribed via MQTT:
+1.  The controller registers the request and monitors the point for changes.
+2.  Upon change, the controller publishes the update to the corresponding MQTT topic.
+3.  **Simultaneously**, the controller broadcasts an unconfirmed BACnet COV notification (`Send_UCOV_Notify`) to the entire BACnet network.
+4.  This means subscribing via MQTT triggers responses on **both** MQTT and BACnet networks without modifying the underlying BACnet code.
+
 ---
 
 ## 5. Troubleshooting Checklist

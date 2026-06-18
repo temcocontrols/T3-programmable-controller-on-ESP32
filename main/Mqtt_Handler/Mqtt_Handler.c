@@ -53,6 +53,21 @@ static esp_mqtt_client_handle_t s_mqtt_client = NULL;
  */
 static bool s_connected = false;
 
+// External BACnet functions and structures needed for broadcasting MQTT-subscribed changes back to BACnet
+extern int Send_UCOV_Notify(uint8_t * buffer, BACNET_COV_DATA * cov_data, uint8_t protocal);
+extern void udp_client_send(uint16_t time);
+#define BAC_IP_CLIENT 2
+
+// Backup arrays for change detection (used by both ALL_COV and MQTT subscriptions)
+static EXT_RAM_BSS_ATTR int32_t backup_mqtt_inputs[MAX_INS];
+static EXT_RAM_BSS_ATTR int32_t backup_mqtt_outputs[MAX_OUTS];
+static EXT_RAM_BSS_ATTR int32_t backup_mqtt_vars[MAX_VARS + 12];
+
+// MQTT subscription tracking arrays (stores remaining lifetime in seconds, 0 = unsubscribed)
+static EXT_RAM_BSS_ATTR int32_t mqtt_sub_inputs[MAX_INS] = {0};
+static EXT_RAM_BSS_ATTR int32_t mqtt_sub_outputs[MAX_OUTS] = {0};
+static EXT_RAM_BSS_ATTR int32_t mqtt_sub_vars[MAX_VARS + 12] = {0};
+
 /**
  * @brief Callback handler for MQTT events dispatched by esp-mqtt.
  *
@@ -76,7 +91,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
             // Subscribe to the test subscription topic
             msg_id = esp_mqtt_client_subscribe(client, "temco/test/tstat11/sub", 1);
-            ESP_LOGI(TAG, "Sent subscribe successful, msg_id=%d", msg_id);
+            ESP_LOGI(TAG, "Sent subscribe to test topic successful, msg_id=%d", msg_id);
+
+            // Subscribe to the COV subscription topic
+            msg_id = esp_mqtt_client_subscribe(client, "temco/cov/tstat11/sub", 1);
+            ESP_LOGI(TAG, "Sent subscribe to COV topic successful, msg_id=%d", msg_id);
 
             // Publish a test confirmation message
             const char *conn_payload = "{\"status\":\"online\",\"device\":\"tstat11\",\"broker\":\"HiveMQ\"}";
@@ -105,6 +124,76 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             ESP_LOGI(TAG, "MQTT_EVENT_DATA received");
             ESP_LOGI(TAG, "Topic: %.*s", event->topic_len, event->topic);
             ESP_LOGI(TAG, "Payload: %.*s", event->data_len, event->data);
+
+            // Parse payload if topic matches subscription control topics
+            if (strncmp(event->topic, "temco/test/tstat11/sub", event->topic_len) == 0 ||
+                strncmp(event->topic, "temco/cov/tstat11/sub", event->topic_len) == 0) {
+
+                char *temp_data = malloc(event->data_len + 1);
+                if (temp_data) {
+                    memcpy(temp_data, event->data, event->data_len);
+                    temp_data[event->data_len] = '\0';
+
+                    cJSON *root = cJSON_Parse(temp_data);
+                    if (root) {
+                        cJSON *action_item = cJSON_GetObjectItem(root, "action");
+                        cJSON *type_item = cJSON_GetObjectItem(root, "object_type");
+                        cJSON *instance_item = cJSON_GetObjectItem(root, "instance");
+                        cJSON *lifetime_item = cJSON_GetObjectItem(root, "lifetime");
+
+                        if (action_item && action_item->valuestring && type_item && instance_item) {
+                            int obj_type = -1;
+                            if (cJSON_IsNumber(type_item)) {
+                                obj_type = type_item->valueint;
+                            } else if (cJSON_IsString(type_item)) {
+                                if (strcasecmp(type_item->valuestring, "ANALOG_INPUT") == 0) obj_type = 0;
+                                else if (strcasecmp(type_item->valuestring, "ANALOG_OUTPUT") == 0) obj_type = 1;
+                                else if (strcasecmp(type_item->valuestring, "ANALOG_VALUE") == 0) obj_type = 2;
+                                else if (strcasecmp(type_item->valuestring, "BINARY_INPUT") == 0) obj_type = 3;
+                                else if (strcasecmp(type_item->valuestring, "BINARY_OUTPUT") == 0) obj_type = 4;
+                                else if (strcasecmp(type_item->valuestring, "BINARY_VALUE") == 0) obj_type = 5;
+                            }
+
+                            int instance = instance_item->valueint;
+                            int lifetime = lifetime_item ? lifetime_item->valueint : 300;
+
+                            if (strcmp(action_item->valuestring, "subscribe") == 0) {
+                                ESP_LOGI(TAG, "MQTT Subscribe request: type=%d, instance=%d, lifetime=%d", obj_type, instance, lifetime);
+                                if (obj_type == 0 || obj_type == 3) { // AI or BI
+                                    if (instance > 0 && instance <= MAX_INS) {
+                                        mqtt_sub_inputs[instance - 1] = lifetime;
+                                    }
+                                } else if (obj_type == 1 || obj_type == 4) { // AO or BO
+                                    if (instance > 0 && instance <= MAX_OUTS) {
+                                        mqtt_sub_outputs[instance - 1] = lifetime;
+                                    }
+                                } else if (obj_type == 2 || obj_type == 5) { // AV or BV
+                                    if (instance > 0 && instance <= (MAX_VARS + 12)) {
+                                        mqtt_sub_vars[instance - 1] = lifetime;
+                                    }
+                                }
+                            } else if (strcmp(action_item->valuestring, "unsubscribe") == 0) {
+                                ESP_LOGI(TAG, "MQTT Unsubscribe request: type=%d, instance=%d", obj_type, instance);
+                                if (obj_type == 0 || obj_type == 3) {
+                                    if (instance > 0 && instance <= MAX_INS) {
+                                        mqtt_sub_inputs[instance - 1] = 0;
+                                    }
+                                } else if (obj_type == 1 || obj_type == 4) {
+                                    if (instance > 0 && instance <= MAX_OUTS) {
+                                        mqtt_sub_outputs[instance - 1] = 0;
+                                    }
+                                } else if (obj_type == 2 || obj_type == 5) {
+                                    if (instance > 0 && instance <= (MAX_VARS + 12)) {
+                                        mqtt_sub_vars[instance - 1] = 0;
+                                    }
+                                }
+                            }
+                        }
+                        cJSON_Delete(root);
+                    }
+                    free(temp_data);
+                }
+            }
             break;
 
         case MQTT_EVENT_ERROR:
@@ -263,9 +352,6 @@ bool Mqtt_Handler_Send_COV(const struct BACnet_COV_Data *cov_data)
 }
 
 #if ALL_COV
-static int32_t backup_mqtt_inputs[MAX_INS];
-static int32_t backup_mqtt_outputs[MAX_OUTS];
-static int32_t backup_mqtt_vars[MAX_VARS + 12];
 
 static void mqtt_check_all_cov(void)
 {
@@ -430,6 +516,224 @@ static void mqtt_check_all_cov(void)
 }
 #endif
 
+static void mqtt_update_sub_lifetimes(uint32_t elapsed_seconds)
+{
+    for (int i = 0; i < MAX_INS; i++) {
+        if (mqtt_sub_inputs[i] > 0) {
+            if (mqtt_sub_inputs[i] > elapsed_seconds) {
+                mqtt_sub_inputs[i] -= elapsed_seconds;
+            } else {
+                mqtt_sub_inputs[i] = 0;
+            }
+        }
+    }
+    for (int i = 0; i < MAX_OUTS; i++) {
+        if (mqtt_sub_outputs[i] > 0) {
+            if (mqtt_sub_outputs[i] > elapsed_seconds) {
+                mqtt_sub_outputs[i] -= elapsed_seconds;
+            } else {
+                mqtt_sub_outputs[i] = 0;
+            }
+        }
+    }
+    for (int i = 0; i < MAX_VARS; i++) {
+        if (mqtt_sub_vars[i] > 0) {
+            if (mqtt_sub_vars[i] > elapsed_seconds) {
+                mqtt_sub_vars[i] -= elapsed_seconds;
+            } else {
+                mqtt_sub_vars[i] = 0;
+            }
+        }
+    }
+}
+
+static void mqtt_check_subscribed_cov(void)
+{
+    static bool initialized = false;
+
+    // Check Inputs
+    for (int i = 0; i < MAX_INS; i++) {
+        if (inputs[i].range == 0) continue;
+        if (mqtt_sub_inputs[i] <= 0) continue;
+
+        bool changed = false;
+        static BACNET_COV_DATA mock_cov;
+        static BACNET_PROPERTY_VALUE mock_value;
+        static char text[16];
+
+        if (inputs[i].digital_analog == 1) { // Analog Input
+            int32_t diff = abs(inputs[i].value - backup_mqtt_inputs[i]);
+            int32_t err = 5000;
+            if (inputs[i].range <= 49 || inputs[i].range == 57) {
+                err = 500;
+            } else if (inputs[i].range == 58) {
+                err = 10000;
+            }
+            if (diff > err || !initialized) {
+                backup_mqtt_inputs[i] = inputs[i].value;
+                changed = true;
+                mock_value.propertyIdentifier = PROP_PRESENT_VALUE;
+                mock_value.propertyArrayIndex = BACNET_ARRAY_ALL;
+                mock_value.priority = BACNET_NO_PRIORITY;
+                mock_value.next = NULL;
+                snprintf(text, sizeof(text), "%f", (float)inputs[i].value / 1000);
+                bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text, &mock_value.value);
+            }
+        } else { // Binary Input
+            if (inputs[i].control != backup_mqtt_inputs[i] || !initialized) {
+                backup_mqtt_inputs[i] = inputs[i].control;
+                changed = true;
+                mock_value.propertyIdentifier = PROP_PRESENT_VALUE;
+                mock_value.propertyArrayIndex = BACNET_ARRAY_ALL;
+                mock_value.priority = BACNET_NO_PRIORITY;
+                mock_value.next = NULL;
+                if (inputs[i].control == 1) {
+                    bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1", &mock_value.value);
+                } else {
+                    bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0", &mock_value.value);
+                }
+            }
+        }
+
+        if (changed) {
+            extern uint32_t Instance;
+            mock_cov.subscriberProcessIdentifier = 1;
+            mock_cov.initiatingDeviceIdentifier = Instance;
+            mock_cov.monitoredObjectIdentifier.type = (inputs[i].digital_analog == 1) ? OBJECT_ANALOG_INPUT : OBJECT_BINARY_INPUT;
+            mock_cov.monitoredObjectIdentifier.instance = i + 1;
+            mock_cov.timeRemaining = mqtt_sub_inputs[i];
+            mock_cov.listOfValues = &mock_value;
+
+            // Publish to MQTT
+            Mqtt_Handler_Send_COV(&mock_cov);
+
+            // Respond to BACnet (send unconfirmed broadcast COV)
+            uint8_t tx_buf[1024];
+            Send_UCOV_Notify(tx_buf, &mock_cov, BAC_IP_CLIENT);
+            udp_client_send(5);
+        }
+    }
+
+    // Check Outputs
+    for (int i = 0; i < MAX_OUTS; i++) {
+        if (outputs[i].range == 0) continue;
+        if (mqtt_sub_outputs[i] <= 0) continue;
+
+        bool changed = false;
+        static BACNET_COV_DATA mock_cov;
+        static BACNET_PROPERTY_VALUE mock_value;
+        static char text[16];
+
+        if (outputs[i].digital_analog == 1) { // Analog Output
+            int32_t diff = abs(outputs[i].value - backup_mqtt_outputs[i]);
+            int32_t err = 5000;
+            if (diff > err || !initialized) {
+                backup_mqtt_outputs[i] = outputs[i].value;
+                changed = true;
+                mock_value.propertyIdentifier = PROP_PRESENT_VALUE;
+                mock_value.propertyArrayIndex = BACNET_ARRAY_ALL;
+                mock_value.priority = BACNET_NO_PRIORITY;
+                mock_value.next = NULL;
+                snprintf(text, sizeof(text), "%f", (float)outputs[i].value / 1000);
+                bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text, &mock_value.value);
+            }
+        } else { // Binary Output
+            if (outputs[i].control != backup_mqtt_outputs[i] || !initialized) {
+                backup_mqtt_outputs[i] = outputs[i].control;
+                changed = true;
+                mock_value.propertyIdentifier = PROP_PRESENT_VALUE;
+                mock_value.propertyArrayIndex = BACNET_ARRAY_ALL;
+                mock_value.priority = BACNET_NO_PRIORITY;
+                mock_value.next = NULL;
+                if (outputs[i].control == 1) {
+                    bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1", &mock_value.value);
+                } else {
+                    bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0", &mock_value.value);
+                }
+            }
+        }
+
+        if (changed) {
+            extern uint32_t Instance;
+            mock_cov.subscriberProcessIdentifier = 1;
+            mock_cov.initiatingDeviceIdentifier = Instance;
+            mock_cov.monitoredObjectIdentifier.type = (outputs[i].digital_analog == 1) ? OBJECT_ANALOG_OUTPUT : OBJECT_BINARY_OUTPUT;
+            mock_cov.monitoredObjectIdentifier.instance = i + 1;
+            mock_cov.timeRemaining = mqtt_sub_outputs[i];
+            mock_cov.listOfValues = &mock_value;
+
+            // Publish to MQTT
+            Mqtt_Handler_Send_COV(&mock_cov);
+
+            // Respond to BACnet (send unconfirmed broadcast COV)
+            uint8_t tx_buf[1024];
+            Send_UCOV_Notify(tx_buf, &mock_cov, BAC_IP_CLIENT);
+            udp_client_send(5);
+        }
+    }
+
+    // Check Variables
+    for (int i = 0; i < MAX_VARS; i++) {
+        if (vars[i].range == 0) continue;
+        if (mqtt_sub_vars[i] <= 0) continue;
+
+        bool changed = false;
+        static BACNET_COV_DATA mock_cov;
+        static BACNET_PROPERTY_VALUE mock_value;
+        static char text[16];
+
+        if (vars[i].digital_analog == 1) { // Analog Value
+            int32_t diff = abs(vars[i].value - backup_mqtt_vars[i]);
+            int32_t err = 5000;
+            if (diff > err || !initialized) {
+                backup_mqtt_vars[i] = vars[i].value;
+                changed = true;
+                mock_value.propertyIdentifier = PROP_PRESENT_VALUE;
+                mock_value.propertyArrayIndex = BACNET_ARRAY_ALL;
+                mock_value.priority = BACNET_NO_PRIORITY;
+                mock_value.next = NULL;
+                snprintf(text, sizeof(text), "%f", (float)vars[i].value / 1000);
+                bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text, &mock_value.value);
+            }
+        } else { // Binary Value
+            if (vars[i].control != backup_mqtt_vars[i] || !initialized) {
+                backup_mqtt_vars[i] = vars[i].control;
+                changed = true;
+                mock_value.propertyIdentifier = PROP_PRESENT_VALUE;
+                mock_value.propertyArrayIndex = BACNET_ARRAY_ALL;
+                mock_value.priority = BACNET_NO_PRIORITY;
+                mock_value.next = NULL;
+                if (vars[i].control == 1) {
+                    bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1", &mock_value.value);
+                } else {
+                    bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0", &mock_value.value);
+                }
+            }
+        }
+
+        if (changed) {
+            extern uint32_t Instance;
+            mock_cov.subscriberProcessIdentifier = 1;
+            mock_cov.initiatingDeviceIdentifier = Instance;
+            mock_cov.monitoredObjectIdentifier.type = (vars[i].digital_analog == 1) ? OBJECT_ANALOG_VALUE : OBJECT_BINARY_VALUE;
+            mock_cov.monitoredObjectIdentifier.instance = i + 1;
+            mock_cov.timeRemaining = mqtt_sub_vars[i];
+            mock_cov.listOfValues = &mock_value;
+
+            // Publish to MQTT
+            Mqtt_Handler_Send_COV(&mock_cov);
+
+            // Respond to BACnet (send unconfirmed broadcast COV)
+            uint8_t tx_buf[1024];
+            Send_UCOV_Notify(tx_buf, &mock_cov, BAC_IP_CLIENT);
+            udp_client_send(5);
+        }
+    }
+
+    initialized = true;
+}
+
+
 void Mqtt_HandlerTask(void *pvParameters)
 {
     /* Wait for wifi to be connected before initializing WireGuard */
@@ -476,12 +780,12 @@ void Mqtt_HandlerTask(void *pvParameters)
 
     while(mqtt_task_exit == false)
     {
+        mqtt_update_sub_lifetimes(1);
+        mqtt_check_subscribed_cov();
 #if ALL_COV
         mqtt_check_all_cov();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-#else
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
 #endif
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     if (s_mqtt_client)
     {
