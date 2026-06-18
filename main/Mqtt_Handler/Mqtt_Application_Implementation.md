@@ -80,39 +80,8 @@ The codebase supports two distinct mechanisms for detecting and dispatching data
 
 ---
 
-### Mechanism A: "All COV" Mode (`ALL_COV = 1`)
-
-In this mode, the controller acts as an active scanner, periodically polling and calculating state transitions or value deviations for all hardware and virtual registers.
-
-#### 1. Execution Path
-When `#define ALL_COV 1`, the `Mqtt_HandlerTask` loop executes `mqtt_check_all_cov()` once every **1000ms**:
-```c
-while(mqtt_task_exit == false)
-{
-#if ALL_COV
-    mqtt_check_all_cov();
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-#else
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
-#endif
-}
-```
-
-#### 2. Filtering and Deadband Logic
-`mqtt_check_all_cov()` processes three main structural arrays: `inputs[]`, `outputs[]`, and `vars[]`. Points are evaluated based on their range configuration and signal type (Analog vs. Binary):
-
-*   **Analog Points (Inputs/Outputs/Variables):**
-    A change is registered if the absolute difference between the current value and the last published value (`backup_mqtt_X[i]`) exceeds a range-specific deadband (scaled by 1000):
-    $$\text{Difference} = |\text{Current Value} - \text{Backup Value}| > \text{Threshold}$$
-
-    *   **Low Range / Custom Temp Sensors** (Range $\le 49$ or Range $= 57$): Deadband = `500` (represents **0.5** units).
-    *   **Extended Range Sensors** (Range $= 58$, typically CO2/Humidity): Deadband = `10000` (represents **10.0** units).
-    *   **Default/Other Ranges:** Deadband = `5000` (represents **5.0** units).
-*   **Binary Points:**
-    A change is registered immediately if the binary control state (`0` or `1`) changes:
-    $$\text{Current State} \ne \text{Backup State}$$
-
-When a change is detected, a mock `BACNET_COV_DATA` packet is dynamically structured, and `Mqtt_Handler_Send_COV` is invoked to serialize and dispatch the update.
+### Mechanism A: "All COV" Mode (`ALL_COV`)
+*Note: This mode has been retired and disabled to optimize CPU cycles and minimize RAM usage by removing large global backup arrays (which would occupy over 1.5KB of memory).*
 
 ---
 
@@ -146,37 +115,35 @@ When `#define BACNET_SUB_COV 1`, the MQTT engine intercepts changes triggered du
 
 ---
 
-### Mechanism C: MQTT Initiated Point Subscription Mode (Hybrid Subscription)
+### Mechanism C: Standalone MQTT Subscription Mode (With NVS Flash Persistence)
 
-This mode allows remote clients on the MQTT broker to explicitly subscribe to specific points. The controller then monitors these points, and on change, sends updates to both MQTT and BACnet.
+This mode allows clients on the MQTT broker to explicitly subscribe to any of the 6 point types (AI, AO, AV, BI, BO, BV) using JSON messages. The MQTT handler manages these subscriptions completely standalone in `Mqtt_Handler.c`, separate from the BACnet stack.
 
-#### 1. State Tracking Arrays
-Three in-memory arrays track the remaining lifetime (in seconds) of active MQTT subscriptions:
+#### 1. Unified Subscription Table
+Active subscriptions are tracked in a unified structure array of size 20:
 ```c
-static int32_t mqtt_sub_inputs[MAX_INS] = {0};
-static int32_t mqtt_sub_outputs[MAX_OUTS] = {0};
-static int32_t mqtt_sub_vars[MAX_VARS + 12] = {0};
+typedef struct {
+    uint8_t object_type;     // 0 to 5 (matches BACnet types)
+    uint16_t instance;       // 1-based instance
+    uint32_t lifetime;       // Remaining lifetime in seconds
+    int32_t last_value;      // Last value for change detection
+    bool is_active;          // Is slot active
+    bool persist;            // Should persist in NVS
+} MQTT_Subscription;
 ```
+This stores the `last_value` directly inside the subscription structure, meaning we only allocate comparison variables for *active* subscriptions, using only 240 bytes of memory in total.
 
-#### 2. Command Reception and Parsing
-1.  **Topic Subscriptions:** During connection handshake (`MQTT_EVENT_CONNECTED`), the client subscribes to:
-    *   `temco/test/tstat11/sub`
-    *   `temco/cov/tstat11/sub`
-2.  **JSON Packet Decoding:** Upon receiving `MQTT_EVENT_DATA` on either topic, the payload is parsed using `cJSON`. The fields `action` (`"subscribe"` or `"unsubscribe"`), `object_type` (string name or integer), `instance` (1-based), and `lifetime` (defaults to 300s) are extracted.
-3.  **Active Lifetime Updates:** The in-memory tracking array index matching the point is set to the decoded `lifetime` value.
+#### 2. NVS Flash Persistence
+To prevent flash wear from short-lived subscriptions, the controller only persists subscriptions whose initial `lifetime` is greater than 30 minutes (defined by `MQTT_FLASH_PERSIST_MIN_LIFETIME` macro). 
+*   **Persistent Subscriptions:** Written to ESP-IDF Non-Volatile Storage (NVS) under the `"storage"` namespace with the key `"mqtt_subs"` whenever they are added, updated, or expired.
+*   **Transient Subscriptions:** Kept only in RAM and are not written to NVS.
+*   **Task Startup:** The controller loads persistent subscriptions from NVS via `mqtt_load_subscriptions_from_flash()`.
+*   **MQTT Connection:** The client automatically publishes the latest values of all active loaded subscriptions via `mqtt_publish_active_subscriptions()`.
 
-#### 3. Change Detection & Dual-Network Dispatch
-Every **1000ms**, `Mqtt_HandlerTask` calls:
-*   `mqtt_update_sub_lifetimes(1)`: Decrements all non-zero array entries by 1 second.
-*   `mqtt_check_subscribed_cov()`: Checks values for points that have active MQTT subscriptions (`lifetime > 0`):
-    *   It compares current values against backup registers (`backup_mqtt_X[i]`) using standard deadband thresholds.
-    *   If a change is detected, it formats a `BACNET_COV_DATA` struct and publishes the JSON payload to the appropriate MQTT topic.
-    *   **Simultaneously**, it broadcasts the change to the BACnet network by calling:
-        ```c
-        Send_UCOV_Notify(tx_buf, &mock_cov, BAC_IP_CLIENT);
-        udp_client_send(5);
-        ```
-    *   This fulfills the requirement to update **both** MQTT and BACnet without modifying the BACnet protocol stack code.
+#### 3. Change Detection & Standalone Loop
+Inside `Mqtt_HandlerTask`, the background loop executes `mqtt_update_standalone_subscriptions(1)` every **1000ms**:
+*   **Lifetime Decrement:** It decrements the lifetime of active subscriptions. When a subscription reaches 0, it is deactivated and NVS is updated.
+*   **Change Detection:** It reads the latest value of each point using `mqtt_get_point_value()`. If a value change exceeds the deadband (0.5 for AI ranges <= 49/57, 10.0 for AI range 58, 5.0 default for AO/AV, and exact match for binary points), it updates `last_value` and publishes a mock `BACNET_COV_DATA` via `Mqtt_Handler_Send_COV`.
 
 ---
 
@@ -201,12 +168,32 @@ The BACnet application tag type is evaluated and converted into native JSON type
 | *Others (Unsupported)* | N/A | String: `"(unsupported_tag)"` |
 
 ### Topic Generation Logic
-The topic is constructed dynamically to prevent namespaces from colliding on public brokers:
+The topic is constructed dynamically using the mapped `display_instance` to prevent namespaces from colliding on public brokers:
 ```c
 char topic[128];
 snprintf(topic, sizeof(topic), "temco/cov/tstat11/device_%lu/%s_%lu",
          cov_data->initiatingDeviceIdentifier,
          bactext_object_type_name(cov_data->monitoredObjectIdentifier.type),
-         cov_data->monitoredObjectIdentifier.instance);
+         display_instance);
 ```
-*   **Resulting topic:** `temco/cov/tstat11/device_<device_id>/<object_type_name>_<instance>`
+*   **Resulting topic:** `temco/cov/tstat11/device_<device_id>/<object_type_name>_<display_instance>`
+
+---
+
+## 6. Debugging and Diagnostics
+
+To inspect the MQTT client operations and troubleshoot point subscription flows, the component contains built-in debug logging.
+
+### A. Enabling Debug Prints
+Set the preprocessor flag `MQTT_DEBUG_EN` to `1` at the top of [Mqtt_Handler.c](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c):
+```c
+#define MQTT_DEBUG_EN 1
+```
+
+### B. Debug Log Structure
+When enabled, debug logs are output via ESP-IDF's logging system under the tag `MQTT_HANDLER` prefixed with `[DEBUG]`. The logs cover:
+1.  **Command Reception:** Logs the exact incoming topic and payload.
+2.  **Subscription Parsing:** Logs the action, object type, instance, and lifetime decoded from cJSON, including bounds checks and slot allocations.
+3.  **Point Comparison:** Prints the actual value, cached backup value, absolute difference, deadband threshold, and subscription force flag status for every checked point once per second:
+    `Checking AI1: val=23500, backup=0, diff=23500, err=500, force=1`
+4.  **Dispatch Outcomes:** Reports success or failure for the MQTT publish (`Mqtt_Handler_Send_COV`) and the BACnet UDP broadcast (`Send_UCOV_Notify`).

@@ -176,12 +176,14 @@ To cancel a subscription before it expires, publish an unsubscribe message:
 }
 ```
 
-##### 3. Simultaneous Response Behavior (Dual-Network Notifications)
-When a point is subscribed via MQTT:
-1.  The controller registers the request and monitors the point for changes.
-2.  Upon change, the controller publishes the update to the corresponding MQTT topic.
-3.  **Simultaneously**, the controller broadcasts an unconfirmed BACnet COV notification (`Send_UCOV_Notify`) to the entire BACnet network.
-4.  This means subscribing via MQTT triggers responses on **both** MQTT and BACnet networks without modifying the underlying BACnet code.
+##### 3. Standalone Subscription Management Scheme
+The controller manages MQTT subscriptions completely standalone in `Mqtt_Handler.c`, separate from the BACnet stack. This design:
+1.  **Supports All 6 Point Types Natively:** It registers and tracks Analog Input, Analog Output, Analog Value, Binary Input, Binary Output, and Binary Value (types 0 to 5) uniformly.
+2.  **Bypasses BACnet Stack Limits:** Since the BACnet stack natively rejects COV subscriptions for outputs (types 1 & 4) and binary values (type 5), managing subscriptions standalone ensures 100% compatibility across all point types.
+3.  **Survives Reboots (NVS Flash Persistence):** Long-lived subscriptions (lifetime > 30 minutes) are persistently stored in ESP-IDF NVS (flash) to survive reboots. Transient subscriptions (lifetime <= 30 minutes) run in RAM only to prevent excessive flash write wear. On device boot or MQTT reconnect, the controller automatically restores persisted subscriptions and publishes their current values to the broker.
+4.  **Optimized Memory Footprint:** Active subscriptions are managed in a single 20-slot table, storing the last checked values inside the table slots. This uses a mere 240 bytes of flash and minimal RAM, avoiding large global change-detection backup arrays.
+
+This guarantees that subscribing via MQTT works seamlessly for all object types (types 0 to 5) without modifying the underlying BACnet firmware.
 
 ---
 
@@ -192,6 +194,7 @@ When a point is subscribed via MQTT:
     2.  Check that the controller is connected to the same network and has internet access (required to reach `broker.hivemq.com`).
     3.  Verify your Wi-Fi or Ethernet settings.
     4.  Verify you are subscribed to the correct topic pattern in MQTTX (`temco/cov/tstat11/#`).
-    5.  Verify that a BACnet client (e.g. Yabe) has successfully subscribed to the target objects' COV. In default mode, no messages are published to MQTT unless an active BACnet subscription exists for that point.
+    5.  Verify that either a BACnet client has subscribed to the COV, or you have successfully published a subscription JSON request to `temco/cov/tstat11/sub`.
+    6.  Enable verbose MQTT debugging prints on the ESP32 console by defining `#define MQTT_DEBUG_EN 1` at the top of [Mqtt_Handler.c](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c). Recompile and flash the firmware, then monitor the serial output to trace subscription parsing and forwarding results.
 *   **Client disconnects or shows TCP errors:**
     1.  The public HiveMQ broker may be experiencing high load or temporary downtime. Try pinging `broker.hivemq.com` from a PC connected to the same network to check connectivity.
