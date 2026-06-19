@@ -52,7 +52,7 @@
 void Set_broadcast_bip_address(uint32_t net_address);
 extern uint32_t multicast_addr;
 void udp_client_send(uint16 time);
-void Update_Value_List(uint8_t type, uint32_t instance);
+void Update_Value_List(BACNET_COV_DATA *cov_data);
 
 typedef struct BACnet_COV_Address{
     bool valid:1;
@@ -497,8 +497,7 @@ static bool cov_send_request(
     cov_data.timeRemaining = cov_subscription->lifetime;
     cov_data.listOfValues = value_list;
 
-    Update_Value_List(cov_data.monitoredObjectIdentifier.type,
-    		cov_data.monitoredObjectIdentifier.instance);
+    Update_Value_List(&cov_data);
 
     if (cov_subscription->flag.issueConfirmedNotifications) { 
         npdu_data.data_expecting_reply = true;

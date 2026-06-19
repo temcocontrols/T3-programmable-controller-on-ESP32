@@ -2431,9 +2431,11 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 
 // update the value subscribed object
 // send out UCOV_Notify
-void Update_Value_List(uint8_t type, uint32_t instance)
+void Update_Value_List(BACNET_COV_DATA *cov)
 {
 	char text[10];
+	uint8_t type = cov->monitoredObjectIdentifier.type;
+	uint32_t instance = cov->monitoredObjectIdentifier.instance;
 	uint32_t original_instance = instance;
 	cov_data_value_list_link(&cov_data, &value_list, 1);
 	value_list.propertyIdentifier = PROP_PRESENT_VALUE;
@@ -2512,14 +2514,7 @@ void Update_Value_List(uint8_t type, uint32_t instance)
 	}
 
 #if BACNET_SUB_COV
-	extern uint32_t Instance;
-	cov_data.monitoredObjectIdentifier.type = type;
-	cov_data.monitoredObjectIdentifier.instance = original_instance;
-	cov_data.initiatingDeviceIdentifier = Instance;
-	cov_data.subscriberProcessIdentifier = 1;
-	cov_data.timeRemaining = 60;
-
-	Mqtt_Handler_Send_COV(&cov_data);
+	Mqtt_Handler_Send_COV(cov);
 #endif
 }
 
@@ -2715,6 +2710,22 @@ void Timer_task(void *pvParameters)
 		miliseclast = miliseclast + TIMER_INTERVAL;
 		system_timer = system_timer + TIMER_INTERVAL;
 		//Check_Pulse_Counter();
+
+		// Real-time clock tracking for COV subscription lifetimes
+		static TickType_t last_cov_tick = 0;
+		if (last_cov_tick == 0) {
+			last_cov_tick = xTaskGetTickCount();
+		}
+		TickType_t current_tick = xTaskGetTickCount();
+		uint32_t elapsed_ms = (current_tick - last_cov_tick) * portTICK_PERIOD_MS;
+		if (elapsed_ms >= 1000) {
+			uint32_t elapsed_seconds = elapsed_ms / 1000;
+			last_cov_tick += (elapsed_seconds * 1000) / portTICK_PERIOD_MS;
+#if COV
+			handler_cov_timer_seconds(elapsed_seconds);
+#endif
+		}
+
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
 		{
 			run_time = run_time + 1;
@@ -2735,9 +2746,6 @@ void Timer_task(void *pvParameters)
 			}
 #endif
 			Test[0] = flag_ethernet_initial + 10;
-#if COV
-			handler_cov_timer_seconds(1);
-#endif
 			if(Modbus.ethernet_status == 4 || SSID_Info.IP_Wifi_Status == 2/*WIFI_NORMAL*/) // got ip
 			{
 				if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
