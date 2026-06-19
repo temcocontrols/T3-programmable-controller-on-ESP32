@@ -126,9 +126,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             ESP_LOGI(TAG, "Sent subscribe to COV topic successful, msg_id=%d", msg_id);
 
             // Publish a test confirmation message
-            const char *conn_payload = "{\"status\":\"online\",\"device\":\"tstat11\",\"broker\":\"HiveMQ\"}";
-            msg_id = esp_mqtt_client_publish(client, "temco/test/tstat11/pub", conn_payload, 0, 1, 0);
-            ESP_LOGI(TAG, "Sent publish successful, msg_id=%d", msg_id);
+            {
+                char conn_payload[128];
+                extern uint32_t Instance;
+                snprintf(conn_payload, sizeof(conn_payload),
+                         "{\"status\":\"online\",\"device\":\"tstat11\",\"device_id\":%lu,\"broker\":\"HiveMQ\"}",
+                         (unsigned long)Instance);
+                msg_id = esp_mqtt_client_publish(client, "temco/test/tstat11/pub", conn_payload, 0, 1, 0);
+                ESP_LOGI(TAG, "Sent publish successful, msg_id=%d", msg_id);
+            }
             break;
 
         case MQTT_EVENT_DISCONNECTED:
@@ -277,14 +283,8 @@ bool Mqtt_Handler_Send_COV(const struct BACnet_COV_Data *cov_data)
         while (prop_val != NULL) {
             cJSON *val_obj = cJSON_CreateObject();
             if (val_obj) {
-                cJSON_AddNumberToObject(val_obj, "property_id", prop_val->propertyIdentifier);
-                cJSON_AddStringToObject(val_obj, "property_name", bactext_property_name(prop_val->propertyIdentifier));
-                cJSON_AddNumberToObject(val_obj, "property_array_index", prop_val->propertyArrayIndex);
-                cJSON_AddNumberToObject(val_obj, "priority", prop_val->priority);
-
                 // Add value representation
                 const BACNET_APPLICATION_DATA_VALUE *val = &prop_val->value;
-                cJSON_AddNumberToObject(val_obj, "tag", val->tag);
                 switch (val->tag) {
                     case BACNET_APPLICATION_TAG_NULL:
                         cJSON_AddNullToObject(val_obj, "value");
