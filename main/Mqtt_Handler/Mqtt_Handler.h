@@ -16,9 +16,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define BACNET_SUB_COV 1
-#define ALL_COV        0
-
 #ifdef __cplusplus
 extern "C" {
 #endif

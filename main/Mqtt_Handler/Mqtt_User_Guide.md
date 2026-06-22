@@ -83,7 +83,7 @@ Once connected to the broker, you can subscribe to topics to receive messages pu
 
 > [!IMPORTANT]
 > **Active BACnet Subscription Requirement:**
-> By default, the controller operates in **BACnet Subscription COV** mode. In this mode, the controller will only publish COV messages to MQTT for objects that have an **active BACnet subscription** registered from a BACnet client/workstation (such as Yabe). 
+> By default, the controller operates in **BACnet Subscription COV** mode. In this mode, the controller will only publish COV messages to MQTT for objects that have an **active BACnet subscription** registered from a BACnet client/workstation (such as Yabe).
 > If no BACnet client is actively subscribed to a point, the controller will **not** publish its updates to the MQTT broker.
 > *   To verify and trigger data, connect to the controller using a BACnet tool and subscribe to the Change-of-Value (COV) properties for the objects you want to monitor.
 > *   If you want all values to publish automatically without requiring a BACnet subscription, the device firmware configuration must be compiled with `ALL_COV` enabled.
@@ -103,6 +103,7 @@ Upon a successful connection to the HiveMQ broker, the controller publishes a he
     {
       "status": "online",
       "device": "tstat11",
+      "device_id":"1028",
       "broker": "HiveMQ"
     }
     ```
@@ -176,14 +177,14 @@ To cancel a subscription before it expires, publish an unsubscribe message:
 }
 ```
 
-##### 3. Standalone Subscription Management Scheme
-The controller manages MQTT subscriptions completely standalone in `Mqtt_Handler.c`, separate from the BACnet stack. This design:
-1.  **Supports All 6 Point Types Natively:** It registers and tracks Analog Input, Analog Output, Analog Value, Binary Input, Binary Output, and Binary Value (types 0 to 5) uniformly.
-2.  **Bypasses BACnet Stack Limits:** Since the BACnet stack natively rejects COV subscriptions for outputs (types 1 & 4) and binary values (type 5), managing subscriptions standalone ensures 100% compatibility across all point types.
-3.  **Survives Reboots (NVS Flash Persistence):** Long-lived subscriptions (lifetime > 30 minutes) are persistently stored in ESP-IDF NVS (flash) to survive reboots. Transient subscriptions (lifetime <= 30 minutes) run in RAM only to prevent excessive flash write wear. On device boot or MQTT reconnect, the controller automatically restores persisted subscriptions and publishes their current values to the broker.
-4.  **Optimized Memory Footprint:** Active subscriptions are managed in a single 20-slot table, storing the last checked values inside the table slots. This uses a mere 240 bytes of flash and minimal RAM, avoiding large global change-detection backup arrays.
+##### 3. Unified BACnet Integration Scheme
+The controller manages MQTT subscriptions by forwarding them directly to the native BACnet stack's COV engine. This design:
+1.  **Supports All 6 Point Types Natively:** It registers and tracks Analog Input, Analog Output, Analog Value, Binary Input, Binary Output, and Binary Value (types 0 to 5) uniformly through the local BACnet stack.
+2.  **Fully Event-Driven:** It avoids redundant background loops and polling code inside the MQTT client task. When a point changes, the BACnet stack immediately triggers a callback to package and publish the new value to MQTT.
+3.  **No Extra Memory Overhead:** It eliminates the need for duplicate comparison tables, custom flash storage (NVS) arrays, or excessive CPU cycles, keeping the firmware lightweight and optimized for the ESP32-S3 platform.
+4.  **No Local Network Traffic:** Since the subscription is processed locally, it does not send requests over the physical network interface; instead, it registers them directly within the local COV subsystem.
 
-This guarantees that subscribing via MQTT works seamlessly for all object types (types 0 to 5) without modifying the underlying BACnet firmware.
+This guarantees that subscribing via MQTT works seamlessly and efficiently for all 6 object types.
 
 ---
 

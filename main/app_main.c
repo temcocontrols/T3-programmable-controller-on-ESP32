@@ -2424,98 +2424,95 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 			put_net_point_value(&point,&value,0,1,cov->timeRemaining);
 		}
 
-#if BACNET_SUB_COV
 		Mqtt_Handler_Send_COV(cov);
-#endif
 }
 
 // update the value subscribed object
 // send out UCOV_Notify
 void Update_Value_List(BACNET_COV_DATA *cov)
 {
-	char text[10];
-	uint8_t type = cov->monitoredObjectIdentifier.type;
-	uint32_t instance = cov->monitoredObjectIdentifier.instance;
-	uint32_t original_instance = instance;
-	cov_data_value_list_link(&cov_data, &value_list, 1);
-	value_list.propertyIdentifier = PROP_PRESENT_VALUE;
-	value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
-	if(instance > 0)
-		instance = instance - 1;
-	switch(type)
-	{
-		case OBJECT_ANALOG_INPUT:
-			if(inputs[instance].range == 0)
-				break;
-			if(inputs[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)inputs[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_ANALOG_OUTPUT:
-			if(outputs[instance].range == 0)
-				break;
-			if(outputs[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)outputs[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_ANALOG_VALUE:
-			if(vars[instance].range == 0)
-				break;
-			if(vars[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)vars[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_INPUT:
-			if(inputs[instance].range == 0)
-				break;
-			if(inputs[instance].digital_analog == 0)
-			{
-				if(inputs[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_OUTPUT:
-			if(outputs[instance].range == 0)
-				break;
-			if(outputs[instance].digital_analog == 0)
-			{
-				if(outputs[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_VALUE:
-			if(vars[instance].range == 0)
-				break;
-			if(vars[instance].digital_analog == 0)
-			{
-				if(vars[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		default:
-			bacapp_parse_application_data(BACNET_APPLICATION_TAG_NULL, NULL ,	&value_list.value);
-			break;
+    char text[32];
+    bool is_valid_value = false;
+    BACNET_APPLICATION_TAG tag = BACNET_APPLICATION_TAG_NULL;
+    const char *value_str = NULL;
 
-	}
+    uint8_t type = cov->monitoredObjectIdentifier.type;
+    uint32_t instance = cov->monitoredObjectIdentifier.instance;
 
-#if BACNET_SUB_COV
-	Mqtt_Handler_Send_COV(cov);
-#endif
+    cov_data_value_list_link(&cov_data, &value_list, 1);
+    value_list.propertyIdentifier = PROP_PRESENT_VALUE;
+    value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
+
+    if (instance > 0)
+        instance--;
+
+    switch (type)
+    {
+        case OBJECT_ANALOG_INPUT:
+            if ((inputs[instance].range != 0) && (inputs[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)inputs[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_ANALOG_OUTPUT:
+            if ((outputs[instance].range != 0) &&
+                (outputs[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)outputs[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_ANALOG_VALUE:
+            if ((vars[instance].range != 0) && (vars[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)vars[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_BINARY_INPUT:
+            if ((inputs[instance].range != 0) && (inputs[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = inputs[instance].control ? "1" : "0";
+            }
+            break;
+
+        case OBJECT_BINARY_OUTPUT:
+            if ((outputs[instance].range != 0) && (outputs[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = outputs[instance].control ? "1" : "0";
+            }
+            break;
+
+        case OBJECT_BINARY_VALUE:
+            if ((vars[instance].range != 0) && (vars[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = vars[instance].control ? "1" : "0";
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    if (value_str || tag == BACNET_APPLICATION_TAG_NULL)
+    {
+        is_valid_value = bacapp_parse_application_data(tag,value_str,&value_list.value);
+    }
+
+    if (is_valid_value)
+    {
+        Mqtt_Handler_Send_COV(cov);
+    }
 }
 
 int send_cov_demo(void) {

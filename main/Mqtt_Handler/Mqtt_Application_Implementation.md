@@ -115,35 +115,29 @@ When `#define BACNET_SUB_COV 1`, the MQTT engine intercepts changes triggered du
 
 ---
 
-### Mechanism C: Standalone MQTT Subscription Mode (With NVS Flash Persistence)
+### Mechanism C: MQTT-to-BACnet Subscription Forwarding Mode
 
-This mode allows clients on the MQTT broker to explicitly subscribe to any of the 6 point types (AI, AO, AV, BI, BO, BV) using JSON messages. The MQTT handler manages these subscriptions completely standalone in `Mqtt_Handler.c`, separate from the BACnet stack.
+This mode allows clients on the MQTT broker to explicitly subscribe to any of the 6 point types (AI, AO, AV, BI, BO, BV) using JSON messages published to `temco/test/tstat11/sub` or `temco/cov/tstat11/sub`. The MQTT handler parses these requests and forwards them directly to the BACnet stack.
 
-#### 1. Unified Subscription Table
-Active subscriptions are tracked in a unified structure array of size 20:
-```c
-typedef struct {
-    uint8_t object_type;     // 0 to 5 (matches BACnet types)
-    uint16_t instance;       // 1-based instance
-    uint32_t lifetime;       // Remaining lifetime in seconds
-    int32_t last_value;      // Last value for change detection
-    bool is_active;          // Is slot active
-    bool persist;            // Should persist in NVS
-} MQTT_Subscription;
-```
-This stores the `last_value` directly inside the subscription structure, meaning we only allocate comparison variables for *active* subscriptions, using only 240 bytes of memory in total.
+#### 1. Execution Workflow
+1.  **Subscription JSON Received:** The MQTT client receives a subscription/unsubscription JSON message on `temco/test/tstat11/sub` or `temco/cov/tstat11/sub`.
+2.  **JSON Parsing:** The handler extracts the `action` (`"subscribe"` or `"unsubscribe"`), `object_type`, `instance`, and `lifetime` fields.
+3.  **Forwarding to BACnet:** In `mqtt_forward_subscription_to_bacnet()`, the handler encodes a standard BACnet `Subscribe COV` request APDU:
+    ```c
+    cov_data.subscriberProcessIdentifier = 1; // MQTT process identifier
+    cov_data.monitoredObjectIdentifier.type = object_type;
+    cov_data.monitoredObjectIdentifier.instance = instance;
+    cov_data.issueConfirmedNotifications = false;
+    cov_data.lifetime = lifetime;
+    cov_data.cancellationRequest = is_unsubscribe;
+    ```
+4.  **Local Stack Registration:** It invokes `handler_cov_subscribe()` locally. The BACnet stack registers this subscription in its internal COV subscription table (`COV_Subscriptions`), bypassing any network transmission logic and directly monitoring the target point.
+5.  **Event Dispatch:** When the point's value changes, the BACnet stack triggers a change notification which is intercepted in `Update_Value_List` or `Update_COV_Notify`, automatically calling `Mqtt_Handler_Send_COV()` to publish the update to the broker.
 
-#### 2. NVS Flash Persistence
-To prevent flash wear from short-lived subscriptions, the controller only persists subscriptions whose initial `lifetime` is greater than 30 minutes (defined by `MQTT_FLASH_PERSIST_MIN_LIFETIME` macro). 
-*   **Persistent Subscriptions:** Written to ESP-IDF Non-Volatile Storage (NVS) under the `"storage"` namespace with the key `"mqtt_subs"` whenever they are added, updated, or expired.
-*   **Transient Subscriptions:** Kept only in RAM and are not written to NVS.
-*   **Task Startup:** The controller loads persistent subscriptions from NVS via `mqtt_load_subscriptions_from_flash()`.
-*   **MQTT Connection:** The client automatically publishes the latest values of all active loaded subscriptions via `mqtt_publish_active_subscriptions()`.
-
-#### 3. Change Detection & Standalone Loop
-Inside `Mqtt_HandlerTask`, the background loop executes `mqtt_update_standalone_subscriptions(1)` every **1000ms**:
-*   **Lifetime Decrement:** It decrements the lifetime of active subscriptions. When a subscription reaches 0, it is deactivated and NVS is updated.
-*   **Change Detection:** It reads the latest value of each point using `mqtt_get_point_value()`. If a value change exceeds the deadband (0.5 for AI ranges <= 49/57, 10.0 for AI range 58, 5.0 default for AO/AV, and exact match for binary points), it updates `last_value` and publishes a mock `BACNET_COV_DATA` via `Mqtt_Handler_Send_COV`.
+#### 2. Key Benefits
+*   **Unified Stack Integration:** Bypasses the need for duplicate subscription tables, polling tasks, or custom flash storage (NVS) implementations in the MQTT handler.
+*   **100% Native Compatibility:** Native BACnet deadbands, lifetimes, and object types are leveraged automatically.
+*   **Low Memory Footprint:** The subscription is managed inside the existing BACnet COV database, requiring 0 extra bytes of RAM inside the MQTT handler component.
 
 ---
 
@@ -193,7 +187,9 @@ Set the preprocessor flag `MQTT_DEBUG_EN` to `1` at the top of [Mqtt_Handler.c](
 ### B. Debug Log Structure
 When enabled, debug logs are output via ESP-IDF's logging system under the tag `MQTT_HANDLER` prefixed with `[DEBUG]`. The logs cover:
 1.  **Command Reception:** Logs the exact incoming topic and payload.
-2.  **Subscription Parsing:** Logs the action, object type, instance, and lifetime decoded from cJSON, including bounds checks and slot allocations.
-3.  **Point Comparison:** Prints the actual value, cached backup value, absolute difference, deadband threshold, and subscription force flag status for every checked point once per second:
-    `Checking AI1: val=23500, backup=0, diff=23500, err=500, force=1`
-4.  **Dispatch Outcomes:** Reports success or failure for the MQTT publish (`Mqtt_Handler_Send_COV`) and the BACnet UDP broadcast (`Send_UCOV_Notify`).
+    `Received topic: temco/cov/tstat11/sub, payload: {"action":"subscribe","object_type":"ANALOG_INPUT","instance":1,"lifetime":300}`
+2.  **BACnet Forwarding:** Logs when the parsed MQTT subscription is successfully encoded and forwarded to the BACnet stack.
+    `Forwarding subscription to BACnet: type=0, instance=1, lifetime=300, unsubscribe=0`
+3.  **Dispatch Outcomes:** Reports success or failure for the MQTT publish (`Mqtt_Handler_Send_COV`).
+    `Publishing COV to topic: temco/cov/tstat11/device_1028/Analog Input_1`
+    `COV MQTT message queued successfully, msg_id=47021`
