@@ -57,39 +57,40 @@ extern uint32_t  high_spd_counter_tempbuf[32/*HI_COMMON_CHANNEL*/];
 
 #define SPI_FLASH_SEC_SIZE 4096
 
-// if use new parition.cvs,storage size is 0x40000, point length is 0x20000, trendlog length is 0x20000
+// if use new parition.cvs,storage size is 0x40000, point length is 0x20000, trendlog length is 0x20000 
 #define POINT_INFO_LEN_NEW 	0x20000
 #define TRENDLOG_ADDR_NEW	0x20000
 #define MAX_TREND_PAGE_NEW 	TRENDLOG_ADDR_NEW / 0x1000    // 32	// max page is 32, 32 * 4k = 128K
 
-// 16MB flash: storage at 0xE00000, size 0x200000 (last 2MB)
-#define STORAGE_SIZE_2MB      0x200000
-#define POINT_INFO_LEN_2MB    0x100000
-#define TRENDLOG_ADDR_2MB     0x100000
-#define MAX_TREND_PAGE_2MB    (0x100000 / SPI_FLASH_SEC_SIZE)  // 256 pages, 1MB trendlog
+// 16MB flash: storage at 0x800000, size 0x80000 (last 8MB)
+// if 16M,storage size is 0x800000, point length is 0x10000, trendlog length is 0x70000 
+#define STORAGE_SIZE_16MB      0x800000
+#define POINT_INFO_LEN_16MB     0x100000
+#define TRENDLOG_ADDR_16MB     0x700000
+#define MAX_TREND_PAGE_16MB    (0x700000 / SPI_FLASH_SEC_SIZE)  // 256 * 7 pages, 7MB trendlog
 
 static uint32_t get_point_info_erase_len(size_t partition_size)
 {
-	if (partition_size == 0x20000) {
+	if (partition_size == 0x20000) {Test[20] = 2;
 		return POINT_INFO_LEN;
 	}
-	if (partition_size == 0x40000) {
+	if (partition_size == 0x40000) {Test[20] = 4;
 		return POINT_INFO_LEN_NEW;
-	}
-	return POINT_INFO_LEN_2MB;
+	}Test[20] = 20;
+	return POINT_INFO_LEN_16MB;
 }
 
 static void get_trendlog_layout(size_t partition_size, uint32_t *addr, uint16_t *max_page)
 {
-	if (partition_size == 0x20000) {
+	if (partition_size == 0x20000) {Test[21] = 2;
 		*addr = TRENDLOG_ADDR;
 		*max_page = MAX_TREND_PAGE;
-	} else if (partition_size == 0x40000) {
+	} else if (partition_size == 0x40000) {Test[21] = 4;
 		*addr = TRENDLOG_ADDR_NEW;
 		*max_page = MAX_TREND_PAGE_NEW;
-	} else {
-		*addr = TRENDLOG_ADDR_2MB;
-		*max_page = MAX_TREND_PAGE_2MB;
+	} else {Test[21] = 20;
+		*addr = TRENDLOG_ADDR_16MB;
+		*max_page = MAX_TREND_PAGE_16MB;
 	}
 }
 
@@ -413,7 +414,7 @@ esp_err_t read_default_from_flash(void)
 	err = nvs_get_u8(my_handle, FLASH_MAX_OUTS, &max_outputs);
 	if(err == ESP_ERR_NVS_NOT_FOUND || max_outputs == 0)
 	{
-		max_outputs = 64;
+		max_outputs = MAX_OUTS;
 		nvs_set_u8(my_handle, FLASH_MAX_OUTS, max_outputs);
 	}
 	err = nvs_get_u8(my_handle, FLASH_MAX_INS, &max_inputs);
@@ -427,6 +428,7 @@ esp_err_t read_default_from_flash(void)
 	max_outputs = 64;
 	max_inputs = 64;
 #endif
+
 	err = nvs_get_u8(my_handle, FLASH_EN_USERNAME, &Modbus.en_username);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -1426,7 +1428,7 @@ esp_err_t save_point_info(uint8_t point_type)
 			{
 				if(new_outputs != NULL)
 				{
-					tempbuf = new_outputs;
+					tempbuf = (uint8_t *)new_outputs;
 					Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
 				}
 			}
@@ -1434,7 +1436,7 @@ esp_err_t save_point_info(uint8_t point_type)
 			{
 				if(new_inputs != NULL)
 				{
-					tempbuf = new_inputs;
+					tempbuf = (uint8_t *)new_inputs;
 					Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
 				}
 			}
@@ -1442,7 +1444,7 @@ esp_err_t save_point_info(uint8_t point_type)
 			{
 				if(new_vars != NULL)
 				{
-					tempbuf = new_vars;
+					tempbuf = (uint8_t *)new_vars;
 					Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
 				}
 			}
@@ -2068,7 +2070,7 @@ void read_point_info(void)
 		{
 			if(new_outputs != NULL)
 			{
-				tempbuf = new_outputs;
+				tempbuf = (uint8_t *)new_outputs;
 				Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
 			}
 		}
@@ -2076,7 +2078,7 @@ void read_point_info(void)
 		{
 			if(new_inputs != NULL)
 			{
-				tempbuf = new_inputs;
+				tempbuf = (uint8_t *)new_inputs;
 				Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
 			}
 		}
@@ -2084,7 +2086,7 @@ void read_point_info(void)
 		{
 			if(new_vars != NULL)
 			{
-				tempbuf = new_vars;
+				tempbuf = (uint8_t *)new_vars;
 				Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
 			}
 		}

@@ -648,9 +648,9 @@ typedef struct              /* 645 uint8_ts */
 }Monitor_Block;         /* 660 uint8_ts */
 
 
-
-#define 	MAX_MON_POINT_READ		25
-#define 	MAX_MON_POINT_FLASH 	256
+ 
+#define 	MAX_MON_POINT_READ		25  // read buffer size, The data length per transmission between T3000 and the device is 400 bytes. 25*16=400
+#define 	MAX_MON_POINT_FLASH 	256 // write buffer size,Each Flash page can store 256 data entries.	256*16=4096
 typedef struct
 {
 	U8_T index;   // monitor
@@ -658,7 +658,7 @@ typedef struct
 	Point_Net point;
 	U32_T value;
 	U16_T mark;  // 0d 0a  end mark
-
+	
 }Str_mon_element;	// 16
 
 typedef struct              /* 85 uint8_ts */

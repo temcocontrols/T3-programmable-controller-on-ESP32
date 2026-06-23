@@ -1367,7 +1367,7 @@ void responseModbusCmd(uint8_t type, uint8_t *pData, uint16_t len,uint8_t *resDa
 void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
 {
 	U8_T far i,j;
-	uint8_t *ptr;
+	void *ptr;
 	if(StartAdd  >= MODBUS_SETTING_BLOCK_FIRST && StartAdd  <= MODBUS_SETTING_BLOCK_LAST)
 	{
 		if((StartAdd - MODBUS_SETTING_BLOCK_FIRST) % 100 == 0)
@@ -1403,7 +1403,6 @@ void write_user_data_by_block(U16_T StartAdd,U8_T HeadLen,U8_T *pData)
 	}
 	else if(StartAdd  >= MODBUS_INPUT_BLOCK_FIRST && StartAdd  <= MODBUS_INPUT_BLOCK_LAST)
 	{
-		uint8_t *ptr;
 		if((StartAdd - MODBUS_INPUT_BLOCK_FIRST) % ((sizeof(Str_in_point) + 1	) / 2) == 0)
 		{
 			i = (StartAdd - MODBUS_INPUT_BLOCK_FIRST) / ((sizeof(Str_in_point) + 1) / 2);

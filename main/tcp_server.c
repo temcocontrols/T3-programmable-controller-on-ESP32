@@ -4278,7 +4278,7 @@ void i2c_master_task(void *pvParameters)
 									top_firmware = i2c_rcv_buf[3];
 									chip_info[1] = i2c_rcv_buf[2]; // top hardware
 									chip_info[2] = i2c_rcv_buf[3]; // top firmware
-									flag_top_ready = 1;Test[14]++;
+									flag_top_ready = 1;
 									if(top_firmware >= 7)
 									{
 										flag_SHT4X = i2c_rcv_buf[6] - 10;
@@ -4301,7 +4301,7 @@ void i2c_master_task(void *pvParameters)
 										}
 									}
 
-									if(flag_top_ready == 1)
+									//if(flag_top_ready == 1)
 									{
 									temp_key = (i2c_rcv_buf[4] << 8) + i2c_rcv_buf[5];
 									if(temp_key != 0)

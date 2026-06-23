@@ -6,7 +6,7 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
-#define NEW_IO  0  // 要同步修改bacnet库里的定义
+#define NEW_IO  1  // 要同步修改bacnet库里的定义
 
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
@@ -184,9 +184,6 @@ typedef	union
 	UN_Time update_dyndns;
 	uint16_t mstp_network_number;
 	uint8_t BBMD_EN;
-	uint32_t bbmd_ip;
-	uint16_t bbmd_port;
-	uint16_t bbmd_ttl;
 	uint8_t sd_exist;
 
 	uint16_t tcp_port;
@@ -234,6 +231,10 @@ typedef	union
 
 	U8_T fix_com_config; // 0
 	U8_T write_flash;
+	
+	uint32_t bbmd_ip;
+	uint16_t bbmd_port;
+	uint16_t bbmd_ttl;
 	}reg;
 }Str_Setting_Info;
 

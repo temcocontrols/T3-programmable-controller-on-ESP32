@@ -571,6 +571,13 @@ void check_output_priority_HOA(U8_T i)
 void check_output_priority_array(U8_T i,U8_T HOA)
 {	
 	Str_points_ptr ptr;
+#if NEW_IO
+	if(i >= max_outputs)
+	{
+		output_priority[i][7] = 0xff;
+		return;
+	}
+#endif
 	ptr = put_io_buf(OUT,i);
 
 	if(i >= max_dos + max_aos)
@@ -706,6 +713,13 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 void check_output_priority_array_without_AM(U8_T i)
 {	
 	Str_points_ptr ptr;
+#if NEW_IO
+	if(i >= max_outputs)
+	{
+		output_priority[i][7] = 0xff;
+		return;
+	}
+#endif
 	ptr = put_io_buf(OUT,i);
 	if(i >= max_dos + max_aos)
 	{

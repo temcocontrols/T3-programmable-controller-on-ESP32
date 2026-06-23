@@ -117,16 +117,16 @@ void DisplayHomeScreen( bool isHomeScreen )
         Humidity_OutdorrDataPtr.pin->value = 55; // For testing only, remove this line in actual code
         Humidity_AmbientDataPtr.pin->value = 45; // For testing only, remove this line in actual code
 #endif
-
+		
         if(Humidity_AmbientValue != Humidity_AmbientDataPtr.pin->value)
         {
-            Humidity_AmbientValue = Humidity_AmbientDataPtr.pin->value;
-            DisplayHumidity(0, Humidity_AmbientDataPtr.pin->value ); // Display indoor humidity at position 0
+            Humidity_AmbientValue = Humidity_AmbientDataPtr.pin->value;          
+            DisplayHumidity(0, Humidity_AmbientDataPtr.pin->value / 100 ); // Display indoor humidity at position 0
         }
         if(!HomeScreenSetpointMode && Humidity_OutValue != Humidity_OutdorrDataPtr.pin->value)
         {
-            Humidity_OutValue = Humidity_OutdorrDataPtr.pin->value;
-            DisplayHumidity(1, Humidity_OutdorrDataPtr.pin->value ); // Display outdoor humidity at position 1
+            Humidity_OutValue = Humidity_OutdorrDataPtr.pin->value;            
+            DisplayHumidity(1, Humidity_OutdorrDataPtr.pin->value / 100 ); // Display outdoor humidity at position 1
         }
         if(HomeScreenSetpointMode)
         {
@@ -321,9 +321,8 @@ void DisplayHumidity( uint8_t index , S16_T value )
 {
     int16 value_buf;
     uint16_t xPos, yPos;
-
+	
     xPos = HUMIDITY_VALUE_XPOS;
-
     if(index == 1)
     {
         if(HomeScreenSetpointMode || !IsOutdoorTempValid)
@@ -351,7 +350,6 @@ void DisplayHumidity( uint8_t index , S16_T value )
     {
         value_buf /= 10;
     }
-
     disp_str_16_24(FORM16X24, xPos, yPos, (uint8_t*)"    ", SCH_COLOR, TSTAT8_BACK_COLOR);
 
     // First position
@@ -362,6 +360,7 @@ void DisplayHumidity( uint8_t index , S16_T value )
 
     xPos = xPos + 16; // Symbol position
     disp_str_16_24(FORM15X30, xPos, yPos, (uint8_t*)"%", SCH_COLOR, TSTAT8_BACK_COLOR);
+   
 }
 
 static void DisplaySetpointValue(void)

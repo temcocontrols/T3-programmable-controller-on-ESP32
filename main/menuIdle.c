@@ -118,14 +118,14 @@ void MenuIdle_init(void)
 			draw_tangle(102,112);
 			disp_str(FORM15X30, SCH_XPOS,  SETPOINT_POS, UI_DIS_LINE1,SCH_COLOR,TSTAT8_BACK_COLOR);//TSTAT8_BACK_COLOR
 		}
-		ptr = put_io_buf(VAR,2);
+		ptr = put_io_buf(VAR,1);
 		memcpy(UI_DIS_LINE2, ptr.pvar->label, 3);UI_DIS_LINE2[3] = 0;
 		if(ptr.pvar->range != 0)
 		{
 			draw_tangle(102,155);
 			disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, UI_DIS_LINE2,SCH_COLOR,TSTAT8_BACK_COLOR);
 		}
-		ptr = put_io_buf(VAR,1);
+		ptr = put_io_buf(VAR,2);
 		memcpy(UI_DIS_LINE3, ptr.pvar->label, 3);UI_DIS_LINE3[3] = 0;
 		if(ptr.pvar->range != 0)
 		{
@@ -206,7 +206,7 @@ void DisplayMenuScreen(void)
 		disp_str(FORM15X30, SCH_XPOS, SETPOINT_POS, UI_DIS_LINE1, SCH_COLOR,(disp_index == 1) ? TSTAT8_BACK_COLOR1 : TSTAT8_BACK_COLOR);
 	}
 
-	ptr = put_io_buf(VAR,2);
+	ptr = put_io_buf(VAR,1);
 	if(memcmp(UI_DIS_LINE2,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
 		disp_str(FORM15X30, SCH_XPOS,  FAN_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -223,7 +223,7 @@ void DisplayMenuScreen(void)
 	}
 
 
-	ptr = put_io_buf(VAR,1);
+	ptr = put_io_buf(VAR,2);
 	if(memcmp(UI_DIS_LINE3,ptr.pvar->label,3) || ptr.pvar->range == 0)
 	{
 		disp_str(FORM15X30, SCH_XPOS,  SYS_MODE_POS, "           ",SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -1605,6 +1605,9 @@ void display_fan(void)
 
 void display_icon(void)
 {
+	Test[21] = last_icon_flag[6];
+	Test[22] = IsHomeScreen;
+	Test[23] = Modbus.icon_config;
 	if(last_icon_flag[6] != IsHomeScreen)
 	{
 		memset(last_icon_flag, -1, sizeof(last_icon_flag));

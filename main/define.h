@@ -7,7 +7,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6602
+#define SOFTREV     6609
 
 
 #define		SW_OFF 	 0
@@ -180,14 +180,16 @@ typedef	enum
 #define PROJECT_RMC1216		19  	// old NG2 = RMC1216
 #define PROJECT_MPPT		20
 #define PROJECT_LSW_BTN		21
-#define PROJECT_NG2_NEW		22
+#define PROJECT_NG3			22
 #define PROJECT_MULTIMETER	23
 #define PROJECT_LIGHT_PWM	24
 #define PROJECT_MULTIMETER_NEW	25
 #define PROJECT_CO2 		26
 #define PROJECT_LSW_SENSOR	27
 
-#define MAX_MINI_TYPE 		28
+#define PROJECT_RMC1216_32I	29
+
+#define MAX_MINI_TYPE 		30
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;

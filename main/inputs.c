@@ -1,4 +1,5 @@
 #include "controls.h"
+#include "user_data.h"
 
 
 
@@ -6,8 +7,6 @@
 
 extern Str_table_point	   far		  custom_tab[MAX_TBLS];
 #if NEW_IO
-extern Str_in_point 		*new_inputs;
-extern Str_variable_point 	*new_vars;
 extern uint8_t max_inputs;
 #else
 extern Str_in_point        far        inputs[MAX_INS];
@@ -412,8 +411,17 @@ void control_input(void)
 		shift = 1;
 	
 	while( point < MAX_INS )
-	{	
-		ptr = put_io_buf(IN,point);
+	{
+#if NEW_IO
+		if(point >= max_inputs)
+		{
+			point++;
+			continue;
+		}
+		ptr = put_io_buf(IN, point);
+#else
+		ptr.pin = &inputs[point];
+#endif
 
 		if(change_value_by_range(point))
 		{
@@ -693,8 +701,6 @@ void control_input(void)
 		}
 	}
 		point++;
-	  ptr.pin++;
-		
 	}
 }
 

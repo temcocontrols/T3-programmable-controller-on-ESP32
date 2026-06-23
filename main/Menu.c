@@ -256,18 +256,13 @@ void LcdMenuRunning(void)
 			menu_refresh_timer_end = xTaskGetTickCount();
 			if((menu_refresh_timer_end - menu_refresh_timer_start) >= (100 / portTICK_PERIOD_MS))
 			{
-				Test[17]++;
 				menu_refresh_timer_start = xTaskGetTickCount();
 				CurrentState.DisplayPeriod();
 			}
 
 			if(CurrentState.BlockTime)
 			{
-				Test[18]++;
 				menu_block_timer_end = xTaskGetTickCount();
-				Test[7] = menu_block_timer_end / 1000;
-				Test[8] = menu_block_timer_start / 1000;
-				Test[9] = CurrentState.BlockTime;
 				if((menu_block_timer_end - menu_block_timer_start) >= (CurrentState.BlockTime * SWTIMER_COUNT_SECOND))
 				{
 					update_menu_state(MenuIdle);

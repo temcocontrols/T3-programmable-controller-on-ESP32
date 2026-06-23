@@ -4,7 +4,9 @@ nvs,      data, nvs,   0x9000  ,        0x4000,
 otadata,  data, ota,   0xd000  ,        0x2000,
 phy_init, data, phy,   0xf000  ,        0x1000,
 factory,  app,  factory, 0x10000,        0x100000,
-ota_0,    app,  ota_0,  0x110000 ,       0x200000,
+ota_0,    app,  ota_0,  0x110000 ,      -0x800000,
 # storage:data, nvs,   0x310000,        0x40000, old 4M
-# storage: last 2MB of 16MB flash (0xE00000 - 0xFFFFFF)
-storage,  data, nvs,   0xE00000,        0x200000,
+# storage: last 8MB of 16MB flash (0x800000 - 0xFFFFFF)
+# storage,  data, nvs,   0x800000,        0x800000, new 16M
+
+# 如果使用bootloader加载app，这里的partition定义是不影响的，只有用工具ESP_DOWNLOAD TOOL烧写进去的partion_table.bin才是起决定性作用的
