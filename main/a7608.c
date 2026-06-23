@@ -10,6 +10,8 @@
 #include "driver/uart.h"
 #include "esp_check.h"
 #include "esp_log.h"
+#include "hub_lte_pppos.h"
+#include "hub_network_manager.h"
 
 #define A7608_LOG(fmt, ...) do { printf("[A7608] " fmt "\n", ##__VA_ARGS__); fflush(stdout); } while (0)
 
@@ -22,6 +24,8 @@ extern int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t time
 
 static bool pin_is_valid(gpio_num_t pin);
 static int inactive_level(int active_level);
+static bool a7608_ip_is_valid(const char *ip_addr);
+static void a7608_sync_network_status(void);
 static void parse_gnss_info(const char *response);
 static void parse_gps_info(const char *response);
 static void parse_cgnsinf(const char *response);
@@ -473,6 +477,20 @@ static void parse_ip_addr(const char *response)
     }
 }
 
+static bool a7608_ip_is_valid(const char *ip_addr)
+{
+    return (ip_addr != NULL) && (ip_addr[0] != '\0') && (strcmp(ip_addr, "0.0.0.0") != 0);
+}
+
+static void a7608_sync_network_status(void)
+{
+    bool connected = a7608_status.connected && a7608_ip_is_valid(a7608_status.ip_addr);
+    const char *ip_addr = connected ? a7608_status.ip_addr : NULL;
+
+    (void)hub_lte_pppos_set_connected(connected, ip_addr);
+    hub_network_manager_set_lte_status(connected, ip_addr);
+}
+
 static void copy_csv_field(const char **cursor, char *out, size_t out_len)
 {
     if ((cursor == NULL) || (*cursor == NULL) || (out == NULL) || (out_len == 0)) {
@@ -912,6 +930,9 @@ esp_err_t a7608_refresh_status(void)
     esp_err_t first_error = ESP_OK;
 
     if (a7608_probe() != ESP_OK) {
+        a7608_status.connected = false;
+        a7608_status.ip_addr[0] = '\0';
+        a7608_sync_network_status();
         return ESP_FAIL;
     }
 
@@ -956,13 +977,17 @@ esp_err_t a7608_refresh_status(void)
 
     if (a7608_send_command("AT+CGPADDR", "OK", 2000, response, sizeof(response)) == ESP_OK) {
         parse_ip_addr(response);
-        a7608_status.connected = a7608_status.ip_addr[0] != '\0';
+        a7608_status.connected = a7608_ip_is_valid(a7608_status.ip_addr);
         if (a7608_status.connected) {
             a7608_status.state = A7608_STATE_CONNECTED;
         }
     } else if (first_error == ESP_OK) {
+        a7608_status.connected = false;
+        a7608_status.ip_addr[0] = '\0';
         first_error = ESP_FAIL;
     }
+
+    a7608_sync_network_status();
 
     return first_error;
 }

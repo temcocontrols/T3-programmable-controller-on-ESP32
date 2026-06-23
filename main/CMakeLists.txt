@@ -10,6 +10,8 @@ idf_component_register(			SRCS
 							"sensirion_common.c"
 							"sgp30.c"
 							"ethernet_task.c"
+							"hub_lte_pppos.c"
+							"hub_network_manager.c"
 							"hub_w5500.c"
 							"flash.c"
 							"pro_info.c"
