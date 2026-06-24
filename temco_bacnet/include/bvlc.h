@@ -44,24 +44,17 @@ extern "C" {
 
 #endif /* __cplusplus */
 
-	void bvlc_intial(void);
-	void bvlc_test_clear_bdt(void);
-	void bvlc_test_clear_fdt(void);
-	void bvlc_maintenance_timer(
-			uint16_t seconds);	   // changed by chelsea
-	bool bvlc_test_set_bdt_entry(
-	    unsigned index,
-	    long address,
-	    uint16_t port,
-	    long mask);
-	bool bvlc_test_add_fdt_entry(
-	    long address,
-	    uint16_t port,
-	    uint16_t time_to_live);
-	bool bvlc_test_delete_fdt_entry(
-	    long address,
-	    uint16_t port);
-
+void bvlc_intial(void);	
+void bvlc_test_clear_bdt(void);
+void bvlc_test_clear_fdt(void);	
+void bvlc_maintenance_timer(uint16_t seconds);	   // changed by chelsea
+bool bvlc_test_set_bdt_entry(
+    unsigned index,
+    long address,
+    uint16_t port,
+    long mask);
+	
+	
 void dlenv_maintenance_timer(
     uint16_t elapsed_seconds);
 void register_ftd(long address,int port,int time);
@@ -129,6 +122,10 @@ int bvlc_send_mpdu(
         uint8_t * mtu,
         uint16_t mtu_len);
 
+bool bvlc_delete_foreign_device(
+    uint8_t * pdu);
+	
+	
 #if defined(BBMD_CLIENT_ENABLED) && BBMD_CLIENT_ENABLED
     int bvlc_encode_write_bdt_init(
         uint8_t * pdu,

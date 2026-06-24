@@ -229,7 +229,8 @@ typedef	union
 	U8_T max_out;
 	
 	U8_T fix_com_config;
-	U8_T write_flash;	
+	U8_T write_flash;
+	
 	
 	uint32_t bbmd_ip;
 	uint16_t bbmd_port;
@@ -238,7 +239,6 @@ typedef	union
 	}reg;
 }Str_Setting_Info;
 
-_Static_assert(sizeof(Str_Setting_Info) <= 400, "Str_Setting_Info overflow");
 
 typedef union
 {

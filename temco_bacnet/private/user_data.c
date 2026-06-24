@@ -1880,7 +1880,8 @@ U8_T check_network_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 		{
 			if(((point->point_type & 0x1f) == (ptr->point.point_type & 0x1f)) ||
 				(((point->point_type & 0x1f) == VAR + 1) && ((ptr->point.point_type & 0x1f) == MB_REG + 1)) || 
-				(((point->point_type & 0x1f) == MB_REG +1) && ((ptr->point.point_type & 0x1f)== VAR + 1))
+				(((point->point_type & 0x1f) == MB_REG +1) && ((ptr->point.point_type & 0x1f)== VAR + 1)) ||
+				(((point->point_type & 0x1f) == READ_DIS_INPUT +1) && ((ptr->point.point_type & 0x1f)== MB_DIS_REG + 1))
 			)	
 			{
 				*index = i;

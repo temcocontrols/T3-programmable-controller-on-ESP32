@@ -188,8 +188,6 @@ void bvlc_maintenance_timer(
     }
 }
 
-bool bvlc_delete_foreign_device(
-    uint8_t * pdu);
 
 void bvlc_test_clear_bdt(void)
 {
@@ -243,6 +241,7 @@ bool bvlc_test_delete_fdt_entry(
 
     return bvlc_delete_foreign_device(&pdu[0]);
 }
+
 
 
 /* Addressing within B/IP Networks
