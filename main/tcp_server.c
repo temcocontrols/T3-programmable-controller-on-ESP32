@@ -1853,18 +1853,25 @@ void Trend_Log_Init(void);
 void Initial_points(uint8_t point_type);
 void set_default_parameters(void)
 {
+	Flash_Inital();
 	save_uint8_to_flash(FLASH_MODBUS_ID,1);
 	save_uint8_to_flash(FLASH_EN_SNTP,1);
 	save_uint8_to_flash(FLASH_EN_TIME_SYNC_PC,1);
 	save_uint8_to_flash(FLASH_LCD_TIME_OFF_DELAY,255);
 	save_uint16_to_flash(FLASH_WRITE_FLASH,0);
 	save_uint8_to_flash(FLASH_FIX_COM_CONFIG,1);
+#if NEW_IO
+	new_inputs = NULL;
+	new_outputs = NULL;
+	new_vars = NULL;
+#endif
 	Bacnet_Initial_Data();
 
 	Initial_points(OUT);
 	Initial_points(IN);
 	Initial_points(VAR);
 	save_point_info(0);
+	Test[15]++;
 
 }
 

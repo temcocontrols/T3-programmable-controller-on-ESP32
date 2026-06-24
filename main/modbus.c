@@ -2323,7 +2323,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				count_gIdentify = 0;
 			}
 			if(*(bufadd + 5) == 88) // reset to defautl
-			{
+			{Test[14]++;
 				set_default_parameters();
 			}
 			if(*(bufadd + 5) == 111)	 // reboot
@@ -2445,18 +2445,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		}
 		else if(address == MODBUS_MAX_VARS)
 		{
-			max_vars = *(bufadd + 5);
-			save_uint8_to_flash(FLASH_MAX_VARS,max_vars);
+			apply_io_count_change(VAR, *(bufadd + 5));
 		}
 		else if(address == MODBUS_MAX_INS)
 		{
-			max_inputs = *(bufadd + 5);
-			save_uint8_to_flash(FLASH_MAX_INS,max_inputs);
+			apply_io_count_change(IN, *(bufadd + 5));
 		}
 		else if(address == MODBUS_MAX_OUTS)
 		{
-			max_outputs = *(bufadd + 5);
-			save_uint8_to_flash(FLASH_MAX_OUTS,max_outputs);
+			apply_io_count_change(OUT, *(bufadd + 5));
 		}
       else if (address == UPDATE_STATUS)
       {
@@ -3879,7 +3876,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		}
 
 		if(ptr->reg.reset_default == 88)	// reset default
-		{
+		{Test[13]++;
 			ptr->reg.reset_default = 0;
 			set_default_parameters();
 		}
@@ -4009,36 +4006,12 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 			save_uint8_to_flash( FLASH_FIX_COM_CONFIG, Modbus.fix_com_config);
 		}
 #if NEW_IO
-			if(max_vars != ptr->reg.max_var)
-			{
-				max_vars = ptr->reg.max_var;
-				save_uint8_to_flash(FLASH_MAX_VARS,max_vars);
-				//free(new_vars);
-				new_vars = NULL;
-				init_panel();
-				Flash_Inital();
-				save_point_info(0);
-			}
-			if(max_inputs != ptr->reg.max_in)
-			{
-				max_inputs = ptr->reg.max_in;
-				save_uint8_to_flash(FLASH_MAX_INS,max_inputs);
-				//free(new_inputs);
-				new_inputs = NULL;
-				Flash_Inital();
-				init_panel();
-				save_point_info(0);
-			}
-			if(max_outputs != ptr->reg.max_out)
-			{
-				max_outputs = ptr->reg.max_out;
-				save_uint8_to_flash(FLASH_MAX_OUTS,max_outputs);
-				//free(new_outputs);
-				new_outputs = NULL;
-				Flash_Inital();
-				init_panel();
-				save_point_info(0);
-			}
+		if(max_vars != ptr->reg.max_var)
+			apply_io_count_change(VAR, ptr->reg.max_var);
+		if(max_inputs != ptr->reg.max_in)
+			apply_io_count_change(IN, ptr->reg.max_in);
+		if(max_outputs != ptr->reg.max_out)
+			apply_io_count_change(OUT, ptr->reg.max_out);
 #endif
 
 			if(memcmp(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcdconfig)))

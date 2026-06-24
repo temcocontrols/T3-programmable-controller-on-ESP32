@@ -533,6 +533,10 @@ extern STR_STORE_PIC store_pic[PIC_PACKET_STACK];
 
 void init_panel(void);
 
+#if NEW_IO
+void resize_io_arrays(uint8_t point_type, uint8_t old_count, uint8_t new_count);
+#endif
+
 
 
 void update_timers( void );

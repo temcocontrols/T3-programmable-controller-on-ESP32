@@ -1,5 +1,7 @@
 #include "bacnet.h"
+#include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "types.h"
 #include "bac_point.h"
 #include "user_data.h"
@@ -415,6 +417,114 @@ uint16_t get_network_number(void)
 	return Modbus.network_number;
 }
 
+#if NEW_IO
+static void init_default_input_point(Str_in_point *pin, uint16_t i)
+{
+	memset(pin, 0, sizeof(Str_in_point));
+	pin->value = 0;
+	snprintf((char *)pin->description, sizeof(pin->description), "newIN %d", (int)(i + 1));
+	pin->filter = DEFAULT_FILTER;
+	pin->decom = 0;
+	pin->control = 1;
+	pin->auto_manual = 0;
+	pin->digital_analog = 1;
+	pin->calibration_sign = 1;
+	pin->calibration_hi = 0;
+	pin->calibration_lo = 0;
+	pin->range = 0;
+	snprintf((char *)pin->label, sizeof(pin->label), "IN%d", (int)(i + 1));
+}
+
+static void init_default_output_point(Str_out_point *pout, uint16_t i)
+{
+	memset(pout, 0, sizeof(Str_out_point));
+	pout->value = 0;
+	pout->range = 0;
+	pout->digital_analog = 0;
+	if(i < 12)
+	{
+		pout->range = 1;
+		pout->digital_analog = 0;
+	}
+	else if(i < 24)
+	{
+		pout->range = 4;
+		pout->digital_analog = 1;
+	}
+	snprintf((char *)pout->description, sizeof(pout->description), "newOUT%d", (int)(i + 1));
+	snprintf((char *)pout->label, sizeof(pout->label), "OUT%d", (int)(i + 1));
+	pout->auto_manual = 0;
+}
+
+static void init_default_var_point(Str_variable_point *pvar, uint16_t i)
+{
+	memset(pvar, 0, sizeof(Str_variable_point));
+	pvar->value = 0;
+	pvar->auto_manual = 0;
+	pvar->digital_analog = 1;
+	pvar->unused = 2;
+	pvar->range = 0;
+	snprintf((char *)pvar->description, sizeof(pvar->description), "newVAR%d", (int)(i + 1));
+	snprintf((char *)pvar->label, sizeof(pvar->label), "VAR%d", (int)(i + 1));
+}
+
+void resize_io_arrays(uint8_t point_type, uint8_t old_count, uint8_t new_count)
+{
+	uint16_t i;
+	uint8_t copy_count = old_count < new_count ? old_count : new_count;
+
+	switch(point_type)
+	{
+	case OUT:
+	{
+		Str_out_point *old_buf = new_outputs;
+		Str_out_point *new_buf = malloc(new_count * sizeof(Str_out_point));
+		if(new_buf == NULL)
+			return;
+		if(old_buf != NULL && copy_count > 0)
+			memcpy(new_buf, old_buf, copy_count * sizeof(Str_out_point));
+		for(i = copy_count; i < new_count; i++)
+			init_default_output_point(new_buf + i, i);
+		new_outputs = new_buf;
+		if(old_buf != NULL)
+			free(old_buf);
+		break;
+	}
+	case IN:
+	{
+		Str_in_point *old_buf = new_inputs;
+		Str_in_point *new_buf = malloc(new_count * sizeof(Str_in_point));
+		if(new_buf == NULL)
+			return;
+		if(old_buf != NULL && copy_count > 0)
+			memcpy(new_buf, old_buf, copy_count * sizeof(Str_in_point));
+		for(i = copy_count; i < new_count; i++)
+			init_default_input_point(new_buf + i, i);
+		new_inputs = new_buf;
+		if(old_buf != NULL)
+			free(old_buf);
+		break;
+	}
+	case VAR:
+	{
+		Str_variable_point *old_buf = new_vars;
+		Str_variable_point *new_buf = malloc(new_count * sizeof(Str_variable_point));
+		if(new_buf == NULL)
+			return;
+		if(old_buf != NULL && copy_count > 0)
+			memcpy(new_buf, old_buf, copy_count * sizeof(Str_variable_point));
+		for(i = copy_count; i < new_count; i++)
+			init_default_var_point(new_buf + i, i);
+		new_vars = new_buf;
+		if(old_buf != NULL)
+			free(old_buf);
+		break;
+	}
+	default:
+		break;
+	}
+}
+#endif
 
 void init_panel(void)
 {	 	
@@ -432,75 +542,23 @@ void init_panel(void)
 #if NEW_IO
 	if(new_inputs == NULL)
 	{
-		new_inputs = malloc(max_inputs *sizeof(Str_in_point));
-		// tbd: check maclloc
-		ptr.pin = new_inputs;
-		memset(ptr.pin, 0, max_inputs *sizeof(Str_in_point) );
-		for( i=0; i< max_inputs; i++, ptr.pin++ )
-		{
-			ptr.pin->value = 0;
-			sprintf((S8_T *)&ptr.pin->description,"newIN %d",(U16_T)(i + 1));
-			ptr.pin->filter = DEFAULT_FILTER;  /* (3 bits; 0=1,1=2,2=4,3=8,4=16,5=32, 6=64,7=128,)*/
-			ptr.pin->decom = 0;	   /* (1 bit; 0=ok, 1=point decommissioned)*/
-	//		ptr.pin->sen_on = 1;/* (1 bit)*/
-	//		ptr.pin->sen_off = 1;  /* (1 bit)*/
-			ptr.pin->control = 1; /*  (1 bit; 0=OFF, 1=ON)*/
-			ptr.pin->auto_manual = 0; /* (1 bit; 0=auto, 1=manual)*/
-			ptr.pin->digital_analog = 1; /* (1 bit; 1=analog, 0=digital)*/
-			ptr.pin->calibration_sign = 1;; /* (1 bit; sign 0=positiv 1=negative )*/
-	//		ptr.pin->calibration_increment = 1;; /* (1 bit;  0=0.1, 1=1.0)*/
-			ptr.pin->calibration_hi = 0;  /* (8 bits; -25.6 to 25.6 / -256 to 256 )*/
-			ptr.pin->calibration_lo = 0;
-	//		memcpy(ptr.pin->label,'\0',9);
-			ptr.pin->range = 0;
-
-			sprintf((S8_T *)&ptr.pin->label,"newIN%d",(U16_T)(i + 1));
-		}
+		new_inputs = malloc(max_inputs * sizeof(Str_in_point));
+		for(i = 0; i < max_inputs; i++)
+			init_default_input_point(new_inputs + i, i);
 	}
 
 	if(new_outputs == NULL)
 	{
-		new_outputs = malloc(max_outputs *sizeof(Str_out_point));
-		ptr.pout = new_outputs;
-		memset(ptr.pout, 0, max_outputs *sizeof(Str_out_point) );
-		for( i = 0; i< max_outputs; i++, ptr.pout++ )
-		{
-			ptr.pout->value = 0;
-			ptr.pout->range = 0;
-			ptr.pout->digital_analog = 0;
-
-			if((i >= 0) && (i < 12))
-			{
-				ptr.pout->range = 1; // off-on
-				ptr.pout->digital_analog = 0;
-			}
-			else if((i >= 12) && (i < 24))
-			{
-				ptr.pout->range = 4;  // 0-100%
-				ptr.pout->digital_analog = 1;
-			}
-
-			sprintf((S8_T *)&ptr.pout->description,"newOUT%d",(U16_T)(i + 1));
-			sprintf((S8_T *)&ptr.pout->label,"OUT%d",(U16_T)(i + 1));
-			ptr.pout->auto_manual = 0;
-		}
+		new_outputs = malloc(max_outputs * sizeof(Str_out_point));
+		for(i = 0; i < max_outputs; i++)
+			init_default_output_point(new_outputs + i, i);
 	}
 
 	if(new_vars == NULL)
 	{
-		new_vars = malloc(max_vars *sizeof(Str_variable_point));
-		ptr.pvar = new_vars;
-		memset(ptr.pvar, 0, max_vars *sizeof(Str_variable_point) );
-		for( i = 0; i < max_vars; i++, ptr.pvar++ )
-		{
-			ptr.pvar->value = 0;
-			ptr.pvar->auto_manual = 0;
-			ptr.pvar->digital_analog = 1; //analog point
-			ptr.pvar->unused = 2;
-			ptr.pvar->range = 0;
-			sprintf((S8_T *)&ptr.pvar->description,"newVAR%d",(U16_T)(i + 1));
-			sprintf((S8_T *)&ptr.pvar->label,"VAR%d",(U16_T)(i + 1));
-		}
+		new_vars = malloc(max_vars * sizeof(Str_variable_point));
+		for(i = 0; i < max_vars; i++)
+			init_default_var_point(new_vars + i, i);
 	}
 
 #else

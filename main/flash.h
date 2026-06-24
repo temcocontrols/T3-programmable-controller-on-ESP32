@@ -184,4 +184,5 @@ esp_err_t Save_Lcd_config(void);
 
 extern void Flash_Inital(void);
 extern void read_point_info(void);
+extern void apply_io_count_change(uint8_t point_type, uint8_t new_count);
 #endif

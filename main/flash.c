@@ -761,6 +761,64 @@ esp_err_t read_default_from_flash(void)
 	return ESP_OK;
 }
 
+#if NEW_IO
+void apply_io_count_change(uint8_t point_type, uint8_t new_count)
+{
+	uint8_t old_count;
+
+	if(new_count == 0)
+		return;
+
+	switch(point_type)
+	{
+	case OUT:
+		old_count = max_outputs;
+		break;
+	case IN:
+		old_count = max_inputs;
+		break;
+	case VAR:
+		old_count = max_vars;
+		break;
+	default:
+		return;
+	}
+
+	if(new_count == old_count)
+		return;
+
+	resize_io_arrays(point_type, old_count, new_count);
+
+	switch(point_type)
+	{
+	case OUT:
+		max_outputs = new_count;
+		save_uint8_to_flash(FLASH_MAX_OUTS, max_outputs);
+		Setting_Info.reg.max_out = max_outputs;
+		break;
+	case IN:
+		max_inputs = new_count;
+		save_uint8_to_flash(FLASH_MAX_INS, max_inputs);
+		Setting_Info.reg.max_in = max_inputs;
+		break;
+	case VAR:
+		max_vars = new_count;
+		save_uint8_to_flash(FLASH_MAX_VARS, max_vars);
+		Setting_Info.reg.max_var = max_vars;
+		break;
+	default:
+		return;
+	}
+
+	Flash_Inital();
+	save_point_info(0);
+
+	Count_VAR_Object_Number(AVS);
+	Count_IN_Object_Number();
+	Count_OUT_Object_Number();
+}
+#endif
+
 
 void Save_SPD_CNT(void)
 {
