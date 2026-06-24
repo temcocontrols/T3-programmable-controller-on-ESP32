@@ -16,6 +16,7 @@ dependencies:
   #   public: true
   espressif/led_strip: '*'
   espressif/esp_tinyusb: '*'
+  espressif/esp_modem: '*'
 
   lvgl/lvgl:
     version: "==9.5.0"

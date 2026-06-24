@@ -29,6 +29,12 @@ typedef enum {
     HUB_LTE_PPPOS_STATE_ERROR,
 } hub_lte_pppos_state_t;
 
+typedef enum {
+    HUB_LTE_PPPOS_UART_OWNER_IDLE = 0,
+    HUB_LTE_PPPOS_UART_OWNER_AT_STATUS,
+    HUB_LTE_PPPOS_UART_OWNER_PPPOS,
+} hub_lte_pppos_uart_owner_t;
+
 typedef struct {
     uart_port_t uart_num;
     int baud_rate;
@@ -46,6 +52,7 @@ typedef struct {
     bool start_requested;
     bool connected;
     hub_lte_pppos_state_t state;
+    hub_lte_pppos_uart_owner_t uart_owner;
     char ip_addr[HUB_LTE_PPPOS_IP_ADDR_LEN];
 } hub_lte_pppos_status_t;
 
@@ -55,7 +62,10 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_set_uart_config(const hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_start(void);
 esp_err_t hub_lte_pppos_stop(void);
+bool hub_lte_pppos_is_enabled(void);
+bool hub_lte_pppos_is_running(void);
 bool hub_lte_pppos_is_connected(void);
+hub_lte_pppos_state_t hub_lte_pppos_get_state(void);
 esp_err_t hub_lte_pppos_set_connected(bool connected, const char *ip_addr);
 esp_err_t hub_lte_pppos_get_status(hub_lte_pppos_status_t *status);
 const char *hub_lte_pppos_get_ip_addr(void);
