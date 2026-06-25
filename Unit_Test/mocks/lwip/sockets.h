@@ -55,9 +55,13 @@ struct sockaddr_storage {
 
 #include <sys/time.h>
 
+#ifdef _WIN32
+
 typedef struct {
     uint32_t fds_bits[32];
 } fd_set;
+
+#endif
 
 #define FD_ZERO(s) memset(s, 0, sizeof(*s))
 #define FD_SET(d, s) ((s)->fds_bits[(d)/32] |= (1 << ((d)%32)))
@@ -98,7 +102,10 @@ int shutdown(int s, int how);
 int setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen);
 int listen(int s, int backlog);
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
+
+#ifdef _WIN32
 int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout);
+#endif
 
 static inline uint32_t htonl(uint32_t hostlong) {
     return ((hostlong & 0xff000000) >> 24) |

@@ -479,11 +479,11 @@ int lwip_getaddrinfo(const char *nodename,
 {
     (void)nodename; (void)servname; (void)hints;
     if (!res) return -1;
-    
+
     struct addrinfo *ai = (struct addrinfo *)malloc(sizeof(struct addrinfo));
     if (!ai) return -1;
     memset(ai, 0, sizeof(struct addrinfo));
-    
+
     struct sockaddr_in *sa = (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in));
     if (!sa) {
         free(ai);
@@ -492,11 +492,11 @@ int lwip_getaddrinfo(const char *nodename,
     memset(sa, 0, sizeof(struct sockaddr_in));
     sa->sin_family = AF_INET;
     sa->sin_addr.s_addr = 0x0100007f; // 127.0.0.1
-    
+
     ai->ai_family = AF_INET;
     ai->ai_addr = (struct sockaddr *)sa;
     ai->ai_addrlen = sizeof(struct sockaddr_in);
-    
+
     *res = ai;
     return 0;
 }
@@ -565,10 +565,15 @@ int setsockopt(int s, int level, int optname, const void *optval, socklen_t optl
 }
 int listen(int s, int backlog) { (void)s; (void)backlog; return 0; }
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen) { (void)s; (void)addr; (void)addrlen; return 1; }
+
+#ifdef _WIN32
+
 int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout) {
     (void)maxfdp1; (void)readset; (void)writeset; (void)exceptset; (void)timeout;
     return 0;
 }
+#endif
+
 const char *inet_ntoa_r_in(struct in_addr addr, char *buf, int buflen) {
     (void)addr;
     if (buf && buflen > 0) {

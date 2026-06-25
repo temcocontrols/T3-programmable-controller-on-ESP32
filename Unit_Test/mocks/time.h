@@ -7,6 +7,9 @@
 
 #include <sys/time.h>
 
+#ifdef _WIN32
+
+
 static inline struct tm *gmtime_r(const time_t *timep, struct tm *result)
 {
     struct tm *p = gmtime(timep);
@@ -22,5 +25,7 @@ static inline int settimeofday(const struct timeval *tv, const void *tz)
     (void)tv; (void)tz;
     return 0;
 }
+
+#endif // _WIN32
 
 #endif // MOCK_TIME_H
