@@ -59,6 +59,7 @@ MOCK_SRCS = mocks/mock_freertos.c \
             mocks/mock_hardware.c \
             mocks/mock_esp_idf.c \
             mocks/mock_lvgl.c \
+            mocks/mock_itoa.c\
             mocks/cJSON.c \
             unity/unity.c
 

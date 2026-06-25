@@ -25,7 +25,7 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include <store.h>
-
+#include <errno.h>
 
 #include "define.h"
 #include "modbus.h"

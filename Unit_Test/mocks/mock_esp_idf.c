@@ -547,6 +547,17 @@ esp_err_t i2c_param_config(i2c_port_t i2c_num, const i2c_config_t *i2c_conf) { (
 #include "lwip/sockets.h"
 
 int socket(int domain, int type, int protocol) { (void)domain; (void)type; (void)protocol; return 1; }
+
+int close(int s) { (void)s; return 0; }
+int shutdown(int s, int how) { (void)s; (void)how; return 0; }
+int setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen) {
+    (void)s; (void)level; (void)optname; (void)optval; (void)optlen;
+    return 0;
+}
+int listen(int s, int backlog) { (void)s; (void)backlog; return 0; }
+
+#ifdef _WIN32
+
 int bind(int s, const struct sockaddr *name, socklen_t namelen) { (void)s; (void)name; (void)namelen; return 0; }
 int connect(int s, const struct sockaddr *name, socklen_t namelen) { (void)s; (void)name; (void)namelen; return 0; }
 int sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen) {
@@ -557,21 +568,13 @@ int recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, soc
     (void)s; (void)mem; (void)len; (void)flags; (void)from; (void)fromlen;
     return 0;
 }
-int close(int s) { (void)s; return 0; }
-int shutdown(int s, int how) { (void)s; (void)how; return 0; }
-int setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen) {
-    (void)s; (void)level; (void)optname; (void)optval; (void)optlen;
-    return 0;
-}
-int listen(int s, int backlog) { (void)s; (void)backlog; return 0; }
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen) { (void)s; (void)addr; (void)addrlen; return 1; }
-
-#ifdef _WIN32
 
 int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout) {
     (void)maxfdp1; (void)readset; (void)writeset; (void)exceptset; (void)timeout;
     return 0;
 }
+
 #endif
 
 const char *inet_ntoa_r_in(struct in_addr addr, char *buf, int buflen) {

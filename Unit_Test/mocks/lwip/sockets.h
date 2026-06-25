@@ -9,8 +9,28 @@
 extern "C" {
 #endif
 
+#ifdef __linux__
+#include <sys/socket.h>
+#include <sys/types.h>
+#else
 typedef int socklen_t;
+
+
 typedef uint8_t sa_family_t;
+
+struct sockaddr {
+    uint8_t sa_len;
+    uint8_t sa_family;
+    char sa_data[14];
+};
+
+struct sockaddr_storage {
+    uint8_t ssa_len;
+    uint8_t ssa_family;
+    char ssa_data[26];
+};
+
+#endif
 
 struct in_addr {
     uint32_t s_addr;
@@ -41,18 +61,6 @@ struct sockaddr_in6 {
     uint32_t sin6_scope_id;
 };
 
-struct sockaddr {
-    uint8_t sa_len;
-    uint8_t sa_family;
-    char sa_data[14];
-};
-
-struct sockaddr_storage {
-    uint8_t ssa_len;
-    uint8_t ssa_family;
-    char ssa_data[26];
-};
-
 #include <sys/time.h>
 
 #ifdef _WIN32
@@ -61,10 +69,10 @@ typedef struct {
     uint32_t fds_bits[32];
 } fd_set;
 
-#endif
-
 #define FD_ZERO(s) memset(s, 0, sizeof(*s))
 #define FD_SET(d, s) ((s)->fds_bits[(d)/32] |= (1 << ((d)%32)))
+
+#endif
 
 #define AF_INET 2
 #define AF_INET6 10
@@ -91,20 +99,23 @@ typedef struct {
 #define CONFIG_EXAMPLE_PORT 47808
 
 int socket(int domain, int type, int protocol);
+int close(int s);
+int shutdown(int s, int how);
+int setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen);
+int listen(int s, int backlog);
+
+
+#ifdef _WIN32
+
+int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout);
 int bind(int s, const struct sockaddr *name, socklen_t namelen);
 int connect(int s, const struct sockaddr *name, socklen_t namelen);
 int send(int s, const void *dataptr, size_t size, int flags);
 int sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen);
 int recv(int s, void *mem, size_t len, int flags);
 int recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen);
-int close(int s);
-int shutdown(int s, int how);
-int setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen);
-int listen(int s, int backlog);
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 
-#ifdef _WIN32
-int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout);
 #endif
 
 static inline uint32_t htonl(uint32_t hostlong) {

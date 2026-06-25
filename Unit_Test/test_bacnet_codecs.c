@@ -277,7 +277,7 @@ void test_bacnet_datetime_codecs(void) {
     // Date Time combination
     datetime_copy_date(&d1, &dt1.date);
     datetime_copy_time(&t1, &dt1.time);
-    
+
     datetime_copy(&dt2, &dt1);
     TEST_ASSERT_EQUAL_INT(0, datetime_compare(&dt1, &dt2));
 
