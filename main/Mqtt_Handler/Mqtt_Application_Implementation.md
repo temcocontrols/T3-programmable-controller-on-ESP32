@@ -6,9 +6,9 @@ This document provides a technical overview of the MQTT client implementation on
 
 ## 1. Architectural Overview
 
-The MQTT integration is located in the [Mqtt_Handler](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler) folder, consisting of:
-- [Mqtt_Handler.h](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.h): Public APIs, constants, and preprocessor configuration switches.
-- [Mqtt_Handler.c](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c): Task initialization, event loop handling, payload serialization (JSON), and polling/filtering routines.
+The MQTT integration is located in the [Mqtt_Handler](T3-programmable-controller-on-ESP32/main/Mqtt_Handler) folder, consisting of:
+- [Mqtt_Handler.h](T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.h): Public APIs, constants, and preprocessor configuration switches.
+- [Mqtt_Handler.c](T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c): Task initialization, event loop handling, payload serialization (JSON), and polling/filtering routines.
 
 ### Key Dependencies
 *   **ESP-IDF v5 MQTT Client (`esp-mqtt`)**: Handles transport, TCP connection, TLS (optional), handshakes, and packet retries.
@@ -76,7 +76,7 @@ Inside `Mqtt_HandlerTask`, execution is blocked until Wi-Fi reports connection s
 
 ## 4. Change-of-Value (COV) Execution Paradigms
 
-The codebase supports two distinct mechanisms for detecting and dispatching data changes over MQTT. These are configured via macros in [Mqtt_Handler.h](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.h).
+The codebase supports two distinct mechanisms for detecting and dispatching data changes over MQTT. These are configured via macros in [Mqtt_Handler.h](T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.h).
 
 ---
 
@@ -90,7 +90,7 @@ The codebase supports two distinct mechanisms for detecting and dispatching data
 Rather than scanning all points, this mode follows the event-driven BACnet standard, where only points with active BACnet subscriptions are published.
 
 #### 1. Execution Path
-When `#define BACNET_SUB_COV 1`, the MQTT engine intercepts changes triggered during standard BACnet operations inside [app_main.c](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/app_main.c):
+When `#define BACNET_SUB_COV 1`, the MQTT engine intercepts changes triggered during standard BACnet operations inside [app_main.c](T3-programmable-controller-on-ESP32/main/app_main.c):
 1.  **Received COV Event (`Update_COV_Notify`):**
     Intercepted at line 2428 when a remote BACnet device notifies a change.
 2.  **Internal State Change (`Update_Value_List`):**
@@ -179,7 +179,7 @@ snprintf(topic, sizeof(topic), "temco/cov/tstat11/device_%lu/%s_%lu",
 To inspect the MQTT client operations and troubleshoot point subscription flows, the component contains built-in debug logging.
 
 ### A. Enabling Debug Prints
-Set the preprocessor flag `MQTT_DEBUG_EN` to `1` at the top of [Mqtt_Handler.c](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c):
+Set the preprocessor flag `MQTT_DEBUG_EN` to `1` at the top of [Mqtt_Handler.c](T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c):
 ```c
 #define MQTT_DEBUG_EN 1
 ```
