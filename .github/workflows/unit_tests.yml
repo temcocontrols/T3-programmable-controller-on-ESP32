@@ -1,0 +1,84 @@
+name: Firmware Unit Tests
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  run-tests:
+    name: Host-Based Unit Tests (GCC / Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ------------------------------------------------------------------ #
+      # 1. Checkout the full repository
+      # ------------------------------------------------------------------ #
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------ #
+      # 2. Install build dependencies
+      # ------------------------------------------------------------------ #
+      - name: Install Build Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            gcc \
+            make \
+            python3
+
+      # ------------------------------------------------------------------ #
+      # 3. Show GCC version (useful for debugging CI failures)
+      # ------------------------------------------------------------------ #
+      - name: Show Compiler Version
+        run: gcc --version
+
+      # ------------------------------------------------------------------ #
+      # 4. Clean any stale build artefacts
+      # ------------------------------------------------------------------ #
+      - name: Clean Previous Build
+        working-directory: Unit_Test
+        run: make clean || true
+
+      # ------------------------------------------------------------------ #
+      # 5. Build the test binary
+      #    - All sources are compiled with host-side ESP-IDF mocks
+      #    - LDFLAGS carries -lm and --allow-multiple-definition
+      # ------------------------------------------------------------------ #
+      - name: Build Unit Tests
+        working-directory: Unit_Test
+        run: make $(TARGET) -j$(nproc)
+        env:
+          TARGET: run_tests
+
+      # ------------------------------------------------------------------ #
+      # 6. Execute the test suite and capture the exit code
+      #    - Unity exits 0 on full pass, non-zero on any failure
+      #    - Output is shown in the GitHub Actions log
+      # ------------------------------------------------------------------ #
+      - name: Run Unit Tests
+        working-directory: Unit_Test
+        run: |
+          ./run_tests | tee test_output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "::group::Test Output Summary"
+          grep -E "^\-+|PASS|FAIL|IGNORE|Tests|Failures|Ignored" test_output.txt || true
+          echo "::endgroup::"
+          exit $EXIT_CODE
+
+      # ------------------------------------------------------------------ #
+      # 7. Upload the full test log as a downloadable artefact
+      # ------------------------------------------------------------------ #
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: Unit_Test/test_output.txt
+          retention-days: 30

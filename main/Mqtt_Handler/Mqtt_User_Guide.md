@@ -196,6 +196,6 @@ This guarantees that subscribing via MQTT works seamlessly and efficiently for a
     3.  Verify your Wi-Fi or Ethernet settings.
     4.  Verify you are subscribed to the correct topic pattern in MQTTX (`temco/cov/tstat11/#`).
     5.  Verify that either a BACnet client has subscribed to the COV, or you have successfully published a subscription JSON request to `temco/cov/tstat11/sub`.
-    6.  Enable verbose MQTT debugging prints on the ESP32 console by defining `#define MQTT_DEBUG_EN 1` at the top of [Mqtt_Handler.c](file:///S:/Shubham/Shubham_Files/TemcoControl/TemcoControl_Tstate_11/T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c). Recompile and flash the firmware, then monitor the serial output to trace subscription parsing and forwarding results.
+    6.  Enable verbose MQTT debugging prints on the ESP32 console by defining `#define MQTT_DEBUG_EN 1` at the top of [Mqtt_Handler.c](T3-programmable-controller-on-ESP32/main/Mqtt_Handler/Mqtt_Handler.c). Recompile and flash the firmware, then monitor the serial output to trace subscription parsing and forwarding results.
 *   **Client disconnects or shows TCP errors:**
     1.  The public HiveMQ broker may be experiencing high load or temporary downtime. Try pinging `broker.hivemq.com` from a PC connected to the same network to check connectivity.
