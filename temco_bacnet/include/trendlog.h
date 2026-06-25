@@ -86,24 +86,31 @@ extern "C" {
 /* Structure containing config and status info for a Trend Log */
 
     typedef struct tl_log_info {
-        bool bEnable;   /* Trend log is active when this is true */
-        BACNET_DATE_TIME StartTime;     /* BACnet format start time */
-        time_t tStartTime;      /* Local time working copy of start time */
-        BACNET_DATE_TIME StopTime;      /* BACnet format stop time */
-        time_t tStopTime;       /* Local time working copy of stop time */
-        uint8_t ucTimeFlags;    /* Shorthand info on times */
-        BACNET_DEVICE_OBJECT_PROPERTY_REFERENCE Source; /* Where the data comes from */
-        uint32_t ulLogInterval; /* Time between entries in seconds */
-        bool bStopWhenFull;     /* Log halts when full if true */
-        uint32_t ulRecordCount; /* Count of items currently in the buffer */
-        uint32_t ulTotalRecordCount;    /* Count of all items that have ever been inserted into the buffer */
-        BACNET_LOGGING_TYPE LoggingType;        /* Polled/cov/triggered */
-        bool bAlignIntervals;   /* If true align to the clock */
-        uint32_t ulIntervalOffset;      /* Offset from start of period for taking reading in seconds */
-        bool bTrigger;  /* Set to 1 to cause a reading to be taken */
-        int iIndex;     /* Current insertion point */
-        time_t tLastDataTime;
-    } TL_LOG_INFO;
+    /* --- 8-byte aligned fields first --- */
+    time_t tStartTime;              /* Local time working copy of start time */
+    time_t tStopTime;               /* Local time working copy of stop time */
+    time_t tLastDataTime;
+
+    /* --- 4-byte aligned fields --- */
+    uint32_t ulLogInterval;         /* Time between entries in seconds */
+    uint32_t ulRecordCount;         /* Count of items currently in the buffer */
+    uint32_t ulTotalRecordCount;    /* Count of all items that have ever been inserted into the buffer */
+    uint32_t ulIntervalOffset;      /* Offset from start of period for taking reading in seconds */
+    int iIndex;                     /* Current insertion point */
+    BACNET_DEVICE_OBJECT_PROPERTY_REFERENCE Source; /* Where the data comes from */
+    BACNET_LOGGING_TYPE LoggingType;        /* Polled/cov/triggered */
+
+    /* --- 2-byte aligned fields --- */
+    BACNET_DATE_TIME StartTime __attribute__((aligned(2)));     /* BACnet format start time */
+    BACNET_DATE_TIME StopTime  __attribute__((aligned(2)));      /* BACnet format stop time */
+
+    /* --- 1-byte fields last --- */
+    uint8_t ucTimeFlags;            /* Shorthand info on times */
+    bool bEnable;                   /* Trend log is active when this is true */
+    bool bStopWhenFull;             /* Log halts when full if true */
+    bool bAlignIntervals;           /* If true align to the clock */
+    bool bTrigger;                  /* Set to 1 to cause a reading to be taken */
+} TL_LOG_INFO;
 
 /*
  * Data types associated with a BACnet Log Record. We use these for managing the

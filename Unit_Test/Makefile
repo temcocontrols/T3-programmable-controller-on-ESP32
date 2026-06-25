@@ -1,5 +1,26 @@
+# ================================================================== #
+# Detect OS — Windows_NT is set by both cmd.exe and PowerShell
+# ================================================================== #
+ifeq ($(OS),Windows_NT)
+    TARGET   = run_tests.exe
+    RM       = del /Q
+    PATHSEP  = $(strip \)
+    RUN      = $(TARGET)
+    # MinGW uses the same --allow-multiple-definition but via -Xlinker
+    MULTI_DEF = -Xlinker --allow-multiple-definition
+else
+    TARGET   = run_tests
+    RM       = rm -f
+    PATHSEP  = /
+    RUN      = ./$(TARGET)
+    MULTI_DEF = -Wl,--allow-multiple-definition
+endif
+
+# ================================================================== #
 # Compiler and Flags
+# ================================================================== #
 CC = gcc
+
 CFLAGS = -Wall -Wextra -std=gnu99 -g \
          -Wno-incompatible-pointer-types \
          -Wno-unused-parameter \
@@ -22,12 +43,17 @@ CFLAGS = -Wall -Wextra -std=gnu99 -g \
          -DMINI_BIG_ARM=5 \
          -DMINI_BIG=1 \
          -DMINI_SMALL=2 \
-         -DMINI_TINY=3
+         -DMINI_TINY=3 \
+         $(EXTRA_CFLAGS)
 
-# Linker Flags (separate from compile flags so -lm is after object files)
-LDFLAGS = -Wl,--allow-multiple-definition -lm
+# Linker Flags
+# EXTRA_LDFLAGS is injected by CI (e.g. -fsanitize=address,undefined on Ubuntu)
+# MULTI_DEF is platform-specific (set above)
+LDFLAGS = $(MULTI_DEF) -lm $(EXTRA_LDFLAGS)
 
+# ================================================================== #
 # Include Directories
+# ================================================================== #
 INC = -Iunity \
       -Imocks \
       -Imocks/freertos \
@@ -39,6 +65,10 @@ INC = -Iunity \
       -I../temco_IO_control/include \
       -I../temco_bacnet/include \
       -I../temco_bacnet/private
+
+# ================================================================== #
+# Source Files
+# ================================================================== #
 
 # Test Source Files
 TEST_SRCS = test_runner.c \
@@ -59,7 +89,7 @@ MOCK_SRCS = mocks/mock_freertos.c \
             mocks/mock_hardware.c \
             mocks/mock_esp_idf.c \
             mocks/mock_lvgl.c \
-            mocks/mock_itoa.c\
+            mocks/mock_itoa.c \
             mocks/cJSON.c \
             unity/unity.c
 
@@ -214,7 +244,9 @@ BACNET_SRCS = src/abort.c \
 IO_CONTROL_SRCS = src/inputs.c \
                   src/outputs.c
 
+# ================================================================== #
 # Build source lists with path prefixes
+# ================================================================== #
 APP_SRCS = $(addprefix ../main/, $(MAIN_SRCS)) \
            $(wildcard ../main/TemcoScreen/*.c) \
            $(addprefix ../temco_bacnet/, $(BACNET_SRCS)) \
@@ -222,8 +254,10 @@ APP_SRCS = $(addprefix ../main/, $(MAIN_SRCS)) \
 
 SRCS = $(TEST_SRCS) $(MOCK_SRCS) $(APP_SRCS)
 OBJS = $(SRCS:.c=.o)
-TARGET = run_tests
 
+# ================================================================== #
+# Targets
+# ================================================================== #
 .PHONY: all clean run
 
 all: $(TARGET) run
@@ -235,7 +269,12 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
 
 run: $(TARGET)
-	./$(TARGET)
+	$(RUN)
 
 clean:
-	rm -f $(TARGET) $(OBJS)
+ifeq ($(OS),Windows_NT)
+	$(RM) $(TARGET) 2>nul || true
+	for /r %%f in (*.o) do $(RM) "%%f" 2>nul || true
+else
+	$(RM) $(TARGET) $(OBJS)
+endif

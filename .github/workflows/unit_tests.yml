@@ -8,22 +8,33 @@ on:
     branches:
       - "**"
 
+# ------------------------------------------------------------------ #
+# Cancel in-progress runs on the same branch to save runner minutes
+# ------------------------------------------------------------------ #
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  run-tests:
-    name: Host-Based Unit Tests (GCC / Ubuntu)
+  # ================================================================ #
+  # JOB 1 — Ubuntu (GCC + AddressSanitizer + UBSan)
+  #   Primary job: catches real bugs via sanitizers.
+  # ================================================================ #
+  run-tests-ubuntu:
+    name: "Tests · Ubuntu GCC (ASan + UBSan)"
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      # ------------------------------------------------------------------ #
-      # 1. Checkout the full repository
-      # ------------------------------------------------------------------ #
+      # ------------------------------------------------------------ #
+      # 1. Checkout
+      # ------------------------------------------------------------ #
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # ------------------------------------------------------------------ #
-      # 2. Install build dependencies
-      # ------------------------------------------------------------------ #
+      # ------------------------------------------------------------ #
+      # 2. Toolchain
+      # ------------------------------------------------------------ #
       - name: Install Build Tools
         run: |
           sudo apt-get update -qq
@@ -33,37 +44,40 @@ jobs:
             make \
             python3
 
-      # ------------------------------------------------------------------ #
-      # 3. Show GCC version (useful for debugging CI failures)
-      # ------------------------------------------------------------------ #
       - name: Show Compiler Version
         run: gcc --version
 
-      # ------------------------------------------------------------------ #
-      # 4. Clean any stale build artefacts
-      # ------------------------------------------------------------------ #
+      # ------------------------------------------------------------ #
+      # 3. Clean
+      # ------------------------------------------------------------ #
       - name: Clean Previous Build
         working-directory: Unit_Test
         run: make clean || true
 
-      # ------------------------------------------------------------------ #
-      # 5. Build the test binary
-      #    - All sources are compiled with host-side ESP-IDF mocks
-      #    - LDFLAGS carries -lm and --allow-multiple-definition
-      # ------------------------------------------------------------------ #
-      - name: Build Unit Tests
+      # ------------------------------------------------------------ #
+      # 4. Build — sanitizers injected via EXTRA_CFLAGS / EXTRA_LDFLAGS
+      #    Your Makefile should honour these vars, e.g.:
+      #      CFLAGS  += $(EXTRA_CFLAGS)
+      #      LDFLAGS += $(EXTRA_LDFLAGS)
+      # ------------------------------------------------------------ #
+      - name: Build Unit Tests (with ASan + UBSan)
         working-directory: Unit_Test
-        run: make $(TARGET) -j$(nproc)
-        env:
-          TARGET: run_tests
+        run: |
+          make run_tests -j$(nproc) \
+            EXTRA_CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1" \
+            EXTRA_LDFLAGS="-fsanitize=address,undefined"
 
-      # ------------------------------------------------------------------ #
-      # 6. Execute the test suite and capture the exit code
-      #    - Unity exits 0 on full pass, non-zero on any failure
-      #    - Output is shown in the GitHub Actions log
-      # ------------------------------------------------------------------ #
+      # ------------------------------------------------------------ #
+      # 5. Run
+      # ------------------------------------------------------------ #
       - name: Run Unit Tests
         working-directory: Unit_Test
+        env:
+          # detect_odr_violation=0 — mocks intentionally shadow globals from
+          # app_main.c (e.g. flag_internal_temperature). This is expected and
+          # safe; suppressing ODR lets ASan catch real bugs without noise.
+          ASAN_OPTIONS: "halt_on_error=1:print_stats=1:detect_stack_use_after_return=1:detect_odr_violation=0"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
         run: |
           ./run_tests | tee test_output.txt
           EXIT_CODE=${PIPESTATUS[0]}
@@ -72,13 +86,125 @@ jobs:
           echo "::endgroup::"
           exit $EXIT_CODE
 
-      # ------------------------------------------------------------------ #
-      # 7. Upload the full test log as a downloadable artefact
-      # ------------------------------------------------------------------ #
+      # ------------------------------------------------------------ #
+      # 6. Upload log
+      # ------------------------------------------------------------ #
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-results
+          name: unit-test-results-ubuntu
           path: Unit_Test/test_output.txt
           retention-days: 30
+
+
+  # ================================================================ #
+  # JOB 2 — Windows (MinGW-w64)
+  #   Verifies the code compiles and runs under a Windows toolchain.
+  #   ASan is not supported by MinGW, so no sanitizer flags here.
+  # ================================================================ #
+  run-tests-windows:
+    name: "Tests · Windows MinGW-w64"
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      # ------------------------------------------------------------ #
+      # 1. Checkout
+      # ------------------------------------------------------------ #
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------ #
+      # 2. Toolchain — MinGW-w64 via Chocolatey (pre-installed on
+      #    windows-latest; choco install ensures it is up to date)
+      # ------------------------------------------------------------ #
+      - name: Install MinGW-w64
+        run: choco install mingw --yes --no-progress
+
+      - name: Add MinGW to PATH
+        run: |
+          echo "C:\ProgramData\mingw64\mingw64\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+
+      - name: Show Compiler Version
+        run: gcc --version
+
+      # ------------------------------------------------------------ #
+      # 3. Clean
+      # ------------------------------------------------------------ #
+      - name: Clean Previous Build
+        working-directory: Unit_Test
+        # mingw32-make is the GNU make shipped with MinGW
+        run: mingw32-make clean
+        continue-on-error: true
+
+      # ------------------------------------------------------------ #
+      # 4. Build
+      #    No EXTRA_CFLAGS here — ASan is unavailable on MinGW.
+      #    -g is still useful for any post-mortem crash analysis.
+      # ------------------------------------------------------------ #
+      - name: Build Unit Tests
+        working-directory: Unit_Test
+        env:
+          CC: gcc
+        # Target must be run_tests.exe — on Windows the Makefile sets
+        # TARGET = run_tests.exe, so "run_tests" has no rule.
+        run: mingw32-make run_tests.exe -j4
+
+      # ------------------------------------------------------------ #
+      # 5. Run (.exe extension required on Windows)
+      # ------------------------------------------------------------ #
+      - name: Run Unit Tests
+        working-directory: Unit_Test
+        shell: pwsh
+        run: |
+          $proc = Start-Process `
+            -FilePath ".\run_tests.exe" `
+            -Wait `
+            -PassThru `
+            -NoNewWindow `
+            -RedirectStandardOutput test_output.txt
+          Get-Content test_output.txt |
+            Select-String -Pattern "^-+|PASS|FAIL|IGNORE|Tests|Failures|Ignored" |
+            ForEach-Object { $_.Line }
+          exit $proc.ExitCode
+
+      # ------------------------------------------------------------ #
+      # 6. Upload log
+      # ------------------------------------------------------------ #
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-windows
+          path: Unit_Test/test_output.txt
+          retention-days: 30
+
+
+  # ================================================================ #
+  # JOB 3 — Summary gate
+  #   Both jobs must pass before this one succeeds.
+  #   Useful as the single required status check in branch protection.
+  # ================================================================ #
+  all-tests-passed:
+    name: "All Tests Passed"
+    runs-on: ubuntu-latest
+    needs:
+      - run-tests-ubuntu
+      - run-tests-windows
+    if: always()
+
+    steps:
+      - name: Check Results
+        run: |
+          UBUNTU="${{ needs.run-tests-ubuntu.result }}"
+          WINDOWS="${{ needs.run-tests-windows.result }}"
+
+          echo "Ubuntu  : $UBUNTU"
+          echo "Windows : $WINDOWS"
+
+          if [[ "$UBUNTU" != "success" || "$WINDOWS" != "success" ]]; then
+            echo "One or more jobs failed."
+            exit 1
+          fi
+          echo "All jobs passed."
