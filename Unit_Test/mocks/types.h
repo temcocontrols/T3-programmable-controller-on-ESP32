@@ -7,9 +7,9 @@
 #define Byte 		unsigned char
 #define Uint		unsigned short int
 #define Ulong		unsigned long
-#define S8_T			char
-#define S16_T			short int
-#define S32_T			int32_t
+#define S8_T		char
+#define S16_T		short int
+#define S32_T		int32_t
 
 #define U8_T 		unsigned char
 #define U16_T		unsigned short int

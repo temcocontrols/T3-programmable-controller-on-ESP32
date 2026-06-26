@@ -2066,10 +2066,9 @@ S16_T insert_local_point( Point *point, S16_T index )
 			{
 				if( !ptr->count )
 				{
-						number_of_local_points++;
-						memcpy( &ptr->point, point, sizeof(Point_Net) );
-						ptr->count = 1;
-
+					number_of_local_points++;
+					memcpy( &ptr->point, point, sizeof(Point) );
+					ptr->count = 1;
 					return i;
 				}
 			}
@@ -2084,17 +2083,13 @@ S16_T insert_local_point( Point *point, S16_T index )
 	}
 }
 
-
-
 S16_T insert_remote_point( Point_Net *point, S16_T index )
 {
 	S16_T i;
 	REMOTE_POINTS *ptr;
 	U8_T point_type;
 
-
 	ptr = &remote_points_list[0];
-
 
 	if( index < 0 )
 	{ /* index < 0 means that the index is unknown */

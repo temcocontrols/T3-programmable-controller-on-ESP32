@@ -11,6 +11,19 @@
 #define UART_NUM_1 1
 #define UART_NUM_2 2
 
+/* ── EEPROM address map — missing in host build ── */
+#ifndef EEP_UART0_STOPBIT
+#define EEP_UART0_STOPBIT       0x00   /* replace with actual address if needed */
+#endif
+
+#ifndef EEP_UART2_STOPBIT
+#define EEP_UART2_STOPBIT       0x01
+#endif
+
+#ifndef EEP_MAX_MASTER
+#define EEP_MAX_MASTER          0x02
+#endif
+
 #define UART_PIN_NO_CHANGE -1
 
 typedef enum {

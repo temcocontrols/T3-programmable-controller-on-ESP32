@@ -65,12 +65,12 @@ uint16_t read_lightswitch_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t read_co2_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t wireguard_read_by_block(uint16_t addr) { (void)addr; return 0; }
 
-Str_points_ptr put_io_buf(Point_type_equate type, uint8 point)
-{
-    (void)type; (void)point;
-    Str_points_ptr p = {0};
-    return p;
-}
+// Str_points_ptr put_io_buf(Point_type_equate type, uint8 point)
+// {
+//     (void)type; (void)point;
+//     Str_points_ptr p = {0};
+//     return p;
+// }
 
 void check_output_priority_array(U8_T i, U8_T HOA) { (void)i; (void)HOA; }
 void save_block(void) {}

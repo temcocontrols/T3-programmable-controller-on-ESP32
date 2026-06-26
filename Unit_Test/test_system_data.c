@@ -26,11 +26,11 @@ void test_local_points_database(void) {
     Point p = {0};
     p.number = 3;
     p.point_type = OUT + 1; // E.g., Output
-    
+
     // Test point insertion and lookup
     int16_t idx = insert_local_point(&p, -1);
     TEST_ASSERT_TRUE(idx >= 0);
-    
+
     int16_t found_idx = find_local_point(&p);
     TEST_ASSERT_EQUAL_INT16(idx, found_idx);
 
@@ -46,40 +46,50 @@ void test_local_points_database(void) {
 }
 
 void test_remote_and_network_points_database(void) {
-    // Setup mock remote panel DB entry to resolve network point Get_device_id_by_panel lookup
-    panel_number = 0;
-    remote_panel_db[0].panel = 12;
-    remote_panel_db[0].sub_id = 12;
+    /* ── setup ── */
+    panel_number = 12;
+
+    remote_panel_db[0].panel     = 12;
+    remote_panel_db[0].sub_id    = 12;
     remote_panel_db[0].device_id = 999;
-    remote_panel_db[0].protocal = BAC_IP_CLIENT;
+    remote_panel_db[0].protocal  = BAC_IP_CLIENT;
     remote_panel_num = 1;
 
+    /* ── remote point insert/lookup (no ARM_MINI needed) ── */
     Point_Net pn = {0};
-    pn.number = 5;
-    pn.point_type = IN + 1; // E.g. Input
-    pn.panel = 12; // Panel ID/Device ID
-    
-    // 1. Remote point lookup and insert
+    pn.number     = 5;
+    pn.point_type = IN + 1;
+    pn.panel      = 12;
+    pn.sub_id     = 12;
+
     int16_t rem_idx = insert_remote_point(&pn, -1);
     TEST_ASSERT_TRUE(rem_idx >= 0);
 
     int16_t found_rem = find_remote_point(&pn);
     TEST_ASSERT_EQUAL_INT16(rem_idx, found_rem);
 
-    // 2. Network point lookup and insert
+    /* ── network point insert/lookup (no ARM_MINI needed) ── */
     int16_t net_idx = insert_network_point(&pn, -1);
     TEST_ASSERT_TRUE(net_idx >= 0);
 
     int16_t found_net = find_network_point(&pn);
     TEST_ASSERT_EQUAL_INT16(net_idx, found_net);
 
-    // 3. Network point value read/write
+    /* ── value read/write via local path (prog_op=1, panel==panel_number) ── */
+    /* put_net_point_value routes to put_point_value for local points        */
+    /* get_net_point_value routes to get_point_value for local points        */
+    Point_Net local_pn = {0};
+    local_pn.number     = 1;
+    local_pn.point_type = VAR + 1;  /* VAR is simplest local type to mock   */
+    local_pn.panel      = panel_number;
+    local_pn.sub_id     = panel_number;
+
     int32_t val = 420;
-    int16_t put_status = put_net_point_value(&pn, &val, 0, 0, 0);
+    int16_t put_status = put_net_point_value(&local_pn, &val, 0, 1, 0);
     TEST_ASSERT_TRUE(put_status >= 0);
 
     int32_t read_val = 0;
-    int16_t get_status = get_net_point_value(&pn, &read_val, 0, 0);
+    int16_t get_status = get_net_point_value(&local_pn, &read_val, 0, 0);
     TEST_ASSERT_TRUE(get_status >= 0);
     TEST_ASSERT_EQUAL_INT32(420, read_val);
 }

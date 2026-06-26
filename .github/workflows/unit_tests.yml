@@ -79,11 +79,13 @@ jobs:
           ASAN_OPTIONS: "halt_on_error=1:print_stats=1:detect_stack_use_after_return=1:detect_odr_violation=0"
           UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
         run: |
-          ./run_tests | tee test_output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          echo "::group::Test Output Summary"
-          grep -E "^\-+|PASS|FAIL|IGNORE|Tests|Failures|Ignored" test_output.txt || true
-          echo "::endgroup::"
+          ./run_tests > test_output.txt 2>&1 || true   # capture both stdout+stderr
+          cat test_output.txt                           # show everything in CI log
+          grep -E "sizeof|offsetof" test_output.txt || true
+          grep -E "runtime error|PASS|FAIL|Tests" test_output.txt || true
+          # now check exit properly
+          ./run_tests >> test_output.txt 2>&1
+          EXIT_CODE=$?
           exit $EXIT_CODE
 
       # ------------------------------------------------------------ #
