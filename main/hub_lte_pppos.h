@@ -16,18 +16,33 @@ extern "C" {
 #define HUB_LTE_PPPOS_ENABLE 0
 #endif
 
+#ifndef HUB_LTE_PPPOS_TEST_MODE
+#define HUB_LTE_PPPOS_TEST_MODE 0
+#endif
+
 #define HUB_LTE_PPPOS_APN_LEN          64
 #define HUB_LTE_PPPOS_IP_ADDR_LEN      40
 
-typedef enum {
-    HUB_LTE_PPPOS_STATE_IDLE = 0,
-    HUB_LTE_PPPOS_STATE_READY,
-    HUB_LTE_PPPOS_STATE_STARTING,
-    HUB_LTE_PPPOS_STATE_CONNECTED,
-    HUB_LTE_PPPOS_STATE_DISCONNECTED,
-    HUB_LTE_PPPOS_STATE_STOPPING,
-    HUB_LTE_PPPOS_STATE_ERROR,
-} hub_lte_pppos_state_t;
+typedef enum
+{
+    HUB_PPP_STATE_IDLE = 0,
+    HUB_PPP_STATE_WAIT_UART,
+    HUB_PPP_STATE_MODEM_READY,
+    HUB_PPP_STATE_STARTING,
+    HUB_PPP_STATE_RUNNING,
+    HUB_PPP_STATE_STOPPING,
+    HUB_PPP_STATE_ERROR,
+} hub_ppp_state_t;
+
+typedef hub_ppp_state_t hub_lte_pppos_state_t;
+
+#define HUB_LTE_PPPOS_STATE_IDLE         HUB_PPP_STATE_IDLE
+#define HUB_LTE_PPPOS_STATE_READY        HUB_PPP_STATE_MODEM_READY
+#define HUB_LTE_PPPOS_STATE_STARTING     HUB_PPP_STATE_STARTING
+#define HUB_LTE_PPPOS_STATE_CONNECTED    HUB_PPP_STATE_RUNNING
+#define HUB_LTE_PPPOS_STATE_DISCONNECTED HUB_PPP_STATE_IDLE
+#define HUB_LTE_PPPOS_STATE_STOPPING     HUB_PPP_STATE_STOPPING
+#define HUB_LTE_PPPOS_STATE_ERROR        HUB_PPP_STATE_ERROR
 
 typedef enum {
     HUB_LTE_PPPOS_UART_OWNER_IDLE = 0,
@@ -65,11 +80,16 @@ esp_err_t hub_lte_pppos_stop(void);
 bool hub_lte_pppos_is_enabled(void);
 bool hub_lte_pppos_is_running(void);
 bool hub_lte_pppos_is_connected(void);
-hub_lte_pppos_state_t hub_lte_pppos_get_state(void);
+bool hub_lte_pppos_can_take_uart(void);
+hub_ppp_state_t hub_lte_pppos_get_state(void);
+const char *hub_lte_pppos_state_name(hub_ppp_state_t state);
+esp_err_t hub_lte_pppos_set_state(hub_ppp_state_t new_state, esp_err_t reason);
+esp_err_t hub_lte_pppos_process(void);
+esp_err_t hub_lte_pppos_request_uart_owner(void);
+esp_err_t hub_lte_pppos_release_uart_owner(void);
 esp_err_t hub_lte_pppos_set_connected(bool connected, const char *ip_addr);
 esp_err_t hub_lte_pppos_get_status(hub_lte_pppos_status_t *status);
 const char *hub_lte_pppos_get_ip_addr(void);
-const char *hub_lte_pppos_state_name(hub_lte_pppos_state_t state);
 
 #ifdef __cplusplus
 }
