@@ -21,6 +21,7 @@ extern int16_t put_net_point_value(Point_Net *p, int32_t *val_ptr, int16_t aux, 
 extern STR_REMOTE_PANEL_DB remote_panel_db[];
 extern U8_T remote_panel_num;
 extern U8_T panel_number;
+extern Str_variable_point vars[];
 
 void test_local_points_database(void) {
     Point p = {0};
@@ -83,6 +84,7 @@ void test_remote_and_network_points_database(void) {
     local_pn.point_type = VAR + 1;  /* VAR is simplest local type to mock   */
     local_pn.panel      = panel_number;
     local_pn.sub_id     = panel_number;
+    vars[local_pn.number].auto_manual = 1;
 
     int32_t val = 420;
     int16_t put_status = put_net_point_value(&local_pn, &val, 0, 1, 0);
