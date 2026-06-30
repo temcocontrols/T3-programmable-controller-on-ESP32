@@ -66,8 +66,7 @@
 #include "LCD_Driver/lcd_drv.h"
 #include "lora.h"
 #include "a7608.h"
-#include "hub_lte_pppos.h"
-#include "hub_network_manager.h"
+#include "hub_module.h"
 
 //#include "lowPower.h"
 
@@ -4680,14 +4679,9 @@ void app_main()
 		hub_uart0_console_driver_init();
 		#endif
 
-		esp_err_t hub_net_ret = hub_network_manager_init();
-		if (hub_net_ret != ESP_OK) {
-			ESP_LOGW(TCP_TASK_TAG, "hub_network_manager_init failed: %s", esp_err_to_name(hub_net_ret));
-		}
-
-		esp_err_t hub_lte_ret = hub_lte_pppos_init();
-		if (hub_lte_ret != ESP_OK) {
-			ESP_LOGW(TCP_TASK_TAG, "hub_lte_pppos_init failed: %s", esp_err_to_name(hub_lte_ret));
+		esp_err_t hub_ret = hub_module_init();
+		if (hub_ret != ESP_OK) {
+			ESP_LOGW(TCP_TASK_TAG, "hub_module_init failed: %s", esp_err_to_name(hub_ret));
 		}
 	}
 	else
