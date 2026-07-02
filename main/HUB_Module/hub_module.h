@@ -1,25 +1,36 @@
 #ifndef HUB_MODULE_H
 #define HUB_MODULE_H
 
-#include "esp_err.h"
+#include <stdbool.h>
 
-#include "a7608.h"
-#include "hub_lte_pppos.h"
-#include "hub_network_manager.h"
+#include "esp_err.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#define HUB_MODULE_IP_ADDR_LEN 40
+
 typedef struct {
-    a7608_status_t a7608;
-    hub_lte_pppos_status_t lte_pppos;
-    hub_network_manager_status_t network;
+    bool initialized;
+
+    bool eth_link_up;
+    bool eth_has_ip;
+
+    bool lte_connected;
+    char lte_ip[HUB_MODULE_IP_ADDR_LEN];
+
+    int active_interface;
+
+    bool pppos_enabled;
+    bool pppos_running;
+    int pppos_state;
+    int uart_owner;
 } hub_module_status_t;
 
 esp_err_t hub_module_init(void);
 esp_err_t hub_module_process(void);
-esp_err_t hub_module_get_status(void *status);
+esp_err_t hub_module_get_status(hub_module_status_t *status);
 
 #ifdef __cplusplus
 }
