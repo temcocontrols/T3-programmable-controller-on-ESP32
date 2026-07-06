@@ -36,7 +36,13 @@ esp_err_t hub_module_init(void)
 
 esp_err_t hub_module_process(void)
 {
+    hub_network_manager_select_active_interface();
     return hub_lte_pppos_process();
+}
+
+const char *hub_module_active_interface_name(void)
+{
+    return hub_network_manager_interface_name((hub_network_interface_t)hub_network_manager_get_active_interface());
 }
 
 esp_err_t hub_module_get_status(hub_module_status_t *status)
@@ -71,4 +77,53 @@ esp_err_t hub_module_get_status(hub_module_status_t *status)
     }
 
     return first_error;
+}
+
+esp_err_t hub_module_dump_status(void)
+{
+    hub_module_status_t status;
+    esp_err_t ret = hub_module_get_status(&status);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "hub_module_get_status failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG,
+             "status: initialized=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d",
+             status.initialized,
+             status.eth_link_up,
+             status.eth_has_ip,
+             status.lte_connected,
+             status.lte_ip[0] != '\0' ? status.lte_ip : "-",
+             hub_network_manager_interface_name((hub_network_interface_t)status.active_interface),
+             status.pppos_enabled,
+             status.pppos_running,
+             hub_lte_pppos_state_name((hub_ppp_state_t)status.pppos_state),
+             status.uart_owner);
+
+    hub_lte_pppos_preflight_t preflight;
+    ret = hub_lte_pppos_preflight_check(&preflight);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "hub_lte_pppos_preflight_check failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG,
+             "pppos_preflight: ready=%d reason=%s config_valid=%d pppos_enabled=%d test_mode=%d uart_available=%d uart_owner=%d modem_status_known=%d sim_ready=%d registered=%d has_signal=%d rssi=%d has_apn=%d apn=%s",
+             preflight.ready_to_start,
+             preflight.reason,
+             preflight.config_valid,
+             preflight.pppos_enabled,
+             preflight.test_mode_enabled,
+             preflight.uart_available,
+             preflight.uart_owner,
+             preflight.modem_status_known,
+             preflight.sim_ready,
+             preflight.registered_to_network,
+             preflight.has_signal,
+             preflight.rssi,
+             preflight.has_apn,
+             preflight.apn[0] != '\0' ? preflight.apn : "-");
+
+    return ESP_OK;
 }

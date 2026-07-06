@@ -31,6 +31,8 @@ typedef struct {
 esp_err_t hub_module_init(void);
 esp_err_t hub_module_process(void);
 esp_err_t hub_module_get_status(hub_module_status_t *status);
+esp_err_t hub_module_dump_status(void);
+const char *hub_module_active_interface_name(void);
 
 #ifdef __cplusplus
 }

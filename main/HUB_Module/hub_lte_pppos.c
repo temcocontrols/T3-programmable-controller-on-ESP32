@@ -24,6 +24,7 @@ typedef struct {
 } hub_lte_pppos_runtime_t;
 
 static hub_lte_pppos_config_t s_lte_config;
+static bool s_lte_config_saved;
 static hub_lte_pppos_status_t s_lte_status = {
     .state = HUB_PPP_STATE_IDLE,
     .uart_owner = HUB_LTE_PPPOS_UART_OWNER_AT_STATUS,
@@ -33,6 +34,7 @@ static hub_lte_pppos_runtime_t s_lte_runtime = {
     .previous_state = HUB_PPP_STATE_IDLE,
     .last_error = ESP_OK,
 };
+static char s_lte_preflight_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN] = "Preflight not run";
 
 #if HUB_LTE_PPPOS_ENABLE
 static esp_modem_dte_config_t s_lte_dte_config;
@@ -111,7 +113,20 @@ static void hub_lte_pppos_copy_string(char *dest, size_t dest_len, const char *s
     snprintf(dest, dest_len, "%s", (src != NULL) ? src : "");
 }
 
-static esp_err_t hub_lte_pppos_validate_config(const hub_lte_pppos_config_t *config)
+static bool hub_lte_pppos_apn_is_valid(const char *apn)
+{
+    return (apn != NULL) && (apn[0] != '\0');
+}
+
+static void hub_lte_pppos_set_preflight_reason(hub_lte_pppos_preflight_t *preflight, const char *reason)
+{
+    hub_lte_pppos_copy_string(s_lte_preflight_reason, sizeof(s_lte_preflight_reason), reason);
+    if (preflight != NULL) {
+        hub_lte_pppos_copy_string(preflight->reason, sizeof(preflight->reason), s_lte_preflight_reason);
+    }
+}
+
+esp_err_t hub_lte_pppos_validate_config(const hub_lte_pppos_config_t *config)
 {
     if (config == NULL) {
         return ESP_ERR_INVALID_ARG;
@@ -125,7 +140,16 @@ static esp_err_t hub_lte_pppos_validate_config(const hub_lte_pppos_config_t *con
     if ((config->rx_buffer_size <= 0) || (config->tx_buffer_size < 0)) {
         return ESP_ERR_INVALID_ARG;
     }
-    if ((config->tx_io_num == GPIO_NUM_NC) || (config->rx_io_num == GPIO_NUM_NC)) {
+    if (!GPIO_IS_VALID_GPIO(config->tx_io_num) || !GPIO_IS_VALID_GPIO(config->rx_io_num)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if ((config->rts_io_num != GPIO_NUM_NC) && !GPIO_IS_VALID_GPIO(config->rts_io_num)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if ((config->cts_io_num != GPIO_NUM_NC) && !GPIO_IS_VALID_GPIO(config->cts_io_num)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!hub_lte_pppos_apn_is_valid(config->apn)) {
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -154,7 +178,11 @@ esp_err_t hub_lte_pppos_init(void)
 {
     hub_lte_pppos_config_t config;
 
-    hub_lte_pppos_get_default_config(&config);
+    if (s_lte_config_saved) {
+        config = s_lte_config;
+    } else {
+        hub_lte_pppos_get_default_config(&config);
+    }
     return hub_lte_pppos_init_with_config(&config);
 }
 
@@ -166,6 +194,7 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config)
     }
 
     s_lte_config = *config;
+    s_lte_config_saved = true;
     memset(&s_lte_status, 0, sizeof(s_lte_status));
     s_lte_status.initialized = true;
     s_lte_status.uart_owner = HUB_LTE_PPPOS_UART_OWNER_AT_STATUS;
@@ -190,6 +219,25 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config)
 
 esp_err_t hub_lte_pppos_set_uart_config(const hub_lte_pppos_config_t *config)
 {
+    return hub_lte_pppos_set_config(config);
+}
+
+esp_err_t hub_lte_pppos_get_config(hub_lte_pppos_config_t *config)
+{
+    if (config == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!s_lte_config_saved) {
+        hub_lte_pppos_get_default_config(config);
+        return ESP_OK;
+    }
+
+    *config = s_lte_config;
+    return ESP_OK;
+}
+
+esp_err_t hub_lte_pppos_set_config(const hub_lte_pppos_config_t *config)
+{
     esp_err_t ret = hub_lte_pppos_validate_config(config);
     if (ret != ESP_OK) {
         return ret;
@@ -199,6 +247,7 @@ esp_err_t hub_lte_pppos_set_uart_config(const hub_lte_pppos_config_t *config)
     }
 
     s_lte_config = *config;
+    s_lte_config_saved = true;
     return ESP_OK;
 }
 
@@ -450,4 +499,71 @@ esp_err_t hub_lte_pppos_get_status(hub_lte_pppos_status_t *status)
 const char *hub_lte_pppos_get_ip_addr(void)
 {
     return s_lte_status.ip_addr;
+}
+
+esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
+{
+    if (preflight == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    memset(preflight, 0, sizeof(*preflight));
+
+    hub_lte_pppos_config_t config;
+    esp_err_t config_ret = hub_lte_pppos_get_config(&config);
+    if (config_ret == ESP_OK) {
+        preflight->config_valid = (hub_lte_pppos_validate_config(&config) == ESP_OK);
+        preflight->has_apn = hub_lte_pppos_apn_is_valid(config.apn);
+        hub_lte_pppos_copy_string(preflight->apn, sizeof(preflight->apn), config.apn);
+    }
+
+    preflight->test_mode_enabled = HUB_LTE_PPPOS_TEST_MODE != 0;
+    preflight->pppos_enabled = hub_lte_pppos_is_enabled();
+    preflight->uart_owner = (int)s_lte_status.uart_owner;
+    preflight->uart_available = s_lte_status.initialized &&
+                                preflight->test_mode_enabled &&
+                                (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
+
+    const a7608_status_t *modem_status = a7608_get_status();
+    if (modem_status != NULL) {
+        preflight->modem_status_known = true;
+        preflight->sim_ready = modem_status->sim_ready;
+        preflight->registered_to_network = modem_status->registered_home || modem_status->registered_roaming;
+        preflight->has_signal = (modem_status->csq > 0) || (modem_status->rssi_dbm < 0);
+        preflight->rssi = modem_status->rssi_dbm;
+    }
+
+    if (!preflight->pppos_enabled) {
+        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS disabled by build config");
+    } else if (!preflight->test_mode_enabled) {
+        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS test mode disabled");
+    } else if (config_ret != ESP_OK) {
+        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS config unavailable");
+    } else if (!preflight->has_apn) {
+        hub_lte_pppos_set_preflight_reason(preflight, "APN is empty");
+    } else if (!preflight->config_valid) {
+        hub_lte_pppos_set_preflight_reason(preflight, "Invalid PPPoS config");
+    } else if (!s_lte_status.initialized) {
+        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS framework not initialized");
+    } else if (!preflight->uart_available) {
+        hub_lte_pppos_set_preflight_reason(preflight, "UART not available for PPPoS");
+    } else if (!preflight->modem_status_known) {
+        hub_lte_pppos_set_preflight_reason(preflight, "A7608 status unavailable");
+    } else if (!preflight->sim_ready) {
+        hub_lte_pppos_set_preflight_reason(preflight, "SIM not ready");
+    } else if (!preflight->registered_to_network) {
+        hub_lte_pppos_set_preflight_reason(preflight, "Modem not registered to network");
+    } else if (!preflight->has_signal) {
+        hub_lte_pppos_set_preflight_reason(preflight, "No LTE signal");
+    } else {
+        preflight->ready_to_start = true;
+        hub_lte_pppos_set_preflight_reason(preflight, "Ready to start PPPoS");
+    }
+
+    return ESP_OK;
+}
+
+const char *hub_lte_pppos_preflight_reason(void)
+{
+    return s_lte_preflight_reason;
 }

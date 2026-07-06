@@ -22,6 +22,8 @@ extern "C" {
 
 #define HUB_LTE_PPPOS_APN_LEN          64
 #define HUB_LTE_PPPOS_IP_ADDR_LEN      40
+#define HUB_LTE_PPPOS_PREFLIGHT_APN_LEN 32
+#define HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN 96
 
 typedef enum
 {
@@ -71,9 +73,33 @@ typedef struct {
     char ip_addr[HUB_LTE_PPPOS_IP_ADDR_LEN];
 } hub_lte_pppos_status_t;
 
+typedef struct {
+    bool config_valid;
+    bool test_mode_enabled;
+    bool pppos_enabled;
+
+    bool uart_available;
+    int uart_owner;
+
+    bool modem_status_known;
+    bool sim_ready;
+    bool registered_to_network;
+    bool has_signal;
+    int rssi;
+
+    bool has_apn;
+    char apn[HUB_LTE_PPPOS_PREFLIGHT_APN_LEN];
+
+    bool ready_to_start;
+    char reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN];
+} hub_lte_pppos_preflight_t;
+
 void hub_lte_pppos_get_default_config(hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_init(void);
 esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config);
+esp_err_t hub_lte_pppos_validate_config(const hub_lte_pppos_config_t *config);
+esp_err_t hub_lte_pppos_get_config(hub_lte_pppos_config_t *config);
+esp_err_t hub_lte_pppos_set_config(const hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_set_uart_config(const hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_start(void);
 esp_err_t hub_lte_pppos_stop(void);
@@ -90,6 +116,8 @@ esp_err_t hub_lte_pppos_release_uart_owner(void);
 esp_err_t hub_lte_pppos_set_connected(bool connected, const char *ip_addr);
 esp_err_t hub_lte_pppos_get_status(hub_lte_pppos_status_t *status);
 const char *hub_lte_pppos_get_ip_addr(void);
+esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight);
+const char *hub_lte_pppos_preflight_reason(void);
 
 #ifdef __cplusplus
 }

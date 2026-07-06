@@ -18,12 +18,12 @@ static void hub_network_manager_copy_string(char *dest, size_t dest_len, const c
     snprintf(dest, dest_len, "%s", (src != NULL) ? src : "");
 }
 
-static hub_network_interface_t hub_network_manager_select_active_interface(void)
+static hub_network_interface_t hub_network_manager_choose_active_interface(void)
 {
     if (s_network_status.eth_link_up && s_network_status.eth_has_ip) {
         return HUB_NETWORK_INTERFACE_ETHERNET;
     }
-    if (s_network_status.lte_connected) {
+    if (s_network_status.lte_connected && (s_network_status.lte_ip_addr[0] != '\0')) {
         return HUB_NETWORK_INTERFACE_LTE;
     }
 
@@ -45,7 +45,7 @@ static void hub_network_manager_refresh_active_interface(void)
 {
     hub_network_interface_t previous = s_network_status.active_interface;
 
-    s_network_status.active_interface = hub_network_manager_select_active_interface();
+    s_network_status.active_interface = hub_network_manager_choose_active_interface();
     if (previous != s_network_status.active_interface) {
         ESP_LOGI(TAG,
                  "active network: %s -> %s",
@@ -104,6 +104,12 @@ void hub_network_manager_set_lte_status(bool connected, const char *ip_addr)
     }
 }
 
+void hub_network_manager_select_active_interface(void)
+{
+    hub_network_manager_ensure_initialized();
+    hub_network_manager_refresh_active_interface();
+}
+
 int hub_network_manager_get_active_interface(void)
 {
     hub_network_manager_ensure_initialized();
@@ -127,9 +133,9 @@ esp_err_t hub_network_manager_get_status(hub_network_manager_status_t *status)
     return ESP_OK;
 }
 
-const char *hub_network_manager_interface_name(hub_network_interface_t interface)
+const char *hub_network_manager_interface_name(int interface_id)
 {
-    switch (interface) {
+    switch (interface_id) {
     case HUB_NETWORK_INTERFACE_NONE:
         return "none";
     case HUB_NETWORK_INTERFACE_ETHERNET:
