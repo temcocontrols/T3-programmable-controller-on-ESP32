@@ -277,26 +277,43 @@ fail:
 
 uint8_t const table_week[12] = {0, 3, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5};
 
+/**
+ * @brief  Calculate day of week (Zeller-style).
+ * @param  year   Full year, e.g. 2024
+ * @param  month  1 = January … 12 = December
+ * @param  day    1 … 31
+ * @return 0 = Sunday, 1 = Monday … 6 = Saturday
+ *         Returns 0 (Sunday) on invalid input — never crashes.
+ */
 uint8_t RTC_Get_Week(uint16_t year, uint8_t month, uint8_t day)
 {
-	uint16_t temp2;
-	uint8_t yearH, yearL;
+    /* ── Guard: reject any input that would produce an invalid index ── */
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+        /* Log in debug builds so the bad caller is visible during testing */
+        #ifdef UNIT_TEST
+            fprintf(stderr, "[RTC_Get_Week] invalid input: year=%u month=%u day=%u\n",
+                    year, month, day);
+        #endif
+        return 0;   /* Sunday — safe sentinel, never an array access */
+    }
 
-	yearH = year / 100;
-	yearL = year % 100;
+    uint16_t temp2;
+    uint8_t  yearH, yearL;
 
-	if(yearH > 19)	//
-		yearL += 100;
+    yearH = year / 100;
+    yearL = year % 100;
 
+    if (yearH > 19)
+        yearL += 100;
 
-	temp2 = yearL + yearL / 4;
-	temp2 = temp2 % 7;
-	temp2 = temp2 + day + table_week[month - 1];
+    temp2  = yearL + yearL / 4;
+    temp2 %= 7;
+    temp2 += day + table_week[month - 1];   /* safe: month is 1..12 */
 
-	if(yearL % 4 == 0 && month < 3)
-		temp2--;
+    if (yearL % 4 == 0 && month < 3)
+        temp2--;
 
-	return(temp2 % 7);
+    return (temp2 % 7);
 }
 
 int PCF_systohc(){
