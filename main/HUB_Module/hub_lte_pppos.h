@@ -67,6 +67,7 @@ typedef struct {
 typedef struct {
     bool initialized;
     bool start_requested;
+    bool stop_requested;
     bool connected;
     hub_lte_pppos_state_t state;
     hub_lte_pppos_uart_owner_t uart_owner;
@@ -101,6 +102,10 @@ esp_err_t hub_lte_pppos_validate_config(const hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_get_config(hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_set_config(const hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_set_uart_config(const hub_lte_pppos_config_t *config);
+esp_err_t hub_lte_pppos_request_start(void);
+esp_err_t hub_lte_pppos_request_stop(void);
+bool hub_lte_pppos_start_requested(void);
+bool hub_lte_pppos_stop_requested(void);
 esp_err_t hub_lte_pppos_start(void);
 esp_err_t hub_lte_pppos_stop(void);
 bool hub_lte_pppos_is_enabled(void);
@@ -118,6 +123,8 @@ esp_err_t hub_lte_pppos_get_status(hub_lte_pppos_status_t *status);
 const char *hub_lte_pppos_get_ip_addr(void);
 esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight);
 const char *hub_lte_pppos_preflight_reason(void);
+esp_err_t hub_lte_pppos_get_last_error(void);
+const char *hub_lte_pppos_get_last_reason(void);
 
 #ifdef __cplusplus
 }

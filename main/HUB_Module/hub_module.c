@@ -89,7 +89,7 @@ esp_err_t hub_module_dump_status(void)
     }
 
     ESP_LOGI(TAG,
-             "status: initialized=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d",
+             "status: initialized=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d pppos_start_requested=%d pppos_stop_requested=%d pppos_last_error=%s pppos_last_reason=%s",
              status.initialized,
              status.eth_link_up,
              status.eth_has_ip,
@@ -99,7 +99,11 @@ esp_err_t hub_module_dump_status(void)
              status.pppos_enabled,
              status.pppos_running,
              hub_lte_pppos_state_name((hub_ppp_state_t)status.pppos_state),
-             status.uart_owner);
+             status.uart_owner,
+             hub_lte_pppos_start_requested(),
+             hub_lte_pppos_stop_requested(),
+             esp_err_to_name(hub_lte_pppos_get_last_error()),
+             hub_lte_pppos_get_last_reason());
 
     hub_lte_pppos_preflight_t preflight;
     ret = hub_lte_pppos_preflight_check(&preflight);
