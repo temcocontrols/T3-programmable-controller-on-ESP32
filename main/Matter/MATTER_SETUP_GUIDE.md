@@ -182,9 +182,11 @@ cd ~/esp
 ### Step 3: Clone and Install ESP-Matter SDK
 
 ```bash
-# Clone ESP-Matter with all submodules
+# Clone ESP-Matter and pin to tested commit
 git clone --recursive https://github.com/espressif/esp-matter.git
 cd esp-matter
+git checkout da3910cec5a2277681d8c1edaf73bc82dd759df1
+git submodule update --init --recursive
 
 # Install Python dependencies
 pip3 install -r requirements.txt
