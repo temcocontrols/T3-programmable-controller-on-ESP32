@@ -5,6 +5,7 @@
 
 #include "esp_log.h"
 
+#include "a7608.h"
 #include "hub_lte_pppos.h"
 #include "hub_network_manager.h"
 
@@ -88,8 +89,15 @@ esp_err_t hub_module_dump_status(void)
         return ret;
     }
 
+    hub_lte_pppos_runtime_t pppos_runtime;
+    ret = hub_lte_pppos_get_runtime(&pppos_runtime);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "hub_lte_pppos_get_runtime failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
     ESP_LOGI(TAG,
-             "status: initialized=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d pppos_start_requested=%d pppos_stop_requested=%d pppos_last_error=%s pppos_last_reason=%s",
+             "status: initialized=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d pppos_start_requested=%d pppos_stop_requested=%d pppos_last_error=%s pppos_last_reason=%s a7608_service_state=%s a7608_pause_requested=%d a7608_paused=%d pppos_runtime_ppp_netif_created=%d pppos_runtime_modem_created=%d pppos_runtime_data_mode_entered=%d pppos_runtime_ppp_started=%d",
              status.initialized,
              status.eth_link_up,
              status.eth_has_ip,
@@ -103,7 +111,14 @@ esp_err_t hub_module_dump_status(void)
              hub_lte_pppos_start_requested(),
              hub_lte_pppos_stop_requested(),
              esp_err_to_name(hub_lte_pppos_get_last_error()),
-             hub_lte_pppos_get_last_reason());
+             hub_lte_pppos_get_last_reason(),
+             a7608_service_state_name(a7608_get_service_state()),
+             a7608_is_pause_requested(),
+             a7608_is_paused(),
+             pppos_runtime.ppp_netif_created,
+             pppos_runtime.modem_created,
+             pppos_runtime.data_mode_entered,
+             pppos_runtime.ppp_started);
 
     hub_lte_pppos_preflight_t preflight;
     ret = hub_lte_pppos_preflight_check(&preflight);

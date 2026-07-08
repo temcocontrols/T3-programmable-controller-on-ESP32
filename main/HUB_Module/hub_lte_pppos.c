@@ -21,7 +21,7 @@ typedef struct {
     hub_ppp_state_t previous_state;
     esp_err_t last_error;
     TickType_t state_enter_tick;
-} hub_lte_pppos_runtime_t;
+} hub_lte_pppos_lifecycle_t;
 
 static hub_lte_pppos_config_t s_lte_config;
 static bool s_lte_config_saved;
@@ -29,11 +29,12 @@ static hub_lte_pppos_status_t s_lte_status = {
     .state = HUB_PPP_STATE_IDLE,
     .uart_owner = HUB_LTE_PPPOS_UART_OWNER_AT_STATUS,
 };
-static hub_lte_pppos_runtime_t s_lte_runtime = {
+static hub_lte_pppos_lifecycle_t s_lte_lifecycle = {
     .current_state = HUB_PPP_STATE_IDLE,
     .previous_state = HUB_PPP_STATE_IDLE,
     .last_error = ESP_OK,
 };
+static hub_lte_pppos_runtime_t s_lte_runtime;
 static char s_lte_preflight_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN] = "Preflight not run";
 static char s_lte_last_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN] = "No PPPoS lifecycle error";
 
@@ -129,8 +130,15 @@ static void hub_lte_pppos_set_preflight_reason(hub_lte_pppos_preflight_t *prefli
 
 static void hub_lte_pppos_set_last_result(esp_err_t error, const char *reason)
 {
-    s_lte_runtime.last_error = error;
+    s_lte_lifecycle.last_error = error;
     hub_lte_pppos_copy_string(s_lte_last_reason, sizeof(s_lte_last_reason), reason);
+}
+
+static bool hub_lte_pppos_a7608_service_can_pause(a7608_service_state_t state)
+{
+    return (state == A7608_SERVICE_RUNNING) ||
+           (state == A7608_SERVICE_PAUSE_REQUESTED) ||
+           (state == A7608_SERVICE_PAUSED);
 }
 
 static esp_err_t hub_lte_pppos_preflight_error(const hub_lte_pppos_preflight_t *preflight)
@@ -233,10 +241,11 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config)
     memset(&s_lte_status, 0, sizeof(s_lte_status));
     s_lte_status.initialized = true;
     s_lte_status.uart_owner = HUB_LTE_PPPOS_UART_OWNER_AT_STATUS;
-    s_lte_runtime.current_state = HUB_PPP_STATE_IDLE;
-    s_lte_runtime.previous_state = HUB_PPP_STATE_IDLE;
-    s_lte_runtime.last_error = ESP_OK;
-    s_lte_runtime.state_enter_tick = xTaskGetTickCount();
+    s_lte_lifecycle.current_state = HUB_PPP_STATE_IDLE;
+    s_lte_lifecycle.previous_state = HUB_PPP_STATE_IDLE;
+    s_lte_lifecycle.last_error = ESP_OK;
+    s_lte_lifecycle.state_enter_tick = xTaskGetTickCount();
+    (void)hub_lte_pppos_reset_runtime();
     hub_lte_pppos_set_last_result(ESP_OK, "PPPoS lifecycle initialized");
     (void)hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
 
@@ -381,6 +390,7 @@ bool hub_lte_pppos_can_take_uart(void)
 {
     return s_lte_status.initialized &&
            (HUB_LTE_PPPOS_TEST_MODE != 0) &&
+           a7608_is_paused() &&
            (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
 }
 
@@ -426,7 +436,7 @@ esp_err_t hub_lte_pppos_release_uart_owner(void)
 
 hub_ppp_state_t hub_lte_pppos_get_state(void)
 {
-    return s_lte_runtime.current_state;
+    return s_lte_lifecycle.current_state;
 }
 
 const char *hub_lte_pppos_state_name(hub_ppp_state_t state)
@@ -457,21 +467,21 @@ esp_err_t hub_lte_pppos_set_state(hub_ppp_state_t new_state, esp_err_t reason)
         return ESP_ERR_INVALID_ARG;
     }
 
-    s_lte_runtime.last_error = reason;
-    if (s_lte_runtime.current_state == new_state) {
+    s_lte_lifecycle.last_error = reason;
+    if (s_lte_lifecycle.current_state == new_state) {
         s_lte_status.state = new_state;
         return ESP_OK;
     }
 
-    s_lte_runtime.previous_state = s_lte_runtime.current_state;
-    s_lte_runtime.current_state = new_state;
-    s_lte_runtime.state_enter_tick = xTaskGetTickCount();
+    s_lte_lifecycle.previous_state = s_lte_lifecycle.current_state;
+    s_lte_lifecycle.current_state = new_state;
+    s_lte_lifecycle.state_enter_tick = xTaskGetTickCount();
     s_lte_status.state = new_state;
 
     ESP_LOGI(TAG,
              "PPPoS state: %s -> %s",
-             hub_lte_pppos_state_name(s_lte_runtime.previous_state),
-             hub_lte_pppos_state_name(s_lte_runtime.current_state));
+             hub_lte_pppos_state_name(s_lte_lifecycle.previous_state),
+             hub_lte_pppos_state_name(s_lte_lifecycle.current_state));
 
     return ESP_OK;
 }
@@ -521,8 +531,12 @@ esp_err_t hub_lte_pppos_process(void)
             hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS test mode disabled");
             return hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
+        if (!a7608_is_paused()) {
+            hub_lte_pppos_set_last_result(ESP_OK, "A7608 AT service still running");
+            break;
+        }
         if (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS) {
-            hub_lte_pppos_set_last_result(ESP_OK, "UART available for PPPoS placeholder");
+            hub_lte_pppos_set_last_result(ESP_OK, "A7608 service paused; PPPoS placeholder ready");
             return hub_lte_pppos_set_state(HUB_PPP_STATE_MODEM_READY, ESP_OK);
         }
         hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "UART not available for PPPoS");
@@ -586,6 +600,22 @@ const char *hub_lte_pppos_get_ip_addr(void)
     return s_lte_status.ip_addr;
 }
 
+esp_err_t hub_lte_pppos_get_runtime(hub_lte_pppos_runtime_t *runtime)
+{
+    if (runtime == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    *runtime = s_lte_runtime;
+    return ESP_OK;
+}
+
+esp_err_t hub_lte_pppos_reset_runtime(void)
+{
+    memset(&s_lte_runtime, 0, sizeof(s_lte_runtime));
+    return ESP_OK;
+}
+
 esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
 {
     if (preflight == NULL) {
@@ -607,7 +637,11 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     preflight->uart_owner = (int)s_lte_status.uart_owner;
     preflight->uart_available = s_lte_status.initialized &&
                                 preflight->test_mode_enabled &&
+                                a7608_is_paused() &&
                                 (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
+
+    a7608_service_state_t service_state = a7608_get_service_state();
+    bool service_can_pause = hub_lte_pppos_a7608_service_can_pause(service_state);
 
     const a7608_status_t *modem_status = a7608_get_status();
     if (modem_status != NULL) {
@@ -630,6 +664,10 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         hub_lte_pppos_set_preflight_reason(preflight, "Invalid PPPoS config");
     } else if (!s_lte_status.initialized) {
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS framework not initialized");
+    } else if (!service_can_pause) {
+        hub_lte_pppos_set_preflight_reason(preflight, "A7608 AT service cannot pause");
+    } else if (!a7608_is_paused()) {
+        hub_lte_pppos_set_preflight_reason(preflight, "A7608 AT service still running");
     } else if (!preflight->uart_available) {
         hub_lte_pppos_set_preflight_reason(preflight, "UART not available for PPPoS");
     } else if (!preflight->modem_status_known) {
@@ -655,7 +693,7 @@ const char *hub_lte_pppos_preflight_reason(void)
 
 esp_err_t hub_lte_pppos_get_last_error(void)
 {
-    return s_lte_runtime.last_error;
+    return s_lte_lifecycle.last_error;
 }
 
 const char *hub_lte_pppos_get_last_reason(void)

@@ -41,6 +41,15 @@ typedef enum {
     A7608_STATE_ERROR,
 } a7608_state_t;
 
+typedef enum
+{
+    A7608_SERVICE_RUNNING = 0,
+    A7608_SERVICE_PAUSE_REQUESTED,
+    A7608_SERVICE_PAUSED,
+    A7608_SERVICE_RESUME_REQUESTED,
+    A7608_SERVICE_ERROR,
+} a7608_service_state_t;
+
 typedef struct {
     uart_port_t uart_num;
     int baud_rate;
@@ -106,6 +115,12 @@ void a7608_at_debug_task(void *pvParameters);
 
 const a7608_status_t *a7608_get_status(void);
 const char *a7608_state_name(a7608_state_t state);
+esp_err_t a7608_request_pause(void);
+esp_err_t a7608_request_resume(void);
+bool a7608_is_pause_requested(void);
+bool a7608_is_paused(void);
+a7608_service_state_t a7608_get_service_state(void);
+const char *a7608_service_state_name(a7608_service_state_t state);
 
 #ifdef __cplusplus
 }

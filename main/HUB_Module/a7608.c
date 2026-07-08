@@ -18,6 +18,7 @@
 static a7608_config_t a7608_cfg;
 static a7608_status_t a7608_status;
 static bool a7608_initialized;
+static a7608_service_state_t a7608_service_state = A7608_SERVICE_RUNNING;
 
 extern int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms);
 extern int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
@@ -1043,6 +1044,51 @@ esp_err_t a7608_refresh_gnss(void)
 const a7608_status_t *a7608_get_status(void)
 {
     return &a7608_status;
+}
+
+esp_err_t a7608_request_pause(void)
+{
+    a7608_service_state = A7608_SERVICE_PAUSE_REQUESTED;
+    return ESP_OK;
+}
+
+esp_err_t a7608_request_resume(void)
+{
+    a7608_service_state = A7608_SERVICE_RESUME_REQUESTED;
+    return ESP_OK;
+}
+
+bool a7608_is_pause_requested(void)
+{
+    return a7608_service_state == A7608_SERVICE_PAUSE_REQUESTED;
+}
+
+bool a7608_is_paused(void)
+{
+    return a7608_service_state == A7608_SERVICE_PAUSED;
+}
+
+a7608_service_state_t a7608_get_service_state(void)
+{
+    return a7608_service_state;
+}
+
+const char *a7608_service_state_name(a7608_service_state_t state)
+{
+    switch (state) {
+    case A7608_SERVICE_RUNNING:
+        return "RUNNING";
+    case A7608_SERVICE_PAUSE_REQUESTED:
+        return "PAUSE_REQUESTED";
+    case A7608_SERVICE_PAUSED:
+        return "PAUSED";
+    case A7608_SERVICE_RESUME_REQUESTED:
+        return "RESUME_REQUESTED";
+    case A7608_SERVICE_ERROR:
+        return "ERROR";
+    default:
+        return "UNKNOWN";
+    }
 }
 
 const char *a7608_state_name(a7608_state_t state)

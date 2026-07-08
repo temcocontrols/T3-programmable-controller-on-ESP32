@@ -95,6 +95,14 @@ typedef struct {
     char reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN];
 } hub_lte_pppos_preflight_t;
 
+typedef struct
+{
+    bool ppp_netif_created;
+    bool modem_created;
+    bool data_mode_entered;
+    bool ppp_started;
+} hub_lte_pppos_runtime_t;
+
 void hub_lte_pppos_get_default_config(hub_lte_pppos_config_t *config);
 esp_err_t hub_lte_pppos_init(void);
 esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config);
@@ -123,6 +131,8 @@ esp_err_t hub_lte_pppos_get_status(hub_lte_pppos_status_t *status);
 const char *hub_lte_pppos_get_ip_addr(void);
 esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight);
 const char *hub_lte_pppos_preflight_reason(void);
+esp_err_t hub_lte_pppos_get_runtime(hub_lte_pppos_runtime_t *runtime);
+esp_err_t hub_lte_pppos_reset_runtime(void);
 esp_err_t hub_lte_pppos_get_last_error(void);
 const char *hub_lte_pppos_get_last_reason(void);
 
