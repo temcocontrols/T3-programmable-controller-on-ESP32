@@ -1,6 +1,6 @@
 #include "define.h"
 #include "LCD_TSTAT.h"
-#include "menu.h"
+#include "Menu.h"
 #include "wifi.h"
 #include "bacnet.h"
 #include "user_data.h"
@@ -19,7 +19,7 @@ char UI_DIS_LINE2[4];
 char UI_DIS_LINE3[4];
 char UI_DIS_TOP[9];
 
-uint8 *scroll;
+uint8 *scroll_dis;
 uint8 scroll_buf[SCROLL_WINDOW + 1];
 uint8 scroll_ram[5][MAX_SCOROLL];
 uint8 scroll_fan = 0;
@@ -1500,27 +1500,27 @@ void display_scroll(void)
 	uint8 i;
 
 	Refresh_scroll();
-	if(scroll == NULL)
-		scroll = &scroll_ram[0][0];
+	if(scroll_dis == NULL)
+		scroll_dis = &scroll_ram[0][0];
 
-	if(scroll >= &scroll_ram[0][1])
+	if(scroll_dis >= &scroll_ram[0][1])
 	{
-		for(i = 0;i < (&scroll_ram[0][MAX_SCOROLL - 1] - scroll + 1);i++)
+		for(i = 0;i < (&scroll_ram[0][MAX_SCOROLL - 1] - scroll_dis + 1);i++)
 		{
 			if(i < SCROLL_WINDOW + 1)
-				scroll_buf[i] = *(scroll+i);
+				scroll_buf[i] = *(scroll_dis+i);
 		}
 	}
 	else
 	{
 		for(i=0;i< SCROLL_WINDOW; i++)
-			scroll_buf[i] = *(scroll+i);
+			scroll_buf[i] = *(scroll_dis+i);
 	}
 
-	if(scroll == &scroll_ram[0][MAX_SCOROLL - 1])
-		scroll = &scroll_ram[0][0];
+	if(scroll_dis == &scroll_ram[0][MAX_SCOROLL - 1])
+		scroll_dis = &scroll_ram[0][0];
 	else
-		scroll++;
+		scroll_dis++;
 
 	scroll_buf[SCROLL_WINDOW] = '\0';
 	disp_str_16_24(FORM16X24, 10,TIME_POS,(unsigned char *)scroll_buf,TSTAT8_CH_COLOR,TSTAT8_MENU_COLOR);

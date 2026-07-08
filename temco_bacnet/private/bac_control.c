@@ -4,7 +4,7 @@
 #include "e2prom.h"
 #include "bo.h"
 #include "ao.h"
- 
+
 void control_input(void);
 void control_output(void);
 S16_T exec_program(S16_T current_prg, U8_T *prog_code);
@@ -13,7 +13,7 @@ extern void check_output_priority_array(U8_T i,U8_T HOA);
 extern void Set_AO_raw(uint8 i,float value);
 void set_output_raw(uint8_t point,uint16_t value);
 void sample_points( void );
-//extern S16_T get_point_value( Point *point, S32_T *val_ptr );
+//extern S16_T get_point_value( Point *point, int32_t *val_ptr );
 extern U16_T Test[50];
 
 uint8_t get_max_internal_output(void);
@@ -28,7 +28,7 @@ Con_aux				 			con_aux[MAX_CONS];
 
 
 
-void pid_controller( S16_T p_number )   // 10s 
+void pid_controller( S16_T p_number )   // 10s
 {
  /* The setpoint and input point can only be local to the panel even
 		though the structure would allow for points from the network segment
@@ -45,10 +45,10 @@ void pid_controller( S16_T p_number )   // 10s
 	Str_controller_point *con;
 	Con_aux *conx;
 	static S32_T temp_input_value,temp_setpoint_value;
-	
+
 	controllers[p_number].sample_time = PID_SAMPLE_TIME;
 	con = &controllers[p_number];
-	
+
 
 	if(con->auto_manual == 1)  // manual - 1 , 0 - auto
 		return;
@@ -56,21 +56,21 @@ void pid_controller( S16_T p_number )   // 10s
 	conx = &con_aux[p_number];
 
 #if 1
-	
+
 	get_point_value( (Point*)&con->input, &con->input_value);
 	get_point_value( (Point*)&con->setpoint, &con->setpoint_value );
 	od = oi = op = 0;
 //	con->proportional = 20;
 
-	prop = con->prop_high;	
+	prop = con->prop_high;
 	prop <<= 8;
 	prop += con->proportional;
 
 	temp_input_value = (con->input_value);
-	temp_setpoint_value = (con->setpoint_value); 
+	temp_setpoint_value = (con->setpoint_value);
 
 	err = temp_input_value - temp_setpoint_value;  /* absolute error */
-		
+
 	erp = 0L;
 
 //	con->reset = 20;
@@ -85,7 +85,7 @@ void pid_controller( S16_T p_number )   // 10s
 		op = -erp; /* - */
 
 	erp = 0L;
-	
+
 /* integral term	*/
 	/* sample_time = 10s */
 	l1 = ( conx->old_err + err ) * (con->sample_time / 2); /* 5 = sample_time / 2 */
@@ -103,7 +103,7 @@ void pid_controller( S16_T p_number )   // 10s
 	conx->error_area = l1;
 	if( con->reset > 0 )
 	{
-		if( con->action > 0)  // fix iterm 
+		if( con->action > 0)  // fix iterm
 			oi = con->reset * conx->error_area;
 		else
 			oi -= con->reset * conx->error_area;
@@ -174,19 +174,19 @@ void check_weekly_routines(void)
 		w = Rtc.Clk.week - 1;
 		if( w < 0 ) w = 6;
 		if( pw->auto_manual == 0 )  // auto
-		{		
+		{
 			if( pw->override_2.point_type )
-			{				
+			{
 				get_point_value( (Point*)&pw->override_2, &value );
-				
+
 				pw->override_2_value = value?1:0;
 				if( value )		w = 8;
 			}
 			else
 			 	pw->override_2_value = 0;
-		
+
 			if(pw->override_1.point_type)
-			{				
+			{
 				get_point_value( (Point*)&pw->override_1, &value );
 				pw->override_1_value = value?1:0;
 				if( value )
@@ -194,36 +194,36 @@ void check_weekly_routines(void)
 			}
 			else
 			 	pw->override_1_value = 0;
-		
-		
+
+
 			pt = &wr_times[i][w].time[2*MAX_INTERVALS_PER_DAY-1];
 
 			j = 2 * MAX_INTERVALS_PER_DAY - 1;
 		/*		for( j=2*MAX_INTERVALS_PER_DAY-1; j>=0; j-- )*/
 		/*	do
-			{				
+			{
 				pt->hours = 10 + j;
 				pt->minutes = 25 + j;
 				pt--;
-				
+
 			}
 			while( --j >= 0 );
 			pt = &wr_times[i][w].time[2*MAX_INTERVALS_PER_DAY-1];
-			j = 2 * MAX_INTERVALS_PER_DAY - 1; 
+			j = 2 * MAX_INTERVALS_PER_DAY - 1;
 		 */
 
 			do
-			{				
+			{
 				//if( pt->hours || pt->minutes )
 				if(wr_time_on_off[i][w][j] != 0xff)
-				{	
+				{
 					if( Rtc.Clk.hour > pt->hours ) break;
 					if( Rtc.Clk.hour == pt->hours )
 						if( Rtc.Clk.min >= pt->minutes )
 							break;
 				}
 				pt--;
-				
+
 			}
 			while( --j >= 0 );
 
@@ -231,12 +231,12 @@ void check_weekly_routines(void)
 				pw->value = 0;
 			else
 				pw->value = wr_time_on_off[i][w][j];
-			
-#if 0			
-			if( j < 0)		
+
+#if 0
+			if( j < 0)
 				pw->value = 0;
 			else
-			{ 				
+			{
 				if( j & 1 ) /* j % 2 */
 				{
 					pw->value = 0;//SetByteBit(&pw->flag,0,weekly_value,1);
@@ -244,7 +244,7 @@ void check_weekly_routines(void)
 				else
 				{
 					pw->value = 1;//SetByteBit(&pw->flag,1,weekly_value,1);
-				}    
+				}
 			}
 #endif
 		}
@@ -273,7 +273,7 @@ void check_annual_routines( void )
 			/* bit_index = ora_current.day_of_year % 8;*/    // ????????????????????????????
 	/*		bit_index = ora_current.day_of_year & 0x07;*/
 			mask = mask << ((Rtc.Clk.day_of_year) & 0x07 );
-			
+
 			if( ar_dates[i][octet_index] & mask )
 			{
 				pr->value = 1;
@@ -329,7 +329,7 @@ void check_graphic_element(void)
 //0x1a,0x00,0x74,0x00,0x00,0x13,0x00,0x0c,0x00,0x01,
 //0x0a,0x00,0x09,0x9c,0x02,0x12,0x9d,0xa0,0x86,0x01,0x00,0xfe};
 //const U8_T test_prg_code[50] = {
-//0x24,0x00 ,0x74 ,0x00 ,0x00 ,0x1d ,0x00 ,0x16 ,0x00 ,0x01 ,0x0a ,0x00 ,0x09 ,0x9c ,0x02, 
+//0x24,0x00 ,0x74 ,0x00 ,0x00 ,0x1d ,0x00 ,0x16 ,0x00 ,0x01 ,0x0a ,0x00 ,0x09 ,0x9c ,0x02,
 //0x12 ,0x9d ,0xa0 ,0x86 ,0x01 ,0x00 ,0x01 ,0x14 ,0x00 ,0x09 ,0x9c ,0x01 ,0x03 ,0x9c ,0x05,0x12 ,0xfe ,0x00
 //};
 
@@ -338,7 +338,7 @@ void Ethernet_Debug_Task();
 U8_T count_10s = 0;
 U8_T count_reset_zigbee = 0;
 U16_T last_reset_zigbee;
-U8_T count_1min = 0;	
+U8_T count_1min = 0;
 U8_T count_3s = 0;
 U8_T count_1s = 0;
 U8_T current_day;
@@ -356,7 +356,7 @@ extern U16_T output_raw[MAX_OUTS];
 #define		SW_OFF 	 0
 #define 	SW_HAND	 2
 #define		SW_AUTO	 1
-void vTaskDelay( const uint32_t xTicksToDelay );	
+void vTaskDelay( const uint32_t xTicksToDelay );
 
 
 void check_trendlog_1s(unsigned char count)
@@ -374,35 +374,35 @@ void check_trendlog_1s(unsigned char count)
 			count_1s = 0;
 			// tbd: sample
 
-		sample_points();	
+		sample_points();
 #if BAC_TRENDLOG
 		trend_log_timer(0);
 #endif
 		//update_comport_health();
 		}
-		
+
 	}
 	//else
 	//	count_wait_sample++;
 }
 
 void Set_AO_raw(uint8 i,float value)
-{	
+{
 	Str_points_ptr ptr;
 	ptr = put_io_buf(OUT,i);
 	switch( ptr.pout->range )
 	{
-		case V0_10:				
+		case V0_10:
 			set_output_raw(i,value / 10);
 			break;
 		case P0_100_Open:
 		case P0_100_Close:
 		case P0_100:
-		case P0_100_PWM: 
+		case P0_100_PWM:
 			set_output_raw(i,value / 100);
 			break;
 		case P0_20psi:
-		case I_0_20ma:	
+		case I_0_20ma:
 			set_output_raw(i,value / 20);
 			break;
 		case P0_100_2_10V:
@@ -410,29 +410,29 @@ void Set_AO_raw(uint8 i,float value)
 			break;
 		default:
 			set_output_raw(i,value / 1000);
-			break; 				 			
-		
-	}	
+			break;
+
+	}
 }
 
 void check_output_priority_HOA(U8_T i)
-{	
+{
 	Str_points_ptr ptr;
 	ptr = put_io_buf(OUT,i);
 	// check swtich status
 		if(ptr.pout->switch_status == SW_OFF)
-		{	
+		{
 #if OUTPUT_DEATMASTER
 			clear_dead_master();
-#endif						
+#endif
 			if(ptr.pout->digital_analog == 0)
-			{									
+			{
 				if(( ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW )
 				||(ptr.pout->range >= custom_digital1 // customer digital unit
 				&& ptr.pout->range <= custom_digital8
 				&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 				{ // inverse
-					output_priority[i][6] = 1;	
+					output_priority[i][6] = 1;
 
 					if(i < max_dos)
 						ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;
@@ -441,42 +441,42 @@ void check_output_priority_HOA(U8_T i)
 				}
 				else
 				{
-					output_priority[i][6] = 0;	
+					output_priority[i][6] = 0;
 					if(i < max_dos)
 						ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;
 					else
 						ptr.pout->control = Analog_Output_Present_Value(i) ? 1 : 0;
-					
-				}				
+
+				}
 				if(i < max_dos)
 				{
-					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);					
+					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 				}
 				else
 				{
-					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);					
+					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 				}
-				
-				if(ptr.pout->control) 
+
+				if(ptr.pout->control)
 					set_output_raw(i,1000);
-				else 
-					set_output_raw(i,0);	
-				
+				else
+					set_output_raw(i,0);
+
 			}
 			else
 			{
 				output_priority[i][6] = 0;
 				ptr.pout->control = 0;
-				
+
 				if(i < max_dos)
 				{
-					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);					
+					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 					set_output_raw(i,Binary_Output_Present_Value(i) * 1000);
 				}
 				else
 				{
-					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);					
-					Set_AO_raw(i,(ptr.pout->value));			
+					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
+					Set_AO_raw(i,(ptr.pout->value));
 				}
 			}
 		}
@@ -484,7 +484,7 @@ void check_output_priority_HOA(U8_T i)
 		{
 #if OUTPUT_DEATMASTER
 			clear_dead_master();
-#endif			
+#endif
 			if(ptr.pout->digital_analog == 0)
 			{
 				if(( ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW )
@@ -492,68 +492,68 @@ void check_output_priority_HOA(U8_T i)
 					&& ptr.pout->range <= custom_digital8
 					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 				{// inverse
-					output_priority[i][6] = 0;	
+					output_priority[i][6] = 0;
 					if(i < max_dos)
-						ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;	
+						ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;
 					else
 						ptr.pout->control = Analog_Output_Present_Value(i) ? 0 : 1;
 				}
 				else
 				{
 					output_priority[i][6] = 1;
-					if(i < max_dos)					
-						ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;	
+					if(i < max_dos)
+						ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;
 					else
-						ptr.pout->control = Analog_Output_Present_Value(i) ? 1 : 0;	
-				}	
-				
+						ptr.pout->control = Analog_Output_Present_Value(i) ? 1 : 0;
+				}
+
 				if(i < max_dos)
 					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 				else
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 
-				if(ptr.pout->control) 
+				if(ptr.pout->control)
 					set_output_raw(i,1000);
-				else 
-					set_output_raw(i,0);					
-			
+				else
+					set_output_raw(i,0);
+
 			}
 			else
 			{
 				switch( ptr.pout->range )
 				{
-					case V0_10:	
+					case V0_10:
 						output_priority[i][6] = 10;
 						break;
 					case P0_100_Open:
 					case P0_100_Close:
 					case P0_100:
-					case P0_100_PWM:	
+					case P0_100_PWM:
 					case P0_100_2_10V:
 						output_priority[i][6] = 100;
 						break;
 					case P0_20psi:
-					case I_0_20ma:	
+					case I_0_20ma:
 						output_priority[i][6] = 20;
 						break;
 					default:
 						output_priority[i][6] = (ptr.pout->value) / 1000;
-						break; 				 			
-					
-				}						
-				
+						break;
+
+				}
+
 				if(i < max_dos)
 					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 				else
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 
-				Set_AO_raw(i,(ptr.pout->value));					
+				Set_AO_raw(i,(ptr.pout->value));
 			}
 		}
 		else if(ptr.pout->switch_status == SW_AUTO)// auto
 		{
-			output_priority[i][6] = 0xff;	
-			check_output_priority_array(i,1);			
+			output_priority[i][6] = 0xff;
+			check_output_priority_array(i,1);
 		}
 		else
 		{
@@ -569,49 +569,49 @@ void check_output_priority_HOA(U8_T i)
 // HOA: 1 -> �ı�HOA�����level7ֵ����
 //			0 -> modbus����bancent���ֱ�Ӹı� leve7 ֵ�ı�
 void check_output_priority_array(U8_T i,U8_T HOA)
-{	
+{
 	Str_points_ptr ptr;
 	ptr = put_io_buf(OUT,i);
 
 	if(i >= max_dos + max_aos)
 	{
-		output_priority[i][7] = 0xff;	
+		output_priority[i][7] = 0xff;
 	}
 	else
 	{
 		if(ptr.pout->auto_manual == 0)  // auto , pirotry_array level 8 is NULL
 		{
-			output_priority[i][7] = 0xff;	
+			output_priority[i][7] = 0xff;
 			if(ptr.pout->digital_analog == 0)
 			{	// digital
 				//if(i < max_dos)
 				{
-					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000); 
+					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 
 					if(( ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW )
 					||(ptr.pout->range >= custom_digital1 // customer digital unit
 					&& ptr.pout->range <= custom_digital8
 					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 					{// inverse
-						ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;	
-					}	
+						ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;
+					}
 					else
 					{
 						ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;
 					}
 				}
-				
+
 				// when OUT13-OUT24 are used for DO
-				
-				if(ptr.pout->control) 
+
+				if(ptr.pout->control)
 				{
 					set_output_raw(i,1000);
 				}
-				else 
+				else
 				{
-					set_output_raw(i,0);	
+					set_output_raw(i,0);
 				}
-				
+
 			}
 			else
 			{
@@ -624,7 +624,7 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 				else
 				{
 					output_raw[i] = (ptr.pout->value);
-				}					
+				}
 			}
 
 		} // else manual
@@ -633,7 +633,7 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 
 #if OUTPUT_DEATMASTER
 			clear_dead_master();
-#endif			
+#endif
 			if(ptr.pout->digital_analog == 0)
 			{	// digital
 				if(HOA == 0)
@@ -644,39 +644,39 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 						output_priority[i][7] = 0;
 				}
 				if(i < max_dos)
-					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000); 
+					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 				else
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
-				
+
 				if(( ptr.pout->range >= ON_OFF && ptr.pout->range <= HIGH_LOW )
 					||(ptr.pout->range >= custom_digital1 // customer digital unit
 					&& ptr.pout->range <= custom_digital8
 					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 				{// inverse
-					ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;	
-				}	
+					ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;
+				}
 				else
 				{
 					ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;
 				}
-				
-				if(ptr.pout->control) 
+
+				if(ptr.pout->control)
 				{
 					set_output_raw(i,1000);
 				}
-				else 
-				{	
-					set_output_raw(i,0);	
+				else
+				{
+					set_output_raw(i,0);
 				}
-				
-			}		
+
+			}
 			else
 			{  // analog
 //				if(i < max_dos)
 //				{
 //					if(HOA == 0)
 //						output_priority[i][7] = (float)(ptr.pout->value) / 1000;
-//					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000); 
+//					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 //					set_output_raw(i,Binary_Output_Present_Value(i) * 1000);
 //				}
 //				else
@@ -694,50 +694,50 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 					{
 						output_raw[i] = (ptr.pout->value);
 					}
-				}					
+				}
 			}
-		}	
-	}	
-	
+		}
+	}
+
 }
 
 
 // dont check A/M
 void check_output_priority_array_without_AM(U8_T i)
-{	
+{
 	Str_points_ptr ptr;
 	ptr = put_io_buf(OUT,i);
 	if(i >= max_dos + max_aos)
 	{
-		output_priority[i][7] = 0xff;	
+		output_priority[i][7] = 0xff;
 	}
 	else
-	{		
+	{
 		if(ptr.pout->digital_analog == 0)
 		{	// digital
 			if(i < max_dos)
 			{
 				ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
-			}				
+			}
 			else
 			{
 				ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 			}
-				
-			if(ptr.pout->control) 
+
+			if(ptr.pout->control)
 			{
 				set_output_raw(i,1000);
 			}
-			else 
+			else
 			{
 				set_output_raw(i,0);
 			}
-		}		
+		}
 		else
 		{  // analog
 			if(i < max_dos)
 			{
-				ptr.pout->value = (Binary_Output_Present_Value(i) * 1000); 
+				ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 				set_output_raw(i,Binary_Output_Present_Value(i) * 1000);
 			}
 			else
@@ -752,12 +752,12 @@ void check_output_priority_array_without_AM(U8_T i)
 				{
 					output_raw[i] = (ptr.pout->value);
 				}
-			}	
-			
+			}
+
 		}
 
-	}	
-	
+	}
+
 }
 
 U8_T   output_pri_live[MAX_OUTS];
@@ -776,24 +776,24 @@ void Check_Program_Output_Pri_valid(void)
 				output_priority[i][9] = 0xff;
 		}
 	}
-	
+
 }
 
 
 
 #if OUTPUT_DEATMASTER
-U32_T   count_dead_master = 0;	
+U32_T   count_dead_master = 0;
 
 void clear_dead_master(void)
 {
-	count_dead_master = 0;	
+	count_dead_master = 0;
 }
 
 
 void output_dead_master(void)
 {
 	U8_T i,j;
-	if(Modbus.dead_master != 0)  
+	if(Modbus.dead_master != 0)
 	{
 		if(count_dead_master++ > Modbus.dead_master  * 60)
 		{
@@ -806,7 +806,7 @@ void output_dead_master(void)
 				check_output_priority_array(i,0);
 			}
 		}
-			
+
 	}
 }
 

@@ -25,7 +25,7 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include <store.h>
-
+#include <errno.h>
 
 #include "define.h"
 #include "modbus.h"
@@ -65,6 +65,7 @@
 #include "LCD_Driver/lcd_drv.h"
 #include "lora.h"
 #include "WireGuard_App.h"
+#include "Mqtt_Handler.h"
 
 //#include "lowPower.h"
 
@@ -2423,89 +2424,95 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 			put_net_point_value(&point,&value,0,1,cov->timeRemaining);
 		}
 
+		Mqtt_Handler_Send_COV(cov);
 }
 
 // update the value subscribed object
 // send out UCOV_Notify
-void Update_Value_List(uint8_t type, uint32_t instance)
+void Update_Value_List(BACNET_COV_DATA *cov)
 {
-	char text[10];
-	cov_data_value_list_link(&cov_data, &value_list, 1);
-	value_list.propertyIdentifier = PROP_PRESENT_VALUE;
-	value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
-	if(instance > 0)
-		instance = instance - 1;
-	switch(type)
-	{
-		case OBJECT_ANALOG_INPUT:
-			if(inputs[instance].range == 0)
-				break;
-			if(inputs[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)inputs[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_ANALOG_OUTPUT:
-			if(outputs[instance].range == 0)
-				break;
-			if(outputs[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)outputs[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_ANALOG_VALUE:
-			if(vars[instance].range == 0)
-				break;
-			if(vars[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)vars[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_INPUT:
-			if(inputs[instance].range == 0)
-				break;
-			if(inputs[instance].digital_analog == 0)
-			{
-				if(inputs[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_OUTPUT:
-			if(outputs[instance].range == 0)
-				break;
-			if(outputs[instance].digital_analog == 0)
-			{
-				if(outputs[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_VALUE:
-			if(vars[instance].range == 0)
-				break;
-			if(vars[instance].digital_analog == 0)
-			{
-				if(vars[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		default:
-			bacapp_parse_application_data(BACNET_APPLICATION_TAG_NULL, NULL ,	&value_list.value);
-			break;
+    char text[32];
+    bool is_valid_value = false;
+    BACNET_APPLICATION_TAG tag = BACNET_APPLICATION_TAG_NULL;
+    const char *value_str = NULL;
 
-	}
+    uint8_t type = cov->monitoredObjectIdentifier.type;
+    uint32_t instance = cov->monitoredObjectIdentifier.instance;
 
+    cov_data_value_list_link(&cov_data, &value_list, 1);
+    value_list.propertyIdentifier = PROP_PRESENT_VALUE;
+    value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
+
+    if (instance > 0)
+        instance--;
+
+    switch (type)
+    {
+        case OBJECT_ANALOG_INPUT:
+            if ((inputs[instance].range != 0) && (inputs[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)inputs[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_ANALOG_OUTPUT:
+            if ((outputs[instance].range != 0) &&
+                (outputs[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)outputs[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_ANALOG_VALUE:
+            if ((vars[instance].range != 0) && (vars[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)vars[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_BINARY_INPUT:
+            if ((inputs[instance].range != 0) && (inputs[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = inputs[instance].control ? "1" : "0";
+            }
+            break;
+
+        case OBJECT_BINARY_OUTPUT:
+            if ((outputs[instance].range != 0) && (outputs[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = outputs[instance].control ? "1" : "0";
+            }
+            break;
+
+        case OBJECT_BINARY_VALUE:
+            if ((vars[instance].range != 0) && (vars[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = vars[instance].control ? "1" : "0";
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    if (value_str || tag == BACNET_APPLICATION_TAG_NULL)
+    {
+        is_valid_value = bacapp_parse_application_data(tag,value_str,&value_list.value);
+    }
+
+    if (is_valid_value)
+    {
+        Mqtt_Handler_Send_COV(cov);
+    }
 }
 
 int send_cov_demo(void) {
@@ -2700,6 +2707,22 @@ void Timer_task(void *pvParameters)
 		miliseclast = miliseclast + TIMER_INTERVAL;
 		system_timer = system_timer + TIMER_INTERVAL;
 		//Check_Pulse_Counter();
+
+		// Real-time clock tracking for COV subscription lifetimes
+		static TickType_t last_cov_tick = 0;
+		if (last_cov_tick == 0) {
+			last_cov_tick = xTaskGetTickCount();
+		}
+		TickType_t current_tick = xTaskGetTickCount();
+		uint32_t elapsed_ms = (current_tick - last_cov_tick) * portTICK_PERIOD_MS;
+		if (elapsed_ms >= 1000) {
+			uint32_t elapsed_seconds = elapsed_ms / 1000;
+			last_cov_tick += (elapsed_seconds * 1000) / portTICK_PERIOD_MS;
+#if COV
+			handler_cov_timer_seconds(elapsed_seconds);
+#endif
+		}
+
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
 		{
 			run_time = run_time + 1;
@@ -2720,9 +2743,6 @@ void Timer_task(void *pvParameters)
 			}
 #endif
 			Test[0] = flag_ethernet_initial + 10;
-#if COV
-			handler_cov_timer_seconds(1);
-#endif
 			if(Modbus.ethernet_status == 4 || SSID_Info.IP_Wifi_Status == 2/*WIFI_NORMAL*/) // got ip
 			{
 				if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
@@ -4634,6 +4654,8 @@ void app_main()
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
+
+	Mqtt_Handler_Init();
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();

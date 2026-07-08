@@ -11,7 +11,7 @@ S16_T put_net_point_value( Point_Net *point, S32_T *val_ptr, S16_T aux, S16_T pr
 S16_T put_point_value( Point *point, S32_T *val_ptr, S16_T aux, S16_T prog_op );
 //void put_remote_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op );
 //S16_T put_point_info( Point_info *info );
-S16_T get_point_value( Point *point, S32_T *val_ptr );
+S16_T get_point_value( Point *point, int32_t *val_ptr );
 S16_T get_remote_point_value( S16_T index, S32_T *val_ptr );
 S16_T insert_remote_point( Point_Net *point, S16_T index );
 S16_T delete_remote_point( Point_Net *point, S16_T index );
@@ -26,7 +26,7 @@ S16_T find_remote_poS16_T( Point_Net *point );
 S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode ,U8_T flag);
 //int GetPrivateData(Point_Net point,U32_T deviceid);
 //void WritePrivateData(Point_Net point,S32_T value);
-//S8_T put_timer_value(U8_T pro_index,U8_T type,U32_T time,char *messgae); 
+//S8_T put_timer_value(U8_T pro_index,U8_T type,U32_T time,char *messgae);
 //U32_T check_pro_timer_count(U8_T index,U32_T time,U8_T type,U8_T time_sign);
 void initial_graphic_point(void);
 //void clear_pro_timer(U8_T prg_index,U32_T time,U8_T type);

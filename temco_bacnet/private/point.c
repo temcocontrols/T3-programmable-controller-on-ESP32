@@ -1586,7 +1586,11 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 // local points
 		if(prog_op == 1)
 		{
-			put_point_value( (Point *)p, val_ptr, aux, prog_op );
+			Point local_p = {0};
+			local_p.number     = p->number;
+			local_p.point_type = p->point_type;
+
+			put_point_value(&local_p, val_ptr, aux, prog_op);
 		}
 	}
 
@@ -1765,7 +1769,11 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag)
 	}
 	else
 	{ // local points
-		get_point_value( (Point *)p, &tempval );
+		Point local_p = {0};
+		local_p.number     = p->number;
+		local_p.point_type = p->point_type;
+
+		get_point_value(&local_p, &tempval);
 		*val_ptr = tempval;
 	}
 

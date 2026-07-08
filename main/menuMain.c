@@ -1,6 +1,6 @@
 #include "define.h"
 #include "LCD_TSTAT.h"
-#include "menu.h"
+#include "Menu.h"
 #include "bacnet.h"
 #include "user_data.h"
 #include "modbus.h"
@@ -24,7 +24,6 @@ const char c_strBaudate[UART_BAUDRATE_MAX][7] =
     "57600 "   //11
 };
 
-#define MAX_MENU_NUM 3
 MENUNAME const menu[MAX_MENU_NUM] = {
 { "Modbus"  ,"Address", 254 , 0 },
 { "Baudrate","Select ", 9   , 0 },		// Baudrate

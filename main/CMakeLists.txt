@@ -1,6 +1,7 @@
 idf_component_register(		SRCS
 							"app_main.c"
 							"modbus.c"
+							"Mqtt_Handler/Mqtt_Handler.c"
 #							"deviceparams.c"
 							"i2c_task.c"
 							"ota.c"
@@ -68,6 +69,7 @@ idf_component_register(		SRCS
 			INCLUDE_DIRS "."
 							"LCD_Driver"
 							"TemcoScreen"
+							"Mqtt_Handler"
 							"WireGuard_App"
 							)
 

@@ -1549,28 +1549,25 @@ void Event_Cb_SetSetpointValue(lv_event_t * e)
  */
 void Event_Cb_WifiEn(lv_event_t * e)
 {
-    bool isDataPointUpdated = false;
     ESP_LOGI(TAG, "WiFi Enable Switch toggled");
-    if(SSID_Info.MANUEL_EN == 1 && !lv_obj_has_state(ui_WifiEnSw, LV_STATE_CHECKED))
+    if(SSID_Info.MANUEL_EN == 1)
     {
         // Disable manual WiFi config
-        isDataPointUpdated = true;
         ESP_LOGI(TAG, "WiFi manual configuration disabled");
         SSID_Info.MANUEL_EN = 0;
+        lv_obj_clear_state(ui_WifiEnSw, LV_STATE_CHECKED);
     }
-    else if(SSID_Info.MANUEL_EN == 0 && lv_obj_has_state(ui_WifiEnSw, LV_STATE_CHECKED))
+    else
     {
         // Enable manual WiFi config
         ESP_LOGI(TAG, "WiFi manual configuration enabled");
-        isDataPointUpdated = true;
         SSID_Info.MANUEL_EN = 1;
+        lv_obj_add_state(ui_WifiEnSw, LV_STATE_CHECKED);
     }
-    if(isDataPointUpdated)
-    {
-        wifi_scan_state = WIFI_SCAN_CHECK_MODE;
-        save_block(FLASH_BLOCK1_SSID);
-        connect_wifi();
-    }
+
+    wifi_scan_state = WIFI_SCAN_CHECK_MODE;
+    save_block(FLASH_BLOCK1_SSID);
+    connect_wifi();
 }
 
 /**

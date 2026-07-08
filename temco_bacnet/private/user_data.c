@@ -2066,10 +2066,9 @@ S16_T insert_local_point( Point *point, S16_T index )
 			{
 				if( !ptr->count )
 				{
-						number_of_local_points++;
-						memcpy( &ptr->point, point, sizeof(Point_Net) );
-						ptr->count = 1;
-
+					number_of_local_points++;
+					memcpy( &ptr->point, point, sizeof(Point) );
+					ptr->count = 1;
 					return i;
 				}
 			}
@@ -2084,17 +2083,13 @@ S16_T insert_local_point( Point *point, S16_T index )
 	}
 }
 
-
-
 S16_T insert_remote_point( Point_Net *point, S16_T index )
 {
 	S16_T i;
 	REMOTE_POINTS *ptr;
 	U8_T point_type;
 
-
 	ptr = &remote_points_list[0];
-
 
 	if( index < 0 )
 	{ /* index < 0 means that the index is unknown */
@@ -2578,7 +2573,7 @@ error
 }
 
 
-S16_T get_point_value( Point *point, S32_T *val_ptr )
+S16_T get_point_value( Point *point, int32_t *val_ptr )
 {
 
  	Str_points_ptr  ptr;
@@ -2962,16 +2957,12 @@ S16_T put_point_value( Point *point, S32_T *val_ptr, S16_T aux, S16_T prog_op )
 
 void Test_Array(void)
 {
-	long *p;
-
 	//if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_T10P)
 	{
 			memcpy(arrays[0].label,"ICON    ",9);
 			arrays[0].length = 4;
-			arrays_address[0] = &arrays_data[0];
-
+			arrays_address[0] = (S32_T *)&arrays_data[0];
 	}
-
 }
 /*
  * ----------------------------------------------------------------------------
@@ -3428,7 +3419,7 @@ S16_T get_net_point_value( Point_Net *p, S32_T *val_ptr , U8_T mode,U8_T flag)
 
 	S16_T index;
 	Point_Net point;
-	S32_T tempval = 0;
+	int32_t tempval = 0;
 
 	memcpy( &point, p, sizeof(Point_Net));
 

@@ -2450,6 +2450,8 @@ bool Analog_Input_Change_Of_Value(unsigned int object_instance)
 	unsigned int err = 0;
 	object_index = AI_Instance_To_Index[object_instance];
 
+	if(inputs[object_index].digital_analog != 1)
+		return false;
 	// 检查当前值与备份值的差值是否合理
 	// 如果range是温湿度或者电压电流，0.5的改变需要报告change
 	if(inputs[object_index].range <= 49 || inputs[object_index].range == 57 ) // temprature or humdity
@@ -2472,6 +2474,9 @@ bool Binary_Input_Change_Of_Value(uint32_t object_instance)
 	unsigned object_index;
 	object_index = BI_Instance_To_Index[object_instance];
 
+	if(inputs[object_index].digital_analog)
+		return false;
+
 	if(inputs[object_index].control != backup_IN_value[object_index])
 	{
 		backup_IN_value[object_index] = inputs[object_index].control;
@@ -2489,7 +2494,8 @@ bool Analog_Value_Change_Of_Value(unsigned int object_instance)
 	unsigned object_index;
 	bool status = false;
 	object_index = AV_Instance_To_Index[object_instance];
-
+	if(vars[object_index].digital_analog != 1)
+		return false;
 	if(vars[object_index].value != backup_VAR_value[object_index])
 	{
 		backup_VAR_value[object_index] = vars[object_index].value;
@@ -2508,7 +2514,8 @@ bool Binary_Value_Change_Of_Value(unsigned int object_instance)
 	unsigned object_index;
 	bool status = false;
 	object_index = BV_Instance_To_Index[object_instance];
-
+	if(vars[object_index].digital_analog)
+		return false;
 	if(vars[object_index].control != backup_VAR_value[object_index])
 	{
 		backup_VAR_value[object_index] = vars[object_index].control;
@@ -2522,13 +2529,14 @@ bool Binary_Value_Change_Of_Value(unsigned int object_instance)
 	return status;
 }
 
-
 int32_t backup_OUT_value[MAX_OUTS];
 bool Analog_Output_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
 	object_index = AO_Instance_To_Index[object_instance];
 
+	if(outputs[object_index].digital_analog != 1)
+		return false;
 	if(outputs[object_index].value != backup_OUT_value[object_index])
 	{
 		backup_OUT_value[object_index] = outputs[object_index].value;
@@ -2543,7 +2551,8 @@ bool Binary_Output_Change_Of_Value(unsigned int object_instance)
 {
 	unsigned object_index;
 	object_index = BO_Instance_To_Index[object_instance];
-
+	if(outputs[object_index].digital_analog)
+		return false;
 	if(outputs[object_index].control != backup_OUT_value[object_index])
 	{
 		backup_OUT_value[object_index] = outputs[object_index].control;

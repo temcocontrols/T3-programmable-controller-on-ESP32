@@ -132,7 +132,7 @@ typedef enum
 #define FLASH_CURRENT_TLG_PAGE	"TLG_PAGE"
 
 
-
+#define FLASH_ENABLE_MQTT        "MQTT_EN"
 #define FLASH_ENABLE_DEBUG
 
 

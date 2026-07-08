@@ -323,10 +323,15 @@ void wifi_init_sta(void)
             debug_info("event loop create failed");
         }
 
-        wifi_netif = esp_netif_create_default_wifi_sta();
-        if (!wifi_netif) {
-            debug_info("wifi netif create failed");
-            return;
+        if (wifi_netif == NULL)
+        {
+            wifi_netif = esp_netif_create_default_wifi_sta();
+
+            if (wifi_netif == NULL)
+            {
+                debug_info("Failed to create STA netif");
+                return;
+            }
         }
 
         esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL);

@@ -19,7 +19,7 @@ idf_component_register(SRCS
 				"src/bacpropstates.c"
 				"src/bacreal.c"
 				"src/bacstr.c"
-		#		"src/bactext.c"
+				"src/bactext.c"
 				"src/bactimevalue.c"
 				"src/bi.c"
 
