@@ -8,10 +8,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#if HUB_LTE_PPPOS_ENABLE
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 #include "esp_event.h"
-#include "esp_modem_api.h"
+#include "esp_modem_c_api_types.h"
 #include "esp_netif.h"
+#include "esp_netif_ip_addr.h"
+#include "esp_netif_ppp.h"
 #endif
 
 static const char *TAG = "hub_lte_pppos";
@@ -38,53 +40,37 @@ static hub_lte_pppos_runtime_t s_lte_runtime;
 static char s_lte_preflight_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN] = "Preflight not run";
 static char s_lte_last_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN] = "No PPPoS lifecycle error";
 
-#if HUB_LTE_PPPOS_ENABLE
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 static esp_modem_dte_config_t s_lte_dte_config;
 static esp_modem_dce_t *s_lte_dce;
 static esp_netif_t *s_lte_ppp_netif;
+static bool s_lte_ip_handler_registered;
+static bool s_lte_ppp_handler_registered;
+#endif
 
+static esp_err_t hub_lte_pppos_create_netif(void);
+static esp_err_t hub_lte_pppos_create_modem(void);
+static esp_err_t hub_lte_pppos_enter_data_mode(void);
+static esp_err_t hub_lte_pppos_start_ppp(void);
+static esp_err_t hub_lte_pppos_stop_ppp(void);
+static esp_err_t hub_lte_pppos_destroy_runtime(void);
+
+static bool hub_lte_pppos_real_runtime_allowed(void)
+{
+    return (HUB_LTE_PPPOS_ENABLE != 0) &&
+           (HUB_LTE_PPPOS_TEST_MODE != 0) &&
+           (HUB_LTE_PPPOS_REAL_RUNTIME != 0);
+}
+
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 static void hub_lte_pppos_ppp_event_handler(void *handler_arg,
                                             esp_event_base_t event_base,
                                             int32_t event_id,
-                                            void *event_data)
-{
-    (void)handler_arg;
-    (void)event_base;
-    (void)event_id;
-    (void)event_data;
-}
-
+                                            void *event_data);
 static void hub_lte_pppos_ip_event_handler(void *handler_arg,
                                            esp_event_base_t event_base,
                                            int32_t event_id,
-                                           void *event_data)
-{
-    (void)handler_arg;
-    (void)event_base;
-    (void)event_id;
-    (void)event_data;
-}
-
-static esp_err_t hub_lte_pppos_prepare_stage2(void)
-{
-    memset(&s_lte_dte_config, 0, sizeof(s_lte_dte_config));
-    s_lte_dce = NULL;
-    s_lte_ppp_netif = NULL;
-
-    (void)hub_lte_pppos_ppp_event_handler;
-    (void)hub_lte_pppos_ip_event_handler;
-
-    /* Future PPPoS handoff flow:
-     * stop AT debug/status
-     * release UART
-     * create PPP netif
-     * create esp_modem DTE/DCE
-     * enter data mode
-     * start PPP
-     */
-    ESP_LOGW(TAG, "PPP backend Stage 2 placeholder prepared; dialing is not implemented yet");
-    return ESP_ERR_NOT_SUPPORTED;
-}
+                                           void *event_data);
 #endif
 
 static const char *hub_lte_pppos_uart_owner_name(hub_lte_pppos_uart_owner_t owner)
@@ -167,6 +153,248 @@ static esp_err_t hub_lte_pppos_run_start_preflight(hub_lte_pppos_preflight_t *pr
 
     hub_lte_pppos_set_last_result(ESP_OK, preflight->reason);
     return ESP_OK;
+}
+
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
+static void hub_lte_pppos_ppp_event_handler(void *handler_arg,
+                                            esp_event_base_t event_base,
+                                            int32_t event_id,
+                                            void *event_data)
+{
+    (void)handler_arg;
+    (void)event_base;
+
+    ESP_LOGI(TAG, "PPP status event: %ld", (long)event_id);
+    if (event_id == NETIF_PPP_ERRORUSER) {
+        esp_netif_t **event_netif = (esp_netif_t **)event_data;
+        if ((event_netif == NULL) || (*event_netif == s_lte_ppp_netif)) {
+            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP stopped by user event");
+            if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
+                (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
+            }
+        }
+    }
+}
+
+static void hub_lte_pppos_ip_event_handler(void *handler_arg,
+                                           esp_event_base_t event_base,
+                                           int32_t event_id,
+                                           void *event_data)
+{
+    (void)handler_arg;
+    (void)event_base;
+
+    if (event_id == IP_EVENT_PPP_GOT_IP) {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        if ((event == NULL) || (event->esp_netif != s_lte_ppp_netif)) {
+            return;
+        }
+
+        snprintf(s_lte_status.ip_addr,
+                 sizeof(s_lte_status.ip_addr),
+                 IPSTR,
+                 IP2STR(&event->ip_info.ip));
+        s_lte_status.connected = true;
+        hub_lte_pppos_set_last_result(ESP_OK, "PPP got IP event");
+        (void)hub_lte_pppos_set_state(HUB_PPP_STATE_RUNNING, ESP_OK);
+        ESP_LOGI(TAG, "PPP got IP: %s", s_lte_status.ip_addr);
+    } else if (event_id == IP_EVENT_PPP_LOST_IP) {
+        s_lte_status.connected = false;
+        s_lte_status.ip_addr[0] = '\0';
+        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP lost IP event");
+        if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
+        }
+    }
+}
+#endif
+
+static esp_err_t hub_lte_pppos_create_netif(void)
+{
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
+    if (s_lte_ppp_netif != NULL) {
+        s_lte_runtime.ppp_netif_created = true;
+        return ESP_OK;
+    }
+
+    esp_netif_config_t netif_ppp_config = ESP_NETIF_DEFAULT_PPP();
+    s_lte_ppp_netif = esp_netif_new(&netif_ppp_config);
+    if (s_lte_ppp_netif == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+    s_lte_runtime.ppp_netif_created = true;
+
+    esp_err_t ret = esp_event_handler_register(IP_EVENT,
+                                               ESP_EVENT_ANY_ID,
+                                               hub_lte_pppos_ip_event_handler,
+                                               NULL);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    s_lte_ip_handler_registered = true;
+
+    ret = esp_event_handler_register(NETIF_PPP_STATUS,
+                                     ESP_EVENT_ANY_ID,
+                                     hub_lte_pppos_ppp_event_handler,
+                                     NULL);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    s_lte_ppp_handler_registered = true;
+    return ESP_OK;
+#else
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
+}
+
+static esp_err_t hub_lte_pppos_create_modem(void)
+{
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
+    if (s_lte_dce != NULL) {
+        s_lte_runtime.modem_created = true;
+        return ESP_OK;
+    }
+    if (s_lte_ppp_netif == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t ret = hub_lte_pppos_request_uart_owner();
+    if ((ret != ESP_OK) && (s_lte_status.uart_owner != HUB_LTE_PPPOS_UART_OWNER_PPPOS)) {
+        return ret;
+    }
+
+    s_lte_dte_config = (esp_modem_dte_config_t)ESP_MODEM_DTE_DEFAULT_CONFIG();
+    s_lte_dte_config.uart_config.port_num = s_lte_config.uart_num;
+    s_lte_dte_config.uart_config.baud_rate = s_lte_config.baud_rate;
+    s_lte_dte_config.uart_config.tx_io_num = s_lte_config.tx_io_num;
+    s_lte_dte_config.uart_config.rx_io_num = s_lte_config.rx_io_num;
+    s_lte_dte_config.uart_config.rts_io_num = s_lte_config.rts_io_num;
+    s_lte_dte_config.uart_config.cts_io_num = s_lte_config.cts_io_num;
+    s_lte_dte_config.uart_config.rx_buffer_size = s_lte_config.rx_buffer_size;
+    s_lte_dte_config.uart_config.tx_buffer_size = s_lte_config.tx_buffer_size;
+    if (s_lte_config.rx_buffer_size > 0) {
+        s_lte_dte_config.dte_buffer_size = (size_t)s_lte_config.rx_buffer_size / 2;
+    }
+
+    esp_modem_dce_config_t dce_config = ESP_MODEM_DCE_DEFAULT_CONFIG(s_lte_config.apn);
+    s_lte_dce = esp_modem_new(&s_lte_dte_config, &dce_config, s_lte_ppp_netif);
+    if (s_lte_dce == NULL) {
+        return ESP_FAIL;
+    }
+
+    s_lte_runtime.modem_created = true;
+    return ESP_OK;
+#else
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
+}
+
+static esp_err_t hub_lte_pppos_enter_data_mode(void)
+{
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
+    if (s_lte_runtime.data_mode_entered) {
+        return ESP_OK;
+    }
+    if (s_lte_dce == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t ret = esp_modem_set_mode(s_lte_dce, ESP_MODEM_MODE_DATA);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    s_lte_runtime.data_mode_entered = true;
+    return ESP_OK;
+#else
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
+}
+
+static esp_err_t hub_lte_pppos_start_ppp(void)
+{
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
+    if (!s_lte_runtime.data_mode_entered) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    s_lte_runtime.ppp_started = true;
+    hub_lte_pppos_set_last_result(ESP_OK, "PPP started; waiting for IP event");
+    return ESP_OK;
+#else
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
+}
+
+static esp_err_t hub_lte_pppos_stop_ppp(void)
+{
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
+    esp_err_t first_error = ESP_OK;
+
+    if ((s_lte_dce != NULL) && s_lte_runtime.data_mode_entered) {
+        esp_err_t ret = esp_modem_set_mode(s_lte_dce, ESP_MODEM_MODE_COMMAND);
+        if (ret != ESP_OK) {
+            first_error = ret;
+        }
+    }
+
+    s_lte_runtime.ppp_started = false;
+    s_lte_runtime.data_mode_entered = false;
+    s_lte_status.connected = false;
+    s_lte_status.ip_addr[0] = '\0';
+    return first_error;
+#else
+    s_lte_runtime.ppp_started = false;
+    s_lte_runtime.data_mode_entered = false;
+    s_lte_status.connected = false;
+    s_lte_status.ip_addr[0] = '\0';
+    return ESP_OK;
+#endif
+}
+
+static esp_err_t hub_lte_pppos_destroy_runtime(void)
+{
+    esp_err_t first_error = hub_lte_pppos_stop_ppp();
+
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
+    if (s_lte_dce != NULL) {
+        esp_modem_destroy(s_lte_dce);
+        s_lte_dce = NULL;
+    }
+    s_lte_runtime.modem_created = false;
+
+    if (s_lte_ppp_handler_registered) {
+        esp_err_t ret = esp_event_handler_unregister(NETIF_PPP_STATUS,
+                                                     ESP_EVENT_ANY_ID,
+                                                     hub_lte_pppos_ppp_event_handler);
+        if ((first_error == ESP_OK) && (ret != ESP_OK)) {
+            first_error = ret;
+        }
+        s_lte_ppp_handler_registered = false;
+    }
+    if (s_lte_ip_handler_registered) {
+        esp_err_t ret = esp_event_handler_unregister(IP_EVENT,
+                                                     ESP_EVENT_ANY_ID,
+                                                     hub_lte_pppos_ip_event_handler);
+        if ((first_error == ESP_OK) && (ret != ESP_OK)) {
+            first_error = ret;
+        }
+        s_lte_ip_handler_registered = false;
+    }
+    if (s_lte_ppp_netif != NULL) {
+        esp_netif_destroy(s_lte_ppp_netif);
+        s_lte_ppp_netif = NULL;
+    }
+#endif
+
+    s_lte_runtime.ppp_netif_created = false;
+    if (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_PPPOS) {
+        esp_err_t ret = hub_lte_pppos_release_uart_owner();
+        if ((first_error == ESP_OK) && (ret != ESP_OK)) {
+            first_error = ret;
+        }
+    }
+    return first_error;
 }
 
 esp_err_t hub_lte_pppos_validate_config(const hub_lte_pppos_config_t *config)
@@ -376,14 +604,25 @@ bool hub_lte_pppos_is_enabled(void)
     return HUB_LTE_PPPOS_ENABLE != 0;
 }
 
+bool hub_lte_pppos_real_runtime_enabled(void)
+{
+    return HUB_LTE_PPPOS_REAL_RUNTIME != 0;
+}
+
 bool hub_lte_pppos_is_running(void)
 {
-    return s_lte_status.start_requested || s_lte_status.connected;
+    hub_ppp_state_t state = hub_lte_pppos_get_state();
+    return s_lte_status.start_requested ||
+           (state == HUB_PPP_STATE_WAIT_UART) ||
+           (state == HUB_PPP_STATE_MODEM_READY) ||
+           (state == HUB_PPP_STATE_STARTING) ||
+           (state == HUB_PPP_STATE_RUNNING) ||
+           (state == HUB_PPP_STATE_STOPPING);
 }
 
 bool hub_lte_pppos_is_connected(void)
 {
-    return s_lte_status.connected;
+    return (hub_lte_pppos_get_state() == HUB_PPP_STATE_RUNNING) && s_lte_status.connected;
 }
 
 bool hub_lte_pppos_can_take_uart(void)
@@ -509,11 +748,13 @@ esp_err_t hub_lte_pppos_process(void)
         return hub_lte_pppos_set_state(HUB_PPP_STATE_STOPPING, ESP_OK);
     }
 
+    esp_err_t ret;
+
     switch (hub_lte_pppos_get_state()) {
     case HUB_PPP_STATE_IDLE:
         if (s_lte_status.start_requested) {
             hub_lte_pppos_preflight_t preflight;
-            esp_err_t ret = hub_lte_pppos_run_start_preflight(&preflight);
+            ret = hub_lte_pppos_run_start_preflight(&preflight);
             if (ret != ESP_OK) {
                 s_lte_status.start_requested = false;
                 (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
@@ -546,15 +787,57 @@ esp_err_t hub_lte_pppos_process(void)
         if (!s_lte_status.start_requested) {
             return hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
         }
-        hub_lte_pppos_set_last_result(ESP_OK, "PPPoS modem-ready placeholder; dialing not started");
-        break;
+
+        if (!hub_lte_pppos_real_runtime_allowed()) {
+            hub_lte_pppos_set_last_result(ESP_OK, "PPPoS modem-ready placeholder; real runtime disabled");
+            break;
+        }
+
+        ret = hub_lte_pppos_create_netif();
+        if (ret != ESP_OK) {
+            hub_lte_pppos_set_last_result(ret, "PPP netif create failed");
+            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
+            return ret;
+        }
+        ret = hub_lte_pppos_create_modem();
+        if (ret != ESP_OK) {
+            hub_lte_pppos_set_last_result(ret, "PPP modem create failed");
+            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
+            return ret;
+        }
+        ret = hub_lte_pppos_enter_data_mode();
+        if (ret != ESP_OK) {
+            hub_lte_pppos_set_last_result(ret, "PPP data mode failed");
+            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
+            return ret;
+        }
+        ret = hub_lte_pppos_start_ppp();
+        if (ret != ESP_OK) {
+            hub_lte_pppos_set_last_result(ret, "PPP start failed");
+            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
+            return ret;
+        }
+        return hub_lte_pppos_set_state(HUB_PPP_STATE_STARTING, ESP_OK);
 
     case HUB_PPP_STATE_STARTING:
+        hub_lte_pppos_set_last_result(ESP_OK, "Waiting for PPP/IP event");
+        break;
+
     case HUB_PPP_STATE_RUNNING:
-        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP runtime state is not implemented");
-        return hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
+        hub_lte_pppos_set_last_result(ESP_OK, "PPP running from IP event");
+        break;
 
     case HUB_PPP_STATE_STOPPING:
+        ret = hub_lte_pppos_destroy_runtime();
+        if (ret != ESP_OK) {
+            hub_lte_pppos_set_last_result(ret, "PPPoS runtime destroy failed");
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
+            return ret;
+        }
         s_lte_status.start_requested = false;
         s_lte_status.stop_requested = false;
         hub_lte_pppos_set_last_result(ESP_OK, "PPPoS lifecycle stopped");
@@ -577,11 +860,16 @@ esp_err_t hub_lte_pppos_set_connected(bool connected, const char *ip_addr)
         return ESP_ERR_INVALID_STATE;
     }
 
+    hub_ppp_state_t state = hub_lte_pppos_get_state();
+    if (hub_lte_pppos_real_runtime_allowed() &&
+        ((state == HUB_PPP_STATE_STARTING) ||
+         (state == HUB_PPP_STATE_RUNNING) ||
+         (state == HUB_PPP_STATE_STOPPING))) {
+        return ESP_OK;
+    }
+
     s_lte_status.connected = connected;
     hub_lte_pppos_copy_string(s_lte_status.ip_addr, sizeof(s_lte_status.ip_addr), connected ? ip_addr : "");
-    if (!connected && (hub_lte_pppos_get_state() == HUB_PPP_STATE_RUNNING)) {
-        (void)hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
-    }
     return ESP_OK;
 }
 

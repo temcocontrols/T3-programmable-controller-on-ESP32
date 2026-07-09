@@ -73,6 +73,9 @@ esp_err_t hub_module_get_status(hub_module_status_t *status)
         status->eth_link_up = network_status.eth_link_up;
         status->eth_has_ip = network_status.eth_has_ip;
         status->lte_connected = network_status.lte_connected;
+        status->network_policy = (int)network_status.policy;
+        status->ethernet_allowed = hub_network_manager_is_ethernet_allowed();
+        status->lte_allowed = hub_network_manager_is_lte_allowed();
         status->active_interface = (int)network_status.active_interface;
         snprintf(status->lte_ip, sizeof(status->lte_ip), "%s", network_status.lte_ip_addr);
     }
@@ -97,28 +100,32 @@ esp_err_t hub_module_dump_status(void)
     }
 
     ESP_LOGI(TAG,
-             "status: initialized=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d pppos_start_requested=%d pppos_stop_requested=%d pppos_last_error=%s pppos_last_reason=%s a7608_service_state=%s a7608_pause_requested=%d a7608_paused=%d pppos_runtime_ppp_netif_created=%d pppos_runtime_modem_created=%d pppos_runtime_data_mode_entered=%d pppos_runtime_ppp_started=%d",
+             "status: initialized=%d network_policy=%s ethernet_allowed=%d lte_allowed=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_real_runtime_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d pppos_start_requested=%d pppos_stop_requested=%d pppos_netif_created=%d pppos_modem_created=%d pppos_data_mode_entered=%d pppos_ppp_started=%d pppos_last_error=%s pppos_last_reason=%s a7608_service_state=%s a7608_pause_requested=%d a7608_paused=%d",
              status.initialized,
+             hub_network_manager_policy_name((hub_network_policy_t)status.network_policy),
+             status.ethernet_allowed,
+             status.lte_allowed,
              status.eth_link_up,
              status.eth_has_ip,
              status.lte_connected,
              status.lte_ip[0] != '\0' ? status.lte_ip : "-",
              hub_network_manager_interface_name((hub_network_interface_t)status.active_interface),
              status.pppos_enabled,
+             hub_lte_pppos_real_runtime_enabled(),
              status.pppos_running,
              hub_lte_pppos_state_name((hub_ppp_state_t)status.pppos_state),
              status.uart_owner,
              hub_lte_pppos_start_requested(),
              hub_lte_pppos_stop_requested(),
+             pppos_runtime.ppp_netif_created,
+             pppos_runtime.modem_created,
+             pppos_runtime.data_mode_entered,
+             pppos_runtime.ppp_started,
              esp_err_to_name(hub_lte_pppos_get_last_error()),
              hub_lte_pppos_get_last_reason(),
              a7608_service_state_name(a7608_get_service_state()),
              a7608_is_pause_requested(),
-             a7608_is_paused(),
-             pppos_runtime.ppp_netif_created,
-             pppos_runtime.modem_created,
-             pppos_runtime.data_mode_entered,
-             pppos_runtime.ppp_started);
+             a7608_is_paused());
 
     hub_lte_pppos_preflight_t preflight;
     ret = hub_lte_pppos_preflight_check(&preflight);

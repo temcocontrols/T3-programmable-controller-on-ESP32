@@ -20,6 +20,10 @@ extern "C" {
 #define HUB_LTE_PPPOS_TEST_MODE 0
 #endif
 
+#ifndef HUB_LTE_PPPOS_REAL_RUNTIME
+#define HUB_LTE_PPPOS_REAL_RUNTIME 0
+#endif
+
 #define HUB_LTE_PPPOS_APN_LEN          64
 #define HUB_LTE_PPPOS_IP_ADDR_LEN      40
 #define HUB_LTE_PPPOS_PREFLIGHT_APN_LEN 32
@@ -117,6 +121,7 @@ bool hub_lte_pppos_stop_requested(void);
 esp_err_t hub_lte_pppos_start(void);
 esp_err_t hub_lte_pppos_stop(void);
 bool hub_lte_pppos_is_enabled(void);
+bool hub_lte_pppos_real_runtime_enabled(void);
 bool hub_lte_pppos_is_running(void);
 bool hub_lte_pppos_is_connected(void);
 bool hub_lte_pppos_can_take_uart(void);

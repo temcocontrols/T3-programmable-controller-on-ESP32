@@ -20,6 +20,9 @@ typedef struct {
     bool lte_connected;
     char lte_ip[HUB_MODULE_IP_ADDR_LEN];
 
+    int network_policy;
+    bool ethernet_allowed;
+    bool lte_allowed;
     int active_interface;
 
     bool pppos_enabled;
