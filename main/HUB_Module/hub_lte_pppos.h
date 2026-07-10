@@ -13,15 +13,19 @@ extern "C" {
 #endif
 
 #ifndef HUB_LTE_PPPOS_ENABLE
-#define HUB_LTE_PPPOS_ENABLE 0
+#define HUB_LTE_PPPOS_ENABLE 1
 #endif
 
 #ifndef HUB_LTE_PPPOS_TEST_MODE
-#define HUB_LTE_PPPOS_TEST_MODE 0
+#define HUB_LTE_PPPOS_TEST_MODE 1
 #endif
 
 #ifndef HUB_LTE_PPPOS_REAL_RUNTIME
-#define HUB_LTE_PPPOS_REAL_RUNTIME 0
+#define HUB_LTE_PPPOS_REAL_RUNTIME 1
+#endif
+
+#ifndef HUB_LTE_PPPOS_MANUAL_TEST
+#define HUB_LTE_PPPOS_MANUAL_TEST 1
 #endif
 
 #define HUB_LTE_PPPOS_APN_LEN          64

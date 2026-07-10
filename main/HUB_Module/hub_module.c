@@ -41,6 +41,32 @@ esp_err_t hub_module_process(void)
     return hub_lte_pppos_process();
 }
 
+esp_err_t hub_module_start_pppos_test(void)
+{
+    if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
+        ESP_LOGW(TAG, "PPPoS manual test entry blocked: HUB_LTE_PPPOS_MANUAL_TEST=0");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t ret = hub_network_manager_set_policy(HUB_NET_POLICY_FORCE_LTE);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "PPPoS test start requested");
+    return hub_lte_pppos_request_start();
+}
+
+esp_err_t hub_module_stop_pppos_test(void)
+{
+    if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
+        ESP_LOGW(TAG, "PPPoS manual test stop blocked: HUB_LTE_PPPOS_MANUAL_TEST=0");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    return hub_lte_pppos_request_stop();
+}
+
 const char *hub_module_active_interface_name(void)
 {
     return hub_network_manager_interface_name((hub_network_interface_t)hub_network_manager_get_active_interface());
@@ -100,7 +126,7 @@ esp_err_t hub_module_dump_status(void)
     }
 
     ESP_LOGI(TAG,
-             "status: initialized=%d network_policy=%s ethernet_allowed=%d lte_allowed=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_real_runtime_enabled=%d pppos_running=%d pppos_state=%s uart_owner=%d pppos_start_requested=%d pppos_stop_requested=%d pppos_netif_created=%d pppos_modem_created=%d pppos_data_mode_entered=%d pppos_ppp_started=%d pppos_last_error=%s pppos_last_reason=%s a7608_service_state=%s a7608_pause_requested=%d a7608_paused=%d",
+             "status: initialized=%d network_policy=%s ethernet_allowed=%d lte_allowed=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_real_runtime_enabled=%d pppos_running=%d a7608_service_state=%s a7608_paused=%d uart_owner=%d pppos_state=%s pppos_start_requested=%d pppos_stop_requested=%d pppos_runtime_ppp_netif_created=%d pppos_runtime_modem_created=%d pppos_runtime_data_mode_entered=%d pppos_runtime_ppp_started=%d pppos_last_error=%s pppos_last_reason=%s a7608_pause_requested=%d",
              status.initialized,
              hub_network_manager_policy_name((hub_network_policy_t)status.network_policy),
              status.ethernet_allowed,
@@ -113,8 +139,10 @@ esp_err_t hub_module_dump_status(void)
              status.pppos_enabled,
              hub_lte_pppos_real_runtime_enabled(),
              status.pppos_running,
-             hub_lte_pppos_state_name((hub_ppp_state_t)status.pppos_state),
+             a7608_service_state_name(a7608_get_service_state()),
+             a7608_is_paused(),
              status.uart_owner,
+             hub_lte_pppos_state_name((hub_ppp_state_t)status.pppos_state),
              hub_lte_pppos_start_requested(),
              hub_lte_pppos_stop_requested(),
              pppos_runtime.ppp_netif_created,
@@ -123,9 +151,7 @@ esp_err_t hub_module_dump_status(void)
              pppos_runtime.ppp_started,
              esp_err_to_name(hub_lte_pppos_get_last_error()),
              hub_lte_pppos_get_last_reason(),
-             a7608_service_state_name(a7608_get_service_state()),
-             a7608_is_pause_requested(),
-             a7608_is_paused());
+             a7608_is_pause_requested());
 
     hub_lte_pppos_preflight_t preflight;
     ret = hub_lte_pppos_preflight_check(&preflight);

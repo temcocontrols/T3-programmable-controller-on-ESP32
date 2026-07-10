@@ -67,6 +67,7 @@
 #include "lora.h"
 #include "a7608.h"
 #include "hub_module.h"
+#include "hub_lte_pppos.h"
 
 //#include "lowPower.h"
 
@@ -1292,6 +1293,12 @@ static void tcp_server_task(void *pvParameters)
 #endif
 	while(1)
 	{
+#if HUB_LTE_PPPOS_MANUAL_TEST
+		if(Modbus.mini_type == PROJECT_HUB)
+		{
+			(void)hub_module_process();
+		}
+#endif
 			taskCount++;
 			debug_info("tcp_server_task is running\r");
 		    int addr_family;

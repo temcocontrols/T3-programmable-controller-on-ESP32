@@ -12,7 +12,6 @@
 #include "user_data.h"
 #include "bacnet.h"
 
-#include "unity.h"
 #include "esp_partition.h"
 #include "esp_system.h"
 #include <string.h>

@@ -18,6 +18,7 @@
 static a7608_config_t a7608_cfg;
 static a7608_status_t a7608_status;
 static bool a7608_initialized;
+static bool a7608_uart_driver_owned;
 static a7608_service_state_t a7608_service_state = A7608_SERVICE_RUNNING;
 
 extern int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms);
@@ -27,6 +28,9 @@ static bool pin_is_valid(gpio_num_t pin);
 static int inactive_level(int active_level);
 static bool a7608_ip_is_valid(const char *ip_addr);
 static void a7608_sync_network_status(void);
+static esp_err_t a7608_reinstall_uart_driver(void);
+static esp_err_t a7608_pause_service(void);
+static esp_err_t a7608_resume_service(void);
 static void parse_gnss_info(const char *response);
 static void parse_gps_info(const char *response);
 static void parse_cgnsinf(const char *response);
@@ -492,6 +496,105 @@ static void a7608_sync_network_status(void)
     hub_network_manager_set_lte_status(connected, ip_addr);
 }
 
+static esp_err_t a7608_reinstall_uart_driver(void)
+{
+    if (uart_is_driver_installed(a7608_cfg.uart_num)) {
+        a7608_uart_driver_owned = true;
+        return ESP_OK;
+    }
+
+    uart_config_t uart_config = {
+        .baud_rate = a7608_cfg.baud_rate,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT,
+    };
+
+    esp_err_t ret = uart_param_config(a7608_cfg.uart_num, &uart_config);
+    if (ret != ESP_OK) {
+        set_last_error("uart_param_config resume failed");
+        return ret;
+    }
+
+    ret = uart_set_pin(a7608_cfg.uart_num,
+                       a7608_cfg.modem_tx_pin,
+                       a7608_cfg.modem_rx_pin,
+                       UART_PIN_NO_CHANGE,
+                       UART_PIN_NO_CHANGE);
+    if (ret != ESP_OK) {
+        set_last_error("uart_set_pin resume failed");
+        return ret;
+    }
+
+    ret = uart_driver_install(a7608_cfg.uart_num, a7608_cfg.rx_buffer_size, 0, 0, NULL, 0);
+    if (ret != ESP_OK) {
+        set_last_error("uart_driver_install resume failed");
+        return ret;
+    }
+
+    ret = uart_set_mode(a7608_cfg.uart_num, UART_MODE_UART);
+    if (ret != ESP_OK) {
+        (void)uart_driver_delete(a7608_cfg.uart_num);
+        set_last_error("uart_set_mode resume failed");
+        return ret;
+    }
+
+    a7608_uart_driver_owned = true;
+    return ESP_OK;
+}
+
+static esp_err_t a7608_pause_service(void)
+{
+    if (a7608_service_state == A7608_SERVICE_PAUSED) {
+        return ESP_OK;
+    }
+    if (a7608_service_state != A7608_SERVICE_PAUSE_REQUESTED) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (a7608_initialized && uart_is_driver_installed(a7608_cfg.uart_num)) {
+        (void)uart_wait_tx_done(a7608_cfg.uart_num, pdMS_TO_TICKS(200));
+        (void)uart_flush_input(a7608_cfg.uart_num);
+        if (a7608_uart_driver_owned) {
+            esp_err_t ret = uart_driver_delete(a7608_cfg.uart_num);
+            if (ret != ESP_OK) {
+                a7608_service_state = A7608_SERVICE_ERROR;
+                set_last_error("UART driver release for PPPoS failed");
+                ESP_LOGE("A7608", "PPPoS pause failed: uart_driver_delete UART%d %s", a7608_cfg.uart_num, esp_err_to_name(ret));
+                return ret;
+            }
+            a7608_uart_driver_owned = false;
+        }
+    }
+
+    a7608_service_state = A7608_SERVICE_PAUSED;
+    ESP_LOGI("A7608", "A7608 service paused");
+    return ESP_OK;
+}
+
+static esp_err_t a7608_resume_service(void)
+{
+    if (a7608_service_state != A7608_SERVICE_RESUME_REQUESTED) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    esp_err_t ret = ESP_OK;
+    if (a7608_initialized) {
+        ret = a7608_reinstall_uart_driver();
+    }
+    if (ret != ESP_OK) {
+        a7608_service_state = A7608_SERVICE_ERROR;
+        ESP_LOGE("A7608", "A7608 AT service resume failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    a7608_service_state = A7608_SERVICE_RUNNING;
+    ESP_LOGW("A7608", "A7608 AT service resumed; parsed status will refresh on next debug/status cycle");
+    return ESP_OK;
+}
+
 static void copy_csv_field(const char **cursor, char *out, size_t out_len)
 {
     if ((cursor == NULL) || (*cursor == NULL) || (out == NULL) || (out_len == 0)) {
@@ -728,6 +831,7 @@ esp_err_t a7608_init(const a7608_config_t *config)
     memset(&a7608_status, 0, sizeof(a7608_status));
     a7608_status.state = A7608_STATE_OFF;
     a7608_status.csq = 99;
+    a7608_service_state = A7608_SERVICE_RUNNING;
 
     if (uart_is_driver_installed(a7608_cfg.uart_num)) {
         if (!a7608_cfg.reset_uart_driver) {
@@ -767,6 +871,7 @@ esp_err_t a7608_init(const a7608_config_t *config)
         set_last_error("uart_driver_install failed");
         return ret;
     }
+    a7608_uart_driver_owned = true;
 
     ret = uart_set_mode(a7608_cfg.uart_num, UART_MODE_UART);
     if (ret != ESP_OK) {
@@ -807,6 +912,7 @@ esp_err_t a7608_deinit(void)
     if (a7608_initialized && uart_is_driver_installed(a7608_cfg.uart_num)) {
         (void)uart_driver_delete(a7608_cfg.uart_num);
     }
+    a7608_uart_driver_owned = false;
     a7608_initialized = false;
     a7608_status.state = A7608_STATE_OFF;
     return ESP_OK;
@@ -857,6 +963,9 @@ esp_err_t a7608_send_command(const char *cmd,
 {
     if (!a7608_initialized || cmd == NULL) {
         return ESP_ERR_INVALID_ARG;
+    }
+    if (a7608_service_state != A7608_SERVICE_RUNNING) {
+        return ESP_ERR_INVALID_STATE;
     }
 
     char local_response[512];
@@ -1048,12 +1157,22 @@ const a7608_status_t *a7608_get_status(void)
 
 esp_err_t a7608_request_pause(void)
 {
+    if (a7608_service_state == A7608_SERVICE_PAUSED) {
+        return ESP_OK;
+    }
+    if (a7608_service_state == A7608_SERVICE_RESUME_REQUESTED) {
+        return ESP_ERR_INVALID_STATE;
+    }
     a7608_service_state = A7608_SERVICE_PAUSE_REQUESTED;
+    ESP_LOGI("A7608", "A7608 pause requested");
     return ESP_OK;
 }
 
 esp_err_t a7608_request_resume(void)
 {
+    if (a7608_service_state == A7608_SERVICE_RUNNING) {
+        return ESP_OK;
+    }
     a7608_service_state = A7608_SERVICE_RESUME_REQUESTED;
     return ESP_OK;
 }
@@ -1335,6 +1454,17 @@ void a7608_at_debug_task(void *pvParameters)
     bool last_usb_was_cr = false;
     TickType_t modem_read_until = 0;
     while (1) {
+        if (a7608_service_state == A7608_SERVICE_PAUSE_REQUESTED) {
+            (void)a7608_pause_service();
+        }
+        if (a7608_service_state == A7608_SERVICE_RESUME_REQUESTED) {
+            (void)a7608_resume_service();
+        }
+        if (a7608_service_state == A7608_SERVICE_PAUSED) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
+
         int usb_len = hub_usb_serial_read(usb_buf, sizeof(usb_buf), 10);
         if (usb_len > 0) {
             size_t tx_len = 0;

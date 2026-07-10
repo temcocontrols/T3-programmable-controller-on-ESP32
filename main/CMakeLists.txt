@@ -74,6 +74,35 @@ idf_component_register(			SRCS
 							"HUB_Module"
 							"LCD_Driver"
 							"TemcoScreen"
+			REQUIRES app_update
+					 driver
+					 esp_adc
+					 esp_app_format
+					 esp_driver_gpio
+					 esp_driver_i2c
+					 esp_driver_ledc
+					 esp_driver_pcnt
+					 esp_driver_rmt
+					 esp_driver_spi
+					 esp_driver_uart
+					 esp_driver_usb_serial_jtag
+					 esp_eth
+					 esp_event
+					 esp_http_client
+					 esp_https_ota
+					 esp_netif
+					 esp_partition
+					 esp_rom
+					 esp_timer
+					 esp_wifi
+					 heap
+					 lwip
+					 mbedtls
+					 nvs_flash
+					 spi_flash
+					 temco_IO_control
+					 temco_bacnet
+			PRIV_REQUIRES espressif__esp_modem
 							)
 
 # Auto-include all .c files from TemcoScreen subdirectory

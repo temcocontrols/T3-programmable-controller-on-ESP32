@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "hub_network_manager.h"
 
 #if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 #include "esp_event.h"
@@ -59,7 +60,8 @@ static bool hub_lte_pppos_real_runtime_allowed(void)
 {
     return (HUB_LTE_PPPOS_ENABLE != 0) &&
            (HUB_LTE_PPPOS_TEST_MODE != 0) &&
-           (HUB_LTE_PPPOS_REAL_RUNTIME != 0);
+           (HUB_LTE_PPPOS_REAL_RUNTIME != 0) &&
+           (HUB_LTE_PPPOS_MANUAL_TEST != 0);
 }
 
 #if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
@@ -195,13 +197,16 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
                  IPSTR,
                  IP2STR(&event->ip_info.ip));
         s_lte_status.connected = true;
+        hub_network_manager_set_lte_status(true, s_lte_status.ip_addr);
         hub_lte_pppos_set_last_result(ESP_OK, "PPP got IP event");
         (void)hub_lte_pppos_set_state(HUB_PPP_STATE_RUNNING, ESP_OK);
         ESP_LOGI(TAG, "PPP got IP: %s", s_lte_status.ip_addr);
     } else if (event_id == IP_EVENT_PPP_LOST_IP) {
         s_lte_status.connected = false;
         s_lte_status.ip_addr[0] = '\0';
+        hub_network_manager_set_lte_status(false, NULL);
         hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP lost IP event");
+        ESP_LOGW(TAG, "PPP lost IP");
         if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
@@ -223,12 +228,16 @@ static esp_err_t hub_lte_pppos_create_netif(void)
         return ESP_ERR_NO_MEM;
     }
     s_lte_runtime.ppp_netif_created = true;
+    ESP_LOGI(TAG, "PPP netif created");
 
     esp_err_t ret = esp_event_handler_register(IP_EVENT,
                                                ESP_EVENT_ANY_ID,
                                                hub_lte_pppos_ip_event_handler,
                                                NULL);
     if (ret != ESP_OK) {
+        esp_netif_destroy(s_lte_ppp_netif);
+        s_lte_ppp_netif = NULL;
+        s_lte_runtime.ppp_netif_created = false;
         return ret;
     }
     s_lte_ip_handler_registered = true;
@@ -238,6 +247,13 @@ static esp_err_t hub_lte_pppos_create_netif(void)
                                      hub_lte_pppos_ppp_event_handler,
                                      NULL);
     if (ret != ESP_OK) {
+        (void)esp_event_handler_unregister(IP_EVENT,
+                                           ESP_EVENT_ANY_ID,
+                                           hub_lte_pppos_ip_event_handler);
+        s_lte_ip_handler_registered = false;
+        esp_netif_destroy(s_lte_ppp_netif);
+        s_lte_ppp_netif = NULL;
+        s_lte_runtime.ppp_netif_created = false;
         return ret;
     }
     s_lte_ppp_handler_registered = true;
@@ -258,9 +274,11 @@ static esp_err_t hub_lte_pppos_create_modem(void)
         return ESP_ERR_INVALID_STATE;
     }
 
-    esp_err_t ret = hub_lte_pppos_request_uart_owner();
-    if ((ret != ESP_OK) && (s_lte_status.uart_owner != HUB_LTE_PPPOS_UART_OWNER_PPPOS)) {
-        return ret;
+    if (s_lte_status.uart_owner != HUB_LTE_PPPOS_UART_OWNER_PPPOS) {
+        esp_err_t ret = hub_lte_pppos_request_uart_owner();
+        if (ret != ESP_OK) {
+            return ret;
+        }
     }
 
     s_lte_dte_config = (esp_modem_dte_config_t)ESP_MODEM_DTE_DEFAULT_CONFIG();
@@ -270,6 +288,10 @@ static esp_err_t hub_lte_pppos_create_modem(void)
     s_lte_dte_config.uart_config.rx_io_num = s_lte_config.rx_io_num;
     s_lte_dte_config.uart_config.rts_io_num = s_lte_config.rts_io_num;
     s_lte_dte_config.uart_config.cts_io_num = s_lte_config.cts_io_num;
+    s_lte_dte_config.uart_config.flow_control = ((s_lte_config.rts_io_num != GPIO_NUM_NC) &&
+                                                 (s_lte_config.cts_io_num != GPIO_NUM_NC))
+                                                    ? ESP_MODEM_FLOW_CONTROL_HW
+                                                    : ESP_MODEM_FLOW_CONTROL_NONE;
     s_lte_dte_config.uart_config.rx_buffer_size = s_lte_config.rx_buffer_size;
     s_lte_dte_config.uart_config.tx_buffer_size = s_lte_config.tx_buffer_size;
     if (s_lte_config.rx_buffer_size > 0) {
@@ -281,6 +303,15 @@ static esp_err_t hub_lte_pppos_create_modem(void)
     if (s_lte_dce == NULL) {
         return ESP_FAIL;
     }
+    ESP_LOGI(TAG, "esp_modem created");
+
+    esp_err_t ret = esp_modem_set_apn(s_lte_dce, s_lte_config.apn);
+    if (ret != ESP_OK) {
+        esp_modem_destroy(s_lte_dce);
+        s_lte_dce = NULL;
+        return ret;
+    }
+    ESP_LOGI(TAG, "APN set: %s", s_lte_config.apn);
 
     s_lte_runtime.modem_created = true;
     return ESP_OK;
@@ -299,6 +330,7 @@ static esp_err_t hub_lte_pppos_enter_data_mode(void)
         return ESP_ERR_INVALID_STATE;
     }
 
+    ESP_LOGI(TAG, "enter data mode");
     esp_err_t ret = esp_modem_set_mode(s_lte_dce, ESP_MODEM_MODE_DATA);
     if (ret != ESP_OK) {
         return ret;
@@ -342,6 +374,7 @@ static esp_err_t hub_lte_pppos_stop_ppp(void)
     s_lte_runtime.data_mode_entered = false;
     s_lte_status.connected = false;
     s_lte_status.ip_addr[0] = '\0';
+    hub_network_manager_set_lte_status(false, NULL);
     return first_error;
 #else
     s_lte_runtime.ppp_started = false;
@@ -540,6 +573,12 @@ esp_err_t hub_lte_pppos_request_start(void)
         ESP_LOGW(TAG, "PPP start request blocked: %s", hub_lte_pppos_get_last_reason());
         return ESP_ERR_INVALID_STATE;
     }
+    if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
+        s_lte_status.start_requested = false;
+        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS manual test disabled");
+        ESP_LOGW(TAG, "PPP start request blocked: %s", hub_lte_pppos_get_last_reason());
+        return ESP_ERR_INVALID_STATE;
+    }
 
     hub_ppp_state_t state = hub_lte_pppos_get_state();
     if ((state != HUB_PPP_STATE_IDLE) &&
@@ -559,7 +598,7 @@ esp_err_t hub_lte_pppos_request_start(void)
     }
 
     s_lte_status.start_requested = true;
-    ESP_LOGI(TAG, "PPP start requested: %s", preflight.reason);
+    ESP_LOGI(TAG, "PPPoS test start requested: %s", preflight.reason);
     return ESP_OK;
 }
 
@@ -606,7 +645,7 @@ bool hub_lte_pppos_is_enabled(void)
 
 bool hub_lte_pppos_real_runtime_enabled(void)
 {
-    return HUB_LTE_PPPOS_REAL_RUNTIME != 0;
+    return hub_lte_pppos_real_runtime_allowed();
 }
 
 bool hub_lte_pppos_is_running(void)
@@ -629,6 +668,7 @@ bool hub_lte_pppos_can_take_uart(void)
 {
     return s_lte_status.initialized &&
            (HUB_LTE_PPPOS_TEST_MODE != 0) &&
+            (HUB_LTE_PPPOS_MANUAL_TEST != 0) &&
            a7608_is_paused() &&
            (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
 }
@@ -638,8 +678,13 @@ esp_err_t hub_lte_pppos_request_uart_owner(void)
     if (!s_lte_status.initialized) {
         return ESP_ERR_INVALID_STATE;
     }
-    if (HUB_LTE_PPPOS_TEST_MODE == 0) {
-        ESP_LOGW(TAG, "PPP UART request blocked: test mode is disabled");
+    if ((HUB_LTE_PPPOS_TEST_MODE == 0) || (HUB_LTE_PPPOS_MANUAL_TEST == 0)) {
+        ESP_LOGW(TAG, "PPP UART request blocked: manual test mode is disabled");
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (!a7608_is_paused()) {
+        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "A7608 AT service is not paused");
+        ESP_LOGW(TAG, "PPP UART request blocked: A7608 service is not paused");
         return ESP_ERR_INVALID_STATE;
     }
     if (s_lte_status.uart_owner != HUB_LTE_PPPOS_UART_OWNER_AT_STATUS) {
@@ -651,7 +696,7 @@ esp_err_t hub_lte_pppos_request_uart_owner(void)
     }
 
     s_lte_status.uart_owner = HUB_LTE_PPPOS_UART_OWNER_PPPOS;
-    ESP_LOGW(TAG, "PPP test-mode UART owner: AT debug/status -> PPPoS placeholder");
+    ESP_LOGI(TAG, "PPPoS UART owner acquired");
     return ESP_OK;
 }
 
@@ -669,7 +714,7 @@ esp_err_t hub_lte_pppos_release_uart_owner(void)
     }
 
     s_lte_status.uart_owner = HUB_LTE_PPPOS_UART_OWNER_AT_STATUS;
-    ESP_LOGW(TAG, "PPP test-mode UART owner: PPPoS placeholder -> AT debug/status");
+    ESP_LOGI(TAG, "PPPoS UART owner released");
     return ESP_OK;
 }
 
@@ -721,6 +766,9 @@ esp_err_t hub_lte_pppos_set_state(hub_ppp_state_t new_state, esp_err_t reason)
              "PPPoS state: %s -> %s",
              hub_lte_pppos_state_name(s_lte_lifecycle.previous_state),
              hub_lte_pppos_state_name(s_lte_lifecycle.current_state));
+    if (new_state == HUB_PPP_STATE_ERROR) {
+        ESP_LOGE(TAG, "PPPoS error: %s", hub_lte_pppos_get_last_reason());
+    }
 
     return ESP_OK;
 }
@@ -760,6 +808,12 @@ esp_err_t hub_lte_pppos_process(void)
                 (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
                 return ret;
             }
+            ret = a7608_request_pause();
+            if (ret != ESP_OK) {
+                hub_lte_pppos_set_last_result(ret, "A7608 pause request failed");
+                (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
+                return ret;
+            }
             return hub_lte_pppos_set_state(HUB_PPP_STATE_WAIT_UART, ESP_OK);
         }
         break;
@@ -768,8 +822,8 @@ esp_err_t hub_lte_pppos_process(void)
         if (!s_lte_status.start_requested) {
             return hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
         }
-        if (HUB_LTE_PPPOS_TEST_MODE == 0) {
-            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS test mode disabled");
+        if ((HUB_LTE_PPPOS_TEST_MODE == 0) || (HUB_LTE_PPPOS_MANUAL_TEST == 0)) {
+            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS manual test mode disabled");
             return hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
         if (!a7608_is_paused()) {
@@ -777,7 +831,14 @@ esp_err_t hub_lte_pppos_process(void)
             break;
         }
         if (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS) {
-            hub_lte_pppos_set_last_result(ESP_OK, "A7608 service paused; PPPoS placeholder ready");
+            ret = hub_lte_pppos_request_uart_owner();
+            if (ret != ESP_OK) {
+                return ret;
+            }
+            hub_lte_pppos_set_last_result(ESP_OK, "A7608 service paused; PPPoS UART ready");
+            return hub_lte_pppos_set_state(HUB_PPP_STATE_MODEM_READY, ESP_OK);
+        }
+        if (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_PPPOS) {
             return hub_lte_pppos_set_state(HUB_PPP_STATE_MODEM_READY, ESP_OK);
         }
         hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "UART not available for PPPoS");
@@ -789,8 +850,8 @@ esp_err_t hub_lte_pppos_process(void)
         }
 
         if (!hub_lte_pppos_real_runtime_allowed()) {
-            hub_lte_pppos_set_last_result(ESP_OK, "PPPoS modem-ready placeholder; real runtime disabled");
-            break;
+            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS real runtime manual test disabled");
+            return hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
 
         ret = hub_lte_pppos_create_netif();
@@ -838,9 +899,16 @@ esp_err_t hub_lte_pppos_process(void)
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
             return ret;
         }
+        ret = a7608_request_resume();
+        if (ret != ESP_OK) {
+            hub_lte_pppos_set_last_result(ret, "A7608 resume request failed");
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
+            return ret;
+        }
         s_lte_status.start_requested = false;
         s_lte_status.stop_requested = false;
         hub_lte_pppos_set_last_result(ESP_OK, "PPPoS lifecycle stopped");
+        ESP_LOGI(TAG, "PPPoS stopped");
         return hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
 
     case HUB_PPP_STATE_ERROR:
@@ -925,6 +993,7 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     preflight->uart_owner = (int)s_lte_status.uart_owner;
     preflight->uart_available = s_lte_status.initialized &&
                                 preflight->test_mode_enabled &&
+                                (HUB_LTE_PPPOS_MANUAL_TEST != 0) &&
                                 a7608_is_paused() &&
                                 (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
 
@@ -944,6 +1013,10 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS disabled by build config");
     } else if (!preflight->test_mode_enabled) {
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS test mode disabled");
+    } else if (HUB_LTE_PPPOS_REAL_RUNTIME == 0) {
+        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS real runtime disabled");
+    } else if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
+        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS manual test disabled");
     } else if (config_ret != ESP_OK) {
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS config unavailable");
     } else if (!preflight->has_apn) {
@@ -954,10 +1027,6 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS framework not initialized");
     } else if (!service_can_pause) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 AT service cannot pause");
-    } else if (!a7608_is_paused()) {
-        hub_lte_pppos_set_preflight_reason(preflight, "A7608 AT service still running");
-    } else if (!preflight->uart_available) {
-        hub_lte_pppos_set_preflight_reason(preflight, "UART not available for PPPoS");
     } else if (!preflight->modem_status_known) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status unavailable");
     } else if (!preflight->sim_ready) {
@@ -966,6 +1035,11 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         hub_lte_pppos_set_preflight_reason(preflight, "Modem not registered to network");
     } else if (!preflight->has_signal) {
         hub_lte_pppos_set_preflight_reason(preflight, "No LTE signal");
+    } else if (!a7608_is_paused()) {
+        preflight->ready_to_start = true;
+        hub_lte_pppos_set_preflight_reason(preflight, "Ready to request A7608 pause");
+    } else if (!preflight->uart_available) {
+        hub_lte_pppos_set_preflight_reason(preflight, "UART not available for PPPoS");
     } else {
         preflight->ready_to_start = true;
         hub_lte_pppos_set_preflight_reason(preflight, "Ready to start PPPoS");
