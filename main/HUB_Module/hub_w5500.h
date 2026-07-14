@@ -49,7 +49,7 @@ extern "C" {
 // Read-only raw SPI test mode: install does not start esp_eth driver,
 // it only logs MR/VERSIONR/PHYCFGR by direct SPI reads.
 #ifndef HUB_W5500_RAW_SPI_READONLY_TEST
-#define HUB_W5500_RAW_SPI_READONLY_TEST 1
+#define HUB_W5500_RAW_SPI_READONLY_TEST 0
 #endif
 
 // Optional raw SPI-only PHY reset test. When enabled, the raw test asserts

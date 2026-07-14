@@ -10,6 +10,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "sdkconfig.h"
+#include "hub_lte_pppos.h"
 // explicit driver includes used by debug SPI helper
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
@@ -474,7 +475,12 @@ esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
 #endif
 
 #if HUB_W5500_SPI_ONLY_TEST || HUB_W5500_RAW_SPI_READONLY_TEST
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
+    ESP_LOGW(TAG, "PPPoS manual test enabled: skip W5500 raw SPI-only loop inside hub_w5500_install");
+    return ESP_ERR_NOT_SUPPORTED;
+#else
     return hub_w5500_spi_only_test();
+#endif
 #endif
 
     esp_err_t ret = hub_w5500_reset();

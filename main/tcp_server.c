@@ -1293,12 +1293,6 @@ static void tcp_server_task(void *pvParameters)
 #endif
 	while(1)
 	{
-#if HUB_LTE_PPPOS_MANUAL_TEST
-		if(Modbus.mini_type == PROJECT_HUB)
-		{
-			(void)hub_module_process();
-		}
-#endif
 			taskCount++;
 			debug_info("tcp_server_task is running\r");
 		    int addr_family;
@@ -4621,6 +4615,54 @@ int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms)
 
 void phy_reset(void);
 
+#if HUB_LTE_PPPOS_MANUAL_TEST
+static void hub_pppos_manual_process_task(void *pvParameters)
+{
+	(void)pvParameters;
+	uint32_t process_count = 0;
+	bool start_called = false;
+
+	ESP_LOGI(TCP_TASK_TAG, "PPPoS manual process task started: period_ms=1000; start will be called once when preflight is ready");
+	while (1) {
+		if (Modbus.mini_type == PROJECT_HUB) {
+			if (!start_called) {
+				hub_lte_pppos_preflight_t preflight;
+				esp_err_t preflight_ret = hub_lte_pppos_preflight_check(&preflight);
+				if ((preflight_ret == ESP_OK) && preflight.ready_to_start) {
+					ESP_LOGI(TCP_TASK_TAG,
+							 "PPPoS preflight ready: calling hub_module_start_pppos_test once (%s)",
+							 preflight.reason);
+					esp_err_t start_ret = hub_module_start_pppos_test();
+					start_called = true;
+					if (start_ret != ESP_OK) {
+						ESP_LOGW(TCP_TASK_TAG, "hub_module_start_pppos_test failed: %s", esp_err_to_name(start_ret));
+					}
+				} else if ((process_count == 0U) || ((process_count % 10U) == 0U)) {
+					ESP_LOGI(TCP_TASK_TAG,
+							 "PPPoS manual start waiting: preflight_ret=%s ready=%d reason=%s",
+							 esp_err_to_name(preflight_ret),
+							 preflight.ready_to_start,
+							 preflight.reason);
+				}
+			}
+
+			esp_err_t ret = hub_module_process();
+			process_count++;
+			if ((ret != ESP_OK) || (process_count == 1U) || ((process_count % 10U) == 0U)) {
+				ESP_LOG_LEVEL((ret == ESP_OK) ? ESP_LOG_INFO : ESP_LOG_WARN,
+							  TCP_TASK_TAG,
+							  "hub_module_process manual tick count=%lu ret=%s ppp_state=%s active=%s",
+							  (unsigned long)process_count,
+							  esp_err_to_name(ret),
+							  hub_lte_pppos_state_name(hub_lte_pppos_get_state()),
+							  hub_module_active_interface_name());
+			}
+		}
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
+}
+#endif
+
 #if CONFIG_IDF_TARGET_ESP32S3
 static void hub_uart0_console_driver_init(void)
 {
@@ -4853,7 +4895,21 @@ void app_main()
 #if PROJECT_HUB_AT_DEBUG
 	if(Modbus.mini_type == PROJECT_HUB)
 	{
-		xTaskCreate(a7608_at_debug_task,"a7608_at_debug",8192, NULL, 10, &main_task_handle[9]);
+		BaseType_t a7608_task_ret = xTaskCreate(a7608_at_debug_task,"a7608_at_debug",8192, NULL, 10, &main_task_handle[9]);
+		if (a7608_task_ret != pdPASS) {
+			ESP_LOGW(TCP_TASK_TAG, "a7608_at_debug_task create failed");
+		}
+#if HUB_LTE_PPPOS_MANUAL_TEST
+		BaseType_t pppos_task_ret = xTaskCreate(hub_pppos_manual_process_task,
+											   "hub_pppos_proc",
+											   4096,
+											   NULL,
+											   6,
+											   NULL);
+		if (pppos_task_ret != pdPASS) {
+			ESP_LOGW(TCP_TASK_TAG, "hub_pppos_manual_process_task create failed");
+		}
+#endif
 	}
 	else
 #endif

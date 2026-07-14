@@ -8,6 +8,7 @@
 #include "driver/gpio.h"
 #include "sdkconfig.h"
 #include "ethernet_task.h"
+#include "hub_lte_pppos.h"
 #include "hub_network_manager.h"
 #include "hub_w5500.h"
 #include "define.h"
@@ -538,12 +539,46 @@ esp_err_t ethernet_init(void)
 
     ESP_LOGI(TAG, "ethernet_init begin: mini_type=%u tcp_type=%u", Modbus.mini_type, Modbus.tcp_type);
 
+#if CONFIG_IDF_TARGET_ESP32S3
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
+    if (Modbus.mini_type == PROJECT_HUB)
+    {
+        ESP_LOGW(TAG, "PPPoS manual test enabled: skip Ethernet/W5500 init; only initialize common netif/event loop");
+        ret = esp_netif_init();
+        if (ret == ESP_ERR_INVALID_STATE) {
+            ESP_LOGW(TAG, "esp_netif already initialized");
+            ret = ESP_OK;
+        } else if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "esp_netif_init failed for PPPoS test: %s", esp_err_to_name(ret));
+            return ret;
+        }
+
+        ret = esp_event_loop_create_default();
+        if (ret == ESP_ERR_INVALID_STATE) {
+            ESP_LOGW(TAG, "default event loop already exists");
+            ret = ESP_OK;
+        } else if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "esp_event_loop_create_default failed for PPPoS test: %s", esp_err_to_name(ret));
+            return ret;
+        }
+
+        eth_handle = NULL;
+        hub_network_manager_set_eth_status(false, false);
+        return ESP_OK;
+    }
+#endif
+#endif
+
 #if CONFIG_IDF_TARGET_ESP32S3 && (HUB_W5500_SPI_ONLY_TEST || HUB_W5500_RAW_SPI_READONLY_TEST)
     if (Modbus.mini_type == PROJECT_HUB)
     {
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
+        ESP_LOGW(TAG, "PPPoS manual test enabled: W5500 raw SPI-only test disabled for this run");
+#else
         ESP_LOGW(TAG, "W5500 raw SPI-only mode enabled: skip netif/events/esp_eth_start and enter W5500 direct SPI loop");
         eth_handle = NULL;
         return hub_w5500_install(&eth_handle);
+#endif
     }
 #endif
 

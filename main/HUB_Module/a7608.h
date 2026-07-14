@@ -99,6 +99,8 @@ esp_err_t a7608_deinit(void);
 esp_err_t a7608_power_on(uint32_t pulse_ms, uint32_t boot_wait_ms);
 esp_err_t a7608_hard_reset(uint32_t pulse_ms, uint32_t boot_wait_ms);
 esp_err_t a7608_set_dtr(bool active);
+esp_err_t a7608_set_dtr_level(int level);
+int a7608_get_dtr_level(void);
 
 esp_err_t a7608_send_command(const char *cmd,
                              const char *expected,

@@ -28,6 +28,36 @@ extern "C" {
 #define HUB_LTE_PPPOS_MANUAL_TEST 1
 #endif
 
+// A7608E-H is a SIMCom LTE module. esp_modem exposes SIM7600 as the closest
+// SIMCom LTE DCE in the C API; keep this switchable for A/B testing.
+#ifndef HUB_LTE_PPPOS_USE_SIM7600_DCE
+#define HUB_LTE_PPPOS_USE_SIM7600_DCE 1
+#endif
+
+// -1: do not change DTR before PPP data mode; 0: drive GPIO low; 1: drive GPIO high.
+#ifndef HUB_LTE_PPPOS_DTR_LEVEL_BEFORE_DATA
+#define HUB_LTE_PPPOS_DTR_LEVEL_BEFORE_DATA 1
+#endif
+
+// 0: esp_modem default ATD*99#; 1: ATD*99#; 2: ATD*99***1#; 3: AT+CGDATA="PPP",1.
+// The matching esp_modem command-library test switch is in esp_modem_command_library.cpp.
+#ifndef HUB_LTE_PPPOS_DIAL_MODE
+#define HUB_LTE_PPPOS_DIAL_MODE 0
+#endif
+
+#ifndef HUB_LTE_PPPOS_ALT_DIAL_CMD
+#define HUB_LTE_PPPOS_ALT_DIAL_CMD "ATD*99***1#"
+#endif
+
+// On PPP got-IP timeout, skip COMMAND escape by default to avoid long stalls after UART break.
+#ifndef HUB_LTE_PPPOS_SKIP_COMMAND_MODE_ON_TIMEOUT
+#define HUB_LTE_PPPOS_SKIP_COMMAND_MODE_ON_TIMEOUT 1
+#endif
+
+#ifndef HUB_LTE_PPPOS_RESET_A7608_ON_TIMEOUT
+#define HUB_LTE_PPPOS_RESET_A7608_ON_TIMEOUT 0
+#endif
+
 #define HUB_LTE_PPPOS_APN_LEN          64
 #define HUB_LTE_PPPOS_IP_ADDR_LEN      40
 #define HUB_LTE_PPPOS_PREFLIGHT_APN_LEN 32

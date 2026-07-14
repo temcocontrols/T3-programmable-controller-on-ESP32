@@ -492,8 +492,16 @@ static void a7608_sync_network_status(void)
     bool connected = a7608_status.connected && a7608_ip_is_valid(a7608_status.ip_addr);
     const char *ip_addr = connected ? a7608_status.ip_addr : NULL;
 
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
+    if (connected) {
+        ESP_LOGI("A7608", "PPPoS manual test: ignore CGPADDR IP %s for Network Manager; waiting for PPP got IP", ip_addr);
+    }
+    (void)hub_lte_pppos_set_connected(false, NULL);
+    hub_network_manager_set_lte_status(false, NULL);
+#else
     (void)hub_lte_pppos_set_connected(connected, ip_addr);
     hub_network_manager_set_lte_status(connected, ip_addr);
+#endif
 }
 
 static esp_err_t a7608_reinstall_uart_driver(void)
@@ -955,6 +963,22 @@ esp_err_t a7608_set_dtr(bool active)
     return gpio_set_level(a7608_cfg.dtr_pin, level);
 }
 
+esp_err_t a7608_set_dtr_level(int level)
+{
+    if (!a7608_initialized || !pin_is_valid(a7608_cfg.dtr_pin) || ((level != 0) && (level != 1))) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return gpio_set_level(a7608_cfg.dtr_pin, level);
+}
+
+int a7608_get_dtr_level(void)
+{
+    if (!a7608_initialized || !pin_is_valid(a7608_cfg.dtr_pin)) {
+        return -1;
+    }
+    return gpio_get_level(a7608_cfg.dtr_pin);
+}
+
 esp_err_t a7608_send_command(const char *cmd,
                              const char *expected,
                              uint32_t timeout_ms,
@@ -1380,6 +1404,8 @@ void a7608_at_debug_task(void *pvParameters)
 {
     (void)pvParameters;
 
+    ESP_LOGI("A7608", "A7608 AT status task started");
+
     a7608_config_t config;
     a7608_get_default_config(&config);
     esp_err_t ret = a7608_init(&config);
@@ -1439,7 +1465,11 @@ void a7608_at_debug_task(void *pvParameters)
         bool snapshot_ok = a7608_debug_run_status_snapshot();
         if (snapshot_ok) {
             a7608_debug_print_parsed_status();
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
+            a7608_debug_write("Skip GNSS status/probe in PPPoS manual test mode.\r\n");
+#else
             a7608_debug_print_gnss_status();
+#endif
         } else {
             a7608_debug_write("\r\nSkip parsed status because modem did not stay responsive after ATI.\r\n");
         }
