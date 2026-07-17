@@ -1,0 +1,3 @@
+[submodule "components/mm_wave_radar"]
+	path = components/mm_wave_radar
+	url = https://github.com/temcocontrols/mm_wave_radar.git

@@ -66,6 +66,7 @@
 #include "lora.h"
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
+#include "ProjectConfig.h"
 
 //#include "lowPower.h"
 
@@ -4738,6 +4739,11 @@ void app_main()
 	}
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
+
+#if ENABLE_VITAL_SIGNS || ENABLE_MM_WAVE_RADAR
+	// Initialize mmWave Radar and/or Vital Signs sensors based on ProjectConfig.h
+	mm_wave_radar_init();
+#endif
 
 }
 
