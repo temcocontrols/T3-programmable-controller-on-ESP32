@@ -27,8 +27,10 @@ typedef enum {
 #define ESP_ERR_WIFI_NOT_STARTED (ESP_FAIL)
 
 typedef enum {
-    WIFI_MODE_NULL,
+    WIFI_MODE_NULL = 0,
     WIFI_MODE_STA,
+    WIFI_MODE_AP,
+    WIFI_MODE_APSTA,
 } wifi_mode_t;
 
 typedef enum {
