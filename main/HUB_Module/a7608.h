@@ -78,8 +78,16 @@ typedef struct {
     bool registered_roaming;
     bool attached;
     bool connected;
+    bool status_valid;
+    bool rssi_valid;
     int csq;
     int rssi_dbm;
+    int creg_stat;
+    int cereg_stat;
+    int cfun;
+    uint32_t last_refresh_tick;
+    uint32_t status_age_ms;
+    esp_err_t last_refresh_result;
     char operator_name[A7608_OPERATOR_LEN];
     char ip_addr[A7608_IP_ADDR_LEN];
     bool gnss_powered;
@@ -108,7 +116,16 @@ esp_err_t a7608_send_command(const char *cmd,
                              char *response,
                              size_t response_len);
 esp_err_t a7608_probe(void);
+esp_err_t a7608_check_sim_ready(bool *sim_ready);
 esp_err_t a7608_refresh_status(void);
+esp_err_t a7608_refresh_status_ex(bool include_operator);
+uint32_t a7608_status_age_ms(void);
+bool a7608_status_is_fresh(uint32_t max_age_ms);
+bool a7608_status_is_registered(void);
+void a7608_startup_probe_init_in_progress(void);
+bool a7608_startup_probe_started(void);
+bool a7608_startup_probe_complete(void);
+esp_err_t a7608_startup_probe_result(void);
 esp_err_t a7608_gnss_enable(void);
 esp_err_t a7608_gnss_disable(void);
 esp_err_t a7608_refresh_gnss(void);

@@ -154,16 +154,22 @@ esp_err_t hub_module_dump_status(void)
              a7608_is_pause_requested());
 
     hub_lte_pppos_preflight_t preflight;
+    memset(&preflight, 0, sizeof(preflight));
     ret = hub_lte_pppos_preflight_check(&preflight);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "hub_lte_pppos_preflight_check failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
+    const char *preflight_reason = preflight.reason[0] != '\0' ? preflight.reason : hub_lte_pppos_preflight_reason();
+    if ((preflight_reason == NULL) || (preflight_reason[0] == '\0')) {
+        preflight_reason = "Preflight not ready";
+    }
+
     ESP_LOGI(TAG,
              "pppos_preflight: ready=%d reason=%s config_valid=%d pppos_enabled=%d test_mode=%d uart_available=%d uart_owner=%d modem_status_known=%d sim_ready=%d registered=%d has_signal=%d rssi=%d has_apn=%d apn=%s",
              preflight.ready_to_start,
-             preflight.reason,
+             preflight_reason,
              preflight.config_valid,
              preflight.pppos_enabled,
              preflight.test_mode_enabled,

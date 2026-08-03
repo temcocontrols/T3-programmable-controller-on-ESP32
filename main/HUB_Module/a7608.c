@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
 #include "esp_check.h"
@@ -20,6 +21,16 @@ static a7608_status_t a7608_status;
 static bool a7608_initialized;
 static bool a7608_uart_driver_owned;
 static a7608_service_state_t a7608_service_state = A7608_SERVICE_RUNNING;
+static SemaphoreHandle_t a7608_uart_lock;
+static bool a7608_startup_probe_started_flag = true;
+static bool a7608_startup_probe_complete_flag;
+static esp_err_t a7608_startup_probe_ret = ESP_ERR_INVALID_STATE;
+static bool a7608_startup_probe_state_log_printed;
+static bool a7608_startup_probe_started_log_printed;
+
+#define A7608_STATUS_INVALID_STAT       (-1)
+#define A7608_STATUS_INVALID_CFUN       (-1)
+#define A7608_UART_LOCK_WAIT_MS         5000U
 
 extern int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms);
 extern int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
@@ -27,7 +38,13 @@ extern int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t time
 static bool pin_is_valid(gpio_num_t pin);
 static int inactive_level(int active_level);
 static bool a7608_ip_is_valid(const char *ip_addr);
+static bool a7608_registered_from_stat(int stat);
+static bool a7608_take_uart_lock(uint32_t timeout_ms);
+static void a7608_give_uart_lock(void);
+static void a7608_startup_probe_mark_started(void);
+static void a7608_startup_probe_mark_complete(esp_err_t ret);
 static void a7608_sync_network_status(void);
+static void a7608_parse_snapshot_response(const char *cmd, const char *response);
 static esp_err_t a7608_reinstall_uart_driver(void);
 static esp_err_t a7608_pause_service(void);
 static esp_err_t a7608_resume_service(void);
@@ -100,6 +117,42 @@ static void a7608_debug_write_response_block(const char *title, const char *resp
         a7608_debug_write("-\r\n");
     }
     a7608_debug_printf("[%s RAW END]\r\n", title);
+}
+
+static bool a7608_take_uart_lock(uint32_t timeout_ms)
+{
+    if (a7608_uart_lock == NULL) {
+        return true;
+    }
+    return xSemaphoreTake(a7608_uart_lock, pdMS_TO_TICKS(timeout_ms)) == pdTRUE;
+}
+
+static void a7608_give_uart_lock(void)
+{
+    if (a7608_uart_lock != NULL) {
+        xSemaphoreGive(a7608_uart_lock);
+    }
+}
+
+static void a7608_startup_probe_mark_started(void)
+{
+    if (!a7608_startup_probe_started_log_printed) {
+        ESP_LOGI("A7608", "A7608 startup probe: started");
+        a7608_startup_probe_started_log_printed = true;
+    }
+    a7608_startup_probe_started_flag = true;
+    a7608_startup_probe_complete_flag = false;
+    a7608_startup_probe_ret = ESP_ERR_INVALID_STATE;
+}
+
+static void a7608_startup_probe_mark_complete(esp_err_t ret)
+{
+    if (!a7608_startup_probe_complete_flag) {
+        ESP_LOGI("A7608", "A7608 startup probe: complete ret=%s", esp_err_to_name(ret));
+    }
+    a7608_startup_probe_started_flag = true;
+    a7608_startup_probe_complete_flag = true;
+    a7608_startup_probe_ret = ret;
 }
 
 static bool a7608_debug_read_modem(uint32_t timeout_ms, char *response, size_t response_len, bool echo)
@@ -242,12 +295,18 @@ static bool a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_
     bool command_ok = false;
     uint8_t buf[128];
 
+    if (!a7608_take_uart_lock(A7608_UART_LOCK_WAIT_MS)) {
+        a7608_debug_printf("UART busy for %s\r\n", cmd);
+        return false;
+    }
+
     a7608_debug_printf("\r\n>>> %s\r\n", cmd);
     (void)uart_flush_input(a7608_cfg.uart_num);
     int wrote = uart_write_bytes(a7608_cfg.uart_num, cmd, strlen(cmd));
     int wrote_crlf = uart_write_bytes(a7608_cfg.uart_num, "\r\n", 2);
     if ((wrote < 0) || (wrote_crlf < 0)) {
         a7608_debug_printf("UART write failed for %s\r\n", cmd);
+        a7608_give_uart_lock();
         return false;
     }
 
@@ -282,6 +341,10 @@ static bool a7608_debug_send_snapshot_command(const char *cmd, uint32_t timeout_
     if (!received) {
         a7608_debug_printf("No response for %s\r\n", cmd);
     }
+    if (command_ok) {
+        a7608_parse_snapshot_response(cmd, response);
+    }
+    a7608_give_uart_lock();
     vTaskDelay(pdMS_TO_TICKS(200));
 
     return command_ok;
@@ -297,6 +360,7 @@ static bool a7608_debug_run_status_snapshot(void)
         {"ATI", 2000},
         {"AT+CPIN?", 3000},
         {"AT+CSQ", 3000},
+        {"AT+CFUN?", 3000},
         {"AT+CEREG?", 3000},
         {"AT+CREG?", 3000},
         {"AT+CGATT?", 3000},
@@ -305,9 +369,29 @@ static bool a7608_debug_run_status_snapshot(void)
         {"AT+CGPADDR", 3000},
     };
 
+    esp_err_t first_error = ESP_OK;
+    a7608_status.status_valid = false;
+    a7608_status.at_ready = false;
+    a7608_status.sim_ready = false;
+    a7608_status.registered_home = false;
+    a7608_status.registered_roaming = false;
+    a7608_status.attached = false;
+    a7608_status.connected = false;
+    a7608_status.csq = 99;
+    a7608_status.rssi_valid = false;
+    a7608_status.rssi_dbm = 0;
+    a7608_status.creg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cereg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cfun = A7608_STATUS_INVALID_CFUN;
+    a7608_status.status_age_ms = UINT32_MAX;
+    a7608_status.ip_addr[0] = '\0';
+
     a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT]\r\n");
     for (size_t i = 0; i < sizeof(commands) / sizeof(commands[0]); i++) {
-        (void)a7608_debug_send_snapshot_command(commands[i].cmd, commands[i].timeout_ms);
+        bool command_ok = a7608_debug_send_snapshot_command(commands[i].cmd, commands[i].timeout_ms);
+        if (!command_ok && (first_error == ESP_OK) && (strcmp(commands[i].cmd, "AT") == 0)) {
+            first_error = ESP_FAIL;
+        }
         if (strcmp(commands[i].cmd, "ATI") == 0) {
             a7608_debug_write("\r\nWaiting 5 seconds for SIM/network stack to settle...\r\n");
             vTaskDelay(pdMS_TO_TICKS(5000));
@@ -315,10 +399,19 @@ static bool a7608_debug_run_status_snapshot(void)
             if (!a7608_debug_send_snapshot_command("AT", 1000)) {
                 a7608_debug_write("Modem lost after ATI settle wait; skip remaining status snapshot.\r\n");
                 a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT END]\r\n");
+                a7608_status.status_valid = a7608_status.at_ready;
+                a7608_status.last_refresh_tick = xTaskGetTickCount();
+                a7608_status.status_age_ms = a7608_status.status_valid ? 0 : UINT32_MAX;
+                a7608_status.last_refresh_result = ESP_FAIL;
                 return false;
             }
         }
     }
+    a7608_status.status_valid = a7608_status.at_ready;
+    a7608_status.last_refresh_tick = xTaskGetTickCount();
+    a7608_status.status_age_ms = a7608_status.status_valid ? 0 : UINT32_MAX;
+    a7608_status.last_refresh_result = first_error;
+    a7608_sync_network_status();
     a7608_debug_write("\r\n[A7608 STATUS SNAPSHOT END]\r\n");
     return true;
 }
@@ -380,22 +473,28 @@ static esp_err_t configure_input_pin(gpio_num_t pin)
 
 static bool response_has_registered(const char *response)
 {
-    const char *line = strstr(response, "+CEREG:");
-    if (line == NULL) {
-        line = strstr(response, "+CREG:");
-    }
+    bool is_cereg = strstr(response, "+CEREG:") != NULL;
+    const char *line = is_cereg ? strstr(response, "+CEREG:") : strstr(response, "+CREG:");
     if (line == NULL) {
         return false;
     }
 
     int n = 0;
-    int stat = 0;
-    if (sscanf(line, "%*[^:]: %d,%d", &n, &stat) == 2) {
-        a7608_status.registered_home = (stat == 1);
-        a7608_status.registered_roaming = (stat == 5);
-        return (stat == 1) || (stat == 5);
+    int stat = A7608_STATUS_INVALID_STAT;
+    if (sscanf(line, "%*[^:]: %d,%d", &n, &stat) != 2) {
+        return false;
     }
-    return false;
+
+    if (is_cereg) {
+        a7608_status.cereg_stat = stat;
+    } else {
+        a7608_status.creg_stat = stat;
+    }
+    a7608_status.registered_home = a7608_registered_from_stat(a7608_status.creg_stat) ||
+                                   a7608_registered_from_stat(a7608_status.cereg_stat);
+    a7608_status.registered_roaming = (a7608_status.creg_stat == 5) ||
+                                      (a7608_status.cereg_stat == 5);
+    return a7608_registered_from_stat(stat);
 }
 
 static void parse_csq(const char *response)
@@ -405,8 +504,23 @@ static void parse_csq(const char *response)
     int ber = 99;
     if ((line != NULL) && (sscanf(line, "%*[^:]: %d,%d", &csq, &ber) == 2)) {
         a7608_status.csq = csq;
-        a7608_status.rssi_dbm = (csq >= 0 && csq <= 31) ? (-113 + (2 * csq)) : 0;
+        a7608_status.rssi_valid = (csq >= 0) && (csq <= 31);
+        a7608_status.rssi_dbm = a7608_status.rssi_valid ? (-113 + (2 * csq)) : 0;
     }
+}
+
+static void parse_cfun(const char *response)
+{
+    const char *line = strstr(response, "+CFUN:");
+    int cfun = A7608_STATUS_INVALID_CFUN;
+    if ((line != NULL) && (sscanf(line, "%*[^:]: %d", &cfun) == 1)) {
+        a7608_status.cfun = cfun;
+    }
+}
+
+static bool a7608_registered_from_stat(int stat)
+{
+    return (stat == 1) || (stat == 5);
 }
 
 static void parse_operator(const char *response)
@@ -479,6 +593,43 @@ static void parse_ip_addr(const char *response)
     char *end = strpbrk(a7608_status.ip_addr, "\r\n,");
     if (end != NULL) {
         *end = '\0';
+    }
+}
+
+static void a7608_parse_snapshot_response(const char *cmd, const char *response)
+{
+    if ((cmd == NULL) || (response == NULL)) {
+        return;
+    }
+    if (strcmp(cmd, "AT") == 0) {
+        a7608_status.at_ready = strstr(response, "OK") != NULL;
+        if (a7608_status.at_ready) {
+            a7608_status.state = A7608_STATE_AT_READY;
+        }
+    } else if (strcmp(cmd, "AT+CPIN?") == 0) {
+        a7608_status.sim_ready = strstr(response, "READY") != NULL;
+        if (a7608_status.sim_ready) {
+            a7608_status.state = A7608_STATE_SIM_READY;
+        }
+    } else if (strcmp(cmd, "AT+CSQ") == 0) {
+        parse_csq(response);
+    } else if (strcmp(cmd, "AT+CFUN?") == 0) {
+        parse_cfun(response);
+    } else if ((strcmp(cmd, "AT+CEREG?") == 0) || (strcmp(cmd, "AT+CREG?") == 0)) {
+        (void)response_has_registered(response);
+    } else if (strcmp(cmd, "AT+CGATT?") == 0) {
+        a7608_status.attached = strstr(response, "+CGATT: 1") != NULL;
+        if (a7608_status.attached) {
+            a7608_status.state = A7608_STATE_ATTACHED;
+        }
+    } else if (strcmp(cmd, "AT+COPS?") == 0) {
+        parse_operator(response);
+    } else if (strcmp(cmd, "AT+CGPADDR") == 0) {
+        parse_ip_addr(response);
+        a7608_status.connected = a7608_ip_is_valid(a7608_status.ip_addr);
+        if (a7608_status.connected) {
+            a7608_status.state = A7608_STATE_CONNECTED;
+        }
     }
 }
 
@@ -839,7 +990,14 @@ esp_err_t a7608_init(const a7608_config_t *config)
     memset(&a7608_status, 0, sizeof(a7608_status));
     a7608_status.state = A7608_STATE_OFF;
     a7608_status.csq = 99;
+    a7608_status.creg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cereg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cfun = A7608_STATUS_INVALID_CFUN;
+    a7608_status.last_refresh_result = ESP_ERR_INVALID_STATE;
     a7608_service_state = A7608_SERVICE_RUNNING;
+    if (a7608_uart_lock == NULL) {
+        a7608_uart_lock = xSemaphoreCreateMutex();
+    }
 
     if (uart_is_driver_installed(a7608_cfg.uart_num)) {
         if (!a7608_cfg.reset_uart_driver) {
@@ -991,11 +1149,16 @@ esp_err_t a7608_send_command(const char *cmd,
     if (a7608_service_state != A7608_SERVICE_RUNNING) {
         return ESP_ERR_INVALID_STATE;
     }
+    if (!a7608_take_uart_lock(A7608_UART_LOCK_WAIT_MS)) {
+        set_last_error("UART busy");
+        return ESP_ERR_TIMEOUT;
+    }
 
     char local_response[512];
     char *out = response != NULL ? response : local_response;
     size_t out_len = response != NULL ? response_len : sizeof(local_response);
     if (out_len == 0) {
+        a7608_give_uart_lock();
         return ESP_ERR_INVALID_ARG;
     }
     out[0] = '\0';
@@ -1005,6 +1168,7 @@ esp_err_t a7608_send_command(const char *cmd,
     int wrote_crlf = uart_write_bytes(a7608_cfg.uart_num, "\r\n", 2);
     if ((wrote < 0) || (wrote_crlf < 0)) {
         set_last_error("uart_write_bytes failed");
+        a7608_give_uart_lock();
         return ESP_FAIL;
     }
 
@@ -1032,15 +1196,18 @@ esp_err_t a7608_send_command(const char *cmd,
 
         if ((expected != NULL) && (strstr(out, expected) != NULL)) {
             set_last_error(NULL);
+            a7608_give_uart_lock();
             return ESP_OK;
         }
         if (strstr(out, "ERROR") != NULL) {
             set_last_error("modem returned ERROR");
+            a7608_give_uart_lock();
             return ESP_FAIL;
         }
     }
 
     set_last_error("AT command timeout");
+    a7608_give_uart_lock();
     return ESP_ERR_TIMEOUT;
 }
 
@@ -1058,15 +1225,65 @@ esp_err_t a7608_probe(void)
     return ret;
 }
 
+esp_err_t a7608_check_sim_ready(bool *sim_ready)
+{
+    char response[128];
+    if (sim_ready != NULL) {
+        *sim_ready = false;
+    }
+
+    esp_err_t ret = a7608_send_command("AT+CPIN?", "OK", 1500, response, sizeof(response));
+    if (ret == ESP_OK) {
+        a7608_status.at_ready = true;
+        a7608_status.sim_ready = strstr(response, "READY") != NULL;
+        if (a7608_status.sim_ready) {
+            a7608_status.state = A7608_STATE_SIM_READY;
+        }
+        if (sim_ready != NULL) {
+            *sim_ready = a7608_status.sim_ready;
+        }
+    } else {
+        a7608_status.sim_ready = false;
+    }
+
+    ESP_LOGI("A7608", "A7608 SIM check: ready=%d ret=%s", a7608_status.sim_ready, esp_err_to_name(ret));
+    return ret;
+}
+
 esp_err_t a7608_refresh_status(void)
+{
+    return a7608_refresh_status_ex(true);
+}
+
+esp_err_t a7608_refresh_status_ex(bool include_operator)
 {
     char response[512];
     esp_err_t first_error = ESP_OK;
 
+    a7608_status.status_valid = false;
+    a7608_status.at_ready = false;
+    a7608_status.sim_ready = false;
+    a7608_status.registered_home = false;
+    a7608_status.registered_roaming = false;
+    a7608_status.attached = false;
+    a7608_status.connected = false;
+    a7608_status.csq = 99;
+    a7608_status.rssi_valid = false;
+    a7608_status.rssi_dbm = 0;
+    a7608_status.creg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cereg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cfun = A7608_STATUS_INVALID_CFUN;
+    a7608_status.status_age_ms = UINT32_MAX;
+    a7608_status.ip_addr[0] = '\0';
+
     if (a7608_probe() != ESP_OK) {
         a7608_status.connected = false;
         a7608_status.ip_addr[0] = '\0';
+        a7608_status.last_refresh_tick = xTaskGetTickCount();
+        a7608_status.status_age_ms = UINT32_MAX;
+        a7608_status.last_refresh_result = ESP_FAIL;
         a7608_sync_network_status();
+        ESP_LOGW("A7608", "A7608 status refresh: ret=%s valid=0 age_ms=invalid at=0 sim=0", esp_err_to_name(ESP_FAIL));
         return ESP_FAIL;
     }
 
@@ -1085,14 +1302,23 @@ esp_err_t a7608_refresh_status(void)
         first_error = ESP_FAIL;
     }
 
-    bool registered = false;
+    if (a7608_send_command("AT+CFUN?", "OK", 1500, response, sizeof(response)) == ESP_OK) {
+        parse_cfun(response);
+    } else if (first_error == ESP_OK) {
+        first_error = ESP_FAIL;
+    }
+
     if (a7608_send_command("AT+CEREG?", "OK", 1500, response, sizeof(response)) == ESP_OK) {
-        registered = response_has_registered(response);
+        (void)response_has_registered(response);
+    } else if (first_error == ESP_OK) {
+        first_error = ESP_FAIL;
     }
-    if (!registered && (a7608_send_command("AT+CREG?", "OK", 1500, response, sizeof(response)) == ESP_OK)) {
-        registered = response_has_registered(response);
+    if (a7608_send_command("AT+CREG?", "OK", 1500, response, sizeof(response)) == ESP_OK) {
+        (void)response_has_registered(response);
+    } else if (first_error == ESP_OK) {
+        first_error = ESP_FAIL;
     }
-    if (registered) {
+    if (a7608_status_is_registered()) {
         a7608_status.state = A7608_STATE_REGISTERED;
     }
 
@@ -1105,7 +1331,7 @@ esp_err_t a7608_refresh_status(void)
         first_error = ESP_FAIL;
     }
 
-    if (a7608_send_command("AT+COPS?", "OK", 1500, response, sizeof(response)) == ESP_OK) {
+    if (include_operator && (a7608_send_command("AT+COPS?", "OK", 5000, response, sizeof(response)) == ESP_OK)) {
         parse_operator(response);
     }
 
@@ -1123,7 +1349,76 @@ esp_err_t a7608_refresh_status(void)
 
     a7608_sync_network_status();
 
+    a7608_status.status_valid = a7608_status.at_ready;
+    a7608_status.last_refresh_tick = xTaskGetTickCount();
+    a7608_status.status_age_ms = 0;
+    a7608_status.last_refresh_result = first_error;
+
+    ESP_LOGI("A7608",
+             "A7608 status refresh: ret=%s valid=%d age_ms=%lu at=%d sim=%d csq=%d rssi_valid=%d rssi_dbm=%d creg=%d cereg=%d registered=%d attached=%d cfun=%d operator=%s",
+             esp_err_to_name(first_error),
+             a7608_status.status_valid,
+             (unsigned long)a7608_status.status_age_ms,
+             a7608_status.at_ready,
+             a7608_status.sim_ready,
+             a7608_status.csq,
+             a7608_status.rssi_valid,
+             a7608_status.rssi_dbm,
+             a7608_status.creg_stat,
+             a7608_status.cereg_stat,
+             a7608_status_is_registered(),
+             a7608_status.attached,
+             a7608_status.cfun,
+             a7608_status.operator_name[0] != '\0' ? a7608_status.operator_name : "-");
+
     return first_error;
+}
+
+uint32_t a7608_status_age_ms(void)
+{
+    if ((a7608_status.last_refresh_tick == 0) || !a7608_status.status_valid) {
+        return UINT32_MAX;
+    }
+    uint32_t age_ms = (uint32_t)((xTaskGetTickCount() - a7608_status.last_refresh_tick) * portTICK_PERIOD_MS);
+    a7608_status.status_age_ms = age_ms;
+    return age_ms;
+}
+
+bool a7608_status_is_fresh(uint32_t max_age_ms)
+{
+    return a7608_status.status_valid && (a7608_status_age_ms() <= max_age_ms);
+}
+
+bool a7608_status_is_registered(void)
+{
+    return a7608_registered_from_stat(a7608_status.creg_stat) ||
+           a7608_registered_from_stat(a7608_status.cereg_stat);
+}
+
+void a7608_startup_probe_init_in_progress(void)
+{
+    a7608_startup_probe_started_flag = true;
+    a7608_startup_probe_complete_flag = false;
+    a7608_startup_probe_ret = ESP_ERR_INVALID_STATE;
+    if (!a7608_startup_probe_state_log_printed) {
+        ESP_LOGI("A7608", "A7608 startup probe state initialized: in_progress");
+        a7608_startup_probe_state_log_printed = true;
+    }
+}
+
+bool a7608_startup_probe_started(void)
+{
+    return a7608_startup_probe_started_flag;
+}
+
+bool a7608_startup_probe_complete(void)
+{
+    return a7608_startup_probe_complete_flag;
+}
+
+esp_err_t a7608_startup_probe_result(void)
+{
+    return a7608_startup_probe_ret;
 }
 
 esp_err_t a7608_gnss_enable(void)
@@ -1289,9 +1584,9 @@ static void a7608_debug_probe_gnss_commands(void)
     a7608_debug_write("[A7608 GNSS COMMAND PROBE END]\r\n");
 }
 
-static void a7608_debug_print_parsed_status(void)
+static esp_err_t a7608_debug_print_parsed_status(void)
 {
-    esp_err_t ret = a7608_refresh_status();
+    esp_err_t ret = a7608_status.last_refresh_result;
     const a7608_status_t *status = a7608_get_status();
 
     a7608_debug_write("\r\n[A7608 PARSED STATUS]\r\n");
@@ -1304,13 +1599,19 @@ static void a7608_debug_print_parsed_status(void)
                        status->registered_roaming,
                        status->attached,
                        status->connected);
-    a7608_debug_printf("csq=%d rssi_dbm=%d operator=%s ip=%s last_error=%s\r\n",
+    a7608_debug_printf("csq=%d rssi_valid=%d rssi_dbm=%d creg=%d cereg=%d cfun=%d age_ms=%lu operator=%s ip=%s last_error=%s\r\n",
                        status->csq,
+                       status->rssi_valid,
                        status->rssi_dbm,
+                       status->creg_stat,
+                       status->cereg_stat,
+                       status->cfun,
+                       (unsigned long)a7608_status_age_ms(),
                        status->operator_name[0] != '\0' ? status->operator_name : "-",
                        status->ip_addr[0] != '\0' ? status->ip_addr : "-",
                        status->last_error[0] != '\0' ? status->last_error : "-");
     a7608_debug_write("[A7608 PARSED STATUS END]\r\n");
+    return ret;
 }
 
 static void a7608_debug_print_gnss_status(void)
@@ -1421,10 +1722,14 @@ void a7608_at_debug_task(void *pvParameters)
                        config.reset_active_level);
 
     if (ret != ESP_OK) {
+        a7608_startup_probe_mark_started();
+        a7608_startup_probe_mark_complete(ret);
         a7608_debug_printf("A7608 init failed: %s\r\n", esp_err_to_name(ret));
         vTaskDelete(NULL);
         return;
     }
+
+    a7608_startup_probe_mark_started();
 
     bool modem_ready_before_boot = false;
     if (pin_is_valid(config.dtr_pin)) {
@@ -1438,7 +1743,7 @@ void a7608_at_debug_task(void *pvParameters)
     a7608_debug_write("Checking modem response before power key pulse...\r\n");
     modem_ready_before_boot = a7608_debug_check_respond();
     if (modem_ready_before_boot) {
-        a7608_debug_write("Modem already responds; skip reset/PWRKEY boot sequence.\r\n");
+        a7608_debug_write("Modem AT interface responds; defer hardware boot sequence and verify cellular registration.\r\n");
     } else {
         ret = a7608_debug_lilygo_boot_sequence();
         if (ret != ESP_OK) {
@@ -1464,16 +1769,19 @@ void a7608_at_debug_task(void *pvParameters)
         a7608_debug_write("\r\nTransparent AT bridge ready. Type AT commands with CR/LF.\r\n");
         bool snapshot_ok = a7608_debug_run_status_snapshot();
         if (snapshot_ok) {
-            a7608_debug_print_parsed_status();
+            esp_err_t status_ret = a7608_debug_print_parsed_status();
+            a7608_startup_probe_mark_complete(status_ret);
 #if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
             a7608_debug_write("Skip GNSS status/probe in PPPoS manual test mode.\r\n");
 #else
             a7608_debug_print_gnss_status();
 #endif
         } else {
+            a7608_startup_probe_mark_complete(ESP_FAIL);
             a7608_debug_write("\r\nSkip parsed status because modem did not stay responsive after ATI.\r\n");
         }
     } else {
+        a7608_startup_probe_mark_complete(ESP_FAIL);
         a7608_debug_write("A7608 did not return OK after LilyGO ATDebug boot sequence.\r\n");
         a7608_debug_write("\r\nManual AT bridge ready, modem background read is paused until USB input is sent.\r\n");
     }
@@ -1507,14 +1815,20 @@ void a7608_at_debug_task(void *pvParameters)
                 }
                 last_usb_was_cr = usb_buf[i] == '\r';
             }
-            uart_write_bytes(a7608_cfg.uart_num, (const char *)usb_tx_buf, tx_len);
+            if (a7608_take_uart_lock(100)) {
+                uart_write_bytes(a7608_cfg.uart_num, (const char *)usb_tx_buf, tx_len);
+                a7608_give_uart_lock();
+            }
             modem_read_until = xTaskGetTickCount() + pdMS_TO_TICKS(2500);
         }
 
         if (at_ready || (xTaskGetTickCount() < modem_read_until)) {
-            int modem_len = uart_read_bytes(a7608_cfg.uart_num, modem_buf, sizeof(modem_buf), pdMS_TO_TICKS(10));
-            if (modem_len > 0) {
-                a7608_debug_write_modem_bytes(modem_buf, modem_len);
+            if (a7608_take_uart_lock(0)) {
+                int modem_len = uart_read_bytes(a7608_cfg.uart_num, modem_buf, sizeof(modem_buf), pdMS_TO_TICKS(10));
+                a7608_give_uart_lock();
+                if (modem_len > 0) {
+                    a7608_debug_write_modem_bytes(modem_buf, modem_len);
+                }
             }
         }
 

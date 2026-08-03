@@ -4627,11 +4627,16 @@ static void hub_pppos_manual_process_task(void *pvParameters)
 		if (Modbus.mini_type == PROJECT_HUB) {
 			if (!start_called) {
 				hub_lte_pppos_preflight_t preflight;
+				memset(&preflight, 0, sizeof(preflight));
 				esp_err_t preflight_ret = hub_lte_pppos_preflight_check(&preflight);
+				const char *preflight_reason = preflight.reason[0] != '\0' ? preflight.reason : hub_lte_pppos_preflight_reason();
+				if ((preflight_reason == NULL) || (preflight_reason[0] == '\0')) {
+					preflight_reason = "Preflight not ready";
+				}
 				if ((preflight_ret == ESP_OK) && preflight.ready_to_start) {
 					ESP_LOGI(TCP_TASK_TAG,
 							 "PPPoS preflight ready: calling hub_module_start_pppos_test once (%s)",
-							 preflight.reason);
+							 preflight_reason);
 					esp_err_t start_ret = hub_module_start_pppos_test();
 					start_called = true;
 					if (start_ret != ESP_OK) {
@@ -4642,7 +4647,7 @@ static void hub_pppos_manual_process_task(void *pvParameters)
 							 "PPPoS manual start waiting: preflight_ret=%s ready=%d reason=%s",
 							 esp_err_to_name(preflight_ret),
 							 preflight.ready_to_start,
-							 preflight.reason);
+							 preflight_reason);
 				}
 			}
 
@@ -4895,6 +4900,7 @@ void app_main()
 #if PROJECT_HUB_AT_DEBUG
 	if(Modbus.mini_type == PROJECT_HUB)
 	{
+		a7608_startup_probe_init_in_progress();
 		BaseType_t a7608_task_ret = xTaskCreate(a7608_at_debug_task,"a7608_at_debug",8192, NULL, 10, &main_task_handle[9]);
 		if (a7608_task_ret != pdPASS) {
 			ESP_LOGW(TCP_TASK_TAG, "a7608_at_debug_task create failed");

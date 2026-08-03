@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "driver/gpio.h"
 #include "driver/uart.h"
@@ -124,7 +125,14 @@ typedef struct {
     bool sim_ready;
     bool registered_to_network;
     bool has_signal;
+    bool status_fresh;
+    bool attached;
     int rssi;
+    int csq;
+    int creg_stat;
+    int cereg_stat;
+    int cfun;
+    uint32_t status_age_ms;
 
     bool has_apn;
     char apn[HUB_LTE_PPPOS_PREFLIGHT_APN_LEN];
