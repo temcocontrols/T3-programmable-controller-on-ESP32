@@ -6,6 +6,7 @@ idf_component_register(			SRCS
 							"ota.c"
 #							"microphone.c"
 							"wifi.c"
+							"wifi_web_server.c"
 							"sgp30_featureset.c"
 							"sensirion_common.c"
 							"sgp30.c"

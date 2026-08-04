@@ -1856,7 +1856,6 @@ void set_default_parameters(void)
 	Initial_points(IN);
 	Initial_points(VAR);
 	save_point_info(0);
-
 }
 
 void Inital_Bacnet_Server(void)
@@ -2670,9 +2669,6 @@ void Timer_task(void *pvParameters)
 			Light_PWM_AO_Update();
 		}*/
 
-
-
-
 #if COV
 		handler_cov_task(BAC_IP_CLIENT);
 #endif
@@ -2751,9 +2747,7 @@ void Timer_task(void *pvParameters)
 
 			check_net_health(60);
 			Check_change_uart();
-
 		}
-
 
 		if((run_time > 15) && (flag_clear_count_reboot == 0))
 		{ // 20s clear reboot count
@@ -2784,20 +2778,14 @@ void Timer_task(void *pvParameters)
 
 				count_write_Flash = 0;
 			}
-
-
 		}
 
 		check_task();
 
 		//vTaskDelay(TIMER_INTERVAL / portTICK_PERIOD_MS);
 		vTaskDelayUntil( &xLastWakeTime,TIMER_INTERVAL); // 10ms
-
 	}
-
-
 }
-
 
 #define GPIO_STM_RST    	32
 #define GPIO_STM_RST_SEL  	(1ULL<<GPIO_STM_RST)
@@ -2862,9 +2850,6 @@ void Updata_Comm_Led(void)
 	led_buf[0] = temp1;
 	//if(pre_status1 != CommLed[0])
 	//	flag_led_comm_changed = 1;
-
-
-
 }
 
 uint8_t InputLed[32];  // high 4 bits - input type, low 4 bits - brightness
@@ -4609,9 +4594,8 @@ void app_main()
 		(void)lora_start();
 	}
 
-    flag_ethernet_initial = ethernet_init();
-
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
+	flag_ethernet_initial = ethernet_init();
+    xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server

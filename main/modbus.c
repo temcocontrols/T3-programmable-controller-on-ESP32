@@ -26,6 +26,10 @@
 
 
 extern SemaphoreHandle_t xSem_comport[3];
+static QueueHandle_t uart0_queue = NULL;
+
+#define UART_EVENT_QUEUE_LEN   16   // number of pending uart_event_t items
+#define UART_RX_IDLE_SYMBOLS   10   // RX idle threshold (in char-times) that triggers a UART_DATA event
 
 #define EEPROM_VERSION	  105
 
@@ -446,8 +450,14 @@ void uart_init(uint8_t uart)
 	{
 		uart_param_config(uart_num_sub, &uart_config);
 		uart_set_pin(uart_num_sub, GPIO_NUM_1, GPIO_NUM_3, GPIO_SUB_EN_PIN, UART_PIN_NO_CHANGE);
-		uart_driver_install(uart_num_sub, MB_BUF_SIZE * 2, 0, 0, NULL, 0);
-		uart_set_mode(uart_num_sub, UART_MODE_RS485_HALF_DUPLEX);
+
+		if(!uart_is_driver_installed(uart_num_sub))
+		{
+			uart_driver_install(uart_num_sub, MB_BUF_SIZE * 2, 0,
+			                     UART_EVENT_QUEUE_LEN, &uart0_queue, 0);
+			uart_set_mode(uart_num_sub, UART_MODE_RS485_HALF_DUPLEX);
+		}
+		uart_set_rx_timeout(uart_num_sub, UART_RX_IDLE_SYMBOLS);
 	}
 	else if(uart == 2)//  (uart == 1) main port
 	{
@@ -539,117 +549,119 @@ void check_whether_modbus_slave(uint8_t * uart_rsv, uint16_t len, uint8_t port)
 
 void uart0_rx_task(void *pvParameters)
 {
-//	uint8_t modbus_send_buf[500];
-//	uint16_t modbus_send_len;
-//	memset(modbus_send_buf,0,500);
-//	modbus_send_len = 0;
-	//uint8_t testCmd[8] = {0xff,0x03,0x00,0x00,0x00,0x64,0x51,0xff};
-	//uint8_t i;
-	//mb_param_info_t reg_info; // keeps the Modbus registers access information
-	//printf("MODBUS_TASK&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\r\n");
-	// Configure a temporary buffer for the incoming data
-	//uint8_t *data = (uint8_t *) malloc(MB_BUF_SIZE);
-	//char* test_str = "This is a test string.\n";
-//	char prefix[] = "RS485 Received: [";
-	//modbus_init();
 	setup_reg_data();
-	//uint8_t* uart_rsv = (uint8_t*)malloc(512);
+
+	uart_event_t event;
+	uart_event_t peek_event;
 	uint8_t uart_rsv[512];
 
 	debug_info("modbous initial \r\n");
-
 	task_test.enable[7] = 1;
-	while (1) {
+
+	while (1)
+	{
 		task_test.count[7]++;
 
-			if(Modbus.com_config[0] == MODBUS_SLAVE)
+		if (uart0_queue == NULL)
+		{
+			// uart_init(0) hasn't run yet
+			vTaskDelay(50 / portTICK_PERIOD_MS);
+			continue;
+		}
+
+		if (xQueueReceive(uart0_queue, &event, pdMS_TO_TICKS(100)) != pdTRUE)
+		{
+			continue;
+		}
+
+		switch (event.type)
+		{
+			case UART_DATA:
 			{
-				uint8_t block_time = 0;
-				// block time < 90ms
-				if(Modbus.baudrate[0] == 9)
-					block_time = 20;
-				else //if(Modbus.baudrate <= 6)
-					block_time = 70;
-
-				int len = uart_read_bytes(uart_num_sub, uart_rsv, 512, block_time / portTICK_PERIOD_MS);
-
-				if(len > 0)
+				// Drain any further UART_DATA events already queued behind this one -
+				// they're FIFO-threshold chunks of the same frame, not new frames.
+				while (xQueuePeek(uart0_queue, &peek_event, 0) == pdTRUE &&
+					peek_event.type == UART_DATA)
 				{
-					led_sub_rx++;
-					com_rx[0] += len;
-					flagLED_sub_rx = 1;
-					//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+					xQueueReceive(uart0_queue, &peek_event, 0);
+				}
 
-					if(checkdata(uart_rsv,len))
+				int len = uart_read_bytes(uart_num_sub, uart_rsv, sizeof(uart_rsv), 0);
+				if (len <= 0)
+					break;
+
+				led_sub_rx++;
+				com_rx[0] += len;
+				flagLED_sub_rx = 1;
+				//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+
+				if (Modbus.com_config[0] == MODBUS_SLAVE)
+				{
+					if (checkdata(uart_rsv, len))
 					{
 						count_modbus_slave[0] = 1;
-						if(uart_rsv[1] == TEMCO_MODBUS)	// temco private modbus
+						if (uart_rsv[1] == TEMCO_MODBUS) // temco private modbus
 						{
-							if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+							if (uart_rsv[0] == Modbus.address || uart_rsv[0] == 255)
 							{
-								handler_private_transfer(uart_rsv,0,NULL,0xa0);
+								handler_private_transfer(uart_rsv, 0, NULL, 0xa0);
 							}
 						}
 						else
 						{
-							if(uart_rsv[0] ==  Modbus.address || uart_rsv[0] == 255)
+							if (uart_rsv[0] == Modbus.address || uart_rsv[0] == 255)
 							{
 								init_crc16();
-								responseModbusCmd(SERIAL, uart_rsv, len,modbus_send_buf,&modbus_send_len,0);
+								responseModbusCmd(SERIAL, uart_rsv, len, modbus_send_buf, &modbus_send_len, 0);
 							}
 						}
 					}
 					else
 					{
-						check_whether_modbus_slave(uart_rsv,len,0);
+						check_whether_modbus_slave(uart_rsv, len, 0);
 					}
 				}
-
-			}
-			else if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
-			{
-				if(system_timer / 1000 > 10)
+				else if (Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
 				{
-					int len = uart_read_bytes(UART_NUM_0, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
-
-					if(len > 0)
+					if (system_timer / 1000 > 10)
 					{
-						led_sub_rx++;
-						com_rx[0] += len;
-						flagLED_sub_rx = 1;
-						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
 						Timer_Silence_Reset();
-						//check_mstp_packet(uart_rsv, len , 0);
-						//Test[32]++;
-						//Test[33] = len;
-
+						//check_mstp_packet(uart_rsv, len, 0);
 					}
+					// before the 10s mark, data is intentionally discarded,
+					// same as the original code's early vTaskDelay branch
 				}
-				else
-					vTaskDelay(500 / portTICK_PERIOD_MS);
-			}
-			else
-			{
-				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
+				else if (Modbus.com_config[0] == 0)
 				{
-					int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
-
-					if(len>0)
-					{Test[24]++;
-						led_sub_rx++;
-						com_rx[0] += len;
-						flagLED_sub_rx = 1;
-						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
-						check_whether_modbus_slave(uart_rsv,len,0);
-					}
-
+					Test[24]++;
+					check_whether_modbus_slave(uart_rsv, len, 0);
 				}
-				else
-					vTaskDelay(50 / portTICK_PERIOD_MS);
+				break;
 			}
 
-	}
+		case UART_FIFO_OVF:
+			ESP_LOGW("MODBUS", "uart0 HW FIFO overflow");
+			uart_flush_input(uart_num_sub);
+			xQueueReset(uart0_queue);
+			break;
 
+		case UART_BUFFER_FULL:
+			ESP_LOGW("MODBUS", "uart0 ring buffer full");
+			uart_flush_input(uart_num_sub);
+			xQueueReset(uart0_queue);
+			break;
+
+		case UART_FRAME_ERR:
+		case UART_PARITY_ERR:
+			ESP_LOGW("MODBUS", "uart0 frame/parity error");
+			uart_flush_input(uart_num_sub);
+			xQueueReset(uart0_queue);
+			break;
+
+		default:
+			break;
+		}
+	}
 }
 
 void uart2_rx_task(void *pvParameters)
@@ -2292,9 +2304,6 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			{
 				clear_scan_db();
 			}
-
-
-
 		}
 		else if(address == MODBUS_MINI_TYPE)
 		{

@@ -201,7 +201,7 @@ void MenuTask(void *pvParameters)
 			case LCD_MENU_INIT:
 			{
 				// Initialize Menu
-				LCD_IO_Init();
+				// LCD_IO_Init();
 				menu_init();
 				// delay_ms(100);
 				if(Modbus.mini_type == PROJECT_AIRLAB)
