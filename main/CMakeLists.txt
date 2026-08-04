@@ -63,6 +63,7 @@ idf_component_register(		SRCS
 							"LCD_Driver/touch_drv.c"
 							"LCD_Driver/lv_UserPeram.c"
 							"WireGuard_App/WireGuard_App.c"
+							"wifi_web_server.c"
 
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
