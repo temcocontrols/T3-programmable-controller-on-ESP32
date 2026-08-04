@@ -4642,7 +4642,7 @@ void app_main()
 
     flag_ethernet_initial = ethernet_init();
 
-    xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
+    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server

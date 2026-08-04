@@ -19,5 +19,3 @@ dependencies:
   lvgl/lvgl:
     version: "==9.5.0"
 
-  espressif/mdns: "^1.8"
-

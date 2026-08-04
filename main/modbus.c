@@ -3864,9 +3864,9 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
             }
 #endif
 
-            if(memcmp(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcddisplay)))
+            if(memcmp(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcdconfig)))
             {
-                memcpy(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcddisplay));
+                memcpy(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcdconfig));
 
                 // clear first screen
                 /*disp_str(FORM15X30, 6,  32, "     ",SCH_COLOR,TSTAT8_BACK_COLOR);
