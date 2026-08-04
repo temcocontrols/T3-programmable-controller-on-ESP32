@@ -1224,14 +1224,14 @@ S32_T veval_exp(U8_T *local)
 							 break;
 		case SENSOR_ON:
 							{
-							 sptr.pin = &inputs[*(prog-3)];
+							 sptr = put_io_buf(IN, *(prog-3));
 							 pop();
 //							 push(( GetByteBit(sptr.pin->in_sen_on,1) ) ? 1000L : 0L );
 							}
 							 break;
 		case SENSOR_OFF:
 							{
-							 sptr.pin = &inputs[*(prog-3)];
+							 sptr = put_io_buf(IN, *(prog-3));
 							 pop();
 //							 push( ( GetByteBit(sptr.pin.in_sen_off,1)) ? 1000L : 0L );
 							}

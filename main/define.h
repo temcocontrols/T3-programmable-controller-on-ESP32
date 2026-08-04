@@ -7,7 +7,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6602
+#define SOFTREV     6609
 
 
 #define		SW_OFF 	 0
@@ -101,6 +101,7 @@ typedef struct
 	U16_T write_flash;
 
 
+
 }STR_MODBUS;
 
 typedef struct
@@ -179,7 +180,7 @@ typedef	enum
 #define PROJECT_RMC1216		19  	// old NG2 = RMC1216
 #define PROJECT_MPPT		20
 #define PROJECT_LSW_BTN		21
-#define PROJECT_NG2_NEW		22
+#define PROJECT_NG3			22
 #define PROJECT_MULTIMETER	23
 #define PROJECT_LIGHT_PWM	24
 #define PROJECT_MULTIMETER_NEW	25
@@ -187,7 +188,9 @@ typedef	enum
 #define PROJECT_LSW_SENSOR	27
 #define PROJECT_LORA_GATEWAY	28
 
-#define MAX_MINI_TYPE 		28
+#define PROJECT_RMC1216_32I	29
+
+#define MAX_MINI_TYPE 		30
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;
@@ -215,6 +218,8 @@ extern uint8 flag_change_uart0;
 extern uint8 flag_change_uart2;
 extern uint8 count_change_uart0;
 extern uint8 count_change_uart2;
+
+extern U8_T bbmd_en;
 
 void modbus_task0(void *arg);
 void modbus_task2(void *arg);

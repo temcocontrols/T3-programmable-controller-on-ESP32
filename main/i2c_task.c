@@ -511,6 +511,7 @@ void sensirion_sleep_usec(uint32_t useconds) {
 /**
  * @brief i2c master initialization
  */
+ void debug_info(char *string);
 esp_err_t i2c_master_init()
 {
 //	print_mux = xSemaphoreCreateMutex();
@@ -526,10 +527,16 @@ esp_err_t i2c_master_init()
     conf.scl_io_num = 14;//I2C_MASTER_SCL_IO;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
     conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    debug_info("i2c_master_init()\r\n"); 
     i2c_param_config(i2c_master_port, &conf);
-    return i2c_driver_install(i2c_master_port, conf.mode,
+    esp_err_t ret = i2c_driver_install(i2c_master_port, conf.mode,
                               I2C_MASTER_RX_BUF_DISABLE,
                               I2C_MASTER_TX_BUF_DISABLE, 0);
+    debug_info("i2c_driver_install\r\n");                          
+    if (ret == ESP_ERR_INVALID_STATE) {debug_info("ESP_ERR_INVALID_STATE\r\n"); 
+        return ESP_OK;
+    }debug_info("i2c ok\r\n"); 
+    return ret;
     memset(&g_sensors, 0, sizeof(g_sensor_t));
     ptr = put_io_buf(IN,0);
     memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));

@@ -78,6 +78,7 @@ typedef enum
 #define FLASH_MAX_OUTS		"MAX_OUTS"
 #define FLASH_TCP_PORT      "TCP_PORT"
 #define FLASH_TCP_TYPE		"TCP_TYPE"
+#define FLASH_BBMD_EN		"BBMD_EN"
 
 #define FLASH_IN1_CAL		"IN1_CAL"
 #define FLASH_IN2_CAL		"IN2_CAL"
@@ -183,4 +184,5 @@ esp_err_t Save_Lcd_config(void);
 
 extern void Flash_Inital(void);
 extern void read_point_info(void);
+extern void apply_io_count_change(uint8_t point_type, uint8_t new_count);
 #endif

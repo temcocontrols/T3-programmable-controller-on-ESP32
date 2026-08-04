@@ -6,7 +6,6 @@
 
 #if NEW_IO
 extern uint8 max_outputs;
-extern Str_out_point 		*new_outputs;
 #else
 extern Str_out_point 	outputs[MAX_OUTS];
 #endif
@@ -28,10 +27,14 @@ void control_output(void)
 	while( point < MAX_OUTS )
 	{
 #if NEW_IO
-	if(point < max_outputs)
-		ptr.pout = new_outputs + point;
+		if(point >= max_outputs)
+		{
+			point++;
+			continue;
+		}
+		ptr = put_io_buf(OUT, point);
 #else
-	ptr.pout = &outputs[point];
+		ptr.pout = &outputs[point];
 #endif
 		if(point < get_max_output())
 		{			
@@ -107,9 +110,7 @@ void control_output(void)
 			ptr.pout->decom = 1;  // no used
 		}
 		point++;
-		ptr.pout++;
-				
-	}	
+	}
 
 }
 

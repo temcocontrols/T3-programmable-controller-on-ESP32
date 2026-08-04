@@ -137,7 +137,10 @@ esp_err_t ethernet_init(void)
 {
     esp_err_t ret = ESP_OK;
 
-    ESP_ERROR_CHECK(esp_netif_init());
+    ret = esp_netif_init();
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_ERROR_CHECK(ret);
+    }
 
     ret = esp_event_loop_create_default();
     if(ret == ESP_OK)
@@ -275,8 +278,10 @@ esp_err_t ethernet_init(void)
         else
         {
             eth_handle = NULL;  // prevent crash
-            if(count_reboot < 5)
+            if(count_reboot < 5) {
+                printf("TRACE eth install fail restart\r\n");
                 esp_restart();
+            }
         }
     }
     else

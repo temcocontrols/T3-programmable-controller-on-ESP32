@@ -134,12 +134,13 @@ void check_input_alarm(void)
 
   for(j = 0;j < 32;j++)
 	{
-		if(inputs[j].decom & IN_OPEN)
+		Str_points_ptr in_ptr = put_io_buf(IN, j);
+		if(in_ptr.pin->decom & IN_OPEN)
 		{
 			alarm_in_open_num++;
 			alarm_in_open |= (1L << j);
 		}
-		else if(inputs[j].decom & IN_SHORT)
+		else if(in_ptr.pin->decom & IN_SHORT)
 		{
 			alarm_in_short_num++;
 			alarm_in_short |= (1L << j);

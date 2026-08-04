@@ -6,7 +6,7 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
-#define NEW_IO  0  // 要同步修改bacnet库里的定义
+#define NEW_IO  1  // 要同步修改bacnet库里的定义
 
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
@@ -231,8 +231,14 @@ typedef	union
 
 	U8_T fix_com_config; // 0
 	U8_T write_flash;
+	
+	uint32_t bbmd_ip;
+	uint16_t bbmd_port;
+	uint16_t bbmd_ttl;
 	}reg;
 }Str_Setting_Info;
+
+_Static_assert(sizeof(Str_Setting_Info) <= 400, "Str_Setting_Info overflow");
 
 typedef union
 {
@@ -526,6 +532,10 @@ extern U8_T const table_bank[TABLE_BANK_LENGTH];
 extern STR_STORE_PIC store_pic[PIC_PACKET_STACK];
 
 void init_panel(void);
+
+#if NEW_IO
+void resize_io_arrays(uint8_t point_type, uint8_t old_count, uint8_t new_count);
+#endif
 
 
 
