@@ -63,6 +63,7 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "lora.h"
 
 //#include "lowPower.h"
 
@@ -1871,8 +1872,6 @@ void set_default_parameters(void)
 	Initial_points(IN);
 	Initial_points(VAR);
 	save_point_info(0);
-	Test[15]++;
-
 }
 
 void Inital_Bacnet_Server(void)
@@ -2693,9 +2692,6 @@ void Timer_task(void *pvParameters)
 			Light_PWM_AO_Update();
 		}*/
 
-
-
-
 #if COV
 		handler_cov_task(BAC_IP_CLIENT);
 #endif
@@ -2790,9 +2786,7 @@ void Timer_task(void *pvParameters)
 
 			check_net_health(60);
 			Check_change_uart();
-
 		}
-
 
 		if((run_time > 15) && (flag_clear_count_reboot == 0))
 		{ // 20s clear reboot count
@@ -2834,12 +2828,8 @@ void Timer_task(void *pvParameters)
 
 		//vTaskDelay(TIMER_INTERVAL / portTICK_PERIOD_MS);
 		vTaskDelayUntil( &xLastWakeTime,TIMER_INTERVAL); // 10ms
-
 	}
-
-
 }
-
 
 #define GPIO_STM_RST    	32
 #define GPIO_STM_RST_SEL  	(1ULL<<GPIO_STM_RST)
@@ -2904,9 +2894,6 @@ void Updata_Comm_Led(void)
 	led_buf[0] = temp1;
 	//if(pre_status1 != CommLed[0])
 	//	flag_led_comm_changed = 1;
-
-
-
 }
 
 uint8_t InputLed[32];  // high 4 bits - input type, low 4 bits - brightness
@@ -5035,15 +5022,18 @@ void app_main()
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    //Modbus.mini_type = MINI_TSTAT10;
 #endif
 
     if (Modbus.mini_type != MINI_BIG_ARM)
     	uart_init(2);
 
-    flag_ethernet_initial = ethernet_init();
+	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
+	{
+		(void)lora_start();
+	}
 
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 1, &main_task_handle[1]);
+	flag_ethernet_initial = ethernet_init();
+    xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server
@@ -5145,6 +5135,11 @@ void app_main()
 // for bacnet lib
 void uart_send_string(U8_T *p, U16_T length,U8_T port)
 {
+	if((Modbus.mini_type == PROJECT_LORA_GATEWAY) && (port == 2))
+	{
+		return;
+	}
+
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		holding_reg_params.led_rx485_tx = 2;
 
