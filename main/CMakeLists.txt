@@ -4,7 +4,6 @@ idf_component_register(		SRCS
 							"Mqtt_Handler/Mqtt_Handler.c"
 #							"deviceparams.c"
 							"i2c_task.c"
-							"ota.c"
 #							"microphone.c"
 							"wifi.c"
 							"sgp30_featureset.c"
@@ -78,7 +77,7 @@ idf_component_register(		SRCS
 file(GLOB TEMCO_SCREEN_SOURCES "TemcoScreen/*.c")
 target_sources(${COMPONENT_LIB} PRIVATE ${TEMCO_SCREEN_SOURCES})
 
-#                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 target_link_libraries(${COMPONENT_TARGET} "-u pro_info")
+

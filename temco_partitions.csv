@@ -17,5 +17,6 @@ matter,   data, nvs,      0x720000, 0x40000
  # ~256 KB (important for matter)
 storage,  data, nvs,      0x760000, 0x20000
 # other data
+screen_data, data, spiffs, 0x780000, 0x100000
 
-# used till 0x78000.
+# used till 0x880000.

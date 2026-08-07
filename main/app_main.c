@@ -66,6 +66,7 @@
 #include "lora.h"
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
+#include "dynamic_display_api.h"
 
 //#include "lowPower.h"
 
@@ -4656,6 +4657,7 @@ void app_main()
 #endif
 
 	Mqtt_Handler_Init();
+	dynamic_display_api_start();
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();

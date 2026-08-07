@@ -1,0 +1,69 @@
+{
+  "start_up_screen": {
+    "bg_color": "#000000",
+    "bitmaps": [],
+    "fonts": [
+      [
+        "lv_font_montserrat_40",
+        40
+      ]
+    ],
+    "widgets": {
+      "StartUpScreen": {
+        "children": {
+          "Label1": {
+            "align": "center",
+            "height": 0,
+            "obj_text": "Tstat - 11",
+            "style": {
+              "MAIN": {
+                "DEFAULT": {
+                  "text_font": "lv_font_montserrat_40"
+                }
+              }
+            },
+            "sub_type": "label",
+            "text_type": "literal",
+            "type": "Widget",
+            "width": 0,
+            "x_pos": 0,
+            "y_pos": 0
+          },
+          "Label2": {
+            "align": "center",
+            "height": 0,
+            "obj_text": "Initialising . . .",
+            "scroll_dir": "RIGHT",
+            "sub_type": "label",
+            "text_type": "literal",
+            "type": "Widget",
+            "width": 0,
+            "x_pos": 0,
+            "y_pos": 110
+          }
+        },
+        "events": {
+          "SCREEN_LOADED": {
+            "actions": [
+              {
+                "action": "screen_change",
+                "anim": "FADE_IN",
+                "delay": 3000,
+                "screen": "home_screen",
+                "speed": 1000
+              }
+            ]
+          }
+        },
+        "height": 0,
+        "obj_text": "",
+        "sub_type": "screen",
+        "text_type": "literal",
+        "type": "Widget",
+        "width": 0,
+        "x_pos": 0,
+        "y_pos": 0
+      }
+    }
+  }
+}

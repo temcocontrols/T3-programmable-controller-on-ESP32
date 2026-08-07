@@ -1,0 +1,26 @@
+idf_component_register(
+    SRCS
+        "src/dynamic_display_api.c"
+        "src/screen_flash_store.c"
+    INCLUDE_DIRS
+        "include"
+    PRIV_INCLUDE_DIRS
+        "src"
+    REQUIRES
+        esp_http_server
+        spiffs
+        json
+        nvs_flash
+    EMBED_TXTFILES
+        "DefaultScreens/start_up_screen.json"
+        "DefaultScreens/home_screen.json"
+        "DefaultScreens/main_menu.json"
+        "DefaultScreens/network_config.json"
+        "DefaultScreens/parameters.json"
+        "DefaultScreens/protocols.json"
+        "DefaultScreens/schedule_edit_screen.json"
+        "DefaultScreens/schedule_screen.json"
+        "DefaultScreens/time.json"
+        "DefaultScreens/wifi_config.json"
+        "DefaultScreens/holiday_calender_screen.json"
+)
