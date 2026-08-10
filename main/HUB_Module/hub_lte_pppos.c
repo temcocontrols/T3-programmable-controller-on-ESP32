@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +44,7 @@ static const char *TAG = "hub_lte_pppos";
 #define HUB_LTE_PPPOS_CELL_RADIO_OFF_WAIT_MS 3000U
 #define HUB_LTE_PPPOS_CELL_RADIO_ON_MIN_WAIT_MS 20000U
 #define HUB_LTE_PPPOS_CELL_RADIO_ON_WAIT_MS 30000U
+#define HUB_LTE_PPPOS_CELL_HARD_RESET_QUIET_MS 5000U
 #define HUB_LTE_PPPOS_CELL_HARD_RESET_WAIT_MS 30000U
 #define HUB_LTE_PPPOS_CELL_BACKOFF_MS 60000U
 #define HUB_LTE_PPPOS_RECONNECT_STABLE_MS 60000U
@@ -110,6 +112,7 @@ typedef enum {
     CELL_RECOVERY_RADIO_ON,
     CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART,
     CELL_RECOVERY_HARD_RESET,
+    CELL_RECOVERY_WAIT_AFTER_HARD_RESET,
     CELL_RECOVERY_BACKOFF,
 } hub_lte_cell_recovery_stage_t;
 
@@ -142,6 +145,8 @@ typedef struct {
     bool radio_restart_context;
     bool radio_restart_at_ready;
     bool radio_restart_sim_ready;
+    bool hard_reset_at_ready;
+    bool hard_reset_sim_ready;
     char last_status_defer_requester[24];
     char cleanup_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN];
 } hub_lte_cell_recovery_t;
@@ -1162,6 +1167,8 @@ static const char *hub_lte_cell_recovery_stage_name(hub_lte_cell_recovery_stage_
         return "WAIT_AFTER_RADIO_RESTART";
     case CELL_RECOVERY_HARD_RESET:
         return "HARD_RESET";
+    case CELL_RECOVERY_WAIT_AFTER_HARD_RESET:
+        return "WAIT_AFTER_HARD_RESET";
     case CELL_RECOVERY_BACKOFF:
         return "BACKOFF";
     default:
@@ -1194,6 +1201,18 @@ static void hub_lte_pppos_cell_recovery_set_stage(hub_lte_cell_recovery_stage_t 
     } else if (previous_stage == CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART) {
         s_lte_cell_recovery.radio_restart_context = false;
     }
+
+    if (stage == CELL_RECOVERY_WAIT_AFTER_HARD_RESET) {
+        s_lte_cell_recovery.hard_reset_at_ready = false;
+        s_lte_cell_recovery.hard_reset_sim_ready = false;
+        s_lte_cell_recovery.last_at_probe_tick = 0;
+    }
+}
+
+static bool hub_lte_pppos_hard_reset_in_progress(void)
+{
+    return (s_lte_cell_recovery.stage == CELL_RECOVERY_HARD_RESET) ||
+           (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_AFTER_HARD_RESET);
 }
 
 static bool hub_lte_pppos_can_use_at_status_uart(void)
@@ -1266,7 +1285,8 @@ static esp_err_t hub_lte_pppos_request_status_refresh(const char *requester)
     if (s_lte_cell_recovery.status_refresh_in_progress) {
         return ESP_ERR_INVALID_STATE;
     }
-    if (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART) {
+    if ((s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART) ||
+        hub_lte_pppos_hard_reset_in_progress()) {
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -1423,6 +1443,67 @@ static void hub_lte_pppos_process_radio_restart_wait(void)
     }
 }
 
+static void hub_lte_pppos_process_hard_reset(void)
+{
+    s_lte_cell_recovery.recovery_attempt++;
+    s_lte_cell_recovery.hardware_reset_count++;
+    ESP_LOGE(TAG,
+             "Cell recovery: hardware reset attempt=%lu",
+             (unsigned long)s_lte_cell_recovery.hardware_reset_count);
+    esp_err_t ret = a7608_hard_reset(100, 0);
+    ESP_LOGE(TAG,
+             "Cell recovery: hardware reset result=%s",
+             esp_err_to_name(ret));
+    hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_AFTER_HARD_RESET,
+                                          "hardware_reset_executed");
+}
+
+static void hub_lte_pppos_process_hard_reset_wait(void)
+{
+    TickType_t now = xTaskGetTickCount();
+    TickType_t elapsed_ticks = now - s_lte_cell_recovery.stage_enter_tick;
+    uint32_t elapsed_ms = (uint32_t)(elapsed_ticks * portTICK_PERIOD_MS);
+
+    if ((elapsed_ticks >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_HARD_RESET_QUIET_MS)) &&
+        hub_lte_pppos_can_use_at_status_uart() &&
+        a7608_startup_probe_complete()) {
+        bool probe_sent = false;
+        esp_err_t at_ret = hub_lte_pppos_probe_at_if_due("hard_reset_wait", &probe_sent);
+        if (probe_sent && (at_ret == ESP_OK)) {
+            bool sim_ready = false;
+            esp_err_t sim_ret = a7608_check_sim_ready(&sim_ready);
+            s_lte_cell_recovery.hard_reset_at_ready = true;
+            s_lte_cell_recovery.hard_reset_sim_ready = (sim_ret == ESP_OK) && sim_ready;
+        } else if (probe_sent) {
+            s_lte_cell_recovery.hard_reset_at_ready = false;
+            s_lte_cell_recovery.hard_reset_sim_ready = false;
+        }
+    }
+
+    if ((s_lte_cell_recovery.last_wait_log_tick == 0) ||
+        ((now - s_lte_cell_recovery.last_wait_log_tick) >= pdMS_TO_TICKS(HUB_LTE_PPPOS_MODEM_AT_PROBE_MS))) {
+        ESP_LOGI(TAG,
+                 "Cell recovery hard reset wait: elapsed_ms=%lu at=%d sim=%d",
+                 (unsigned long)elapsed_ms,
+                 s_lte_cell_recovery.hard_reset_at_ready,
+                 s_lte_cell_recovery.hard_reset_sim_ready);
+        s_lte_cell_recovery.last_wait_log_tick = now;
+    }
+
+    if (s_lte_cell_recovery.hard_reset_at_ready &&
+        s_lte_cell_recovery.hard_reset_sim_ready) {
+        hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION,
+                                              "AT and SIM recovered");
+        return;
+    }
+
+    if (elapsed_ticks >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_HARD_RESET_WAIT_MS)) {
+        s_lte_cell_recovery.next_retry_tick = now + pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_BACKOFF_MS);
+        hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_BACKOFF,
+                                              "hard_reset_recovery_timeout");
+    }
+}
+
 static void hub_lte_pppos_request_async_cleanup(const char *reason)
 {
     s_lte_cell_recovery.cleanup_pending = true;
@@ -1533,6 +1614,27 @@ static void hub_lte_pppos_reconnect_process(void)
 
 static void hub_lte_pppos_cell_recovery_process(void)
 {
+    if (s_lte_cell_recovery.stage == CELL_RECOVERY_HARD_RESET) {
+        hub_lte_pppos_process_hard_reset();
+        return;
+    }
+
+    if (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_AFTER_HARD_RESET) {
+        hub_lte_pppos_process_hard_reset_wait();
+        return;
+    }
+
+    if (s_lte_cell_recovery.stage == CELL_RECOVERY_BACKOFF) {
+        TickType_t now = xTaskGetTickCount();
+        if ((int32_t)(now - s_lte_cell_recovery.next_retry_tick) >= 0) {
+            ESP_LOGW(TAG,
+                     "Cell recovery: backoff complete attempt=%lu",
+                     (unsigned long)s_lte_cell_recovery.recovery_attempt);
+            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION, "backoff_complete");
+        }
+        return;
+    }
+
     if (!hub_lte_pppos_can_use_at_status_uart()) {
         return;
     }
@@ -1641,28 +1743,14 @@ static void hub_lte_pppos_cell_recovery_process(void)
         break;
 
     case CELL_RECOVERY_HARD_RESET:
-        if (!s_lte_cell_recovery.command_sent) {
-            s_lte_cell_recovery.recovery_attempt++;
-            s_lte_cell_recovery.hardware_reset_count++;
-            esp_err_t ret = a7608_hard_reset(100, 0);
-            s_lte_cell_recovery.command_sent = true;
-            ESP_LOGE(TAG,
-                     "Cell recovery: hardware reset attempt=%lu ret=%s",
-                     (unsigned long)s_lte_cell_recovery.hardware_reset_count,
-                     esp_err_to_name(ret));
-        } else if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_HARD_RESET_WAIT_MS)) {
-            s_lte_cell_recovery.next_retry_tick = now + pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_BACKOFF_MS);
-            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_BACKOFF, "hardware_reset_wait_done");
-        }
+        hub_lte_pppos_process_hard_reset();
+        break;
+
+    case CELL_RECOVERY_WAIT_AFTER_HARD_RESET:
+        hub_lte_pppos_process_hard_reset_wait();
         break;
 
     case CELL_RECOVERY_BACKOFF:
-        if ((int32_t)(now - s_lte_cell_recovery.next_retry_tick) >= 0) {
-            ESP_LOGW(TAG,
-                     "Cell recovery: backoff complete attempt=%lu",
-                     (unsigned long)s_lte_cell_recovery.recovery_attempt);
-            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION, "backoff_complete");
-        }
         break;
 
     default:
@@ -1675,7 +1763,7 @@ static void hub_lte_pppos_set_preflight_reason(hub_lte_pppos_preflight_t *prefli
 {
     hub_lte_pppos_copy_string(s_lte_preflight_reason, sizeof(s_lte_preflight_reason), reason);
     if (preflight != NULL) {
-        hub_lte_pppos_copy_string(preflight->reason, sizeof(preflight->reason), s_lte_preflight_reason);
+        hub_lte_pppos_copy_string(preflight->reason, sizeof(preflight->reason), reason);
     }
 }
 
@@ -2738,6 +2826,53 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     }
 
     memset(preflight, 0, sizeof(*preflight));
+    ESP_LOGI(TAG,
+             "PREFLIGHT ABI sizeof=%u config_valid=%u test_mode_enabled=%u pppos_enabled=%u uart_available=%u uart_owner=%u",
+             (unsigned int)sizeof(hub_lte_pppos_preflight_t),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, config_valid),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, test_mode_enabled),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, pppos_enabled),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_available),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_owner));
+    ESP_LOGI(TAG,
+             "PREFLIGHT ABI modem_status_known=%u sim_ready=%u registered=%u has_signal=%u status_fresh=%u attached=%u",
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, modem_status_known),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, sim_ready),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, registered_to_network),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_signal),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_fresh),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, attached));
+    ESP_LOGI(TAG,
+             "PREFLIGHT ABI rssi=%u csq=%u creg=%u cereg=%u cfun=%u status_age_ms=%u",
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, rssi),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, csq),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, creg_stat),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, cereg_stat),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, cfun),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_age_ms));
+    ESP_LOGI(TAG,
+             "PREFLIGHT ABI has_apn=%u apn=%u ready=%u reason=%u apn_len=%u reason_len=%u",
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_apn),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, apn),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, ready_to_start),
+             (unsigned int)offsetof(hub_lte_pppos_preflight_t, reason),
+             (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_APN_LEN,
+             (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN);
+    ESP_LOGI(TAG,
+             "PREFLIGHT ABI field_size bool=%u int=%u uint32=%u ready=%u apn=%u reason=%u",
+             (unsigned int)sizeof(bool),
+             (unsigned int)sizeof(int),
+             (unsigned int)sizeof(uint32_t),
+             (unsigned int)sizeof(preflight->ready_to_start),
+             (unsigned int)sizeof(preflight->apn),
+             (unsigned int)sizeof(preflight->reason));
+    ESP_LOGI(TAG,
+             "PREFLIGHT TRACE enter ptr=%p ready=%d",
+             (void *)preflight,
+             preflight->ready_to_start);
+    ESP_LOGI(TAG,
+             "PREFLIGHT TRACE sizeof=%u",
+             (unsigned int)sizeof(hub_lte_pppos_preflight_t));
     hub_lte_pppos_set_preflight_reason(preflight, "Preflight check started");
 
     hub_lte_pppos_config_t config;
@@ -2757,7 +2892,9 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
                                 a7608_is_paused() &&
                                 (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
 
-    if (hub_lte_pppos_can_use_at_status_uart() &&
+    bool hard_reset_in_progress = hub_lte_pppos_hard_reset_in_progress();
+    if (!hard_reset_in_progress &&
+        hub_lte_pppos_can_use_at_status_uart() &&
         a7608_startup_probe_complete() &&
         (s_lte_cell_recovery.stage != CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART)) {
         (void)hub_lte_pppos_request_status_refresh("preflight");
@@ -2779,7 +2916,11 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         preflight->cfun = modem_status->cfun;
     }
 
-    if (!preflight->pppos_enabled) {
+    if (s_lte_cell_recovery.stage == CELL_RECOVERY_HARD_RESET) {
+        hub_lte_pppos_set_preflight_reason(preflight, "Cellular recovery in progress");
+    } else if (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_AFTER_HARD_RESET) {
+        hub_lte_pppos_set_preflight_reason(preflight, "Waiting after hardware reset");
+    } else if (!preflight->pppos_enabled) {
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS disabled by build config");
     } else if (!preflight->test_mode_enabled) {
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS test mode disabled");
@@ -2824,14 +2965,28 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     } else if (preflight->cfun != 1) {
         hub_lte_pppos_set_preflight_reason(preflight, "Modem radio not ready");
     } else {
+        ESP_LOGI(TAG,
+                 "PREFLIGHT TRACE success before ptr=%p ready=%d",
+                 (void *)preflight,
+                 preflight->ready_to_start);
         preflight->ready_to_start = true;
         hub_lte_pppos_set_preflight_reason(preflight, "Ready to start PPPoS lifecycle");
+        ESP_LOGI(TAG,
+                 "PREFLIGHT TRACE success after ptr=%p ready=%d reason=%s",
+                 (void *)preflight,
+                 preflight->ready_to_start,
+                 preflight->reason);
     }
 
     if (!preflight->ready_to_start && (preflight->reason[0] == '\0')) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status unavailable");
     }
 
+    ESP_LOGI(TAG,
+             "PREFLIGHT TRACE return ptr=%p ready=%d reason=%s",
+             (void *)preflight,
+             preflight->ready_to_start,
+             preflight->reason);
     return ESP_OK;
 }
 

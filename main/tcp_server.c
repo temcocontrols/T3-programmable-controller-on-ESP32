@@ -6,6 +6,9 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
+#include "hub_lte_pppos.h"
+
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -67,7 +70,6 @@
 #include "lora.h"
 #include "a7608.h"
 #include "hub_module.h"
-#include "hub_lte_pppos.h"
 
 //#include "lowPower.h"
 
@@ -2382,7 +2384,7 @@ void handler_cov_task(uint8_t protocal);
 void handler_cov_timer_seconds( uint32_t elapsed_seconds);
 uint8_t apdu[480];
 extern uint8_t flag_start_scan_network;
-void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
+void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, S32_T value)
 {
 		Point_Net point;
 		BACNET_PROPERTY_VALUE *list;
@@ -4628,7 +4630,59 @@ static void hub_pppos_manual_process_task(void *pvParameters)
 			if (!start_called) {
 				hub_lte_pppos_preflight_t preflight;
 				memset(&preflight, 0, sizeof(preflight));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI sizeof=%u config_valid=%u test_mode_enabled=%u pppos_enabled=%u uart_available=%u uart_owner=%u",
+						 (unsigned int)sizeof(hub_lte_pppos_preflight_t),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, config_valid),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, test_mode_enabled),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, pppos_enabled),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_available),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_owner));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI modem_status_known=%u sim_ready=%u registered=%u has_signal=%u status_fresh=%u attached=%u",
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, modem_status_known),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, sim_ready),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, registered_to_network),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_signal),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_fresh),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, attached));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI rssi=%u csq=%u creg=%u cereg=%u cfun=%u status_age_ms=%u",
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, rssi),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, csq),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, creg_stat),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, cereg_stat),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, cfun),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_age_ms));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI has_apn=%u apn=%u ready=%u reason=%u apn_len=%u reason_len=%u",
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_apn),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, apn),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, ready_to_start),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, reason),
+						 (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_APN_LEN,
+						 (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN);
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI field_size bool=%u int=%u uint32=%u ready=%u apn=%u reason=%u",
+						 (unsigned int)sizeof(bool),
+						 (unsigned int)sizeof(int),
+						 (unsigned int)sizeof(uint32_t),
+						 (unsigned int)sizeof(preflight.ready_to_start),
+						 (unsigned int)sizeof(preflight.apn),
+						 (unsigned int)sizeof(preflight.reason));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL TRACE before preflight ptr=%p",
+						 (void *)&preflight);
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL TRACE sizeof=%u",
+						 (unsigned int)sizeof(hub_lte_pppos_preflight_t));
 				esp_err_t preflight_ret = hub_lte_pppos_preflight_check(&preflight);
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL TRACE after preflight ptr=%p ret=%s ready=%d reason=%s",
+						 (void *)&preflight,
+						 esp_err_to_name(preflight_ret),
+						 preflight.ready_to_start,
+						 preflight.reason);
 				const char *preflight_reason = preflight.reason[0] != '\0' ? preflight.reason : hub_lte_pppos_preflight_reason();
 				if ((preflight_reason == NULL) || (preflight_reason[0] == '\0')) {
 					preflight_reason = "Preflight not ready";
@@ -4638,9 +4692,10 @@ static void hub_pppos_manual_process_task(void *pvParameters)
 							 "PPPoS preflight ready: calling hub_module_start_pppos_test once (%s)",
 							 preflight_reason);
 					esp_err_t start_ret = hub_module_start_pppos_test();
-					start_called = true;
 					if (start_ret != ESP_OK) {
 						ESP_LOGW(TCP_TASK_TAG, "hub_module_start_pppos_test failed: %s", esp_err_to_name(start_ret));
+					} else {
+						start_called = true;
 					}
 				} else if ((process_count == 0U) || ((process_count % 10U) == 0U)) {
 					ESP_LOGI(TCP_TASK_TAG,
