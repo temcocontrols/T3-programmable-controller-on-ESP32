@@ -2557,14 +2557,10 @@ int send_cov_demo(void) {
 		bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, "25.0",
 				&value_list.value);
 
-
-
 			//debug_cov("Send_UCOV_Notify");
 
 		Send_UCOV_Notify(apdu,&cov_data,BAC_IP_CLIENT);
 		udp_client_send(5);
-
-
 	}
 
 	if(Test[0] == 1000 || Test[0] == 2000 || Test[0] == 3000 || Test[0] == 4000)

@@ -117,557 +117,7 @@ void ui_event_GotoMenuButton3(lv_event_t * e)
     }
 }
 
-void ui_event_ScheduleText1(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText2(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText3(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText4(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText5(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText6(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText7(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText8(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText9(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText10(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText11(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText12(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText13(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText14(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText15(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText16(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText17(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText18(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText19(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText20(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText21(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText22(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText23(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText24(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText25(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText26(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText27(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText28(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText29(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText30(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText31(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText32(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText33(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText34(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText35(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText36(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText37(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText38(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText39(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText40(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText41(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText42(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText43(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText44(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText45(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText46(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText47(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText48(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText49(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText50(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText51(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText52(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText53(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText54(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText55(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_flag_modify(ui_ScheduleSettingPopup, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-        ScheduleTimeSelectedFunc(e);
-    }
-}
-
-void ui_event_ScheduleText56(lv_event_t * e)
+void ui_event_ScheduleText(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
 
@@ -2204,7 +1654,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     ui_Dropdown6 = lv_dropdown_create(ui_TimePanel);
     lv_dropdown_set_dir(ui_Dropdown6, LV_DIR_LEFT);
     lv_dropdown_set_options(ui_Dropdown6,
-                            "255\n01\n02\n03\n04\n05\n06\n07\n08\n09\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24");
+                            "00\n01\n02\n03\n04\n05\n06\n07\n08\n09\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24");
     lv_obj_set_width(ui_Dropdown6, 64);
     lv_obj_set_height(ui_Dropdown6, 30);
     lv_obj_set_x(ui_Dropdown6, -10);
@@ -2235,7 +1685,7 @@ void ui_ScheduleEditScreen_screen_init(void)
     ui_Dropdown7 = lv_dropdown_create(ui_TimePanel);
     lv_dropdown_set_dir(ui_Dropdown7, LV_DIR_RIGHT);
     lv_dropdown_set_options(ui_Dropdown7,
-                            "255\n00\n01\n02\n03\n04\n05\n06\n07\n08\n09\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59");
+                            "00\n01\n02\n03\n04\n05\n06\n07\n08\n09\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59");
     lv_obj_set_width(ui_Dropdown7, 64);
     lv_obj_set_height(ui_Dropdown7, 30);
     lv_obj_set_x(ui_Dropdown7, -10);
@@ -2310,62 +1760,62 @@ void ui_ScheduleEditScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_Label11, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_GotoMenuButton3, ui_event_GotoMenuButton3, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText1, ui_event_ScheduleText1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText2, ui_event_ScheduleText2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText3, ui_event_ScheduleText3, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText4, ui_event_ScheduleText4, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText5, ui_event_ScheduleText5, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText6, ui_event_ScheduleText6, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText7, ui_event_ScheduleText7, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText8, ui_event_ScheduleText8, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText9, ui_event_ScheduleText9, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText10, ui_event_ScheduleText10, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText11, ui_event_ScheduleText11, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText12, ui_event_ScheduleText12, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText13, ui_event_ScheduleText13, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText14, ui_event_ScheduleText14, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText15, ui_event_ScheduleText15, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText16, ui_event_ScheduleText16, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText17, ui_event_ScheduleText17, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText18, ui_event_ScheduleText18, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText19, ui_event_ScheduleText19, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText20, ui_event_ScheduleText20, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText21, ui_event_ScheduleText21, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText22, ui_event_ScheduleText22, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText23, ui_event_ScheduleText23, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText24, ui_event_ScheduleText24, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText25, ui_event_ScheduleText25, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText26, ui_event_ScheduleText26, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText27, ui_event_ScheduleText27, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText28, ui_event_ScheduleText28, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText29, ui_event_ScheduleText29, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText30, ui_event_ScheduleText30, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText31, ui_event_ScheduleText31, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText32, ui_event_ScheduleText32, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText33, ui_event_ScheduleText33, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText34, ui_event_ScheduleText34, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText35, ui_event_ScheduleText35, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText36, ui_event_ScheduleText36, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText37, ui_event_ScheduleText37, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText38, ui_event_ScheduleText38, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText39, ui_event_ScheduleText39, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText40, ui_event_ScheduleText40, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText41, ui_event_ScheduleText41, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText42, ui_event_ScheduleText42, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText43, ui_event_ScheduleText43, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText44, ui_event_ScheduleText44, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText45, ui_event_ScheduleText45, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText46, ui_event_ScheduleText46, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText47, ui_event_ScheduleText47, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText48, ui_event_ScheduleText48, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText49, ui_event_ScheduleText49, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText50, ui_event_ScheduleText50, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText51, ui_event_ScheduleText51, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText52, ui_event_ScheduleText52, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText53, ui_event_ScheduleText53, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText54, ui_event_ScheduleText54, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText55, ui_event_ScheduleText55, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_ScheduleText56, ui_event_ScheduleText56, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText1,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText2,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText3,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText4,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText5,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText6,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText7,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText8,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText9,  ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText10, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText11, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText12, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText13, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText14, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText15, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText16, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText17, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText18, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText19, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText20, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText21, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText22, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText23, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText24, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText25, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText26, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText27, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText28, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText29, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText30, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText31, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText32, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText33, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText34, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText35, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText36, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText37, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText38, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText39, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText40, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText41, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText42, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText43, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText44, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText45, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText46, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText47, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText48, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText49, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText50, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText51, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText52, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText53, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText54, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText55, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_ScheduleText56, ui_event_ScheduleText, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button20, ui_event_Button20, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_SchEditSaveBtn, ui_event_SchEditSaveBtn, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_SchClearAllBtn, ui_event_SchClearAllBtn, LV_EVENT_ALL, NULL);

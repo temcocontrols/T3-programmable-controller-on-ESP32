@@ -80,7 +80,7 @@ typedef enum
 } param_table_type_t;
 
 static param_table_type_t s_param_table_type = PARAM_TABLE_INPUT;
-static lv_coord_t s_param_table_widths[9] = { 40, 160, 90, 80, 45, 45, 45, 45, 70 };
+static lv_coord_t s_param_table_widths[9] = { 40, 160, 90, 80, 60, 45, 45, 45, 70 };
 
 /* Forward declarations of static helper functions to refresh specific screen data */
 static void lv_refresh_HomeScreen_Data(void);
@@ -669,6 +669,20 @@ static void param_table_cell_edit_cb(lv_event_t * e)
 
     const char * cur = lv_table_get_cell_value(table, s_edit_row, s_edit_col);
 
+    // A/M column
+    if (s_edit_col == 4)
+    {
+        if (cur && strcmp(cur, "Manual") == 0)
+        {
+            lv_table_set_cell_value(table, s_edit_row, s_edit_col, "Auto");
+        }
+        else
+        {
+            lv_table_set_cell_value(table, s_edit_row, s_edit_col, "Manual");
+        }
+        return;
+    }
+
     if(UI_OBJ_READY(s_edit_popup))
     {
         lv_obj_del(s_edit_popup);
@@ -791,8 +805,8 @@ static void param_table_build(void)
             lv_table_set_cell_value(s_lv_table, r, 2, (const char *)inputs[i].label);
             lv_snprintf(buf, sizeof(buf), "%ld", (long)inputs[i].value);
             lv_table_set_cell_value(s_lv_table, r, 3, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].auto_manual);
-            lv_table_set_cell_value(s_lv_table, r, 4, buf);
+            lv_table_set_cell_value(s_lv_table, r, 4,
+                        inputs[i].auto_manual == 0 ? "Auto" : "Manual");
             lv_snprintf(buf, sizeof(buf), "%d", inputs[i].digital_analog);
             lv_table_set_cell_value(s_lv_table, r, 5, buf);
             lv_snprintf(buf, sizeof(buf), "%d", inputs[i].control);
@@ -806,8 +820,8 @@ static void param_table_build(void)
             lv_table_set_cell_value(s_lv_table, r, 2, (const char *)outputs[i].label);
             lv_snprintf(buf, sizeof(buf), "%ld", (long)outputs[i].value);
             lv_table_set_cell_value(s_lv_table, r, 3, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].auto_manual);
-            lv_table_set_cell_value(s_lv_table, r, 4, buf);
+            lv_table_set_cell_value(s_lv_table, r, 4,
+                        outputs[i].auto_manual == 0 ? "Auto" : "Manual");
             lv_snprintf(buf, sizeof(buf), "%d", outputs[i].digital_analog);
             lv_table_set_cell_value(s_lv_table, r, 5, buf);
             lv_snprintf(buf, sizeof(buf), "%d", outputs[i].control);
@@ -823,8 +837,8 @@ static void param_table_build(void)
             lv_table_set_cell_value(s_lv_table, r, 2, (const char *)vars[i].label);
             lv_snprintf(buf, sizeof(buf), "%ld", (long)vars[i].value);
             lv_table_set_cell_value(s_lv_table, r, 3, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", vars[i].auto_manual);
-            lv_table_set_cell_value(s_lv_table, r, 4, buf);
+            lv_table_set_cell_value(s_lv_table, r, 4,
+                        vars[i].auto_manual == 0 ? "Auto" : "Manual");
             lv_snprintf(buf, sizeof(buf), "%d", vars[i].digital_analog);
             lv_table_set_cell_value(s_lv_table, r, 5, buf);
             lv_snprintf(buf, sizeof(buf), "%d", vars[i].control);
@@ -892,7 +906,7 @@ static void param_table_apply_updates(void)
             param_table_copy_text((char *)inputs[i].label,
                 sizeof(inputs[i].label), CELL(r, 2));
             inputs[i].value          = GETI(r, 3);
-            inputs[i].auto_manual    = S8(GETI(r, 4));
+            inputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
             inputs[i].digital_analog = S8(GETI(r, 5));
             inputs[i].control        = S8(GETI(r, 6));
             inputs[i].range          = U8(GETI(r, 7));
@@ -904,7 +918,7 @@ static void param_table_apply_updates(void)
             param_table_copy_text((char *)outputs[i].label,
                 sizeof(outputs[i].label), CELL(r, 2));
             outputs[i].value          = GETI(r, 3);
-            outputs[i].auto_manual    = S8(GETI(r, 4));
+            outputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
             outputs[i].digital_analog = S8(GETI(r, 5));
             outputs[i].control        = S8(GETI(r, 6));
             outputs[i].switch_status  = U8(GETI(r, 7));
@@ -917,7 +931,7 @@ static void param_table_apply_updates(void)
             param_table_copy_text((char *)vars[i].label,
                 sizeof(vars[i].label), CELL(r, 2));
             vars[i].value          = GETI(r, 3);
-            vars[i].auto_manual    = U8(GETI(r, 4));
+            vars[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
             vars[i].digital_analog = U8(GETI(r, 5));
             vars[i].control        = U8(GETI(r, 6));
             vars[i].range          = U8(GETI(r, 7));
@@ -1759,8 +1773,8 @@ void Event_Cb_ScheduleTimeSelectedFunc(lv_event_t * e)
     selected_schedule_time_cell = target;
 
     const char *txt = lv_textarea_get_text(target);
-    uint16_t hour = 255U;
-    uint16_t min = 255U;
+    uint16_t hour = 0U;
+    uint16_t min = 0U;
 
     if((txt != NULL) && (txt[0] != '\0'))
     {
@@ -1798,7 +1812,7 @@ void Event_Cb_ScheduleTimeSelectedFunc(lv_event_t * e)
                 p++;
             }
 
-            if((h <= 255U) && (m <= 255U))
+            if((h <= 24U) && (m <= 59U))
             {
                 hour = h;
                 min  = m;
