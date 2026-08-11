@@ -139,6 +139,8 @@ typedef struct {
     esp_err_t last_full_refresh_result;
     bool command_sent;
     bool cleanup_pending;
+    bool cleanup_in_progress;
+    bool cleanup_done;
     bool reconnect_scheduled;
     bool reconnect_after_cleanup;
     bool status_refresh_in_progress;
@@ -152,6 +154,7 @@ typedef struct {
 } hub_lte_cell_recovery_t;
 
 static hub_lte_cell_recovery_t s_lte_cell_recovery;
+static portMUX_TYPE s_lte_cleanup_lock = portMUX_INITIALIZER_UNLOCKED;
 
 #if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 static esp_modem_dte_config_t s_lte_dte_config;
@@ -186,7 +189,7 @@ static esp_err_t hub_lte_pppos_request_status_refresh(const char *requester);
 static bool hub_lte_pppos_modem_registered_fresh(void);
 static void hub_lte_pppos_process_radio_restart_wait(void);
 static void hub_lte_pppos_cell_recovery_process(void);
-static void hub_lte_pppos_request_async_cleanup(const char *reason);
+static bool hub_lte_pppos_request_async_cleanup(const char *reason);
 static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason);
 static void hub_lte_pppos_schedule_reconnect(void);
 static void hub_lte_pppos_reconnect_process(void);
@@ -398,9 +401,8 @@ static void hub_lte_pppos_terminal_error_handler(esp_modem_terminal_error_t erro
              after_data_mode,
              in_first_three_seconds,
              (unsigned long)s_lte_terminal_unexpected_flow_count);
-    if (after_data_mode) {
+    if (after_data_mode && hub_lte_pppos_request_async_cleanup("esp_modem terminal error")) {
         hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "esp_modem terminal error after data mode");
-        hub_lte_pppos_request_async_cleanup("esp_modem terminal error");
         if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
@@ -1504,22 +1506,73 @@ static void hub_lte_pppos_process_hard_reset_wait(void)
     }
 }
 
-static void hub_lte_pppos_request_async_cleanup(const char *reason)
+static bool hub_lte_pppos_request_async_cleanup(const char *reason)
 {
+    const char *cleanup_reason = reason != NULL ? reason : "PPP connection lost";
+    char cleanup_reason_copy[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN];
+    hub_ppp_state_t state = hub_lte_pppos_get_state();
+    bool cleanup_pending;
+    bool cleanup_in_progress;
+    bool cleanup_done;
+
+    hub_lte_pppos_copy_string(cleanup_reason_copy,
+                              sizeof(cleanup_reason_copy),
+                              cleanup_reason);
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
+    cleanup_pending = s_lte_cell_recovery.cleanup_pending;
+    cleanup_in_progress = s_lte_cell_recovery.cleanup_in_progress;
+    cleanup_done = s_lte_cell_recovery.cleanup_done;
+    if ((state == HUB_PPP_STATE_STOPPING) ||
+        cleanup_pending ||
+        cleanup_in_progress ||
+        cleanup_done) {
+        portEXIT_CRITICAL(&s_lte_cleanup_lock);
+        ESP_LOGW(TAG,
+                 "PPPoS duplicate cleanup ignored: reason=%s state=%s pending=%d in_progress=%d done=%d",
+                 cleanup_reason,
+                 hub_lte_pppos_state_name(state),
+                 cleanup_pending,
+                 cleanup_in_progress,
+                 cleanup_done);
+        return false;
+    }
+
+        memcpy(s_lte_cell_recovery.cleanup_reason,
+            cleanup_reason_copy,
+            sizeof(s_lte_cell_recovery.cleanup_reason));
     s_lte_cell_recovery.cleanup_pending = true;
     s_lte_cell_recovery.reconnect_after_cleanup = true;
-    hub_lte_pppos_copy_string(s_lte_cell_recovery.cleanup_reason,
-                              sizeof(s_lte_cell_recovery.cleanup_reason),
-                              reason != NULL ? reason : "PPP connection lost");
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
+
     s_lte_status.connected = false;
     s_lte_status.ip_addr[0] = '\0';
     hub_network_manager_set_lte_status(false, NULL);
-    ESP_LOGW(TAG, "PPPoS cleanup requested: reason=%s", s_lte_cell_recovery.cleanup_reason);
+    ESP_LOGW(TAG, "PPPoS cleanup requested: reason=%s", cleanup_reason_copy);
+    return true;
 }
 
 static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason)
 {
-    ESP_LOGW(TAG, "PPPoS cleanup begin: reason=%s", reason != NULL ? reason : "-");
+    bool cleanup_in_progress;
+    bool cleanup_done;
+
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
+    cleanup_in_progress = s_lte_cell_recovery.cleanup_in_progress;
+    cleanup_done = s_lte_cell_recovery.cleanup_done;
+    if (cleanup_in_progress || cleanup_done) {
+        portEXIT_CRITICAL(&s_lte_cleanup_lock);
+        ESP_LOGW(TAG,
+                 "PPPoS duplicate cleanup ignored: reason=%s in_progress=%d done=%d",
+                 reason != NULL ? reason : "-",
+                 cleanup_in_progress,
+                 cleanup_done);
+        return ESP_OK;
+    }
+    s_lte_cell_recovery.cleanup_pending = false;
+    s_lte_cell_recovery.cleanup_in_progress = true;
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
+
+    ESP_LOGW(TAG, "PPPoS cleanup started: reason=%s", reason != NULL ? reason : "-");
     s_lte_status.connected = false;
     s_lte_status.ip_addr[0] = '\0';
     s_lte_status.start_requested = false;
@@ -1545,7 +1598,6 @@ static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason)
         ESP_LOGW(TAG, "PPPoS cleanup A7608 resume request failed: %s", esp_err_to_name(resume_ret));
     }
 
-    s_lte_cell_recovery.cleanup_pending = false;
     s_lte_cell_recovery.last_at_probe_tick = 0;
     s_lte_cell_recovery.last_full_refresh_tick = 0;
     s_lte_cell_recovery.last_status_defer_log_tick = 0;
@@ -1556,11 +1608,14 @@ static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason)
     s_lte_cell_recovery.last_cell_recovery_defer_stage = CELL_RECOVERY_IDLE;
     s_lte_cell_recovery.last_status_defer_requester[0] = '\0';
     s_lte_cell_recovery.last_wait_log_tick = 0;
-    s_lte_cell_recovery.reconnect_scheduled = false;
     s_lte_cell_recovery.running_since_tick = 0;
     s_lte_cell_recovery.radio_restart_context = false;
     s_lte_cell_recovery.radio_restart_at_ready = false;
     s_lte_cell_recovery.radio_restart_sim_ready = false;
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
+    s_lte_cell_recovery.cleanup_in_progress = false;
+    s_lte_cell_recovery.cleanup_done = true;
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
     hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION, "PPP cleanup complete");
     ESP_LOGI(TAG,
              "PPPoS cleanup complete: uart_owner=%s at_resume_requested=%d cleanup_ret=%s",
@@ -1573,6 +1628,17 @@ static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason)
 static void hub_lte_pppos_schedule_reconnect(void)
 {
     uint32_t delay_ms;
+
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
+    if (s_lte_cell_recovery.reconnect_scheduled) {
+        uint32_t attempt = s_lte_cell_recovery.reconnect_attempt;
+        portEXIT_CRITICAL(&s_lte_cleanup_lock);
+        ESP_LOGI(TAG,
+                 "PPPoS reconnect already scheduled: attempt=%lu",
+                 (unsigned long)attempt);
+        return;
+    }
+
     s_lte_cell_recovery.reconnect_attempt++;
     if (s_lte_cell_recovery.reconnect_attempt == 1) {
         delay_ms = HUB_LTE_PPPOS_RECONNECT_DELAY_1_MS;
@@ -1583,10 +1649,12 @@ static void hub_lte_pppos_schedule_reconnect(void)
     }
     s_lte_cell_recovery.reconnect_due_tick = xTaskGetTickCount() + pdMS_TO_TICKS(delay_ms);
     s_lte_cell_recovery.reconnect_scheduled = true;
+    uint32_t attempt = s_lte_cell_recovery.reconnect_attempt;
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
     ESP_LOGI(TAG,
-             "PPPoS reconnect scheduled: delay_ms=%lu attempt=%lu",
-             (unsigned long)delay_ms,
-             (unsigned long)s_lte_cell_recovery.reconnect_attempt);
+             "PPPoS reconnect scheduled: attempt=%lu delay_ms=%lu",
+             (unsigned long)attempt,
+             (unsigned long)delay_ms);
 }
 
 static void hub_lte_pppos_reconnect_process(void)
@@ -1607,8 +1675,11 @@ static void hub_lte_pppos_reconnect_process(void)
     ESP_LOGI(TAG,
              "PPPoS reconnect starting: registration_fresh=1 attempt=%lu",
              (unsigned long)s_lte_cell_recovery.reconnect_attempt);
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
     s_lte_cell_recovery.reconnect_scheduled = false;
     s_lte_cell_recovery.reconnect_after_cleanup = false;
+    s_lte_cell_recovery.cleanup_done = false;
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
     s_lte_status.start_requested = true;
 }
 
@@ -1647,6 +1718,29 @@ static void hub_lte_pppos_cell_recovery_process(void)
         return;
     }
 
+    if (s_lte_cell_recovery.stage == CELL_RECOVERY_RADIO_OFF) {
+        TickType_t elapsed = xTaskGetTickCount() - s_lte_cell_recovery.stage_enter_tick;
+        char response[128];
+        if (!s_lte_cell_recovery.command_sent) {
+            esp_err_t ret = a7608_send_command("AT+CFUN=0", "OK", 5000, response, sizeof(response));
+            s_lte_cell_recovery.command_sent = true;
+            ESP_LOGW(TAG, "Cell recovery command: AT+CFUN=0 ret=%s", esp_err_to_name(ret));
+        } else if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_RADIO_OFF_WAIT_MS)) {
+            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_RADIO_ON, "radio_off_wait_done");
+        }
+        return;
+    }
+
+    if (s_lte_cell_recovery.stage == CELL_RECOVERY_RADIO_ON) {
+        char response[128];
+        esp_err_t ret = a7608_send_command("AT+CFUN=1", "OK", 5000, response, sizeof(response));
+        s_lte_cell_recovery.command_sent = true;
+        ESP_LOGW(TAG, "Cell recovery command: AT+CFUN=1 ret=%s", esp_err_to_name(ret));
+        hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART,
+                                              ret == ESP_OK ? "radio_on_sent" : "radio_on_failed_wait_recovery");
+        return;
+    }
+
     (void)hub_lte_pppos_request_status_refresh("cell_recovery");
     const a7608_status_t *status = a7608_get_status();
     if (hub_lte_pppos_modem_registered_fresh()) {
@@ -1669,13 +1763,33 @@ static void hub_lte_pppos_cell_recovery_process(void)
         return;
     }
 
-    if (!status->at_ready || !status->sim_ready) {
-        hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION, "waiting for AT/SIM ready");
-        return;
-    }
-
     TickType_t now = xTaskGetTickCount();
     TickType_t elapsed = now - s_lte_cell_recovery.stage_enter_tick;
+
+    if (!status->at_ready || !status->sim_ready) {
+        if (s_lte_cell_recovery.stage == CELL_RECOVERY_IDLE) {
+            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION, "waiting for AT/SIM ready");
+            return;
+        }
+        if (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_REGISTRATION) {
+            if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_NORMAL_WAIT_MS)) {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_CHECK_CFUN,
+                                                      "AT/SIM status timeout");
+            }
+            return;
+        }
+        if ((s_lte_cell_recovery.last_wait_log_tick == 0) ||
+            ((now - s_lte_cell_recovery.last_wait_log_tick) >= pdMS_TO_TICKS(HUB_LTE_PPPOS_MODEM_AT_PROBE_MS))) {
+            ESP_LOGW(TAG,
+                     "Cell recovery transient status ignored for stage progress: stage=%s at=%d sim=%d refresh=%s",
+                     hub_lte_cell_recovery_stage_name(s_lte_cell_recovery.stage),
+                     status->at_ready,
+                     status->sim_ready,
+                     esp_err_to_name(status->last_refresh_result));
+            s_lte_cell_recovery.last_wait_log_tick = now;
+        }
+    }
+
     char response[128];
 
     if (s_lte_cell_recovery.stage == CELL_RECOVERY_IDLE) {
@@ -1715,26 +1829,6 @@ static void hub_lte_pppos_cell_recovery_process(void)
             ESP_LOGW(TAG, "Cell recovery command: AT+COPS=0 ret=%s", esp_err_to_name(ret));
         } else if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_COPS_WAIT_MS)) {
             hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_RADIO_OFF, "operator_wait_done");
-        }
-        break;
-
-    case CELL_RECOVERY_RADIO_OFF:
-        if (!s_lte_cell_recovery.command_sent) {
-            esp_err_t ret = a7608_send_command("AT+CFUN=0", "OK", 5000, response, sizeof(response));
-            s_lte_cell_recovery.command_sent = true;
-            ESP_LOGW(TAG, "Cell recovery: radio restart requested off_ret=%s", esp_err_to_name(ret));
-        } else if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_RADIO_OFF_WAIT_MS)) {
-            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_RADIO_ON, "radio_off_wait_done");
-        }
-        break;
-
-    case CELL_RECOVERY_RADIO_ON:
-        if (!s_lte_cell_recovery.command_sent) {
-            esp_err_t ret = a7608_send_command("AT+CFUN=1", "OK", 5000, response, sizeof(response));
-            s_lte_cell_recovery.command_sent = true;
-            ESP_LOGW(TAG, "Cell recovery: radio restart on_ret=%s", esp_err_to_name(ret));
-        } else {
-            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART, "radio_on_sent");
         }
         break;
 
@@ -1824,16 +1918,14 @@ static void hub_lte_pppos_ppp_event_handler(void *handler_arg,
     if (event_id == NETIF_PPP_ERRORUSER) {
         esp_netif_t **event_netif = (esp_netif_t **)event_data;
         if ((event_netif == NULL) || (*event_netif == s_lte_ppp_netif)) {
-            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP stopped by user event");
-            hub_lte_pppos_request_async_cleanup("PPP stopped by user event");
-            if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
+            if (hub_lte_pppos_request_async_cleanup("PPP stopped by user event")) {
+                hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP stopped by user event");
                 (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
             }
         }
     } else if ((event_id > NETIF_PPP_ERRORNONE) && (event_id < NETIF_PP_PHASE_OFFSET)) {
-        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP status error event");
-        hub_lte_pppos_request_async_cleanup(hub_lte_pppos_ppp_status_name(event_id));
-        if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
+        if (hub_lte_pppos_request_async_cleanup(hub_lte_pppos_ppp_status_name(event_id))) {
+            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP status error event");
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
     }
@@ -1869,8 +1961,11 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
         hub_network_manager_set_lte_status(true, s_lte_status.ip_addr);
         hub_lte_pppos_set_last_result(ESP_OK, "PPP got IP event");
         (void)hub_lte_pppos_set_state(HUB_PPP_STATE_RUNNING, ESP_OK);
+        portENTER_CRITICAL(&s_lte_cleanup_lock);
         s_lte_cell_recovery.reconnect_scheduled = false;
         s_lte_cell_recovery.reconnect_after_cleanup = false;
+        s_lte_cell_recovery.cleanup_done = false;
+        portEXIT_CRITICAL(&s_lte_cleanup_lock);
         s_lte_cell_recovery.running_since_tick = xTaskGetTickCount();
         hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_IDLE, "PPP got IP");
         ESP_LOGI(TAG,
@@ -1888,13 +1983,12 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
         s_lte_status.connected = false;
         s_lte_status.ip_addr[0] = '\0';
         hub_network_manager_set_lte_status(false, NULL);
-        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP lost IP event");
-        ESP_LOGW(TAG,
-                 "PPP lost IP: reason=%s state=%s",
-                 hub_lte_pppos_get_last_reason(),
-                 hub_lte_pppos_state_name(hub_lte_pppos_get_state()));
-        hub_lte_pppos_request_async_cleanup("PPP lost IP event");
-        if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
+        if (hub_lte_pppos_request_async_cleanup("PPP lost IP event")) {
+            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPP lost IP event");
+            ESP_LOGW(TAG,
+                     "PPP lost IP: reason=%s state=%s",
+                     hub_lte_pppos_get_last_reason(),
+                     hub_lte_pppos_state_name(hub_lte_pppos_get_state()));
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
     }
@@ -2209,6 +2303,12 @@ static esp_err_t hub_lte_pppos_handle_starting_timeout(void)
     hub_lte_pppos_set_last_result(ESP_ERR_TIMEOUT, "PPP got IP timeout");
     ESP_LOGE(TAG, "PPP got IP timeout after %u ms; stopping PPPoS runtime", HUB_LTE_PPPOS_STARTING_TIMEOUT_MS);
 
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
+    s_lte_cell_recovery.cleanup_pending = false;
+    s_lte_cell_recovery.cleanup_in_progress = true;
+    s_lte_cell_recovery.cleanup_done = false;
+    s_lte_cell_recovery.reconnect_after_cleanup = true;
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
     s_lte_timeout_cleanup_active = true;
     esp_err_t first_error = hub_lte_pppos_destroy_runtime();
     s_lte_timeout_cleanup_active = false;
@@ -2234,6 +2334,10 @@ static esp_err_t hub_lte_pppos_handle_starting_timeout(void)
     s_lte_status.connected = false;
     s_lte_status.ip_addr[0] = '\0';
     hub_network_manager_set_lte_status(false, NULL);
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
+    s_lte_cell_recovery.cleanup_in_progress = false;
+    s_lte_cell_recovery.cleanup_done = true;
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
 
     (void)first_error;
     return hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_TIMEOUT);
@@ -2412,6 +2516,9 @@ esp_err_t hub_lte_pppos_request_start(void)
         return ret;
     }
 
+    portENTER_CRITICAL(&s_lte_cleanup_lock);
+    s_lte_cell_recovery.cleanup_done = false;
+    portEXIT_CRITICAL(&s_lte_cleanup_lock);
     s_lte_status.start_requested = true;
     ESP_LOGI(TAG, "PPPoS test start requested: %s", preflight.reason);
     return ESP_OK;
@@ -2609,6 +2716,9 @@ esp_err_t hub_lte_pppos_process(void)
 
     if (s_lte_cell_recovery.cleanup_pending) {
         (void)hub_lte_pppos_cleanup_after_loss(s_lte_cell_recovery.cleanup_reason);
+        if (hub_lte_pppos_get_state() == HUB_PPP_STATE_ERROR) {
+            (void)hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
+        }
         return ESP_OK;
     }
 
@@ -2683,28 +2793,28 @@ esp_err_t hub_lte_pppos_process(void)
         ret = hub_lte_pppos_create_netif();
         if (ret != ESP_OK) {
             hub_lte_pppos_set_last_result(ret, "PPP netif create failed");
-            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_request_async_cleanup("PPP netif create failed");
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
             return ret;
         }
         ret = hub_lte_pppos_create_modem();
         if (ret != ESP_OK) {
             hub_lte_pppos_set_last_result(ret, "PPP modem create failed");
-            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_request_async_cleanup("PPP modem create failed");
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
             return ret;
         }
         ret = hub_lte_pppos_enter_data_mode();
         if (ret != ESP_OK) {
             hub_lte_pppos_set_last_result(ret, "PPP data mode failed");
-            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_request_async_cleanup("PPP data mode failed");
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
             return ret;
         }
         ret = hub_lte_pppos_start_ppp();
         if (ret != ESP_OK) {
             hub_lte_pppos_set_last_result(ret, "PPP start failed");
-            (void)hub_lte_pppos_destroy_runtime();
+            (void)hub_lte_pppos_request_async_cleanup("PPP start failed");
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
             return ret;
         }
@@ -2732,7 +2842,20 @@ esp_err_t hub_lte_pppos_process(void)
         break;
 
     case HUB_PPP_STATE_STOPPING:
+        portENTER_CRITICAL(&s_lte_cleanup_lock);
+        s_lte_cell_recovery.cleanup_pending = false;
+        s_lte_cell_recovery.cleanup_in_progress = true;
+        s_lte_cell_recovery.cleanup_done = false;
+        s_lte_cell_recovery.reconnect_scheduled = false;
+        s_lte_cell_recovery.reconnect_after_cleanup = false;
+        portEXIT_CRITICAL(&s_lte_cleanup_lock);
         ret = hub_lte_pppos_destroy_runtime();
+        portENTER_CRITICAL(&s_lte_cleanup_lock);
+        s_lte_cell_recovery.cleanup_in_progress = false;
+        s_lte_cell_recovery.cleanup_done = true;
+        portEXIT_CRITICAL(&s_lte_cleanup_lock);
+        s_lte_status.start_requested = false;
+        s_lte_status.stop_requested = false;
         if (ret != ESP_OK) {
             hub_lte_pppos_set_last_result(ret, "PPPoS runtime destroy failed");
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
@@ -2744,8 +2867,6 @@ esp_err_t hub_lte_pppos_process(void)
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ret);
             return ret;
         }
-        s_lte_status.start_requested = false;
-        s_lte_status.stop_requested = false;
         hub_lte_pppos_set_last_result(ESP_OK, "PPPoS lifecycle stopped");
         ESP_LOGI(TAG, "PPPoS stopped");
         hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION, "PPPoS stopped");
@@ -2753,8 +2874,13 @@ esp_err_t hub_lte_pppos_process(void)
 
     case HUB_PPP_STATE_ERROR:
         if (!s_lte_cell_recovery.cleanup_pending) {
+            if (s_lte_cell_recovery.cleanup_done) {
+                return hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
+            }
             if (!s_lte_status.stop_requested) {
+                portENTER_CRITICAL(&s_lte_cleanup_lock);
                 s_lte_cell_recovery.reconnect_after_cleanup = true;
+                portEXIT_CRITICAL(&s_lte_cleanup_lock);
             }
             (void)hub_lte_pppos_cleanup_after_loss(hub_lte_pppos_get_last_reason());
             (void)hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
@@ -2946,20 +3072,19 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status refresh in progress");
     } else if (!hub_lte_pppos_can_use_at_status_uart()) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 AT interface unavailable");
+    } else if ((s_lte_cell_recovery.stage != CELL_RECOVERY_IDLE) &&
+               (s_lte_cell_recovery.stage != CELL_RECOVERY_WAIT_REGISTRATION)) {
+        hub_lte_pppos_set_preflight_reason(preflight, "Cellular recovery in progress");
     } else if ((modem_status != NULL) && !modem_status->at_ready && (modem_status->last_refresh_result != ESP_OK)) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 AT interface unavailable");
     } else if ((modem_status != NULL) && !modem_status->status_valid && (modem_status->last_refresh_result != ESP_OK)) {
-        hub_lte_pppos_set_preflight_reason(preflight, "A7608 status refresh failed");
+        hub_lte_pppos_set_preflight_reason(preflight, "A7608 status refresh incomplete");
     } else if (!preflight->status_fresh) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status stale");
     } else if (!preflight->modem_status_known) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status unavailable");
     } else if (!preflight->sim_ready) {
         hub_lte_pppos_set_preflight_reason(preflight, "SIM not ready");
-    } else if ((s_lte_cell_recovery.stage != CELL_RECOVERY_IDLE) &&
-               (s_lte_cell_recovery.stage != CELL_RECOVERY_WAIT_REGISTRATION) &&
-               !preflight->registered_to_network) {
-        hub_lte_pppos_set_preflight_reason(preflight, "Cellular recovery in progress");
     } else if (!preflight->registered_to_network) {
         hub_lte_pppos_set_preflight_reason(preflight, "Modem not registered to network");
     } else if (preflight->cfun != 1) {
