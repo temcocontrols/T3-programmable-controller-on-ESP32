@@ -80,7 +80,7 @@ typedef enum
 } param_table_type_t;
 
 static param_table_type_t s_param_table_type = PARAM_TABLE_INPUT;
-static lv_coord_t s_param_table_widths[9] = { 40, 160, 90, 80, 60, 45, 45, 45, 70 };
+static lv_coord_t s_param_table_widths[9] = { 40, 160, 90, 80, 60, 60, 45, 45, 70 };
 
 /* Forward declarations of static helper functions to refresh specific screen data */
 static void lv_refresh_HomeScreen_Data(void);
@@ -108,6 +108,10 @@ static void param_table_build(void);
 static void param_Clear_table(void);
 static void param_table_apply_updates(void);
 static void param_table_copy_text(char *dest, uint16_t dest_size, const char *src);
+static const char *param_table_range_text(param_table_type_t type, uint8_t digital_analog,
+                                          uint8_t range);
+static bool param_table_range_is_valid(param_table_type_t type, uint8_t digital_analog,
+                                       uint8_t range);
 
 extern void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS);
 
@@ -642,8 +646,203 @@ static uint16_t param_table_get_row_count(void)
 
 static lv_obj_t * s_edit_popup = NULL;
 static lv_obj_t * s_edit_ta    = NULL;
+static lv_obj_t * s_range_dropdown = NULL;
 static uint32_t   s_edit_row   = 0;
 static uint32_t   s_edit_col   = 0;
+
+typedef struct
+{
+    uint8_t value;
+    const char *name;
+} param_range_option_t;
+
+/* Range values are protocol values.  Keep these tables aligned with ud_str.h. */
+static const param_range_option_t s_analog_unit_ranges[] = {
+    { unused, "Unused" }, { degC, "deg C" }, { degF, "deg F" },
+    { FPM, "FPM" }, { Pa, "Pa" }, { KPa, "kPa" }, { psi, "psi" },
+    { in_w, "in. W.C." }, { Watts, "Watts" }, { KW, "kW" },
+    { KWH, "kWh" }, { Volts, "Volts" }, { KV, "kV" }, { Amps, "Amps" },
+    { ma, "mA" }, { CFM, "CFM" }, { Sec, "Seconds" }, { Min, "Minutes" },
+    { Hours, "Hours" }, { Days, "Days" }, { time_unit, "Time" },
+    { ohms, "Ohms" }, { procent, "Percent" }, { RH, "RH" }, { ppm, "ppm" },
+    { counts, "Counts" }, { Open, "Open" }, { CFH, "CFH" }, { GPM, "GPM" },
+    { GPH, "GPH" }, { GAL, "Gallons" }, { CF, "CF" }, { BTU, "BTU" },
+    { CMH, "CMH" }, { custom1, "Custom 1" }, { custom2, "Custom 2" },
+    { custom3, "Custom 3" }, { custom4, "Custom 4" }, { custom5, "Custom 5" },
+    { custom6, "Custom 6" }, { custom7, "Custom 7" }, { custom8, "Custom 8" }
+};
+
+static const param_range_option_t s_digital_ranges[] = {
+    { UNUSED, "Unused" }, { OFF_ON, "Off/On" }, { CLOSED_OPEN, "Closed/Open" },
+    { STOP_START, "Stop/Start" }, { DISABLED_ENABLED, "Disabled/Enabled" },
+    { NORMAL_ALARM, "Normal/Alarm" }, { NORMAL_HIGH, "Normal/High" },
+    { NORMAL_LOW, "Normal/Low" }, { NO_YES, "No/Yes" }, { COOL_HEAT, "Cool/Heat" },
+    { UNOCCUPIED_OCCUPIED, "Unoccupied/Occupied" }, { LOW_HIGH, "Low/High" },
+    { ON_OFF, "On/Off" }, { OPEN_CLOSED, "Open/Closed" }, { START_STOP, "Start/Stop" },
+    { ENABLED_DISABLED, "Enabled/Disabled" }, { ALARM_NORMAL, "Alarm/Normal" },
+    { HIGH_NORMAL, "High/Normal" }, { LOW_NORMAL, "Low/Normal" }, { YES_NO, "Yes/No" },
+    { HEAT_COOL, "Heat/Cool" }, { OCCUPIED_UNOCCUPIED, "Occupied/Unoccupied" },
+    { HIGH_LOW, "High/Low" }, { custom_digital1, "Custom digital 1" },
+    { custom_digital2, "Custom digital 2" }, { custom_digital3, "Custom digital 3" },
+    { custom_digital4, "Custom digital 4" }, { custom_digital5, "Custom digital 5" },
+    { custom_digital6, "Custom digital 6" }, { custom_digital7, "Custom digital 7" },
+    { custom_digital8, "Custom digital 8" }
+};
+
+static const param_range_option_t s_input_analog_ranges[] = {
+    { not_used_input, "Not used" }, { Y3K_40_150DegC, "3K: -40..150 C" },
+    { Y3K_40_300DegF, "3K: -40..300 F" }, { R10K_40_120DegC, "10K: -40..120 C" },
+    { R10K_40_250DegF, "10K: -40..250 F" }, { R3K_40_150DegC, "3K: -40..150 C" },
+    { R3K_40_300DegF, "3K: -40..300 F" }, { KM10K_40_120DegC, "K10K: -40..120 C" },
+    { KM10K_40_250DegF, "K10K: -40..250 F" }, { PT1000_200_300DegC, "PT1000: -200..300 C" },
+    { PT1000_200_570DegF, "PT1000: -200..570 F" }, { V0_5, "0..5 V" },
+    { I0_100Amps, "0..100 A" }, { I0_20ma, "0..20 mA" }, { I0_20psi, "0..20 psi" },
+    { N0_2_32counts, "0..2^32 counts" }, { P0_100_0_10V, "0..100%, 0..10 V" },
+    { P0_100_0_5V, "0..100%, 0..5 V" }, { P0_100_4_20ma, "0..100%, 4..20 mA" },
+    { V0_10_IN, "0..10 V" }, { table1, "Table 1" }, { table2, "Table 2" },
+    { table3, "Table 3" }, { table4, "Table 4" }, { table5, "Table 5" },
+    { HI_spd_count, "High-speed count" }, { Frequence, "Frequency" },
+    { Humidty, "Humidity" }, { CO2_PPM, "CO2 ppm" }, { RPM, "RPM" },
+    { TVOC_PPB, "TVOC ppb" }, { UG_M3, "ug/m3" }, { NUM_CM3, "#/cm3" },
+    { DB, "dB" }, { LUX, "Lux" }, { AC_PWM, "AC PWM" }
+};
+
+static const param_range_option_t s_output_analog_ranges[] = {
+    { not_used_output, "Not used" }, { V0_10, "0..10 V" },
+    { P0_100_Open, "0..100% Open" }, { P0_20psi, "0..20 psi" },
+    { P0_100, "0..100%" }, { P0_100_Close, "0..100% Close" },
+    { I_0_20ma, "0..20 mA" }, { P0_100_PWM, "0..100% PWM" },
+    { P0_100_2_10V, "0..100%, 2..10 V" }
+};
+
+static const param_range_option_t *param_table_get_range_options(param_table_type_t type,
+    uint8_t digital_analog, uint16_t *count)
+{
+    if(digital_analog == 0U)
+    {
+        *count = sizeof(s_digital_ranges) / sizeof(s_digital_ranges[0]);
+        return s_digital_ranges;
+    }
+
+    if(type == PARAM_TABLE_INPUT)
+    {
+        *count = sizeof(s_input_analog_ranges) / sizeof(s_input_analog_ranges[0]);
+        return s_input_analog_ranges;
+    }
+    if(type == PARAM_TABLE_OUTPUT)
+    {
+        *count = sizeof(s_output_analog_ranges) / sizeof(s_output_analog_ranges[0]);
+        return s_output_analog_ranges;
+    }
+
+    *count = sizeof(s_analog_unit_ranges) / sizeof(s_analog_unit_ranges[0]);
+    return s_analog_unit_ranges;
+}
+
+static const char *param_table_range_text(param_table_type_t type, uint8_t digital_analog,
+                                          uint8_t range)
+{
+    uint16_t count;
+    const param_range_option_t *options = param_table_get_range_options(type, digital_analog, &count);
+    for(uint16_t i = 0; i < count; i++)
+    {
+        if(options[i].value == range) return options[i].name;
+    }
+    return "Invalid";
+}
+
+static bool param_table_range_is_valid(param_table_type_t type, uint8_t digital_analog,
+                                       uint8_t range)
+{
+    return strcmp(param_table_range_text(type, digital_analog, range), "Invalid") != 0;
+}
+
+static uint8_t param_table_mode_from_cell(uint32_t row)
+{
+    const char *mode = lv_table_get_cell_value(s_lv_table, row, 5);
+    return (mode != NULL && strcmp(mode, "Analog") == 0) ? 1U : 0U;
+}
+
+static void param_table_range_popup_done_cb(lv_event_t * e)
+{
+    if(lv_event_get_code(e) == LV_EVENT_CLICKED && UI_OBJ_READY(s_lv_table) &&
+       UI_OBJ_READY(s_range_dropdown))
+    {
+        uint16_t count;
+        uint16_t selected = lv_dropdown_get_selected(s_range_dropdown);
+        uint8_t mode = param_table_mode_from_cell(s_edit_row);
+        const param_range_option_t *options = param_table_get_range_options(s_param_table_type,
+                                                                              mode, &count);
+        if(selected < count)
+        {
+            char text[32];
+            lv_snprintf(text, sizeof(text), "%u: %s", options[selected].value, options[selected].name);
+            lv_table_set_cell_value(s_lv_table, s_edit_row, s_edit_col, text);
+        }
+    }
+
+    if(UI_OBJ_READY(s_edit_popup)) lv_obj_del(s_edit_popup);
+    s_edit_popup = NULL;
+    s_range_dropdown = NULL;
+}
+
+static void param_table_range_popup_cancel_cb(lv_event_t * e)
+{
+    (void)e;
+    if(UI_OBJ_READY(s_edit_popup)) lv_obj_del(s_edit_popup);
+    s_edit_popup = NULL;
+    s_range_dropdown = NULL;
+}
+
+static void param_table_show_range_popup(uint8_t current_range)
+{
+    uint16_t count;
+    uint16_t selected = 0;
+    uint8_t mode = param_table_mode_from_cell(s_edit_row);
+    const param_range_option_t *options = param_table_get_range_options(s_param_table_type, mode, &count);
+    char options_text[1024] = {0};
+
+    for(uint16_t i = 0; i < count; i++)
+    {
+        char item[48];
+        lv_snprintf(item, sizeof(item), "%u: %s%s", options[i].value, options[i].name,
+                    (i + 1U < count) ? "\n" : "");
+        strncat(options_text, item, sizeof(options_text) - strlen(options_text) - 1U);
+        if(options[i].value == current_range) selected = i;
+    }
+
+    s_edit_popup = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_edit_popup, 300, 210);
+    lv_obj_center(s_edit_popup);
+    lv_obj_clear_flag(s_edit_popup, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(s_edit_popup, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_t *title = lv_label_create(s_edit_popup);
+    lv_label_set_text(title, mode ? "Select analog range" : "Select digital range");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+    s_range_dropdown = lv_dropdown_create(s_edit_popup);
+    lv_obj_set_width(s_range_dropdown, 280);
+    lv_obj_align(s_range_dropdown, LV_ALIGN_TOP_MID, 0, 28);
+    lv_dropdown_set_options(s_range_dropdown, options_text);
+    lv_dropdown_set_selected(s_range_dropdown, selected);
+
+    lv_obj_t *apply = lv_btn_create(s_edit_popup);
+    lv_obj_set_size(apply, 125, 42);
+    lv_obj_align(apply, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_t *apply_label = lv_label_create(apply);
+    lv_label_set_text(apply_label, "Apply");
+    lv_obj_center(apply_label);
+    lv_obj_add_event_cb(apply, param_table_range_popup_done_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *cancel = lv_btn_create(s_edit_popup);
+    lv_obj_set_size(cancel, 125, 42);
+    lv_obj_align(cancel, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_t *cancel_label = lv_label_create(cancel);
+    lv_label_set_text(cancel_label, "Cancel");
+    lv_obj_center(cancel_label);
+    lv_obj_add_event_cb(cancel, param_table_range_popup_cancel_cb, LV_EVENT_CLICKED, NULL);
+}
 
 static void param_table_edit_done_cb(lv_event_t * e)
 {
@@ -657,6 +856,7 @@ static void param_table_edit_done_cb(lv_event_t * e)
         lv_obj_del(s_edit_popup);
         s_edit_popup = NULL;
         s_edit_ta    = NULL;
+        s_range_dropdown = NULL;
     }
 }
 
@@ -683,11 +883,32 @@ static void param_table_cell_edit_cb(lv_event_t * e)
         return;
     }
 
+    // D/A column.  A range picker always uses the mode currently displayed here.
+    if(s_edit_col == 5)
+    {
+        uint8_t new_mode = (cur && strcmp(cur, "Analog") == 0) ? 0U : 1U;
+        uint32_t range_col = (s_param_table_type == PARAM_TABLE_OUTPUT) ? 8U : 7U;
+        lv_table_set_cell_value(table, s_edit_row, s_edit_col,
+                                new_mode ? "Analog" : "Digital");
+        /* The previous code may be valid in both enums but mean something different. */
+        lv_table_set_cell_value(table, s_edit_row, range_col,
+                                new_mode ? "0: Not used" : "0: Unused");
+        return;
+    }
+
     if(UI_OBJ_READY(s_edit_popup))
     {
         lv_obj_del(s_edit_popup);
         s_edit_popup = NULL;
+        s_range_dropdown = NULL;
     }
+    /* Range is selected from the valid enum values, never entered as a raw number. */
+    if(s_edit_col == (s_param_table_type == PARAM_TABLE_OUTPUT ? 8U : 7U))
+    {
+        param_table_show_range_popup((uint8_t)atoi(cur ? cur : "0"));
+        return;
+    }
+
     s_edit_popup = lv_obj_create(lv_layer_top());
     lv_obj_set_size(s_edit_popup, 300, 170);
     lv_obj_center(s_edit_popup);
@@ -706,7 +927,7 @@ static void param_table_cell_edit_cb(lv_event_t * e)
     lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_keyboard_set_textarea(kb, s_edit_ta);
     lv_obj_clear_flag(kb, LV_OBJ_FLAG_SCROLLABLE);
-    // Numeric cols: Value(3), A/M(4), D/A(5), Ctrl(6), Sw(7 output), Range
+    // Numeric columns: Value(3), Ctrl(6), Sw(7 output).
     lv_keyboard_set_mode(kb, (s_edit_col >= 3) ? LV_KEYBOARD_MODE_NUMBER
                                                : LV_KEYBOARD_MODE_TEXT_LOWER);
     lv_obj_add_event_cb(kb, param_table_edit_done_cb, LV_EVENT_READY,  NULL);
@@ -807,11 +1028,13 @@ static void param_table_build(void)
             lv_table_set_cell_value(s_lv_table, r, 3, buf);
             lv_table_set_cell_value(s_lv_table, r, 4,
                         inputs[i].auto_manual == 0 ? "Auto" : "Manual");
-            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].digital_analog);
-            lv_table_set_cell_value(s_lv_table, r, 5, buf);
+            lv_table_set_cell_value(s_lv_table, r, 5,
+                        inputs[i].digital_analog == 1 ? "Analog" : "Digital");
             lv_snprintf(buf, sizeof(buf), "%d", inputs[i].control);
             lv_table_set_cell_value(s_lv_table, r, 6, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].range);
+            lv_snprintf(buf, sizeof(buf), "%u: %s", (unsigned)inputs[i].range,
+                        param_table_range_text(PARAM_TABLE_INPUT, inputs[i].digital_analog,
+                                               inputs[i].range));
             lv_table_set_cell_value(s_lv_table, r, 7, buf);
         }
         else if(s_param_table_type == PARAM_TABLE_OUTPUT)
@@ -822,13 +1045,15 @@ static void param_table_build(void)
             lv_table_set_cell_value(s_lv_table, r, 3, buf);
             lv_table_set_cell_value(s_lv_table, r, 4,
                         outputs[i].auto_manual == 0 ? "Auto" : "Manual");
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].digital_analog);
-            lv_table_set_cell_value(s_lv_table, r, 5, buf);
+            lv_table_set_cell_value(s_lv_table, r, 5,
+                        outputs[i].digital_analog == 1 ? "Analog" : "Digital");
             lv_snprintf(buf, sizeof(buf), "%d", outputs[i].control);
             lv_table_set_cell_value(s_lv_table, r, 6, buf);
             lv_snprintf(buf, sizeof(buf), "%d", outputs[i].switch_status);
             lv_table_set_cell_value(s_lv_table, r, 7, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].range);
+            lv_snprintf(buf, sizeof(buf), "%u: %s", (unsigned)(uint8_t)outputs[i].range,
+                        param_table_range_text(PARAM_TABLE_OUTPUT, outputs[i].digital_analog,
+                                               (uint8_t)outputs[i].range));
             lv_table_set_cell_value(s_lv_table, r, 8, buf);
         }
         else // PARAM_TABLE_VARIABLE
@@ -839,11 +1064,13 @@ static void param_table_build(void)
             lv_table_set_cell_value(s_lv_table, r, 3, buf);
             lv_table_set_cell_value(s_lv_table, r, 4,
                         vars[i].auto_manual == 0 ? "Auto" : "Manual");
-            lv_snprintf(buf, sizeof(buf), "%d", vars[i].digital_analog);
-            lv_table_set_cell_value(s_lv_table, r, 5, buf);
+            lv_table_set_cell_value(s_lv_table, r, 5,
+                        vars[i].digital_analog == 1 ? "Analog" : "Digital");
             lv_snprintf(buf, sizeof(buf), "%d", vars[i].control);
             lv_table_set_cell_value(s_lv_table, r, 6, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", vars[i].range);
+            lv_snprintf(buf, sizeof(buf), "%u: %s", (unsigned)vars[i].range,
+                        param_table_range_text(PARAM_TABLE_VARIABLE, vars[i].digital_analog,
+                                               vars[i].range));
             lv_table_set_cell_value(s_lv_table, r, 7, buf);
         }
     }
@@ -869,6 +1096,7 @@ static void param_Clear_table(void)
         lv_obj_del(s_edit_popup);
         s_edit_popup = NULL;
         s_edit_ta    = NULL;
+        s_range_dropdown = NULL;
     }
     if(UI_OBJ_READY(s_lv_table))
     {
@@ -907,9 +1135,14 @@ static void param_table_apply_updates(void)
                 sizeof(inputs[i].label), CELL(r, 2));
             inputs[i].value          = GETI(r, 3);
             inputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
-            inputs[i].digital_analog = S8(GETI(r, 5));
+            inputs[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             inputs[i].control        = S8(GETI(r, 6));
             inputs[i].range          = U8(GETI(r, 7));
+            if(!param_table_range_is_valid(PARAM_TABLE_INPUT, inputs[i].digital_analog,
+                                           inputs[i].range))
+            {
+                inputs[i].range = 0;
+            }
         }
         else if(s_param_table_type == PARAM_TABLE_OUTPUT)
         {
@@ -919,10 +1152,15 @@ static void param_table_apply_updates(void)
                 sizeof(outputs[i].label), CELL(r, 2));
             outputs[i].value          = GETI(r, 3);
             outputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
-            outputs[i].digital_analog = S8(GETI(r, 5));
+            outputs[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             outputs[i].control        = S8(GETI(r, 6));
             outputs[i].switch_status  = U8(GETI(r, 7));
             outputs[i].range          = S8(GETI(r, 8));
+            if(!param_table_range_is_valid(PARAM_TABLE_OUTPUT, outputs[i].digital_analog,
+                                           (uint8_t)outputs[i].range))
+            {
+                outputs[i].range = 0;
+            }
         }
         else // PARAM_TABLE_VARIABLE
         {
@@ -932,9 +1170,14 @@ static void param_table_apply_updates(void)
                 sizeof(vars[i].label), CELL(r, 2));
             vars[i].value          = GETI(r, 3);
             vars[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
-            vars[i].digital_analog = U8(GETI(r, 5));
+            vars[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             vars[i].control        = U8(GETI(r, 6));
             vars[i].range          = U8(GETI(r, 7));
+            if(!param_table_range_is_valid(PARAM_TABLE_VARIABLE, vars[i].digital_analog,
+                                           vars[i].range))
+            {
+                vars[i].range = 0;
+            }
         }
     }
 
@@ -2242,6 +2485,11 @@ void Event_Cb_ParameterUpdateFunc(lv_event_t * e)
 {
     (void)e;
     param_table_apply_updates();
+    /* The table edits change point configuration, so retain them across reboot. */
+    if(save_point_info(0) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to save parameter point settings");
+    }
     param_Clear_table();
 }
 
