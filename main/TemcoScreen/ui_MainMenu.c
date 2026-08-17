@@ -20,6 +20,8 @@ lv_obj_t * ui_Button4 = NULL;
 lv_obj_t * ui_Label7 = NULL;
 lv_obj_t * ui_Button5 = NULL;
 lv_obj_t * ui_Label8 = NULL;
+lv_obj_t * ui_Button6 = NULL;
+lv_obj_t * ui_Button7 = NULL;
 lv_obj_t * ui_BackButton = NULL;
 lv_obj_t * ui_MenuDot = NULL;
 lv_obj_t * ui_Panel2 = NULL;
@@ -41,6 +43,10 @@ void ui_event_MainMenu(lv_event_t * e)
         LeftInItem_Animation(ui_Button3, 200);
         RightIn_Animation(ui_Button4, 200);
         LeftInItem_Animation(ui_Button5, 400);
+        LeftInItem_Animation(ui_Button6, 600);
+#if 1
+        RightIn_Animation(ui_Button7, 600);
+#endif
         LeftInItem_Animation(ui_BackButton, 600);
         RightIn_Animation(ui_Panel2, 600);
         LeftInItem_Animation(ui_CalenderBtn, 600);
@@ -51,6 +57,10 @@ void ui_event_MainMenu(lv_event_t * e)
         _ui_opacity_set(ui_Button3, 0);
         _ui_opacity_set(ui_Button4, 0);
         _ui_opacity_set(ui_Button5, 0);
+        _ui_opacity_set(ui_Button6, 0);
+#if 1
+        _ui_opacity_set(ui_Button7, 0);
+#endif
         _ui_opacity_set(ui_BackButton, 0);
         _ui_opacity_set(ui_Panel2, 0);
         _ui_opacity_set(ui_CalenderBtn, 0);
@@ -101,6 +111,20 @@ void ui_event_Button5(lv_event_t * e)
         _ui_screen_change(&ui_Time, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_Time_screen_init);
     }
 }
+
+void ui_event_Button6(lv_event_t * e)
+{
+    if(lv_event_get_code(e) == LV_EVENT_CLICKED)
+        _ui_screen_change(&ui_WireGuardScreen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_WireGuardScreen_screen_init);
+}
+
+#if 1
+void ui_event_Button7(lv_event_t * e)
+{
+    if(lv_event_get_code(e) == LV_EVENT_CLICKED)
+        _ui_screen_change(&ui_DdnsScreen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_DdnsScreen_screen_init);
+}
+#endif
 
 void ui_event_BackButton(lv_event_t * e)
 {
@@ -182,7 +206,8 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_x(ui_ButtonContainer, 0);
     lv_obj_set_y(ui_ButtonContainer, 15);
     lv_obj_set_align(ui_ButtonContainer, LV_ALIGN_CENTER);
-    lv_obj_remove_flag(ui_ButtonContainer, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_ButtonContainer, LV_OBJ_FLAG_CLICKABLE);      /// Flags
+    lv_obj_set_scroll_dir(ui_ButtonContainer, LV_DIR_VER);
 
     ui_Button1 = lv_button_create(ui_ButtonContainer);
     lv_obj_set_width(ui_Button1, 220);
@@ -324,6 +349,40 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_text_line_space(ui_Label8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label8, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    ui_Button6 = lv_button_create(ui_ButtonContainer);
+    lv_obj_set_size(ui_Button6, 220, 40);
+    lv_obj_align(ui_Button6, LV_ALIGN_CENTER, 0, 140);
+    lv_obj_set_style_radius(ui_Button6, 30, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Button6, lv_color_hex(0x349EF9), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Button6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui_Button6, lv_color_hex(0x81BAEA), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_main_stop(ui_Button6, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_stop(ui_Button6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_dir(ui_Button6, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_t *label6 = lv_label_create(ui_Button6);
+    lv_label_set_text(label6, "WireGuard");
+    lv_obj_center(label6);
+    lv_obj_set_style_text_font(label6, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(label6, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
+
+#if 1
+    ui_Button7 = lv_button_create(ui_ButtonContainer);
+    lv_obj_set_size(ui_Button7, 220, 40);
+    lv_obj_align(ui_Button7, LV_ALIGN_CENTER, 0, 190);
+    lv_obj_set_style_radius(ui_Button7, 30, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Button7, lv_color_hex(0x349EF9), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_Button7, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_color(ui_Button7, lv_color_hex(0x81BAEA), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_main_stop(ui_Button7, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_stop(ui_Button7, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_grad_dir(ui_Button7, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_t *label7 = lv_label_create(ui_Button7);
+    lv_label_set_text(label7, "DDNS");
+    lv_obj_center(label7);
+    lv_obj_set_style_text_font(label7, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(label7, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
+#endif
+
     ui_BackButton = lv_imagebutton_create(ui_ButtonContainer);
     lv_imagebutton_set_src(ui_BackButton, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_leftarrow_png, NULL);
     lv_imagebutton_set_src(ui_BackButton, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_leftarrow_png, NULL);
@@ -438,6 +497,10 @@ void ui_MainMenu_screen_init(void)
     lv_obj_add_event_cb(ui_Button3, ui_event_Button3, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button4, ui_event_Button4, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button5, ui_event_Button5, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Button6, ui_event_Button6, LV_EVENT_ALL, NULL);
+#if 1
+    lv_obj_add_event_cb(ui_Button7, ui_event_Button7, LV_EVENT_ALL, NULL);
+#endif
     lv_obj_add_event_cb(ui_BackButton, ui_event_BackButton, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ImgButton1, ui_event_ImgButton1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ImgButton2, ui_event_ImgButton2, LV_EVENT_ALL, NULL);
@@ -467,6 +530,8 @@ void ui_MainMenu_screen_destroy(void)
     ui_Label7 = NULL;
     ui_Button5 = NULL;
     ui_Label8 = NULL;
+    ui_Button6 = NULL;
+    ui_Button7 = NULL;
     uic_BackButton = NULL;
     ui_BackButton = NULL;
     ui_MenuDot = NULL;

@@ -49,7 +49,7 @@ idf_component_register(		SRCS
 							"mm_spi.c"
 							"hy3131_sw.c"
 							"Light_pwm.c"
-					#		"ddns.c"
+						"ddns.c"
 						#	"lowPower.c"
 							"co2.c"
 							"lora.c"

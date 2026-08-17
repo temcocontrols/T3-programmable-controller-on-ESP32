@@ -146,35 +146,16 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 // GET /scan
 static esp_err_t scan_get_handler(httpd_req_t *req)
 {
-    // Small delay to let Wi-Fi radio settle before first scan
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    wifi_scan_config_t scan_config = {
-        .ssid = NULL,
-        .bssid = NULL,
-        .channel = 0,
-        .show_hidden = true
-    };
-
-    esp_err_t scan_err = esp_wifi_scan_start(&scan_config, true);
-    if (scan_err != ESP_OK) {
-        // Retry once after a short delay
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        scan_err = esp_wifi_scan_start(&scan_config, true);
-    }
-
+    wifi_ap_record_t ap_info[WIFI_SCAN_MAX_AP];
     uint16_t ap_count = 0;
-    esp_wifi_scan_get_ap_num(&ap_count);
-    if (ap_count > 10) ap_count = 10;
 
-    wifi_ap_record_t *ap_info = malloc(sizeof(wifi_ap_record_t) * (ap_count > 0 ? ap_count : 1));
-    if (!ap_info) {
+    if (wifi_scan_networks(ap_info, &ap_count, WIFI_SCAN_MAX_AP) != ESP_OK) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
 
-    if (ap_count > 0) {
-        esp_wifi_scan_get_ap_records(&ap_count, ap_info);
+    if (ap_count > 10) {
+        ap_count = 10;
     }
 
     char *buf = malloc(1024);
@@ -189,8 +170,6 @@ static esp_err_t scan_get_handler(httpd_req_t *req)
         offset += snprintf(buf + offset, 1024 - offset, "%s\"%s\"", (i == 0) ? "" : ",", (char*)ap_info[i].ssid);
     }
     snprintf(buf + offset, 1024 - offset, "]}");
-
-    free(ap_info);
 
     httpd_resp_set_type(req, "application/json");
     esp_err_t res = httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);

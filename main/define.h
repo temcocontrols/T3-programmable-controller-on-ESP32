@@ -5,7 +5,7 @@
 #include "esp_attr.h"
 #include <stdint.h>
 
-#pragma pack(1)
+#pragma pack(push, 1)
 
 #define SOFTREV     6602
 
@@ -189,6 +189,11 @@ typedef	enum
 #define MINI_TSTAT11 		29
 #define PROJECT_WIREGUARD_GATEWAY 30
 
+/* One feature switch controls the DDNS task, menu entry, and configuration UI. */
+#ifndef DDNS
+#define DDNS 0
+#endif
+
 #define MAX_MINI_TYPE 		30
 
 extern uint16 READ_POINT_TIMER;
@@ -237,3 +242,5 @@ uint32 Get_multicast_addr(uint8 *ip_addr);
 void delay_ms(unsigned int t);
 
 #endif
+
+#pragma pack(pop)

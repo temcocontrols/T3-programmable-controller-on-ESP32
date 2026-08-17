@@ -891,7 +891,6 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_add_event_cb(ui_SchSwitch8,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button13, ui_event_Button13, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button12, ui_event_Button12, LV_EVENT_ALL, NULL);
-    lv_keyboard_set_textarea(ui_ScheduleKeyboard, ui_SSIDText);
     lv_obj_add_event_cb(ui_ScheduleKeyboard, ui_event_ScheduleKeyboard, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ScheduleScreen, ui_event_ScheduleScreen, LV_EVENT_ALL, NULL);
 

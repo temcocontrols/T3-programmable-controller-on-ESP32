@@ -2422,7 +2422,8 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 		// if current panel is network master
 		if(flag_start_scan_network == 1)
 		{
-			put_net_point_value(&point,&value,0,1,cov->timeRemaining);
+			S32_T net_value = (S32_T)value;
+			put_net_point_value(&point, &net_value, 0, 1, cov->timeRemaining);
 		}
 
 		Mqtt_Handler_Send_COV(cov);
@@ -4585,7 +4586,7 @@ void LS_led_task(void *pvParameters);
 
 extern void ethernet_check_task( void *pvParameters);
 void start_dns_server(void);
-#if 0//DDNS
+#if DDNS
 void ddns_task(void *pvParameters);
 #endif
 
@@ -4608,7 +4609,7 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
-	if(Modbus.mini_type == MINI_SMALL_ARM)
+	if(Modbus.mini_type != MINI_TSTAT11 || Modbus.mini_type != PROJECT_WIREGUARD_GATEWAY)
 	{
 		Modbus.mini_type = MINI_TSTAT11;
 		save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
@@ -4648,12 +4649,12 @@ void app_main()
     xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
     xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
-#if 0//DDNS
+#if DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
 
 	Mqtt_Handler_Init();
-	dynamic_display_api_start();
+	//dynamic_display_api_start();
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();

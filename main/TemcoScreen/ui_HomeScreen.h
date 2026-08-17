@@ -15,6 +15,8 @@ extern void ui_HomeScreen_screen_init(void);
 extern void ui_HomeScreen_screen_destroy(void);
 extern void ui_event_HomeScreen(lv_event_t * e);
 extern lv_obj_t * ui_HomeScreen;
+extern lv_obj_t * ui_RunningModeLabel;
+extern lv_obj_t * ui_RS485ArrowImg;
 extern lv_obj_t * ui_RunTime;
 extern lv_obj_t * ui_TemperatureContainer;
 extern void ui_event_TempSetPoint1(lv_event_t * e);

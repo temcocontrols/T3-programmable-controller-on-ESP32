@@ -247,6 +247,10 @@ void ui_init(void)
     ui_ScheduleScreen_screen_init();
     ui_ScheduleEditScreen_screen_init();
     ui_HolidayCalenderScreen_screen_init();
+    ui_WireGuardScreen_screen_init();
+#if 1
+    ui_DdnsScreen_screen_init();
+#endif
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_StartUpScreen);
 }
@@ -264,4 +268,8 @@ void ui_destroy(void)
     ui_ScheduleScreen_screen_destroy();
     ui_ScheduleEditScreen_screen_destroy();
     ui_HolidayCalenderScreen_screen_destroy();
+    ui_WireGuardScreen_screen_destroy();
+#if 1
+    ui_DdnsScreen_screen_destroy();
+#endif
 }
