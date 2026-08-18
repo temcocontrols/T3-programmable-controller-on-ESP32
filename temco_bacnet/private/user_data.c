@@ -762,7 +762,7 @@ void init_panel(void)
 #endif
 
 	if(Modbus.mini_type == 9/* MINI_TSTAT10*/)
-		memset(lcddisplay,0,sizeof(lcdconfig));
+		memset(lcddisplay,0,sizeof(lcddisplay));
 
 }
 
