@@ -321,6 +321,8 @@ void wifi_init_sta(void)
 
     }
 
+    esp_wifi_stop();
+
     if(SSID_Info.MANUEL_EN != 1)
     {
         wifi_start_softap();
@@ -399,7 +401,6 @@ void wifi_init_sta(void)
     esp_wifi_set_mode(WIFI_MODE_STA);
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
     esp_wifi_start();
-    init_mdns_service();
 
     if (!wifi_initialized)
     {

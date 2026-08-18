@@ -100,7 +100,6 @@ MAIN_SRCS = app_main.c \
             i2c_task.c \
             ota.c \
             wifi.c \
-            wifi_web_server.c \
             sgp30_featureset.c \
             sensirion_common.c \
             sgp30.c \
