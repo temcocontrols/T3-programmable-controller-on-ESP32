@@ -58,6 +58,7 @@ typedef enum {
 
 int esp_netif_init(void);
 esp_netif_t esp_netif_create_default_wifi_sta(void);
+esp_netif_t esp_netif_create_default_wifi_ap(void);
 esp_netif_t esp_netif_get_handle_from_ifkey(const char* if_key);
 int esp_netif_dhcpc_stop(esp_netif_t esp_netif);
 int esp_netif_dhcpc_start(esp_netif_t esp_netif);
