@@ -127,6 +127,7 @@ void ui_event_Button12(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         ScheduleSetupUpdateBtnFunc(e);
+        _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 1000, 100, &ui_MainMenu_screen_init);
     }
 }
 

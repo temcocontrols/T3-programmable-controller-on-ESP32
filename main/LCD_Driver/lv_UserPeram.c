@@ -368,30 +368,34 @@ static void lv_refresh_HomeScreen_Data(void)
             last_mode = mode;
         }
     }
-
     /* Consume one-shot activity counters so a stale startup value cannot leave
        an arrow permanently visible. */
-    if(UI_OBJ_READY(ui_RS485ArrowImg))
+
+    if(UI_OBJ_READY(ui_RS485ArrowUpImg) && UI_OBJ_READY(ui_RS485ArrowDnImg))
     {
+        static bool rx_arrow_visible = false;
+        static bool tx_arrow_visible = false;
         if(flagLED_sub_rx)
         {
-            lv_obj_clear_flag(ui_RS485ArrowImg, LV_OBJ_FLAG_HIDDEN);
-
-            // 0° = original direction
-            lv_obj_set_style_transform_angle(ui_RS485ArrowImg,2700,LV_PART_MAIN);
+            lv_obj_clear_flag(ui_RS485ArrowDnImg, LV_OBJ_FLAG_HIDDEN);
+            rx_arrow_visible = true;
             flagLED_sub_rx--;
         }
-        else if(flagLED_sub_tx)
+        else if(rx_arrow_visible)
         {
-            lv_obj_clear_flag(ui_RS485ArrowImg, LV_OBJ_FLAG_HIDDEN);
-
-            // 180° = opposite direction
-            lv_obj_set_style_transform_angle(ui_RS485ArrowImg,900,LV_PART_MAIN);
+            rx_arrow_visible = false;
+            lv_obj_add_flag(ui_RS485ArrowDnImg, LV_OBJ_FLAG_HIDDEN);
+        }
+        if(flagLED_sub_tx)
+        {
+            lv_obj_clear_flag(ui_RS485ArrowUpImg, LV_OBJ_FLAG_HIDDEN);
+            tx_arrow_visible = true;
             flagLED_sub_tx--;
         }
-        else
+        else if(tx_arrow_visible)
         {
-            lv_obj_add_flag(ui_RS485ArrowImg, LV_OBJ_FLAG_HIDDEN);
+            tx_arrow_visible = false;
+            lv_obj_add_flag(ui_RS485ArrowUpImg, LV_OBJ_FLAG_HIDDEN);
         }
     }
 
@@ -2987,6 +2991,7 @@ void Event_Cb_ScheduleSetupUpdateBtnFunc(lv_event_t * e)
             weekly_routines[i].value = lv_obj_has_state(value_switches[i], LV_STATE_CHECKED) ? 1U : 0U;
         }
     }
+    save_point_info(0);
 }
 
 /**

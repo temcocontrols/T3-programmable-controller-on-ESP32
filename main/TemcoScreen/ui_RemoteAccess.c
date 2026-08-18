@@ -71,9 +71,19 @@ static void wg_save(lv_event_t *e)
     unsigned a,b,c,d;
     wireguard_point.reg.wireguard_enable = lv_obj_has_state(wg_enable, LV_STATE_CHECKED) ? 1 : 0;
     if(sscanf(lv_textarea_get_text(wg_local), "%u.%u.%u.%u", &a,&b,&c,&d) == 4)
-        { wireguard_point.reg.wireguard_local_ip[0]=a; wireguard_point.reg.wireguard_local_ip[1]=b; wireguard_point.reg.wireguard_local_ip[2]=c; wireguard_point.reg.wireguard_local_ip[3]=d; }
+    {
+        wireguard_point.reg.wireguard_local_ip[0]=a;
+        wireguard_point.reg.wireguard_local_ip[1]=b;
+        wireguard_point.reg.wireguard_local_ip[2]=c;
+        wireguard_point.reg.wireguard_local_ip[3]=d;
+    }
     if(sscanf(lv_textarea_get_text(wg_peer), "%u.%u.%u.%u", &a,&b,&c,&d) == 4)
-        { wireguard_point.reg.wireguard_peer_ip[0]=a; wireguard_point.reg.wireguard_peer_ip[1]=b; wireguard_point.reg.wireguard_peer_ip[2]=c; wireguard_point.reg.wireguard_peer_ip[3]=d; }
+        {
+            wireguard_point.reg.wireguard_peer_ip[0]=a;
+            wireguard_point.reg.wireguard_peer_ip[1]=b;
+            wireguard_point.reg.wireguard_peer_ip[2]=c;
+            wireguard_point.reg.wireguard_peer_ip[3]=d;
+        }
     wireguard_point.reg.wireguard_port = (uint16_t)atoi(lv_textarea_get_text(wg_port));
     lv_label_set_text(wg_status, save_wireguard_config_to_flash() == ESP_OK ? "Saved. Restart WireGuard to apply." : "Save failed");
 }
@@ -110,14 +120,36 @@ void ui_WireGuardScreen_screen_init(void)
     lv_obj_t *save=remote_action_button(ui_WireGuardScreen,"Update",180);
     lv_obj_add_event_cb(save,wg_save,LV_EVENT_CLICKED,NULL);
 }
-void ui_WireGuardScreen_screen_destroy(void) { if(ui_WireGuardScreen) lv_obj_del(ui_WireGuardScreen); ui_WireGuardScreen=NULL; }
+
+void ui_WireGuardScreen_screen_destroy(void)
+{
+    if(ui_WireGuardScreen)
+    {
+        lv_obj_del(ui_WireGuardScreen);
+        ui_WireGuardScreen=NULL;
+    }
+}
 
 #if 1
 lv_obj_t *ui_DdnsScreen;
 static lv_obj_t *ddns_enable, *ddns_status;
-static void ddns_save(lv_event_t *e) { if(lv_event_get_code(e)==LV_EVENT_CLICKED) { Modbus.en_dyndns=lv_obj_has_state(ddns_enable,LV_STATE_CHECKED)?2:1; save_block(FLASH_BLOCK2_PN);
-    lv_label_set_text(ddns_status,"Saved"); } }
-static void ddns_test(lv_event_t *e) { if(lv_event_get_code(e)==LV_EVENT_CLICKED) { lv_label_set_text(ddns_status, SSID_Info.IP_Wifi_Status==WIFI_NORMAL ? "DDNS update will run shortly" : "Connect WiFi first"); } }
+static void ddns_save(lv_event_t *e)
+{
+    if(lv_event_get_code(e)==LV_EVENT_CLICKED)
+    {
+        Modbus.en_dyndns=lv_obj_has_state(ddns_enable,LV_STATE_CHECKED)?2:1; save_block(FLASH_BLOCK2_PN);
+        lv_label_set_text(ddns_status,"Saved");
+    }
+}
+
+static void ddns_test(lv_event_t *e)
+{
+    if(lv_event_get_code(e)==LV_EVENT_CLICKED)
+    {
+        lv_label_set_text(ddns_status, SSID_Info.IP_Wifi_Status==WIFI_NORMAL ? "DDNS update will run shortly" : "Connect WiFi first");
+    }
+}
+
 void ui_DdnsScreen_screen_init(void)
 {
     ui_DdnsScreen = lv_obj_create(NULL);
@@ -137,5 +169,14 @@ void ui_DdnsScreen_screen_init(void)
     lv_obj_t *update = remote_action_button(ui_DdnsScreen, "Update", 180);
     lv_obj_add_event_cb(update, ddns_save, LV_EVENT_CLICKED, NULL);
 }
-void ui_DdnsScreen_screen_destroy(void) { if(ui_DdnsScreen)lv_obj_del(ui_DdnsScreen);ui_DdnsScreen=NULL; }
+
+void ui_DdnsScreen_screen_destroy(void)
+{
+    if(ui_DdnsScreen)
+    {
+        lv_obj_del(ui_DdnsScreen);
+        ui_DdnsScreen=NULL;
+    }
+}
+
 #endif

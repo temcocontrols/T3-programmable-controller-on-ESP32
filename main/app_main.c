@@ -2935,7 +2935,7 @@ void Update_Led(void)
 		max_out = 7;
 		max_digout = 7;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
+	else if(Modbus.mini_type == MINI_TSTAT10)
 	{
 		max_in = 8;
 		max_out = 7;
@@ -3236,7 +3236,6 @@ void i2c_master_task(void *pvParameters)
 	if(Modbus.mini_type == PROJECT_CO2)
 	{
 		qSendCo2 = xQueueCreate(2, 2);
-
 	}
 	/*if(Modbus.mini_type == MINI_TSTAT10)
 	{
@@ -3399,8 +3398,7 @@ void i2c_master_task(void *pvParameters)
 		}
 		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == MINI_BIG_ARM ||
 				Modbus.mini_type == PROJECT_RMC1216	|| Modbus.mini_type == MINI_TSTAT10 ||
-				Modbus.mini_type == MINI_TSTAT11    || Modbus.mini_type == PROJECT_NG2_NEW ||
-				Modbus.mini_type == PROJECT_CO2)
+			    Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
 		{
 			// send
 			// led
@@ -4768,7 +4766,6 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
 	else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-
 	com_tx[port]++;
 }
 

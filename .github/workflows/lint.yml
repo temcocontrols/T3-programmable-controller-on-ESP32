@@ -1,0 +1,33 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,style,performance,portability \
+            --inconclusive \
+            --error-exitcode=1 \
+            --quiet \
+            --suppress=missingIncludeSystem \
+            -I main \
+            -I temco_bacnet \
+            -I temco_IO_control \
+            main/ \
+            temco_bacnet/ \
+            temco_IO_control/
