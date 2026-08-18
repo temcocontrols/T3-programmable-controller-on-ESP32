@@ -2421,7 +2421,8 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 		// if current panel is network master
 		if(flag_start_scan_network == 1)
 		{
-			put_net_point_value(&point,&value,0,1,cov->timeRemaining);
+			S32_T net_value = (S32_T)value;
+			put_net_point_value(&point, &net_value, 0, 1, cov->timeRemaining);
 		}
 
 		Mqtt_Handler_Send_COV(cov);
