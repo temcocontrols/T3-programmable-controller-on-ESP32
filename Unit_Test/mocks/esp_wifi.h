@@ -35,52 +35,24 @@ typedef enum {
 
 typedef enum {
     WIFI_IF_STA,
-    WIFI_IF_AP,
 } wifi_interface_t;
-
-typedef enum { WIFI_AUTH_OPEN = 0, WIFI_AUTH_WPA_PSK = 1, WIFI_AUTH_WPA2_PSK = 2 } wifi_auth_mode_t;
-/* Backwards-compatible alias used in production code */
-#define WIFI_AUTH_WPA_WPA2_PSK WIFI_AUTH_WPA2_PSK
 
 typedef struct {
     uint8_t ssid[32];
     uint8_t password[64];
-    /* Added fields to match newer esp-idf wifi_sta_config_t */
-    int8_t bssid_set; /* non-zero if bssid is set */
-    uint8_t bssid[6];
     struct {
         bool capable;
         bool required;
     } pmf_cfg;
 } wifi_sta_config_t;
 
-typedef struct {
-    uint8_t ssid[32];
-    uint8_t password[64];
-    uint8_t ssid_len;
-    uint8_t channel;
-    wifi_auth_mode_t authmode;
-    uint8_t max_connection;
-} wifi_ap_config_t;
-
 typedef union {
     wifi_sta_config_t sta;
-    wifi_ap_config_t ap;
 } wifi_config_t;
 
 typedef struct {
-    const uint8_t *ssid;
-    const uint8_t *bssid;
-    uint8_t channel;
-    bool show_hidden;
-} wifi_scan_config_t;
-
-typedef struct {
     uint8_t ssid[33];
-    uint8_t bssid[6];
-    int8_t primary; /* channel */
-    int8_t rssi;
-    wifi_auth_mode_t authmode;
+    int rssi;
 } wifi_ap_record_t;
 
 typedef struct {
