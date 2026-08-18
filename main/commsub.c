@@ -88,6 +88,7 @@ void Comm_Tstat_Initial_Data(void)
 			break;
 		case PROJECT_LORA_GATEWAY:	base_in = 32;			   base_out = 0;
 			break;
+		case PROJECT_HUB:
 		case MINI_NANO:				base_in = 0;			   base_out = 0;
 			break;
 		case PROJECT_LIGHT_PWM:		base_in = 0;			   base_out = 4;
@@ -997,7 +998,7 @@ void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start
 	else if(Modbus.mini_type == MINI_SMALL_ARM)	{	ptr->reg.input_end = 16;		ptr->reg.output_end = 10;		}
 	else if(Modbus.mini_type == MINI_TINY_ARM)	{	ptr->reg.input_end = 8;		ptr->reg.output_end = 14;		}
 	else if(Modbus.mini_type == MINI_TINY_11I)	{	ptr->reg.input_end = 11;		ptr->reg.output_end = 11;		}
-	else if(Modbus.mini_type == MINI_NANO)	{	// no I/O
+	else if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_HUB)	{	// no I/O
 		ptr->reg.input_start = 0;		ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 0;		}
 	else if(Modbus.mini_type == PROJECT_LIGHT_PWM)	{	// 4 AO
 			ptr->reg.input_start = 0;		ptr->reg.output_start = 0;ptr->reg.input_end = 0;		ptr->reg.output_end = 4;		}

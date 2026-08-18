@@ -6,6 +6,9 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
+#include "hub_lte_pppos.h"
+
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -35,6 +38,7 @@
 #include "ethernet_task.h"
 #include "flash.h"
 #include "rtc.h"
+#include "usb_cdc.h"
 
 #include "i2c_task.h"
 //#include "microphone.h"
@@ -66,6 +70,8 @@
 #include "lora.h"
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
+#include "a7608.h"
+#include "hub_module.h"
 
 //#include "lowPower.h"
 
@@ -2377,7 +2383,7 @@ void handler_cov_task(uint8_t protocal);
 void handler_cov_timer_seconds( uint32_t elapsed_seconds);
 uint8_t apdu[480];
 extern uint8_t flag_start_scan_network;
-void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
+void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, S32_T value)
 {
 		Point_Net point;
 		BACNET_PROPERTY_VALUE *list;
@@ -2635,31 +2641,46 @@ void Timer_task(void *pvParameters)
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	uint16_t count = 0;
 	uint16_t count_1s = 0;
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	timezone = 800;
 	Daylight_Saving_Time = 0;
-	if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
-			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR))
+#endif
+	if(((Modbus.mini_type != PROJECT_HUB) || PROJECT_HUB_W5500_TIMER_RESTORE_I2C_RTC_INIT)
+			&& (Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
+			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
 	{
 		i2c_master_init();
 		PCF_hctosys();
 		PCF_systohc();
 	}
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	Eth_IP_Change = 0;
 
 	update_timers();
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK || PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	system_timer = 0;
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	Mstp_ForUs = 0;
 	Mstp_NotForUs = 0;
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK
 	task_test.enable[13] = 1;
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 	monitor_init();
 	//FOR TEST
 	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
 	if(Modbus.mini_type == PROJECT_LIGHT_PWM)
 		Light_PWM_Init();
+#endif
 
 	for (;;)
 	{// 10ms
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK
 		task_test.count[13]++;
+#endif
 
 		/*if(Test[20] == 100)
 		{
@@ -2680,6 +2701,7 @@ void Timer_task(void *pvParameters)
 
 
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 #if COV
 		handler_cov_task(BAC_IP_CLIENT);
 #endif
@@ -2697,7 +2719,9 @@ void Timer_task(void *pvParameters)
 		{// MSTP error, reboot
 			//
 		}
+#endif
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_10MS_TICK
 		SilenceTime = SilenceTime + TIMER_INTERVAL;
 		if(SilenceTime > 10000) // 10s
 		{
@@ -2727,6 +2751,7 @@ void Timer_task(void *pvParameters)
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
 		{
 			run_time = run_time + 1;
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 #if LSW_ON_OFF
 			if(Modbus.mini_type == PROJECT_LSW_SENSOR)
 			{
@@ -2752,8 +2777,10 @@ void Timer_task(void *pvParameters)
 			}
 			else
 				flag_start_scan_mstp = 0;
+#endif
 
-			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
+#if PROJECT_HUB_W5500_TIMER_RESTORE_I2C_RTC_INIT
+			if((Modbus.mini_type != PROJECT_HUB) && (Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
 					 && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR))
 			{
 				PCF_GetDateTime(&rtc_date);
@@ -2764,17 +2791,26 @@ void Timer_task(void *pvParameters)
 					PCF_systohc();
 				}
 			}
+#endif
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 			if(count_hold_on_bip_to_mstp > 0)
 				count_hold_on_bip_to_mstp--;
 			count = 0;
+#endif
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_NETWORK_HEALTH
 			check_net_health(60);
+#endif
+#if PROJECT_HUB_W5500_TIMER_RESTORE_UART_CHECK
 			Check_change_uart();
+#endif
 
 		}
+#endif
 
 
+#if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 		if((run_time > 15) && (flag_clear_count_reboot == 0))
 		{ // 20s clear reboot count
 			flag_clear_count_reboot = 1;
@@ -2809,6 +2845,7 @@ void Timer_task(void *pvParameters)
 		}
 
 		check_task();
+#endif
 
 		//vTaskDelay(TIMER_INTERVAL / portTICK_PERIOD_MS);
 		vTaskDelayUntil( &xLastWakeTime,TIMER_INTERVAL); // 10ms
@@ -4593,7 +4630,154 @@ void start_dns_server(void);
 void ddns_task(void *pvParameters);
 #endif
 
+void hub_usb_serial_init(void);
+int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
+
 void phy_reset(void);
+
+#if HUB_LTE_PPPOS_MANUAL_TEST
+static void hub_pppos_manual_process_task(void *pvParameters)
+{
+	(void)pvParameters;
+	uint32_t process_count = 0;
+	bool start_called = false;
+
+	ESP_LOGI(TCP_TASK_TAG, "PPPoS manual process task started: period_ms=1000; start will be called once when preflight is ready");
+	while (1) {
+		if (Modbus.mini_type == PROJECT_HUB) {
+			if (!start_called) {
+				hub_lte_pppos_preflight_t preflight;
+				memset(&preflight, 0, sizeof(preflight));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI sizeof=%u config_valid=%u test_mode_enabled=%u pppos_enabled=%u uart_available=%u uart_owner=%u",
+						 (unsigned int)sizeof(hub_lte_pppos_preflight_t),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, config_valid),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, test_mode_enabled),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, pppos_enabled),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_available),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_owner));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI modem_status_known=%u sim_ready=%u registered=%u has_signal=%u status_fresh=%u attached=%u",
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, modem_status_known),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, sim_ready),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, registered_to_network),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_signal),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_fresh),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, attached));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI rssi=%u csq=%u creg=%u cereg=%u cfun=%u status_age_ms=%u",
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, rssi),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, csq),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, creg_stat),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, cereg_stat),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, cfun),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_age_ms));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI has_apn=%u apn=%u ready=%u reason=%u apn_len=%u reason_len=%u",
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_apn),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, apn),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, ready_to_start),
+						 (unsigned int)offsetof(hub_lte_pppos_preflight_t, reason),
+						 (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_APN_LEN,
+						 (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN);
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL ABI field_size bool=%u int=%u uint32=%u ready=%u apn=%u reason=%u",
+						 (unsigned int)sizeof(bool),
+						 (unsigned int)sizeof(int),
+						 (unsigned int)sizeof(uint32_t),
+						 (unsigned int)sizeof(preflight.ready_to_start),
+						 (unsigned int)sizeof(preflight.apn),
+						 (unsigned int)sizeof(preflight.reason));
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL TRACE before preflight ptr=%p",
+						 (void *)&preflight);
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL TRACE sizeof=%u",
+						 (unsigned int)sizeof(hub_lte_pppos_preflight_t));
+				esp_err_t preflight_ret = hub_lte_pppos_preflight_check(&preflight);
+				ESP_LOGI(TCP_TASK_TAG,
+						 "MANUAL TRACE after preflight ptr=%p ret=%s ready=%d reason=%s",
+						 (void *)&preflight,
+						 esp_err_to_name(preflight_ret),
+						 preflight.ready_to_start,
+						 preflight.reason);
+				const char *preflight_reason = preflight.reason[0] != '\0' ? preflight.reason : hub_lte_pppos_preflight_reason();
+				if ((preflight_reason == NULL) || (preflight_reason[0] == '\0')) {
+					preflight_reason = "Preflight not ready";
+				}
+				if ((preflight_ret == ESP_OK) && preflight.ready_to_start) {
+					ESP_LOGI(TCP_TASK_TAG,
+							 "PPPoS preflight ready: calling hub_module_start_pppos_test once (%s)",
+							 preflight_reason);
+					esp_err_t start_ret = hub_module_start_pppos_test();
+					if (start_ret != ESP_OK) {
+						ESP_LOGW(TCP_TASK_TAG, "hub_module_start_pppos_test failed: %s", esp_err_to_name(start_ret));
+					} else {
+						start_called = true;
+					}
+				} else if ((process_count == 0U) || ((process_count % 10U) == 0U)) {
+					ESP_LOGI(TCP_TASK_TAG,
+							 "PPPoS manual start waiting: preflight_ret=%s ready=%d reason=%s",
+							 esp_err_to_name(preflight_ret),
+							 preflight.ready_to_start,
+							 preflight_reason);
+				}
+			}
+
+			esp_err_t ret = hub_module_process();
+			process_count++;
+			if ((ret != ESP_OK) || (process_count == 1U) || ((process_count % 10U) == 0U)) {
+				ESP_LOG_LEVEL((ret == ESP_OK) ? ESP_LOG_INFO : ESP_LOG_WARN,
+							  TCP_TASK_TAG,
+							  "hub_module_process manual tick count=%lu ret=%s ppp_state=%s active=%s",
+							  (unsigned long)process_count,
+							  esp_err_to_name(ret),
+							  hub_lte_pppos_state_name(hub_lte_pppos_get_state()),
+							  hub_module_active_interface_name());
+			}
+		}
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
+}
+#endif
+
+#if CONFIG_IDF_TARGET_ESP32S3
+static void hub_uart0_console_driver_init(void)
+{
+	if (uart_is_driver_installed(UART_NUM_0)) {
+		return;
+	}
+
+	const uart_config_t uart_cfg = {
+		.baud_rate = 115200,
+		.data_bits = UART_DATA_8_BITS,
+		.parity = UART_PARITY_DISABLE,
+		.stop_bits = UART_STOP_BITS_1,
+		.flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+		.source_clk = UART_SCLK_DEFAULT,
+	};
+
+	esp_err_t ret = uart_param_config(UART_NUM_0, &uart_cfg);
+	if (ret != ESP_OK) {
+		ESP_LOGW(TCP_TASK_TAG, "UART0 param config failed: %s", esp_err_to_name(ret));
+		return;
+	}
+
+	ret = uart_set_pin(UART_NUM_0, GPIO_NUM_43, GPIO_NUM_44, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+	if (ret != ESP_OK) {
+		ESP_LOGW(TCP_TASK_TAG, "UART0 pin set failed: %s", esp_err_to_name(ret));
+		return;
+	}
+
+	ret = uart_driver_install(UART_NUM_0, 2048, 0, 0, NULL, 0);
+	if (ret != ESP_OK) {
+		ESP_LOGW(TCP_TASK_TAG, "UART0 driver install failed: %s", esp_err_to_name(ret));
+		return;
+	}
+
+	(void)uart_set_mode(UART_NUM_0, UART_MODE_UART);
+}
+#endif
 
 void app_main()
 {
@@ -4618,11 +4802,34 @@ void app_main()
 		save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
 	}
 
-	uart_init(0);
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		/* PROJECT_HUB uses GPIO13 as W5500 SCLK, so skip UART0 RS485 init (uses GPIO13 as SUB_EN). */
+		hub_usb_serial_init();
+		#if CONFIG_IDF_TARGET_ESP32S3
+		hub_uart0_console_driver_init();
+		#endif
+
+		esp_err_t hub_ret = hub_module_init();
+		if (hub_ret != ESP_OK) {
+			ESP_LOGW(TCP_TASK_TAG, "hub_module_init failed: %s", esp_err_to_name(hub_ret));
+		}
+	}
+	else
+	{
+		uart_init(0);
+	}
+
+#ifdef USE_USB_CDC_MAIN
+	usb_cdc_init();
+#endif
 
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
-    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+	if(Modbus.mini_type == PROJECT_HUB)
+		hub_usb_serial_write((const uint8_t *)debug_array, strlen(debug_array), 20);
+	else
+		uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
 #endif
 
 	if(Modbus.mini_type == MINI_TSTAT11)
@@ -4643,7 +4850,24 @@ void app_main()
 
     flag_ethernet_initial = ethernet_init();
 
-    xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
+#if PROJECT_HUB_W5500_DRIVER_ISOLATION_TEST && !PROJECT_HUB_W5500_RESTORE_NETWORK_TASKS
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		ESP_LOGW(TCP_TASK_TAG, "PROJECT_HUB W5500 driver isolation enabled: skip WiFi, UDP/network, A7608, and app tasks");
+		return;
+	}
+#endif
+
+#if PROJECT_HUB_W5500_DRIVER_ISOLATION_TEST && !PROJECT_HUB_W5500_RESTORE_WIFI
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		ESP_LOGW(TCP_TASK_TAG, "PROJECT_HUB W5500 staged test: skip WiFi task");
+	}
+	else
+#endif
+	{
+		xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
+	}
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server
@@ -4654,6 +4878,45 @@ void app_main()
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
+#endif
+
+#if PROJECT_HUB_W5500_DRIVER_ISOLATION_TEST
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+#if PROJECT_HUB_W5500_RESTORE_A7608_AT_DEBUG
+		xTaskCreate(a7608_at_debug_task,"a7608_at_debug",8192, NULL, 10, &main_task_handle[9]);
+#else
+		ESP_LOGW(TCP_TASK_TAG, "PROJECT_HUB W5500 staged test: network tasks restored; skip A7608 and app tasks");
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_SCAN_TASK
+		vStartScanTask(5);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_MSTP0_TASK
+		xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_BACNET_CONTROL_TASK || PROJECT_HUB_W5500_STAGE4_RESTORE_TIMER_TASK
+		Set_Device_Stage(DEVICE_STAGE_RUNNING);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_BACNET_CONTROL_TASK
+		xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
+#endif
+
+#if PROJECT_HUB_W5500_STAGE4_RESTORE_TIMER_TASK
+		xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
+#endif
+
+		ESP_LOGW(TCP_TASK_TAG,
+				 "PROJECT_HUB W5500 Stage 4: network/WiFi/A7608 restored; scan=%d mstp0=%d bacnet=%d timer=%d; skip remaining app flow",
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_SCAN_TASK,
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_MSTP0_TASK,
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_BACNET_CONTROL_TASK,
+				 PROJECT_HUB_W5500_STAGE4_RESTORE_TIMER_TASK);
+		return;
+	}
 #endif
 
 	Mqtt_Handler_Init();
@@ -4708,10 +4971,36 @@ void app_main()
     	xTaskCreate(vPM25Task,"PM25Task",2048, NULL, tskIDLE_PRIORITY + 1,&main_task_handle[15]);
     }
     else
+    {
     	vStartScanTask(5);
+    }
 
-    xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
-    xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
+	xTaskCreate(Master0_Node_task,"mstp0_task",4096, NULL, 4, &main_task_handle[8]);
+#if PROJECT_HUB_AT_DEBUG
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		a7608_startup_probe_init_in_progress();
+		BaseType_t a7608_task_ret = xTaskCreate(a7608_at_debug_task,"a7608_at_debug",8192, NULL, 10, &main_task_handle[9]);
+		if (a7608_task_ret != pdPASS) {
+			ESP_LOGW(TCP_TASK_TAG, "a7608_at_debug_task create failed");
+		}
+#if HUB_LTE_PPPOS_MANUAL_TEST
+		BaseType_t pppos_task_ret = xTaskCreate(hub_pppos_manual_process_task,
+											   "hub_pppos_proc",
+											   4096,
+											   NULL,
+											   6,
+											   NULL);
+		if (pppos_task_ret != pdPASS) {
+			ESP_LOGW(TCP_TASK_TAG, "hub_pppos_manual_process_task create failed");
+		}
+#endif
+	}
+	else
+#endif
+	{
+		xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
+	}
 
     if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
     	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW)
@@ -4761,11 +5050,18 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 
 	if(port == 0)
 	{
-		uart_write_bytes(UART_NUM_0, (const char *)p, length);
+		if(Modbus.mini_type == PROJECT_HUB)
+			hub_usb_serial_write(p, length, 10);
+		else
+			uart_write_bytes(UART_NUM_0, (const char *)p, length);
 	}
 	else if(port == 2)
 	{
+#ifdef USE_USB_CDC_MAIN
+		usb_cdc_write(p, length);
+#else
 		uart_write_bytes(UART_NUM_2, (const char *)p, length);
+#endif
 	}
 
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}

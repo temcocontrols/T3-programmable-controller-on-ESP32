@@ -15,9 +15,10 @@ dependencies:
   #   # All dependencies of `main` are public by default.
   #   public: true
   espressif/led_strip: '*'
+  espressif/esp_tinyusb: '*'
+  espressif/esp_modem: '*'
 
   lvgl/lvgl:
     version: "==9.5.0"
 
   espressif/mdns: "^1.8"
-

@@ -6,6 +6,7 @@
 #include "esp_log.h"            // for log_write
 #include "driver/gpio.h"
 #include "driver/uart.h"
+#include "driver/usb_serial_jtag.h"
 #include "modbus.h"
 #include "i2c_task.h"
 #include "flash.h"
@@ -18,6 +19,7 @@
 #include "rs485.h"
 #include "airlab.h"
 #include "flash.h"
+#include "usb_cdc.h"
 #include "controls.h"
 #include "lcd.h"
 #include "sntp_app.h"
@@ -99,6 +101,35 @@ uint8_t count_change_uart2 = 0;
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
 
+static bool hub_usb_serial_ready = false;
+
+void hub_usb_serial_init(void)
+{
+	if(hub_usb_serial_ready)
+		return;
+
+	usb_serial_jtag_driver_config_t config = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+	config.rx_buffer_size = 1024;
+	config.tx_buffer_size = 1024;
+	esp_err_t ret = usb_serial_jtag_driver_install(&config);
+	if(ret == ESP_OK || ret == ESP_ERR_INVALID_STATE)
+		hub_usb_serial_ready = true;
+}
+
+int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms)
+{
+	if(!hub_usb_serial_ready)
+		return 0;
+	return usb_serial_jtag_read_bytes(buf, length, pdMS_TO_TICKS(timeout_ms));
+}
+
+int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms)
+{
+	if(!hub_usb_serial_ready)
+		return 0;
+	return usb_serial_jtag_write_bytes(buf, length, pdMS_TO_TICKS(timeout_ms));
+}
+
 void check_modbus_slave(void)
 {
     if(Modbus.fix_com_config == 1)
@@ -137,6 +168,15 @@ void check_modbus_slave(void)
 
 void Check_change_uart(void)
 {
+    if(Modbus.mini_type == PROJECT_HUB)
+    {
+        flag_change_uart0 = 0;
+        flag_change_uart2 = 0;
+        count_change_uart0 = 0;
+        count_change_uart2 = 0;
+        return;
+    }
+
     if(flag_change_uart0 == 1)
     {
         if(count_change_uart0++ > 3)
@@ -388,6 +428,12 @@ void uart_init(uint8_t uart)
     {
         return;
     }
+#ifdef USE_USB_CDC_MAIN
+    if(uart == 2)
+    {
+        return;
+    }
+#endif
 
     switch(Modbus.baudrate[uart])
     {
@@ -693,7 +739,11 @@ void uart2_rx_task(void *pvParameters)
         task_test.count[10]++;
         if(Modbus.com_config[2] == MODBUS_SLAVE)
         {
+#ifdef USE_USB_CDC_MAIN
+            int len = usb_cdc_read(uart_rsv, 512, 70);
+#else
             int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_PERIOD_MS);
+#endif
 
             if(len>0)
             {
@@ -729,7 +779,11 @@ void uart2_rx_task(void *pvParameters)
         {
             if(system_timer / 1000 > 10)
             {
+#ifdef USE_USB_CDC_MAIN
+                int len = usb_cdc_read(uart_rsv, 512, 100);
+#else
                 int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
+#endif
 
                 if(len > 0)
                 {
@@ -748,7 +802,11 @@ void uart2_rx_task(void *pvParameters)
             if((Modbus.com_config[2] == 0)/* || (Modbus.com_config[2] == MODBUS_MASTER) */)
             {
 
+#ifdef USE_USB_CDC_MAIN
+                int len = usb_cdc_read(uart_rsv, 50, 10);
+#else
                 int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
+#endif
                 if(len>0)
                 {
                     led_main_rx++;

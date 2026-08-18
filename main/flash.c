@@ -13,7 +13,6 @@
 #include "bacnet.h"
 #include "esp_log.h"
 
-#include "unity.h"
 #include "esp_partition.h"
 #include "esp_system.h"
 #include <string.h>

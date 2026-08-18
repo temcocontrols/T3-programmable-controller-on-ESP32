@@ -320,6 +320,10 @@ void wifi_init_sta(void)
         ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     }
+    else
+    {
+        esp_wifi_stop();
+    }
 
     if(SSID_Info.MANUEL_EN != 1)
     {

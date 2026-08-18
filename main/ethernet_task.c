@@ -8,6 +8,9 @@
 #include "driver/gpio.h"
 #include "sdkconfig.h"
 #include "ethernet_task.h"
+#include "hub_lte_pppos.h"
+#include "hub_network_manager.h"
+#include "hub_w5500.h"
 #include "define.h"
 #include "wifi.h"
 #include "esp_netif_ip_addr.h"
@@ -20,30 +23,84 @@ void eth_start(void);
 static const char *TAG = "ethernet_task";
 //uint8_t mac_addr[6] = {0};
 
+#if HUB_W5500_DRIVER_REG_DEBUG || HUB_W5500_PHYCFGR_READ_DEBUG
+#define W5500_MR_REG_ADDR               ((uint32_t)(0x0000 << 16))
+#define W5500_PHYCFGR_REG_ADDR          ((uint32_t)(0x002E << 16))
+#define W5500_VERSIONR_REG_ADDR         ((uint32_t)(0x0039 << 16))
+#define W5500_EXPECTED_VERSIONR         0x04
+#endif
+
+#if HUB_W5500_DRIVER_REG_DEBUG
+#define W5500_DEBUG_MAX_PHY_RESETS      3
+#endif
+
+static const char *eth_event_name(int32_t event_id)
+{
+    switch (event_id) {
+    case ETHERNET_EVENT_CONNECTED:
+        return "CONNECTED";
+    case ETHERNET_EVENT_DISCONNECTED:
+        return "DISCONNECTED";
+    case ETHERNET_EVENT_START:
+        return "START";
+    case ETHERNET_EVENT_STOP:
+        return "STOP";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+#if HUB_W5500_DRIVER_REG_DEBUG
+static void eth_log_mac(const char *prefix, const uint8_t mac[6])
+{
+    ESP_LOGI(TAG, "%s %02x:%02x:%02x:%02x:%02x:%02x",
+             prefix,
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+#endif
+
 /** Event handler for Ethernet events */
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
 {
 
+#if HUB_W5500_DRIVER_REG_DEBUG
     /* we can get the ethernet driver handle from event data */
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
+#else
+    (void)event_data;
+#endif
+    ESP_LOGI(TAG, "ETH event: %s (%ld)", eth_event_name(event_id), (long)event_id);
     switch (event_id) {
     case ETHERNET_EVENT_CONNECTED:
-        esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr);
+#if HUB_W5500_DRIVER_REG_DEBUG
+        if (esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, Modbus.mac_addr) == ESP_OK) {
+            eth_log_mac("Ethernet Link Up, MAC:", Modbus.mac_addr);
+        } else {
+            ESP_LOGW(TAG, "Ethernet Link Up, MAC read failed");
+        }
+#else
+        ESP_LOGI(TAG, "Ethernet Link Up");
+#endif
         debug_info("Ethernet Link Up");
         //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+        hub_network_manager_set_eth_status(true, false);
         Modbus.ethernet_status = ETHERNET_EVENT_CONNECTED;
         break;
     case ETHERNET_EVENT_DISCONNECTED:
+        ESP_LOGW(TAG, "Ethernet Link Down");
     	debug_info("Ethernet Link Down");
+        hub_network_manager_set_eth_status(false, false);
         Modbus.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
         break;
     case ETHERNET_EVENT_START:
+        ESP_LOGI(TAG, "Ethernet Started");
     	debug_info("Ethernet Started");
         Modbus.ethernet_status = ETHERNET_EVENT_START;
         break;
     case ETHERNET_EVENT_STOP:Test[19]++;
+        ESP_LOGW(TAG, "Ethernet Stopped");
     	debug_info("Ethernet Stopped");
         Modbus.ethernet_status = ETHERNET_EVENT_STOP;
         break;
@@ -65,6 +122,11 @@ static void got_ip_event_handler(void *arg,
     debug_info("Ethernet Got IP Address");
     debug_info("~~~~~~~~~~~");
 
+    ESP_LOGI(TAG, "Ethernet Got IP Address");
+    if (Modbus.mini_type == PROJECT_HUB) {
+        ESP_LOGW(TAG, "PROJECT_HUB Got IP is not cable proof; confirm W5500 VERSIONR=0x04 and PHYCFGR link=1");
+    }
+
     Modbus.ip_addr[0] = esp_ip4_addr1(&ip_info->ip);
     Modbus.ip_addr[1] = esp_ip4_addr2(&ip_info->ip);
     Modbus.ip_addr[2] = esp_ip4_addr3(&ip_info->ip);
@@ -85,6 +147,7 @@ static void got_ip_event_handler(void *arg,
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
 
     Modbus.ethernet_status = 4;  // GOT IP
+    hub_network_manager_set_eth_status(true, true);
 
 #if 1 // DNS
     if ((Modbus.getway[0] != 0) ||
@@ -133,15 +196,403 @@ esp_eth_handle_t eth_handle = NULL;
 
 extern uint8_t count_reboot;
 
+#if HUB_W5500_DRIVER_REG_DEBUG || HUB_W5500_PHYCFGR_READ_DEBUG
+static esp_err_t w5500_read_reg_u8(esp_eth_handle_t handle, uint32_t reg_addr, uint32_t *value)
+{
+    if (value == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    *value = 0;
+    esp_eth_phy_reg_rw_data_t reg = {
+        .reg_addr = reg_addr,
+        .reg_value_p = value,
+    };
+
+    return esp_eth_ioctl(handle, ETH_CMD_READ_PHY_REG, &reg);
+}
+#endif
+
+#if HUB_W5500_PHYCFGR_READ_DEBUG
+static void w5500_phycfg_read_poll_task(void *pvParameters)
+{
+    (void)pvParameters;
+    uint32_t count = 0;
+    int last_link_bit = -1;
+
+    while (1) {
+        uint8_t mr = 0;
+        uint8_t version = 0;
+        uint8_t phycfg = 0;
+        esp_err_t spi_ret = hub_w5500_read_common_regs(&mr, &version, &phycfg);
+
+        int cs_level = HUB_W5500_CS_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_CS_GPIO);
+        int rst_level = HUB_W5500_RST_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_RST_GPIO);
+        int link_bit = spi_ret == ESP_OK ? (int)(phycfg & 0x01) : -1;
+        unsigned int ethernet_status = Modbus.ethernet_status;
+
+        if ((last_link_bit >= 0) && (link_bit >= 0) && (link_bit != last_link_bit)) {
+            ESP_LOGW(TAG,
+                     "W5500 cable link changed: %d -> %d directSPI.PHYCFGR=0x%02x VERSIONR=0x%02x MR=0x%02x cs_gpio%d=%d rst_gpio%d=%d eth_status=%u",
+                     last_link_bit,
+                     link_bit,
+                     (unsigned int)(phycfg & 0xff),
+                     (unsigned int)(version & 0xff),
+                     (unsigned int)(mr & 0xff),
+                     HUB_W5500_CS_GPIO,
+                     cs_level,
+                     HUB_W5500_RST_GPIO,
+                     rst_level,
+                     ethernet_status);
+        }
+        if (link_bit >= 0) {
+            last_link_bit = link_bit;
+        }
+
+        if (spi_ret != ESP_OK) {
+            ESP_LOGW(TAG, "W5500 SPI read failed: %s directSPI.PHYCFGR=0x%02x VERSIONR=0x%02x MR=0x%02x cs_gpio%d=%d rst_gpio%d=%d eth_status=%u",
+                     esp_err_to_name(spi_ret),
+                     (unsigned int)(phycfg & 0xff),
+                     (unsigned int)(version & 0xff),
+                     (unsigned int)(mr & 0xff),
+                     HUB_W5500_CS_GPIO,
+                     cs_level,
+                     HUB_W5500_RST_GPIO,
+                     rst_level,
+                     ethernet_status);
+        } else {
+            if (version != W5500_EXPECTED_VERSIONR) {
+                ESP_LOGW(TAG, "W5500 VERSIONR unexpected over SPI: 0x%02x (expected 0x%02x) cs_gpio%d=%d rst_gpio%d=%d eth_status=%u",
+                         (unsigned int)version, W5500_EXPECTED_VERSIONR,
+                         HUB_W5500_CS_GPIO, cs_level,
+                         HUB_W5500_RST_GPIO, rst_level,
+                         ethernet_status);
+            }
+
+            ESP_LOGW(TAG,
+                 "W5500 link monitor[%lu]: directSPI.PHYCFGR=0x%02x VERSIONR=0x%02x expected=0x%02x MR=0x%02x link=%d eth_status=%u cs_gpio%d=%d rst_gpio%d=%d reset=%lu speed=%lu duplex=%lu opmode=%lu opsel=%lu",
+                     (unsigned long)count,
+                     (unsigned int)(phycfg & 0xff),
+                     (unsigned int)(version & 0xff),
+                     W5500_EXPECTED_VERSIONR,
+                     (unsigned int)(mr & 0xff),
+                     link_bit,
+                     ethernet_status,
+                     HUB_W5500_CS_GPIO,
+                     cs_level,
+                     HUB_W5500_RST_GPIO,
+                     rst_level,
+                     (unsigned long)((phycfg >> 7) & 0x01),
+                     (unsigned long)((phycfg >> 1) & 0x01),
+                     (unsigned long)((phycfg >> 2) & 0x01),
+                     (unsigned long)((phycfg >> 3) & 0x07),
+                     (unsigned long)((phycfg >> 6) & 0x01));
+        }
+
+        count++;
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+#endif
+
+#if HUB_W5500_DRIVER_REG_DEBUG
+static void w5500_force_phy_all_capable(esp_eth_handle_t handle);
+
+static void w5500_log_gpio_snapshot(const char *reason)
+{
+    int rst = HUB_W5500_RST_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_RST_GPIO);
+    int cs = HUB_W5500_CS_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_CS_GPIO);
+    int miso = HUB_W5500_MISO_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_MISO_GPIO);
+    int mosi = HUB_W5500_MOSI_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_MOSI_GPIO);
+    int sclk = HUB_W5500_SCLK_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_SCLK_GPIO);
+    int intr = HUB_W5500_INT_GPIO == GPIO_NUM_NC ? -1 : gpio_get_level(HUB_W5500_INT_GPIO);
+
+    ESP_LOGW(TAG,
+             "W5500 GPIO snapshot (%s): RST%d=%d CS%d=%d MISO%d=%d MOSI%d=%d SCLK%d=%d INT%d=%d",
+             reason,
+             HUB_W5500_RST_GPIO,
+             rst,
+             HUB_W5500_CS_GPIO,
+             cs,
+             HUB_W5500_MISO_GPIO,
+             miso,
+             HUB_W5500_MOSI_GPIO,
+             mosi,
+             HUB_W5500_SCLK_GPIO,
+             sclk,
+             HUB_W5500_INT_GPIO,
+             intr);
+}
+
+static void w5500_log_common_regs(esp_eth_handle_t handle, const char *reason)
+{
+    uint32_t mr = 0;
+    uint32_t phycfg = 0;
+    esp_err_t mr_ret = w5500_read_reg_u8(handle, W5500_MR_REG_ADDR, &mr);
+    esp_err_t phycfg_ret = w5500_read_reg_u8(handle, W5500_PHYCFGR_REG_ADDR, &phycfg);
+
+    ESP_LOGW(TAG,
+             "W5500 common regs (%s): MR=0x%02lx(%s) PHYCFGR=0x%02lx(%s)",
+             reason,
+             mr & 0xff,
+             esp_err_to_name(mr_ret),
+             phycfg & 0xff,
+             esp_err_to_name(phycfg_ret));
+}
+
+static void w5500_debug_reset_gpio_pulse(void)
+{
+    if (HUB_W5500_RST_GPIO == GPIO_NUM_NC) {
+        ESP_LOGW(TAG, "W5500 debug reset skipped: reset GPIO is NC");
+        return;
+    }
+
+    gpio_config_t io_conf = {
+        .pin_bit_mask = 1ULL << HUB_W5500_RST_GPIO,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    esp_err_t ret = gpio_config(&io_conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "W5500 debug reset GPIO config failed: %s", esp_err_to_name(ret));
+        return;
+    }
+
+    ESP_LOGW(TAG, "W5500 debug hardware reset pulse on GPIO%d", HUB_W5500_RST_GPIO);
+    gpio_set_level(HUB_W5500_RST_GPIO, 0);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    gpio_set_level(HUB_W5500_RST_GPIO, 1);
+    vTaskDelay(pdMS_TO_TICKS(250));
+}
+
+static void w5500_status_poll_task(void *pvParameters)
+{
+    esp_eth_handle_t handle = (esp_eth_handle_t)pvParameters;
+    uint32_t count = 0;
+
+    while (1) {
+        uint32_t phycfg = 0;
+        esp_err_t phy_ret = w5500_read_reg_u8(handle, W5500_PHYCFGR_REG_ADDR, &phycfg);
+
+        eth_speed_t speed = ETH_SPEED_10M;
+        eth_duplex_t duplex = ETH_DUPLEX_HALF;
+        esp_err_t speed_ret = esp_eth_ioctl(handle, ETH_CMD_G_SPEED, &speed);
+        esp_err_t duplex_ret = esp_eth_ioctl(handle, ETH_CMD_G_DUPLEX_MODE, &duplex);
+
+        if (phy_ret == ESP_OK) {
+            ESP_LOGI(TAG,
+                     "W5500 poll[%lu]: PHYCFGR=0x%02lx link=%lu speed_bit=%lu duplex_bit=%lu opmode=%lu opsel=%lu reset=%lu driver_speed=%s(%s) driver_duplex=%s(%s) eth_status=%u",
+                     (unsigned long)count,
+                     phycfg & 0xff,
+                     phycfg & 0x01,
+                     (phycfg >> 1) & 0x01,
+                     (phycfg >> 2) & 0x01,
+                     (phycfg >> 3) & 0x07,
+                     (phycfg >> 6) & 0x01,
+                     (phycfg >> 7) & 0x01,
+                     speed == ETH_SPEED_100M ? "100M" : "10M",
+                     esp_err_to_name(speed_ret),
+                     duplex == ETH_DUPLEX_FULL ? "full" : "half",
+                     esp_err_to_name(duplex_ret),
+                     Modbus.ethernet_status);
+
+            if (((phycfg & 0xff) == 0x00) || (((phycfg >> 7) & 0x01) == 0)) {
+                ESP_LOGW(TAG,
+                         "W5500 poll[%lu]: PHYCFGR abnormal, try force all-capable auto-negotiation again",
+                         (unsigned long)count);
+                w5500_log_common_regs(handle, "poll abnormal before force");
+                w5500_log_gpio_snapshot("poll abnormal before force");
+                w5500_force_phy_all_capable(handle);
+            }
+        } else {
+            ESP_LOGE(TAG,
+                     "W5500 poll[%lu]: PHYCFGR read failed: %s speed_ret=%s duplex_ret=%s eth_status=%u",
+                     (unsigned long)count,
+                     esp_err_to_name(phy_ret),
+                     esp_err_to_name(speed_ret),
+                     esp_err_to_name(duplex_ret),
+                     Modbus.ethernet_status);
+        }
+
+        count++;
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+static void w5500_force_phy_all_capable(esp_eth_handle_t handle)
+{
+    static uint32_t debug_reset_count = 0;
+    uint32_t phycfg = 0xf8;
+    esp_eth_phy_reg_rw_data_t reg = {
+        .reg_addr = W5500_PHYCFGR_REG_ADDR,
+        .reg_value_p = &phycfg,
+    };
+
+    esp_err_t ret = esp_eth_ioctl(handle, ETH_CMD_WRITE_PHY_REG, &reg);
+    ESP_LOGW(TAG, "W5500 force PHYCFGR write 0x%02lx: %s", phycfg & 0xff, esp_err_to_name(ret));
+
+    vTaskDelay(pdMS_TO_TICKS(20));
+
+    phycfg = 0;
+    ret = esp_eth_ioctl(handle, ETH_CMD_READ_PHY_REG, &reg);
+    if (ret == ESP_OK) {
+        ESP_LOGW(TAG,
+                 "W5500 force PHYCFGR readback: 0x%02lx link=%lu speed_bit=%lu duplex_bit=%lu opmode=%lu opsel=%lu reset=%lu",
+                 phycfg & 0xff,
+                 phycfg & 0x01,
+                 (phycfg >> 1) & 0x01,
+                 (phycfg >> 2) & 0x01,
+                 (phycfg >> 3) & 0x07,
+                 (phycfg >> 6) & 0x01,
+                 (phycfg >> 7) & 0x01);
+
+        if (((phycfg & 0xff) == 0x00) && (debug_reset_count < W5500_DEBUG_MAX_PHY_RESETS)) {
+            debug_reset_count++;
+            ESP_LOGW(TAG,
+                     "W5500 force readback stayed 0x00, run debug hardware reset %lu/%u",
+                     (unsigned long)debug_reset_count,
+                     W5500_DEBUG_MAX_PHY_RESETS);
+            w5500_debug_reset_gpio_pulse();
+
+            w5500_log_gpio_snapshot("after debug hardware reset pulse");
+            w5500_log_common_regs(handle, "after debug hardware reset before rewrite");
+
+            phycfg = 0xf8;
+            ret = esp_eth_ioctl(handle, ETH_CMD_WRITE_PHY_REG, &reg);
+            ESP_LOGW(TAG, "W5500 post-reset PHYCFGR write 0x%02lx: %s", phycfg & 0xff, esp_err_to_name(ret));
+            vTaskDelay(pdMS_TO_TICKS(20));
+
+            phycfg = 0;
+            ret = esp_eth_ioctl(handle, ETH_CMD_READ_PHY_REG, &reg);
+            if (ret == ESP_OK) {
+                ESP_LOGW(TAG,
+                         "W5500 post-reset PHYCFGR readback: 0x%02lx link=%lu speed_bit=%lu duplex_bit=%lu opmode=%lu opsel=%lu reset=%lu",
+                         phycfg & 0xff,
+                         phycfg & 0x01,
+                         (phycfg >> 1) & 0x01,
+                         (phycfg >> 2) & 0x01,
+                         (phycfg >> 3) & 0x07,
+                         (phycfg >> 6) & 0x01,
+                         (phycfg >> 7) & 0x01);
+                w5500_log_common_regs(handle, "after debug hardware reset rewrite");
+            } else {
+                ESP_LOGE(TAG, "W5500 post-reset PHYCFGR readback failed: %s", esp_err_to_name(ret));
+            }
+        }
+    } else {
+        ESP_LOGE(TAG, "W5500 force PHYCFGR readback failed: %s", esp_err_to_name(ret));
+    }
+}
+#endif
+
+static esp_err_t ethernet_attach_and_start(esp_netif_t *eth_netif)
+{
+    esp_err_t ret = ESP_OK;
+
+    if (eth_handle != NULL)
+    {
+        ESP_LOGI(TAG, "Attaching Ethernet netif to driver handle %p", eth_handle);
+        ret = esp_netif_attach(eth_netif,
+            esp_eth_new_netif_glue(eth_handle));
+
+        if (ret == ESP_OK)
+        {
+            ESP_LOGI(TAG, "esp_netif_attach OK, starting Ethernet");
+            ret = esp_eth_start(eth_handle);
+            if(ret == ESP_OK) {
+                ESP_LOGI(TAG, "esp_eth_start OK");
+                debug_info("esp_eth_start finished^^^^^^^^");
+#if HUB_W5500_DRIVER_REG_DEBUG
+                w5500_force_phy_all_capable(eth_handle);
+                xTaskCreate(w5500_status_poll_task, "w5500_poll", 4096, eth_handle, 4, NULL);
+#endif
+#if HUB_W5500_PHYCFGR_READ_DEBUG
+                xTaskCreate(w5500_phycfg_read_poll_task, "w5500_phycfg", 4096, eth_handle, 4, NULL);
+#endif
+            } else {
+                ESP_LOGE(TAG, "esp_eth_start failed: %s", esp_err_to_name(ret));
+                debug_info("esp_eth_start failed");
+            }
+        }
+        else
+        {
+            ESP_LOGE(TAG, "esp_netif_attach failed: %s", esp_err_to_name(ret));
+            debug_info("esp_netif_attach failed");
+        }
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Ethernet not started (handle NULL)");
+        debug_info("Ethernet not started (handle NULL)");
+        ret = ESP_FAIL;
+    }
+
+    return ret;
+}
+
 esp_err_t ethernet_init(void)
 {
     esp_err_t ret = ESP_OK;
 
+    ESP_LOGI(TAG, "ethernet_init begin: mini_type=%u tcp_type=%u", Modbus.mini_type, Modbus.tcp_type);
+
+#if CONFIG_IDF_TARGET_ESP32S3
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
+    if (Modbus.mini_type == PROJECT_HUB)
+    {
+        ESP_LOGW(TAG, "PPPoS manual test enabled: skip Ethernet/W5500 init; only initialize common netif/event loop");
+        ret = esp_netif_init();
+        if (ret == ESP_ERR_INVALID_STATE) {
+            ESP_LOGW(TAG, "esp_netif already initialized");
+            ret = ESP_OK;
+        } else if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "esp_netif_init failed for PPPoS test: %s", esp_err_to_name(ret));
+            return ret;
+        }
+
+        ret = esp_event_loop_create_default();
+        if (ret == ESP_ERR_INVALID_STATE) {
+            ESP_LOGW(TAG, "default event loop already exists");
+            ret = ESP_OK;
+        } else if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "esp_event_loop_create_default failed for PPPoS test: %s", esp_err_to_name(ret));
+            return ret;
+        }
+
+        eth_handle = NULL;
+        hub_network_manager_set_eth_status(false, false);
+        return ESP_OK;
+    }
+#endif
+#endif
+
+#if CONFIG_IDF_TARGET_ESP32S3 && (HUB_W5500_SPI_ONLY_TEST || HUB_W5500_RAW_SPI_READONLY_TEST)
+    if (Modbus.mini_type == PROJECT_HUB)
+    {
+#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
+        ESP_LOGW(TAG, "PPPoS manual test enabled: W5500 raw SPI-only test disabled for this run");
+#else
+        ESP_LOGW(TAG, "W5500 raw SPI-only mode enabled: skip netif/events/esp_eth_start and enter W5500 direct SPI loop");
+        eth_handle = NULL;
+        return hub_w5500_install(&eth_handle);
+#endif
+    }
+#endif
+
     ESP_ERROR_CHECK(esp_netif_init());
 
     ret = esp_event_loop_create_default();
-    if(ret == ESP_OK)
+    if(ret == ESP_OK) {
+        ESP_LOGI(TAG, "esp_event_loop_create_default OK");
         debug_info("esp_event_loop_create_default() finished^^^^^^^^");
+    } else if (ret == ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(TAG, "default event loop already exists");
+    } else {
+        ESP_LOGE(TAG, "esp_event_loop_create_default failed: %s", esp_err_to_name(ret));
+    }
     // else
     //  Test[0]++;
 
@@ -154,9 +605,11 @@ esp_err_t ethernet_init(void)
     esp_netif_t *eth_netif = esp_netif_new(&cfg);
     if (!eth_netif)
     {
+        ESP_LOGE(TAG, "eth_netif creation failed");
         debug_info("eth_netif creation failed");
         return ESP_FAIL;
     }
+    ESP_LOGI(TAG, "eth_netif created: %p", eth_netif);
 
     // check dhcp mode or static mode
     if(Modbus.tcp_type == 0)  // static mode
@@ -180,6 +633,9 @@ esp_err_t ethernet_init(void)
             Modbus.getway[2],Modbus.getway[3]);
 
         esp_netif_set_ip_info(eth_netif, &ip_info);
+
+        ESP_LOGI(TAG, "Ethernet static IP configured: ip=" IPSTR " mask=" IPSTR " gw=" IPSTR,
+             IP2STR(&ip_info.ip), IP2STR(&ip_info.netmask), IP2STR(&ip_info.gw));
 
         debug_info("tcpip_adapter_set_ip_info() finished^^^^^^^^");
 
@@ -215,14 +671,22 @@ esp_err_t ethernet_init(void)
     }
 
     ret = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);
-    if(ret == ESP_OK)
+    if(ret == ESP_OK) {
+        ESP_LOGI(TAG, "ETH event handler registered");
         debug_info("esp_event_handler_register(ESP_EVENT_ANY_ID) finished^^^^^^^^");
+    } else {
+        ESP_LOGE(TAG, "ETH event handler register failed: %s", esp_err_to_name(ret));
+    }
     // else
     //  ;//Test[4]++;
 
     ret = esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL);
-    if(ret == ESP_OK)
+    if(ret == ESP_OK) {
+        ESP_LOGI(TAG, "ETH got-ip handler registered");
         debug_info("esp_event_handler_register(IP_EVENT_ETH_GOT_IP) finished^^^^^^^^");
+    } else {
+        ESP_LOGE(TAG, "ETH got-ip handler register failed: %s", esp_err_to_name(ret));
+    }
     // else
     //  ;//Test[5]++;
 
@@ -290,29 +754,33 @@ esp_err_t ethernet_init(void)
     }
     /* ============================================= */
 
-    /* Attach and start only if handle valid */
-    if (eth_handle != NULL)
-    {
-        ret = esp_netif_attach(eth_netif,
-            esp_eth_new_netif_glue(eth_handle));
+#endif
 
-        if (ret == ESP_OK)
-        {
-            if(esp_eth_start(eth_handle) == ESP_OK)
-                debug_info("esp_eth_start finished^^^^^^^^");
-            else
-                debug_info("esp_eth_start failed");
-        }
-        else
-        {
-            debug_info("esp_netif_attach failed");
+#if CONFIG_IDF_TARGET_ESP32S3
+    if(Modbus.mini_type == PROJECT_HUB)
+    {
+        ESP_LOGI(TAG, "Installing PROJECT_HUB W5500 driver");
+        ret = hub_w5500_install(&eth_handle);
+        if(ret == ESP_OK) {
+            ESP_LOGI(TAG, "hub_w5500_install OK, handle=%p", eth_handle);
+            debug_info("hub_w5500_install finished^^^^^^^^");
+        } else {
+            ESP_LOGE(TAG, "hub_w5500_install failed: %s", esp_err_to_name(ret));
+            eth_handle = NULL;
         }
     }
     else
     {
-        debug_info("Ethernet not started (handle NULL)");
+        ESP_LOGW(TAG, "ESP32S3 Ethernet requires PROJECT_HUB W5500 config, mini_type=%u", Modbus.mini_type);
+        debug_info("ESP32S3 Ethernet requires PROJECT_HUB W5500 config");
     }
 #endif
+
+    if(eth_handle != NULL)
+        ret = ethernet_attach_and_start(eth_netif);
+
+    ESP_LOGI(TAG, "ethernet_init end: ret=%s eth_handle=%p status=%u",
+             esp_err_to_name(ret), eth_handle, Modbus.ethernet_status);
 
 #if 1//DNS
 //  dns_init();

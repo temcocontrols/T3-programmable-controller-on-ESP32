@@ -515,6 +515,11 @@ esp_err_t i2c_master_init()
 {
 //	print_mux = xSemaphoreCreateMutex();
     static bool i2c_master_initialized = false;
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		ESP_LOGW(TAG, "PROJECT_HUB skips legacy I2C master init to keep W5500 CS GPIO14 untouched");
+		return ESP_OK;
+	}
 	if(i2c_master_initialized)
 	{
 		return ESP_OK;
