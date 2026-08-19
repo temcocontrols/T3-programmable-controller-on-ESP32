@@ -11,6 +11,7 @@ lv_obj_t * ui_CalanderStr = NULL;
 lv_obj_t * ui_GotoMenuButton4 = NULL;
 lv_obj_t * ui_Container4 = NULL;
 lv_obj_t * ui_Calendar1 = NULL;
+lv_obj_t * ui_HolidayDateLabel = NULL;
 // event funtions
 void ui_event_GotoMenuButton4(lv_event_t * e)
 {
@@ -18,6 +19,15 @@ void ui_event_GotoMenuButton4(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 100, &ui_MainMenu_screen_init);
+    }
+}
+
+void ui_event_Calendar1(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if(event_code == LV_EVENT_VALUE_CHANGED) {
+        CalenderValueChangeCallback(e);
     }
 }
 
@@ -66,11 +76,11 @@ void ui_HolidayCalenderScreen_screen_init(void)
     lv_obj_remove_flag(ui_Container4, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_Calendar1 = lv_calendar_create(ui_Container4);
-    lv_calendar_set_today_date(ui_Calendar1, 2026, 2, 10);
-    lv_calendar_set_showed_date(ui_Calendar1, 2026, 2);
     lv_obj_t * ui_Calendar1_header = lv_calendar_header_arrow_create(ui_Calendar1);
     lv_obj_set_width(ui_Calendar1, 400);
-    lv_obj_set_height(ui_Calendar1, 260);
+    lv_obj_set_height(ui_Calendar1, 220);
+    lv_obj_set_x(ui_Calendar1, 0);
+    lv_obj_set_y(ui_Calendar1, -10);
     lv_obj_set_align(ui_Calendar1, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_Calendar1, LV_OBJ_FLAG_CHECKABLE);     /// Flags
     lv_obj_set_style_radius(ui_Calendar1, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -88,7 +98,17 @@ void ui_HolidayCalenderScreen_screen_init(void)
     lv_obj_set_style_shadow_width(ui_Calendar1, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_shadow_spread(ui_Calendar1, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    ui_HolidayDateLabel = lv_label_create(ui_Container4);
+    lv_obj_set_width(ui_HolidayDateLabel, 400);
+    lv_obj_set_align(ui_HolidayDateLabel, LV_ALIGN_BOTTOM_MID);
+    lv_obj_set_y(ui_HolidayDateLabel, 8);
+    lv_label_set_long_mode(ui_HolidayDateLabel, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(ui_HolidayDateLabel, "Tap a date to toggle holiday");
+    lv_obj_set_style_text_align(ui_HolidayDateLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_HolidayDateLabel, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
+
     lv_obj_add_event_cb(ui_GotoMenuButton4, ui_event_GotoMenuButton4, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_Calendar1, ui_event_Calendar1, LV_EVENT_ALL, NULL);
 
 }
 
@@ -103,5 +123,6 @@ void ui_HolidayCalenderScreen_screen_destroy(void)
     ui_GotoMenuButton4 = NULL;
     ui_Container4 = NULL;
     ui_Calendar1 = NULL;
+    ui_HolidayDateLabel = NULL;
 
 }

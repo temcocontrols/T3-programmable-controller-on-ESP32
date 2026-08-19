@@ -83,17 +83,18 @@ void ui_event_GotoMenuButton1(lv_event_t * e)
     }
 }
 
-void ui_event_SchText1(lv_event_t * e)
+void ui_event_SchText(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText1);
+        lv_obj_t *clicked_obj = lv_event_get_target(e);
+        _ui_keyboard_set_target(ui_ScheduleKeyboard,  clicked_obj);
         _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
     }
 }
 
-void ui_event_SchAutoMan1(lv_event_t * e)
+void ui_event_SchAutoMan(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
 
@@ -102,203 +103,7 @@ void ui_event_SchAutoMan1(lv_event_t * e)
     }
 }
 
-void ui_event_SchSwitch1(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ScheduleSwithValueChangeFunc(e);
-    }
-}
-
-void ui_event_SchText2(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText2);
-        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
-
-void ui_event_SchAutoMan2(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED || event_code == LV_EVENT_CLICKED) {
-        ScheduleAutoManualValChangeFun(e);
-    }
-}
-
-void ui_event_SchSwitch2(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ScheduleSwithValueChangeFunc(e);
-    }
-}
-
-void ui_event_SchText3(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText3);
-        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
-
-void ui_event_SchAutoMan3(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED || event_code == LV_EVENT_CLICKED) {
-        ScheduleAutoManualValChangeFun(e);
-    }
-}
-
-void ui_event_SchSwitch3(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ScheduleSwithValueChangeFunc(e);
-    }
-}
-
-void ui_event_SchText4(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText4);
-        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
-
-void ui_event_SchAutoMan4(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED || event_code == LV_EVENT_CLICKED) {
-        ScheduleAutoManualValChangeFun(e);
-    }
-}
-
-void ui_event_SchSwitch4(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ScheduleSwithValueChangeFunc(e);
-    }
-}
-
-void ui_event_SchText5(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText5);
-        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
-
-void ui_event_SchAutoMan5(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED || event_code == LV_EVENT_CLICKED) {
-        ScheduleAutoManualValChangeFun(e);
-    }
-}
-
-void ui_event_SchSwitch5(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ScheduleSwithValueChangeFunc(e);
-    }
-}
-
-void ui_event_SchText6(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText6);
-        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
-
-void ui_event_SchAutoMan6(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED || event_code == LV_EVENT_CLICKED) {
-        ScheduleAutoManualValChangeFun(e);
-    }
-}
-
-void ui_event_SchSwitch6(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ScheduleSwithValueChangeFunc(e);
-    }
-}
-
-void ui_event_SchText7(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText7);
-        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
-
-void ui_event_SchAutoMan7(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED || event_code == LV_EVENT_CLICKED) {
-        ScheduleAutoManualValChangeFun(e);
-    }
-}
-
-void ui_event_SchSwitch7(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED) {
-        ScheduleSwithValueChangeFunc(e);
-    }
-}
-
-void ui_event_SchText8(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_CLICKED) {
-        _ui_keyboard_set_target(ui_ScheduleKeyboard,  ui_SchText8);
-        _ui_flag_modify(ui_ScheduleKeyboard, LV_OBJ_FLAG_HIDDEN, _UI_MODIFY_FLAG_TOGGLE);
-    }
-}
-
-void ui_event_SchAutoMan8(lv_event_t * e)
-{
-    lv_event_code_t event_code = lv_event_get_code(e);
-
-    if(event_code == LV_EVENT_VALUE_CHANGED || event_code == LV_EVENT_CLICKED) {
-        ScheduleAutoManualValChangeFun(e);
-    }
-}
-
-void ui_event_SchSwitch8(lv_event_t * e)
+void ui_event_SchSwitch(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
 
@@ -322,6 +127,7 @@ void ui_event_Button12(lv_event_t * e)
 
     if(event_code == LV_EVENT_CLICKED) {
         ScheduleSetupUpdateBtnFunc(e);
+        _ui_screen_change(&ui_MainMenu, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 1000, 100, &ui_MainMenu_screen_init);
     }
 }
 
@@ -460,7 +266,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch1, 50);
     lv_obj_set_height(ui_SchSwitch1, 20);
     lv_obj_set_align(ui_SchSwitch1, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch1, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch1, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch1, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch1, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -536,7 +342,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch2, 50);
     lv_obj_set_height(ui_SchSwitch2, 20);
     lv_obj_set_align(ui_SchSwitch2, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch2, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch2, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch2, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch2, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -612,7 +418,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch3, 50);
     lv_obj_set_height(ui_SchSwitch3, 20);
     lv_obj_set_align(ui_SchSwitch3, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch3, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch3, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch3, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch3, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -688,7 +494,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch4, 50);
     lv_obj_set_height(ui_SchSwitch4, 20);
     lv_obj_set_align(ui_SchSwitch4, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch4, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch4, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch4, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch4, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch4, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -764,7 +570,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch5, 50);
     lv_obj_set_height(ui_SchSwitch5, 20);
     lv_obj_set_align(ui_SchSwitch5, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch5, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch5, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch5, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch5, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch5, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -840,7 +646,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch6, 50);
     lv_obj_set_height(ui_SchSwitch6, 20);
     lv_obj_set_align(ui_SchSwitch6, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch6, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch6, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch6, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch6, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -916,7 +722,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch7, 50);
     lv_obj_set_height(ui_SchSwitch7, 20);
     lv_obj_set_align(ui_SchSwitch7, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch7, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch7, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch7, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch7, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch7, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -992,7 +798,7 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_width(ui_SchSwitch8, 50);
     lv_obj_set_height(ui_SchSwitch8, 20);
     lv_obj_set_align(ui_SchSwitch8, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_bg_color(ui_SchSwitch8, lv_color_hex(0x40765B), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_SchSwitch8, lv_color_hex(0xA04040), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_SchSwitch8, 200, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_SchSwitch8, lv_color_hex(0x5A846F), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_SchSwitch8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1060,33 +866,32 @@ void ui_ScheduleScreen_screen_init(void)
     lv_obj_set_style_radius(ui_ScheduleKeyboard, 30, LV_PART_ITEMS | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_GotoMenuButton1, ui_event_GotoMenuButton1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText1, ui_event_SchText1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan1, ui_event_SchAutoMan1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch1, ui_event_SchSwitch1, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText2, ui_event_SchText2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan2, ui_event_SchAutoMan2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch2, ui_event_SchSwitch2, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText3, ui_event_SchText3, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan3, ui_event_SchAutoMan3, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch3, ui_event_SchSwitch3, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText4, ui_event_SchText4, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan4, ui_event_SchAutoMan4, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch4, ui_event_SchSwitch4, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText5, ui_event_SchText5, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan5, ui_event_SchAutoMan5, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch5, ui_event_SchSwitch5, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText6, ui_event_SchText6, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan6, ui_event_SchAutoMan6, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch6, ui_event_SchSwitch6, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText7, ui_event_SchText7, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan7, ui_event_SchAutoMan7, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch7, ui_event_SchSwitch7, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchText8, ui_event_SchText8, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchAutoMan8, ui_event_SchAutoMan8, LV_EVENT_ALL, NULL);
-    lv_obj_add_event_cb(ui_SchSwitch8, ui_event_SchSwitch8, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText1,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan1, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch1,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText2,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan2, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch2,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText3,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan3, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch3,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText4,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan4, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch4,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText5,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan5, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch5,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText6,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan6, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch6,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText7,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan7, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch7,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchText8,    ui_event_SchText,    LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchAutoMan8, ui_event_SchAutoMan, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(ui_SchSwitch8,  ui_event_SchSwitch,  LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button13, ui_event_Button13, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Button12, ui_event_Button12, LV_EVENT_ALL, NULL);
-    lv_keyboard_set_textarea(ui_ScheduleKeyboard, ui_SSIDText);
     lv_obj_add_event_cb(ui_ScheduleKeyboard, ui_event_ScheduleKeyboard, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_ScheduleScreen, ui_event_ScheduleScreen, LV_EVENT_ALL, NULL);
 

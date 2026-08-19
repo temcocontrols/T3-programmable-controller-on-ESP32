@@ -7,7 +7,7 @@
 
 
 #include "esp_attr.h"
-#pragma pack(1)
+#pragma pack(push, 1)
 
 #define MAXFRAMEBUFFER			      490
 #define MAX_SEND_FRAMES             5
@@ -300,7 +300,7 @@ typedef enum { not_used_output, V0_10, P0_100_Open, P0_20psi, P0_100,
 
 
 //typedef enum { MINIPANEL,T5,T6,T7,T3 } PanelType;
-#pragma pack(1)
+#pragma pack(push, 1)  /* nested: structs from here onwards also need 1-byte packing */
 
 typedef struct
 {
@@ -1458,5 +1458,8 @@ extern  U16_T  output_raw[MAX_OUTS];
 extern  U16_T  output_raw_back[MAX_OUTS];
 extern  U16_T  chip_info[6];
 extern  uint32_t  Instance;
-#endif
 
+#pragma pack(pop)   /* pop nested push from line 303 */
+#pragma pack(pop)   /* pop outer push from line 10   */
+
+#endif

@@ -41,6 +41,11 @@ extern bool WifiScanComplete;
 extern char debug_array[100];
 
 extern STR_SSID	SSID_Info;
+
+#define WIFI_SCAN_MAX_AP  20
+
+esp_err_t wifi_scan_networks(wifi_ap_record_t *ap_list, uint16_t *ap_count, uint16_t max_ap);
+
 extern void wifi_init_sta();
 extern void debug_info(char *string);
 extern void debug_print(char *string,char task_index);

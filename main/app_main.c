@@ -2422,7 +2422,8 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 		// if current panel is network master
 		if(flag_start_scan_network == 1)
 		{
-			put_net_point_value(&point,&value,0,1,cov->timeRemaining);
+			S32_T net_value = (S32_T)value;
+			put_net_point_value(&point, &net_value, 0, 1, cov->timeRemaining);
 		}
 
 		Mqtt_Handler_Send_COV(cov);
@@ -2557,14 +2558,10 @@ int send_cov_demo(void) {
 		bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, "25.0",
 				&value_list.value);
 
-
-
 			//debug_cov("Send_UCOV_Notify");
 
 		Send_UCOV_Notify(apdu,&cov_data,BAC_IP_CLIENT);
 		udp_client_send(5);
-
-
 	}
 
 	if(Test[0] == 1000 || Test[0] == 2000 || Test[0] == 3000 || Test[0] == 4000)
@@ -2938,7 +2935,7 @@ void Update_Led(void)
 		max_out = 7;
 		max_digout = 7;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
+	else if(Modbus.mini_type == MINI_TSTAT10)
 	{
 		max_in = 8;
 		max_out = 7;
@@ -3239,7 +3236,6 @@ void i2c_master_task(void *pvParameters)
 	if(Modbus.mini_type == PROJECT_CO2)
 	{
 		qSendCo2 = xQueueCreate(2, 2);
-
 	}
 	/*if(Modbus.mini_type == MINI_TSTAT10)
 	{
@@ -3402,8 +3398,7 @@ void i2c_master_task(void *pvParameters)
 		}
 		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == MINI_BIG_ARM ||
 				Modbus.mini_type == PROJECT_RMC1216	|| Modbus.mini_type == MINI_TSTAT10 ||
-				Modbus.mini_type == MINI_TSTAT11    || Modbus.mini_type == PROJECT_NG2_NEW ||
-				Modbus.mini_type == PROJECT_CO2)
+			    Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
 		{
 			// send
 			// led
@@ -4589,7 +4584,7 @@ void LS_led_task(void *pvParameters);
 
 extern void ethernet_check_task( void *pvParameters);
 void start_dns_server(void);
-#if 0//DDNS
+#if DDNS
 void ddns_task(void *pvParameters);
 #endif
 
@@ -4612,7 +4607,7 @@ void app_main()
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
 
-	if(Modbus.mini_type == MINI_SMALL_ARM)
+	if(Modbus.mini_type != MINI_TSTAT11 || Modbus.mini_type != PROJECT_WIREGUARD_GATEWAY)
 	{
 		Modbus.mini_type = MINI_TSTAT11;
 		save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
@@ -4652,12 +4647,12 @@ void app_main()
     xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
     xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
-#if 0//DDNS
+#if DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
 
 	Mqtt_Handler_Init();
-	dynamic_display_api_start();
+	//dynamic_display_api_start();
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
@@ -4771,7 +4766,6 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
 	else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-
 	com_tx[port]++;
 }
 

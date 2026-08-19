@@ -10,7 +10,7 @@
 
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
-#pragma pack(1)
+#pragma pack(push, 1)
 
 typedef struct
 {
@@ -633,3 +633,5 @@ U8_T Get_address_by_instacne(uint32_t instnace,U8_T *addr);
 
 #endif
 
+
+#pragma pack(pop)

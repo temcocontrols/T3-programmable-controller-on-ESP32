@@ -10,34 +10,41 @@
  *
  */
 
+#include "sdkconfig.h"
 #include "lv_UserPeram.h"
-#include "define.h"
+#include "esp_wifi.h"
 #include "stdio.h"
 #include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#include "esp_wifi.h"
+
 #include "wifi.h"
+#include "flash.h"
+#include "esp_log.h"
+#include "define.h"
 #include "ud_str.h"
 #include "controls.h"
 #include "rtc.h"
 #include "modbus.h"
 #include "user_data.h"
 #include "sntp_app.h"
-#include "esp_log.h"
-#include "flash.h"
+
+
+#include "rtc.h"
 
 #define TAG "lv_User"
 
-/* wifi scan state machine states */
+#define WIFI_SCAN_LIST_MAX   768
+#define PARAM_TABLE_BUILD_BATCH  10
+
+/* wifi scan: background task fills results; UI thread applies on screen refresh */
 typedef enum {
-    WIFI_SCAN_IDLE = 0,
-    WIFI_SCAN_CHECK_MODE,
-    WIFI_SCAN_START,
-    WIFI_SCAN_WAIT,
-    WIFI_SCAN_READ
-} wifi_scan_state_t;
+    WIFI_SCAN_UI_IDLE = 0,
+    WIFI_SCAN_UI_PENDING,
+    WIFI_SCAN_UI_READY,
+    WIFI_SCAN_UI_FAILED
+} wifi_scan_ui_state_t;
 
 /* Global variables for point data and cached values to track changes and update UI accordingly */
 Str_points_ptr Temperature_IndorrDataPt;
@@ -63,7 +70,9 @@ uint8_t FanMode_On_Val = 0; // 1 hour, 2 hours, 4 hours, 8 hours , untill i turn
 int32_t SysModeVal = 0;
 
 /* Wifi screen related variables */
-static wifi_scan_state_t wifi_scan_state = WIFI_SCAN_IDLE;
+static wifi_scan_ui_state_t wifi_scan_ui_state = WIFI_SCAN_UI_IDLE;
+static TaskHandle_t s_wifi_scan_task = NULL;
+static char s_wifi_scan_list[WIFI_SCAN_LIST_MAX];
 static bool isScreenChanged = false;
 
 static bool isTimeUpdated = false;
@@ -80,8 +89,12 @@ typedef enum
 } param_table_type_t;
 
 static param_table_type_t s_param_table_type = PARAM_TABLE_INPUT;
-static lv_coord_t s_param_table_widths[9] = { 40, 160, 90, 80, 45, 45, 45, 45, 70 };
+static lv_coord_t s_param_table_widths[9] = { 40, 160, 70, 70, 60, 60, 45, 45, 90 };
+static bool s_param_build_active = false;
+static uint16_t s_param_build_row = 0;
+static uint16_t s_param_build_total = 0;
 
+static void param_table_cell_edit_cb(lv_event_t * e);
 /* Forward declarations of static helper functions to refresh specific screen data */
 static void lv_refresh_HomeScreen_Data(void);
 static void lv_refresh_WifiConfig_Data(void);
@@ -99,15 +112,24 @@ static void ui_update_humidity(uint8_t humidity);
 static void ui_update_time(const char *time_str);
 static void ui_update_setpoint_arc(uint8_t setpoint);
 static void ui_set_temperature_unit(bool is_fahrenheit);
-static void ui_set_wifi_visible(bool visible);
+static const lv_image_dsc_t * ui_wifi_symbol_for_status(void);
+static void ui_update_wifi_symbol(void);
 
 static void ui_update_textarea_from_int(lv_obj_t * obj, uint8_t value);
 static uint8_t ui_get_int_from_textarea(lv_obj_t * obj);
 static uint16_t param_table_get_row_count(void);
+static uint16_t param_table_calc_total_width(bool is_output);
+static void param_table_fill_row(uint16_t i);
+static void param_table_build_begin(void);
+static void param_table_build_step(void);
 static void param_table_build(void);
 static void param_Clear_table(void);
 static void param_table_apply_updates(void);
 static void param_table_copy_text(char *dest, uint16_t dest_size, const char *src);
+static const char *param_table_range_text(param_table_type_t type, uint8_t digital_analog,
+                                          uint8_t range);
+static bool param_table_range_is_valid(param_table_type_t type, uint8_t digital_analog,
+                                       uint8_t range);
 
 extern void Sync_timestamp(S16_T newTZ,S16_T oldTZ,S8_T newDLS,S8_T oldDLS);
 
@@ -306,16 +328,78 @@ static void lv_refresh_HomeScreen_Data(void)
         ui_update_setpoint_arc(Temperature_SetpointDataPt.pvar->value / 1000);
     }
 
-    if(SSID_Info.IP_Wifi_Status == 0) // TODO: set wifi stage for all status.
+    /* WiFi symbol: strength + connection state (same rules as DisplayHeaderSymbol). */
+    static uint8_t last_wifi_status = 0xFFU;
+    static int8_t last_wifi_rssi = 0;
+
+    bool wifi_connected = (SSID_Info.IP_Wifi_Status == WIFI_NORMAL) ||
+                          (SSID_Info.IP_Wifi_Status == WIFI_CONNECTED);
+    bool wifi_changed = (last_wifi_status != SSID_Info.IP_Wifi_Status) ||
+                        (wifi_connected && (last_wifi_rssi != SSID_Info.rssi));
+
+    if(wifi_changed)
     {
-        ui_set_wifi_visible(false);
-    }
-    else
-    {
-        ui_set_wifi_visible(true);
+        last_wifi_status = SSID_Info.IP_Wifi_Status;
+        last_wifi_rssi = SSID_Info.rssi;
+        ui_update_wifi_symbol();
     }
 
-     ui_update_time_from_rtc_if_changed(&rtc_date);
+    if (UI_OBJ_READY(ui_RunningModeLabel) && SysModePt.pvar != NULL)
+    {
+        static const char * const running_modes[] = {
+            "Off", "Auto", "Heat", "Cool"
+        };
+
+        static uint32_t last_mode = UINT32_MAX;
+
+        uint32_t mode = (uint32_t)(SysModePt.pvar->value / 1000);
+
+        if (mode != last_mode)
+        {
+            char running_text[24];
+
+            lv_snprintf(running_text,
+                        sizeof(running_text),
+                        "Mode: %s",
+                        mode < 4U ? running_modes[mode] : "Unknown");
+
+            lv_label_set_text(ui_RunningModeLabel, running_text);
+
+            last_mode = mode;
+        }
+    }
+    /* Consume one-shot activity counters so a stale startup value cannot leave
+       an arrow permanently visible. */
+
+    if(UI_OBJ_READY(ui_RS485ArrowUpImg) && UI_OBJ_READY(ui_RS485ArrowDnImg))
+    {
+        static bool rx_arrow_visible = false;
+        static bool tx_arrow_visible = false;
+        if(flagLED_sub_rx)
+        {
+            lv_obj_clear_flag(ui_RS485ArrowDnImg, LV_OBJ_FLAG_HIDDEN);
+            rx_arrow_visible = true;
+            flagLED_sub_rx--;
+        }
+        else if(rx_arrow_visible)
+        {
+            rx_arrow_visible = false;
+            lv_obj_add_flag(ui_RS485ArrowDnImg, LV_OBJ_FLAG_HIDDEN);
+        }
+        if(flagLED_sub_tx)
+        {
+            lv_obj_clear_flag(ui_RS485ArrowUpImg, LV_OBJ_FLAG_HIDDEN);
+            tx_arrow_visible = true;
+            flagLED_sub_tx--;
+        }
+        else if(tx_arrow_visible)
+        {
+            tx_arrow_visible = false;
+            lv_obj_add_flag(ui_RS485ArrowUpImg, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    ui_update_time_from_rtc_if_changed(&rtc_date);
     if(SysModeVal != SysModePt.pvar->value)
     {
         SysModeVal = SysModePt.pvar->value;
@@ -378,139 +462,189 @@ static void lv_refresh_HomeScreen_Data(void)
 }
 
 /**
- * @brief WiFi network scan state machine implementation
- * @details Manages the non-blocking WiFi AP scanning process through multiple states:
- *          - WIFI_SCAN_IDLE: Waiting state
- *          - WIFI_SCAN_CHECK_MODE: Verify WiFi is enabled
- *          - WIFI_SCAN_START: Initiate non-blocking scan
- *          - WIFI_SCAN_WAIT: Poll for scan completion
- *          - WIFI_SCAN_READ: Read and parse scan results into dropdown list
- * @return void
- * @note Non-blocking scan allows UI to remain responsive during WiFi scanning
+ * @brief Build dropdown SSID list from scan results (dedupe by SSID, keep strongest RSSI)
  */
-static void WifiScanStateMachine_Run(void)
+static void wifi_build_ssid_list(const wifi_ap_record_t *ap_info,
+                                 uint16_t ap_count,
+                                 char *list,
+                                 size_t list_size)
 {
-    wifi_mode_t mode;
-    uint16_t number;
+    if (list == NULL || list_size == 0U) {
+        return;
+    }
 
-    switch(wifi_scan_state)
-    {
-        case WIFI_SCAN_IDLE:
-            break;
+    list[0] = '\0';
 
-        // Check WiFi mode
-        case WIFI_SCAN_CHECK_MODE:
+    if (ap_info == NULL || ap_count == 0U) {
+        return;
+    }
 
-            if(esp_wifi_get_mode(&mode) != ESP_OK || mode == WIFI_MODE_NULL)
-            {
-                lv_dropdown_set_options(ui_Dropdown2, "WiFi Disabled");
-                wifi_scan_state = WIFI_SCAN_IDLE;
-                break;
-            }
-            if(SSID_Info.IP_Wifi_Status != WIFI_NORMAL)
-            {
-                esp_wifi_disconnect();
-            }
-            ReconnectWithWifi = false; // Stop auto-reconnect attempts while scanning
-            wifi_scan_state = WIFI_SCAN_START;
-            break;
+    size_t used = 0U;
 
-        // Start non-blocking scan
-        case WIFI_SCAN_START:
+    for (uint16_t i = 0U; i < ap_count; i++) {
 
-            ESP_LOGI(TAG, "Starting WiFi scan...");
-            WifiScanComplete = false;
-            lv_dropdown_set_options(ui_Dropdown2, "Scanning...");
-            esp_wifi_scan_start(NULL, false);  // non-blocking
-            wifi_scan_state = WIFI_SCAN_WAIT;
-            break;
+        char ssid[sizeof(ap_info[i].ssid) + 1U];
 
-        // Wait until scan completes (polling)
-        case WIFI_SCAN_WAIT:
+        memcpy(ssid, ap_info[i].ssid, sizeof(ap_info[i].ssid));
+        ssid[sizeof(ap_info[i].ssid)] = '\0';
 
-            if(WifiScanComplete)
-            {
-                // When scan is done
-                wifi_scan_state = WIFI_SCAN_READ;
-            }
+        size_t ssid_len = strnlen(ssid, sizeof(ap_info[i].ssid));
 
-            break;
+        if (ssid_len == 0U) {
+            continue;
+        }
 
-        // Read results
-        case WIFI_SCAN_READ:
-        {
-            number = 0;
-            ESP_LOGI(TAG, "Reading WiFi scan results...");
-            esp_wifi_scan_get_ap_num(&number);
+        ESP_LOGI(TAG,
+                 "AP[%u]: SSID='%s', RSSI=%d dBm",
+                 i,
+                 ssid,
+                 ap_info[i].rssi);
 
-            if(number == 0)
-            {
-                lv_dropdown_set_options(ui_Dropdown2, "WiFi Not Available");
-                wifi_scan_state = WIFI_SCAN_IDLE;
-                break;
-            }
-
-            if(number > 20) number = 20;
-
-            wifi_ap_record_t ap_info[20];
-            esp_wifi_scan_get_ap_records(&number, ap_info);
-
-            char list[512];
-            list[0] = '\0';
-
-            for(int i = 0; i < number; i++)
-            {
-                size_t used = strlen(list);
-                size_t ssid_len = strnlen((char*)ap_info[i].ssid, sizeof(ap_info[i].ssid));
-
-                ESP_LOGI(TAG, "AP[%d]: SSID='%s' RSSI=%d",
-                    i, ap_info[i].ssid, ap_info[i].rssi);
-                ESP_LOGI(TAG, "List buffer used: %zu bytes, remaining: %zu bytes", used, sizeof(list) - used);
-                ESP_LOGI(TAG, "SSID length: %zu", ssid_len);
-
-                if(ssid_len == 0)
-                {
-                    continue;
-                }
-
-                char ssid_str[33];  // +1 for null
-                memcpy(ssid_str, ap_info[i].ssid, ssid_len);
-                ssid_str[ssid_len] = '\0';
-
-                if(used >= (sizeof(list) - 1U))
-                {
-                    break;
-                }
-
-                int written = snprintf(&list[used], sizeof(list) - used, "%s\n", ssid_str);
-                if((written < 0) || ((size_t)written >= (sizeof(list) - used)))
-                {
-                    break;
-                }
-            }
-            ESP_LOGI(TAG, "WiFi scan completed with %d APs found", number);
-            ESP_LOGI(TAG, "WiFi AP List:\n%s", list);
-            lv_dropdown_set_options(ui_Dropdown2, list);
-            lv_dropdown_set_selected(ui_Dropdown2, 0);
-
-            wifi_scan_state = WIFI_SCAN_IDLE;
+        if ((used + ssid_len + 2U) > list_size) {
+            ESP_LOGW(TAG, "SSID list buffer full");
             break;
         }
+
+        int written = snprintf(&list[used],
+                               list_size - used,
+                               "%s\n",
+                               ssid);
+
+        if (written < 0) {
+            break;
+        }
+
+        used += (size_t)written;
+    }
+
+    if (used > 0U && list[used - 1U] == '\n') {
+        list[used - 1U] = '\0';
     }
 }
+
+static void wifi_dropdown_select_saved_ssid(void)
+{
+    if (!UI_OBJ_READY(ui_Dropdown2) || SSID_Info.name[0] == '\0') {
+        return;
+    }
+
+    const char *options = lv_dropdown_get_options(ui_Dropdown2);
+
+    if (options == NULL) {
+        return;
+    }
+
+    uint16_t idx = 0;
+    const char *start = options;
+
+    while (*start != '\0') {
+        const char *end = strchr(start, '\n');
+
+        size_t len = end ? (size_t)(end - start) : strlen(start);
+
+        if (strlen(SSID_Info.name) == len &&
+            strncmp(start, SSID_Info.name, len) == 0) {
+
+            lv_dropdown_set_selected(ui_Dropdown2, idx);
+            return;
+        }
+
+        idx++;
+
+        if (end == NULL) {
+            break;
+        }
+
+        start = end + 1;
+    }
+}
+static wifi_ap_record_t wifi_ap_info[WIFI_SCAN_MAX_AP];
+
+extern TaskHandle_t main_task_handle[];
+
+static void wifi_scan_worker(void *arg)
+{
+    (void)arg;
+    uint16_t ap_count = 0;
+
+    ReconnectWithWifi = false;
+
+    if(SSID_Info.IP_Wifi_Status != WIFI_NORMAL) {
+        esp_wifi_disconnect();
+        vTaskDelay(pdMS_TO_TICKS(300));
+    }
+    esp_err_t err = wifi_scan_networks(wifi_ap_info, &ap_count, WIFI_SCAN_MAX_AP);
+    if(err != ESP_OK) {
+        wifi_scan_ui_state = WIFI_SCAN_UI_FAILED;
+    }
+    else if(ap_count == 0U) {
+        snprintf(s_wifi_scan_list, sizeof(s_wifi_scan_list), "No networks found");
+        wifi_scan_ui_state = WIFI_SCAN_UI_READY;
+    }
+    else {
+        wifi_build_ssid_list(wifi_ap_info, ap_count, s_wifi_scan_list, sizeof(s_wifi_scan_list));
+        if(s_wifi_scan_list[0] == '\0') {
+            snprintf(s_wifi_scan_list, sizeof(s_wifi_scan_list), "No networks found");
+        }
+        wifi_scan_ui_state = WIFI_SCAN_UI_READY;
+    }
+
+    ReconnectWithWifi = true;
+    s_wifi_scan_task = NULL;
+    vTaskDelete(NULL);
+}
+
+static void wifi_scan_request_on_screen_enter(void)
+{
+    wifi_mode_t mode;
+
+    if(s_wifi_scan_task != NULL) {
+        return;
+    }
+
+    if(esp_wifi_get_mode(&mode) != ESP_OK || mode == WIFI_MODE_NULL) {
+        lv_dropdown_set_options(ui_Dropdown2, "WiFi Disabled");
+        wifi_scan_ui_state = WIFI_SCAN_UI_IDLE;
+        return;
+    }
+
+    s_wifi_scan_list[0] = '\0';
+    wifi_scan_ui_state = WIFI_SCAN_UI_PENDING;
+    lv_dropdown_set_options(ui_Dropdown2, "Scanning...");
+
+    if(xTaskCreate(wifi_scan_worker, "wifi_scan", 4096, NULL, 3, &s_wifi_scan_task) != pdPASS) {
+        s_wifi_scan_task = NULL;
+        lv_dropdown_set_options(ui_Dropdown2, "Scan failed");
+        wifi_scan_ui_state = WIFI_SCAN_UI_FAILED;
+        ReconnectWithWifi = true;
+    }
+}
+
+static void wifi_scan_apply_results(void)
+{
+    if(!UI_OBJ_READY(ui_Dropdown2)) {
+        return;
+    }
+
+    if(wifi_scan_ui_state == WIFI_SCAN_UI_READY) {
+        lv_dropdown_set_options(ui_Dropdown2, s_wifi_scan_list);
+        wifi_dropdown_select_saved_ssid();
+        wifi_scan_ui_state = WIFI_SCAN_UI_IDLE;
+    }
+    else if(wifi_scan_ui_state == WIFI_SCAN_UI_FAILED) {
+        lv_dropdown_set_options(ui_Dropdown2, "Scan failed");
+        wifi_scan_ui_state = WIFI_SCAN_UI_IDLE;
+    }
+}
+
 /**
- * @brief Refreshes the WiFi Configuration Screen data by fetching the latest values from the relevant data points and updating the UI components accordingly
- * @details This function retrieves the most recent data related to WiFi configuration and calls the corresponding UI update functions to ensure that the WiFi Configuration Screen displays the current information.
- * @param[in] void No parameters
- * @return void
- * @note This function can be called whenever there is a need to refresh the WiFi Configuration Screen data, such as after a change in WiFi settings or when navigating to the WiFi Configuration Screen.
+ * @brief Refreshes the WiFi Configuration Screen data
  */
 static void lv_refresh_WifiConfig_Data(void)
 {
-    if (isScreenChanged == true)
+    if(isScreenChanged == true)
     {
-        wifi_scan_state = WIFI_SCAN_CHECK_MODE; // Start the WiFi scan state machine
-        if(SSID_Info.MANUEL_EN == 1) //   Manual WiFi Config enabled
+        if(SSID_Info.MANUEL_EN == 1)
         {
             lv_obj_add_state(ui_WifiEnSw, LV_STATE_CHECKED);
         }
@@ -518,10 +652,17 @@ static void lv_refresh_WifiConfig_Data(void)
         {
             lv_obj_clear_state(ui_WifiEnSw, LV_STATE_CHECKED);
         }
+
+        if(UI_OBJ_READY(ui_PasswordText))
+        {
+            lv_textarea_set_text(ui_PasswordText, SSID_Info.password);
+        }
+
+        wifi_scan_request_on_screen_enter();
     }
-    else
+    else if(wifi_scan_ui_state == WIFI_SCAN_UI_READY || wifi_scan_ui_state == WIFI_SCAN_UI_FAILED)
     {
-        WifiScanStateMachine_Run(); // Continue running the state machine to handle ongoing scan process
+        wifi_scan_apply_results();
     }
 }
 
@@ -640,10 +781,404 @@ static uint16_t param_table_get_row_count(void)
     return rows;
 }
 
+static uint16_t param_table_calc_total_width(bool is_output)
+{
+    uint16_t total_w = 0;
+
+    if(is_output) {
+        for(uint16_t i = 0; i < 9U; i++) {
+            total_w += s_param_table_widths[i];
+        }
+    }
+    else {
+        for(uint16_t i = 0; i < 7U; i++) {
+            total_w += s_param_table_widths[i];
+        }
+        total_w += s_param_table_widths[8];
+    }
+
+    return total_w;
+}
+
+static void param_table_fill_row(uint16_t i)
+{
+    if(!UI_OBJ_READY(s_lv_table) || i >= s_param_build_total) {
+        return;
+    }
+
+    char buf[32];
+    char desc_buf[22];
+    char label_buf[10];
+    uint16_t r = i + 1U;
+
+    lv_snprintf(buf, sizeof(buf), "%u", (unsigned)(i + 1U));
+    lv_table_set_cell_value(s_lv_table, r, 0, buf);
+
+    if(s_param_table_type == PARAM_TABLE_INPUT)
+    {
+        memset(desc_buf, 0, sizeof(desc_buf));
+        memcpy(desc_buf, inputs[i].description, 21);
+        memset(label_buf, 0, sizeof(label_buf));
+        memcpy(label_buf, inputs[i].label, 9);
+
+        lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
+        lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
+        lv_snprintf(buf, sizeof(buf), "%ld", (long)inputs[i].value);
+        lv_table_set_cell_value(s_lv_table, r, 3, buf);
+        lv_table_set_cell_value(s_lv_table, r, 4,
+                    inputs[i].auto_manual == 0 ? "Auto" : "Manual");
+        lv_table_set_cell_value(s_lv_table, r, 5,
+                    inputs[i].digital_analog == 1 ? "Analog" : "Digital");
+        lv_snprintf(buf, sizeof(buf), "%d", inputs[i].control);
+        lv_table_set_cell_value(s_lv_table, r, 6, buf);
+        lv_snprintf(buf, sizeof(buf), "%u: %s", (unsigned)inputs[i].range,
+                    param_table_range_text(PARAM_TABLE_INPUT, inputs[i].digital_analog,
+                                           inputs[i].range));
+        lv_table_set_cell_value(s_lv_table, r, 7, buf);
+    }
+    else if(s_param_table_type == PARAM_TABLE_OUTPUT)
+    {
+        memset(desc_buf, 0, sizeof(desc_buf));
+        memcpy(desc_buf, outputs[i].description, 21);
+        memset(label_buf, 0, sizeof(label_buf));
+        memcpy(label_buf, outputs[i].label, 9);
+
+        lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
+        lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
+        lv_snprintf(buf, sizeof(buf), "%ld", (long)outputs[i].value);
+        lv_table_set_cell_value(s_lv_table, r, 3, buf);
+        lv_table_set_cell_value(s_lv_table, r, 4,
+                    outputs[i].auto_manual == 0 ? "Auto" : "Manual");
+        lv_table_set_cell_value(s_lv_table, r, 5,
+                    outputs[i].digital_analog == 1 ? "Analog" : "Digital");
+        lv_snprintf(buf, sizeof(buf), "%d", outputs[i].control);
+        lv_table_set_cell_value(s_lv_table, r, 6, buf);
+        lv_snprintf(buf, sizeof(buf), "%d", outputs[i].switch_status);
+        lv_table_set_cell_value(s_lv_table, r, 7, buf);
+        lv_snprintf(buf, sizeof(buf), "%u: %s", (unsigned)(uint8_t)outputs[i].range,
+                    param_table_range_text(PARAM_TABLE_OUTPUT, outputs[i].digital_analog,
+                                           (uint8_t)outputs[i].range));
+        lv_table_set_cell_value(s_lv_table, r, 8, buf);
+    }
+    else
+    {
+        memset(desc_buf, 0, sizeof(desc_buf));
+        memcpy(desc_buf, vars[i].description, 21);
+        memset(label_buf, 0, sizeof(label_buf));
+        memcpy(label_buf, vars[i].label, 9);
+
+        lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
+        lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
+        lv_snprintf(buf, sizeof(buf), "%ld", (long)vars[i].value);
+        lv_table_set_cell_value(s_lv_table, r, 3, buf);
+        lv_table_set_cell_value(s_lv_table, r, 4,
+                    vars[i].auto_manual == 0 ? "Auto" : "Manual");
+        lv_table_set_cell_value(s_lv_table, r, 5,
+                    vars[i].digital_analog == 1 ? "Analog" : "Digital");
+        lv_snprintf(buf, sizeof(buf), "%d", vars[i].control);
+        lv_table_set_cell_value(s_lv_table, r, 6, buf);
+        lv_snprintf(buf, sizeof(buf), "%u: %s", (unsigned)vars[i].range,
+                    param_table_range_text(PARAM_TABLE_VARIABLE, vars[i].digital_analog,
+                                           vars[i].range));
+        lv_table_set_cell_value(s_lv_table, r, 7, buf);
+    }
+}
+
+static void param_table_build_begin(void)
+{
+    if(!UI_OBJ_READY(ui_Panel4)) {
+        return;
+    }
+
+    param_Clear_table();
+
+    bool is_output = (s_param_table_type == PARAM_TABLE_OUTPUT);
+    uint16_t col_count = is_output ? 9U : 8U;
+    uint16_t total_w = param_table_calc_total_width(is_output);
+
+    s_param_build_total = param_table_get_row_count();
+    s_param_build_row = 0;
+    s_param_build_active = (s_param_build_total > 0U);
+
+    s_lv_table = lv_table_create(ui_Panel4);
+    lv_obj_set_width(s_lv_table, total_w);
+    lv_obj_set_height(s_lv_table, LV_SIZE_CONTENT);
+    lv_obj_align(s_lv_table, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_clear_flag(s_lv_table, LV_OBJ_FLAG_SCROLLABLE);
+    lv_table_set_column_count(s_lv_table, col_count);
+    lv_table_set_row_count(s_lv_table, s_param_build_total + 1U);
+    lv_obj_set_style_pad_left(s_lv_table, 2, LV_PART_ITEMS);
+    lv_obj_set_style_pad_right(s_lv_table, 2, LV_PART_ITEMS);
+    lv_obj_set_style_pad_top(s_lv_table, 4, LV_PART_ITEMS);
+    lv_obj_set_style_pad_bottom(s_lv_table, 4, LV_PART_ITEMS);
+    lv_obj_set_style_pad_row(s_lv_table, 0, LV_PART_MAIN);
+
+    lv_table_set_column_width(s_lv_table, 0, s_param_table_widths[0]);
+    lv_table_set_column_width(s_lv_table, 1, s_param_table_widths[1]);
+    lv_table_set_column_width(s_lv_table, 2, s_param_table_widths[2]);
+    lv_table_set_column_width(s_lv_table, 3, s_param_table_widths[3]);
+    lv_table_set_column_width(s_lv_table, 4, s_param_table_widths[4]);
+    lv_table_set_column_width(s_lv_table, 5, s_param_table_widths[5]);
+    lv_table_set_column_width(s_lv_table, 6, s_param_table_widths[6]);
+    if(is_output)
+    {
+        lv_table_set_column_width(s_lv_table, 7, s_param_table_widths[7]);
+        lv_table_set_column_width(s_lv_table, 8, s_param_table_widths[8]);
+    }
+    else
+    {
+        lv_table_set_column_width(s_lv_table, 7, s_param_table_widths[8]);
+    }
+
+    lv_table_set_cell_value(s_lv_table, 0, 0, "No");
+    lv_table_set_cell_value(s_lv_table, 0, 1, "Description");
+    lv_table_set_cell_value(s_lv_table, 0, 2, "Label");
+    lv_table_set_cell_value(s_lv_table, 0, 3, "Value");
+    lv_table_set_cell_value(s_lv_table, 0, 4, "A/M");
+    lv_table_set_cell_value(s_lv_table, 0, 5, "D/A");
+    lv_table_set_cell_value(s_lv_table, 0, 6, "Ctrl");
+    if(is_output)
+    {
+        lv_table_set_cell_value(s_lv_table, 0, 7, "Sw");
+        lv_table_set_cell_value(s_lv_table, 0, 8, "Range");
+    }
+    else
+    {
+        lv_table_set_cell_value(s_lv_table, 0, 7, "Range");
+    }
+
+    lv_obj_set_style_text_font(s_lv_table, &lv_font_montserrat_12,
+                               LV_PART_ITEMS | LV_STATE_DEFAULT);
+
+    if(s_param_build_total == 0U) {
+        s_param_build_active = false;
+        lv_obj_add_event_cb(s_lv_table, param_table_cell_edit_cb,
+                            LV_EVENT_VALUE_CHANGED, NULL);
+    }
+}
+
+static void param_table_build_step(void)
+{
+    if(!s_param_build_active || !UI_OBJ_READY(s_lv_table)) {
+        return;
+    }
+
+    for(uint16_t batch = 0;
+        batch < PARAM_TABLE_BUILD_BATCH && s_param_build_row < s_param_build_total;
+        batch++, s_param_build_row++)
+    {
+        param_table_fill_row(s_param_build_row);
+        if((s_param_build_row % PARAM_TABLE_BUILD_BATCH) == 0U) {
+            vTaskDelay(1);
+        }
+    }
+
+    if(s_param_build_row >= s_param_build_total) {
+        lv_obj_add_event_cb(s_lv_table, param_table_cell_edit_cb,
+                            LV_EVENT_VALUE_CHANGED, NULL);
+        s_param_build_active = false;
+    }
+}
+
 static lv_obj_t * s_edit_popup = NULL;
 static lv_obj_t * s_edit_ta    = NULL;
+static lv_obj_t * s_range_dropdown = NULL;
 static uint32_t   s_edit_row   = 0;
 static uint32_t   s_edit_col   = 0;
+
+typedef struct
+{
+    uint8_t value;
+    const char *name;
+} param_range_option_t;
+
+/* Range values are protocol values.  Keep these tables aligned with ud_str.h. */
+static const param_range_option_t s_analog_unit_ranges[] = {
+    { unused, "Unused" }, { degC, "deg C" }, { degF, "deg F" },
+    { FPM, "FPM" }, { Pa, "Pa" }, { KPa, "kPa" }, { psi, "psi" },
+    { in_w, "in. W.C." }, { Watts, "Watts" }, { KW, "kW" },
+    { KWH, "kWh" }, { Volts, "Volts" }, { KV, "kV" }, { Amps, "Amps" },
+    { ma, "mA" }, { CFM, "CFM" }, { Sec, "Seconds" }, { Min, "Minutes" },
+    { Hours, "Hours" }, { Days, "Days" }, { time_unit, "Time" },
+    { ohms, "Ohms" }, { procent, "Percent" }, { RH, "RH" }, { ppm, "ppm" },
+    { counts, "Counts" }, { Open, "Open" }, { CFH, "CFH" }, { GPM, "GPM" },
+    { GPH, "GPH" }, { GAL, "Gallons" }, { CF, "CF" }, { BTU, "BTU" },
+    { CMH, "CMH" }, { custom1, "Custom 1" }, { custom2, "Custom 2" },
+    { custom3, "Custom 3" }, { custom4, "Custom 4" }, { custom5, "Custom 5" },
+    { custom6, "Custom 6" }, { custom7, "Custom 7" }, { custom8, "Custom 8" }
+};
+
+static const param_range_option_t s_digital_ranges[] = {
+    { UNUSED, "Unused" }, { OFF_ON, "Off/On" }, { CLOSED_OPEN, "Closed/Open" },
+    { STOP_START, "Stop/Start" }, { DISABLED_ENABLED, "Disabled/Enabled" },
+    { NORMAL_ALARM, "Normal/Alarm" }, { NORMAL_HIGH, "Normal/High" },
+    { NORMAL_LOW, "Normal/Low" }, { NO_YES, "No/Yes" }, { COOL_HEAT, "Cool/Heat" },
+    { UNOCCUPIED_OCCUPIED, "Unoccupied/Occupied" }, { LOW_HIGH, "Low/High" },
+    { ON_OFF, "On/Off" }, { OPEN_CLOSED, "Open/Closed" }, { START_STOP, "Start/Stop" },
+    { ENABLED_DISABLED, "Enabled/Disabled" }, { ALARM_NORMAL, "Alarm/Normal" },
+    { HIGH_NORMAL, "High/Normal" }, { LOW_NORMAL, "Low/Normal" }, { YES_NO, "Yes/No" },
+    { HEAT_COOL, "Heat/Cool" }, { OCCUPIED_UNOCCUPIED, "Occupied/Unoccupied" },
+    { HIGH_LOW, "High/Low" }, { custom_digital1, "Custom digital 1" },
+    { custom_digital2, "Custom digital 2" }, { custom_digital3, "Custom digital 3" },
+    { custom_digital4, "Custom digital 4" }, { custom_digital5, "Custom digital 5" },
+    { custom_digital6, "Custom digital 6" }, { custom_digital7, "Custom digital 7" },
+    { custom_digital8, "Custom digital 8" }
+};
+
+static const param_range_option_t s_input_analog_ranges[] = {
+    { not_used_input, "Not used" }, { Y3K_40_150DegC, "3K: -40..150 C" },
+    { Y3K_40_300DegF, "3K: -40..300 F" }, { R10K_40_120DegC, "10K: -40..120 C" },
+    { R10K_40_250DegF, "10K: -40..250 F" }, { R3K_40_150DegC, "3K: -40..150 C" },
+    { R3K_40_300DegF, "3K: -40..300 F" }, { KM10K_40_120DegC, "K10K: -40..120 C" },
+    { KM10K_40_250DegF, "K10K: -40..250 F" }, { PT1000_200_300DegC, "PT1000: -200..300 C" },
+    { PT1000_200_570DegF, "PT1000: -200..570 F" }, { V0_5, "0..5 V" },
+    { I0_100Amps, "0..100 A" }, { I0_20ma, "0..20 mA" }, { I0_20psi, "0..20 psi" },
+    { N0_2_32counts, "0..2^32 counts" }, { P0_100_0_10V, "0..100%, 0..10 V" },
+    { P0_100_0_5V, "0..100%, 0..5 V" }, { P0_100_4_20ma, "0..100%, 4..20 mA" },
+    { V0_10_IN, "0..10 V" }, { table1, "Table 1" }, { table2, "Table 2" },
+    { table3, "Table 3" }, { table4, "Table 4" }, { table5, "Table 5" },
+    { HI_spd_count, "High-speed count" }, { Frequence, "Frequency" },
+    { Humidty, "Humidity" }, { CO2_PPM, "CO2 ppm" }, { RPM, "RPM" },
+    { TVOC_PPB, "TVOC ppb" }, { UG_M3, "ug/m3" }, { NUM_CM3, "#/cm3" },
+    { DB, "dB" }, { LUX, "Lux" }, { AC_PWM, "AC PWM" }
+};
+
+static const param_range_option_t s_output_analog_ranges[] = {
+    { not_used_output, "Not used" }, { V0_10, "0..10 V" },
+    { P0_100_Open, "0..100% Open" }, { P0_20psi, "0..20 psi" },
+    { P0_100, "0..100%" }, { P0_100_Close, "0..100% Close" },
+    { I_0_20ma, "0..20 mA" }, { P0_100_PWM, "0..100% PWM" },
+    { P0_100_2_10V, "0..100%, 2..10 V" }
+};
+
+static const param_range_option_t *param_table_get_range_options(param_table_type_t type,
+    uint8_t digital_analog, uint16_t *count)
+{
+    if(digital_analog == 0U)
+    {
+        *count = sizeof(s_digital_ranges) / sizeof(s_digital_ranges[0]);
+        return s_digital_ranges;
+    }
+
+    if(type == PARAM_TABLE_INPUT)
+    {
+        *count = sizeof(s_input_analog_ranges) / sizeof(s_input_analog_ranges[0]);
+        return s_input_analog_ranges;
+    }
+    if(type == PARAM_TABLE_OUTPUT)
+    {
+        *count = sizeof(s_output_analog_ranges) / sizeof(s_output_analog_ranges[0]);
+        return s_output_analog_ranges;
+    }
+
+    *count = sizeof(s_analog_unit_ranges) / sizeof(s_analog_unit_ranges[0]);
+    return s_analog_unit_ranges;
+}
+
+static const char *param_table_range_text(param_table_type_t type, uint8_t digital_analog,
+                                          uint8_t range)
+{
+    uint16_t count;
+    const param_range_option_t *options = param_table_get_range_options(type, digital_analog, &count);
+    for(uint16_t i = 0; i < count; i++)
+    {
+        if(options[i].value == range) return options[i].name;
+    }
+    return "Invalid";
+}
+
+static bool param_table_range_is_valid(param_table_type_t type, uint8_t digital_analog,
+                                       uint8_t range)
+{
+    return strcmp(param_table_range_text(type, digital_analog, range), "Invalid") != 0;
+}
+
+static uint8_t param_table_mode_from_cell(uint32_t row)
+{
+    const char *mode = lv_table_get_cell_value(s_lv_table, row, 5);
+    return (mode != NULL && strcmp(mode, "Analog") == 0) ? 1U : 0U;
+}
+
+static void param_table_range_popup_done_cb(lv_event_t * e)
+{
+    if(lv_event_get_code(e) == LV_EVENT_CLICKED && UI_OBJ_READY(s_lv_table) &&
+       UI_OBJ_READY(s_range_dropdown))
+    {
+        uint16_t count;
+        uint16_t selected = lv_dropdown_get_selected(s_range_dropdown);
+        uint8_t mode = param_table_mode_from_cell(s_edit_row);
+        const param_range_option_t *options = param_table_get_range_options(s_param_table_type,
+                                                                              mode, &count);
+        if(selected < count)
+        {
+            char text[32];
+            lv_snprintf(text, sizeof(text), "%u: %s", options[selected].value, options[selected].name);
+            lv_table_set_cell_value(s_lv_table, s_edit_row, s_edit_col, text);
+        }
+    }
+
+    if(UI_OBJ_READY(s_edit_popup)) lv_obj_del(s_edit_popup);
+    s_edit_popup = NULL;
+    s_range_dropdown = NULL;
+}
+
+static void param_table_range_popup_cancel_cb(lv_event_t * e)
+{
+    (void)e;
+    if(UI_OBJ_READY(s_edit_popup)) lv_obj_del(s_edit_popup);
+    s_edit_popup = NULL;
+    s_range_dropdown = NULL;
+}
+
+static void param_table_show_range_popup(uint8_t current_range)
+{
+    uint16_t count;
+    uint16_t selected = 0;
+    uint8_t mode = param_table_mode_from_cell(s_edit_row);
+    const param_range_option_t *options = param_table_get_range_options(s_param_table_type, mode, &count);
+    char options_text[1024] = {0};
+
+    for(uint16_t i = 0; i < count; i++)
+    {
+        char item[48];
+        lv_snprintf(item, sizeof(item), "%u: %s%s", options[i].value, options[i].name,
+                    (i + 1U < count) ? "\n" : "");
+        strncat(options_text, item, sizeof(options_text) - strlen(options_text) - 1U);
+        if(options[i].value == current_range) selected = i;
+    }
+
+    s_edit_popup = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_edit_popup, 300, 210);
+    lv_obj_center(s_edit_popup);
+    lv_obj_clear_flag(s_edit_popup, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(s_edit_popup, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_t *title = lv_label_create(s_edit_popup);
+    lv_label_set_text(title, mode ? "Select analog range" : "Select digital range");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+
+    s_range_dropdown = lv_dropdown_create(s_edit_popup);
+    lv_obj_set_width(s_range_dropdown, 280);
+    lv_obj_align(s_range_dropdown, LV_ALIGN_TOP_MID, 0, 28);
+    lv_dropdown_set_options(s_range_dropdown, options_text);
+    lv_dropdown_set_selected(s_range_dropdown, selected);
+
+    lv_obj_t *apply = lv_btn_create(s_edit_popup);
+    lv_obj_set_size(apply, 125, 42);
+    lv_obj_align(apply, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    lv_obj_t *apply_label = lv_label_create(apply);
+    lv_label_set_text(apply_label, "Apply");
+    lv_obj_center(apply_label);
+    lv_obj_add_event_cb(apply, param_table_range_popup_done_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *cancel = lv_btn_create(s_edit_popup);
+    lv_obj_set_size(cancel, 125, 42);
+    lv_obj_align(cancel, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
+    lv_obj_t *cancel_label = lv_label_create(cancel);
+    lv_label_set_text(cancel_label, "Cancel");
+    lv_obj_center(cancel_label);
+    lv_obj_add_event_cb(cancel, param_table_range_popup_cancel_cb, LV_EVENT_CLICKED, NULL);
+}
 
 static void param_table_edit_done_cb(lv_event_t * e)
 {
@@ -657,6 +1192,7 @@ static void param_table_edit_done_cb(lv_event_t * e)
         lv_obj_del(s_edit_popup);
         s_edit_popup = NULL;
         s_edit_ta    = NULL;
+        s_range_dropdown = NULL;
     }
 }
 
@@ -669,11 +1205,46 @@ static void param_table_cell_edit_cb(lv_event_t * e)
 
     const char * cur = lv_table_get_cell_value(table, s_edit_row, s_edit_col);
 
+    // A/M column
+    if (s_edit_col == 4)
+    {
+        if (cur && strcmp(cur, "Manual") == 0)
+        {
+            lv_table_set_cell_value(table, s_edit_row, s_edit_col, "Auto");
+        }
+        else
+        {
+            lv_table_set_cell_value(table, s_edit_row, s_edit_col, "Manual");
+        }
+        return;
+    }
+
+    // D/A column.  A range picker always uses the mode currently displayed here.
+    if(s_edit_col == 5)
+    {
+        uint8_t new_mode = (cur && strcmp(cur, "Analog") == 0) ? 0U : 1U;
+        uint32_t range_col = (s_param_table_type == PARAM_TABLE_OUTPUT) ? 8U : 7U;
+        lv_table_set_cell_value(table, s_edit_row, s_edit_col,
+                                new_mode ? "Analog" : "Digital");
+        /* The previous code may be valid in both enums but mean something different. */
+        lv_table_set_cell_value(table, s_edit_row, range_col,
+                                new_mode ? "0: Not used" : "0: Unused");
+        return;
+    }
+
     if(UI_OBJ_READY(s_edit_popup))
     {
         lv_obj_del(s_edit_popup);
         s_edit_popup = NULL;
+        s_range_dropdown = NULL;
     }
+    /* Range is selected from the valid enum values, never entered as a raw number. */
+    if(s_edit_col == (s_param_table_type == PARAM_TABLE_OUTPUT ? 8U : 7U))
+    {
+        param_table_show_range_popup((uint8_t)atoi(cur ? cur : "0"));
+        return;
+    }
+
     s_edit_popup = lv_obj_create(lv_layer_top());
     lv_obj_set_size(s_edit_popup, 300, 170);
     lv_obj_center(s_edit_popup);
@@ -692,7 +1263,7 @@ static void param_table_cell_edit_cb(lv_event_t * e)
     lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_keyboard_set_textarea(kb, s_edit_ta);
     lv_obj_clear_flag(kb, LV_OBJ_FLAG_SCROLLABLE);
-    // Numeric cols: Value(3), A/M(4), D/A(5), Ctrl(6), Sw(7 output), Range
+    // Numeric columns: Value(3), Ctrl(6), Sw(7 output).
     lv_keyboard_set_mode(kb, (s_edit_col >= 3) ? LV_KEYBOARD_MODE_NUMBER
                                                : LV_KEYBOARD_MODE_TEXT_LOWER);
     lv_obj_add_event_cb(kb, param_table_edit_done_cb, LV_EVENT_READY,  NULL);
@@ -701,146 +1272,13 @@ static void param_table_cell_edit_cb(lv_event_t * e)
 
 /**
  * @brief Build wrapper retained for existing call sites
- * @details Starts non-blocking state-machine build.
  */
 static void param_table_build(void)
 {
-    if(!UI_OBJ_READY(ui_Panel4)) return;
-
-    // Destroy old table if rebuilding
-    if(UI_OBJ_READY(s_lv_table))
-    {
-        lv_obj_del(s_lv_table);
-        s_lv_table = NULL;
+    param_table_build_begin();
+    while(s_param_build_active) {
+        param_table_build_step();
     }
-
-    bool is_output = (s_param_table_type == PARAM_TABLE_OUTPUT);
-    uint16_t col_count = is_output ? 9U : 8U;
-    uint16_t row_count = param_table_get_row_count();
-    uint16_t total_w = 0;
-
-    for(uint16_t i = 0; i < col_count; i++) {
-        total_w += s_param_table_widths[i];
-    }
-    ESP_LOGI(TAG, "Building parameter table: type=%d, cols=%d, rows=%d, total_width=%d",
-             s_param_table_type, col_count, row_count, total_w);
-
-    // Create table
-    s_lv_table = lv_table_create(ui_Panel4);
-
-    lv_obj_set_width(s_lv_table, total_w);
-    lv_obj_set_height(s_lv_table, LV_SIZE_CONTENT);
-    lv_obj_align(s_lv_table, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_clear_flag(s_lv_table, LV_OBJ_FLAG_SCROLLABLE);
-    lv_table_set_column_count(s_lv_table, col_count);
-    lv_table_set_row_count(s_lv_table, row_count + 1U); // +1 for header
-    lv_obj_set_style_pad_left(s_lv_table, 2, LV_PART_ITEMS);
-    lv_obj_set_style_pad_right(s_lv_table, 2, LV_PART_ITEMS);
-    lv_obj_set_style_pad_top(s_lv_table, 4, LV_PART_ITEMS);
-    lv_obj_set_style_pad_bottom(s_lv_table, 4, LV_PART_ITEMS);
-    lv_obj_set_style_pad_row(s_lv_table, 0, LV_PART_MAIN);
-
-    // Column widths  (reuse your existing s_param_table_widths)
-    lv_table_set_column_width(s_lv_table, 0, s_param_table_widths[0]); // No
-    lv_table_set_column_width(s_lv_table, 1, s_param_table_widths[1]); // Description
-    lv_table_set_column_width(s_lv_table, 2, s_param_table_widths[2]); // Label
-    lv_table_set_column_width(s_lv_table, 3, s_param_table_widths[3]); // Value
-    lv_table_set_column_width(s_lv_table, 4, s_param_table_widths[4]); // A/M
-    lv_table_set_column_width(s_lv_table, 5, s_param_table_widths[5]); // D/A
-    lv_table_set_column_width(s_lv_table, 6, s_param_table_widths[6]); // Ctrl
-    if(is_output)
-    {
-        lv_table_set_column_width(s_lv_table, 7, s_param_table_widths[7]); // Sw
-        lv_table_set_column_width(s_lv_table, 8, s_param_table_widths[8]); // Range
-    }
-    else
-    {
-        lv_table_set_column_width(s_lv_table, 7, s_param_table_widths[8]); // Range
-    }
-
-    // Header row
-    lv_table_set_cell_value(s_lv_table, 0, 0, "No");
-    lv_table_set_cell_value(s_lv_table, 0, 1, "Description");
-    lv_table_set_cell_value(s_lv_table, 0, 2, "Label");
-    lv_table_set_cell_value(s_lv_table, 0, 3, "Value");
-    lv_table_set_cell_value(s_lv_table, 0, 4, "A/M");
-    lv_table_set_cell_value(s_lv_table, 0, 5, "D/A");
-    lv_table_set_cell_value(s_lv_table, 0, 6, "Ctrl");
-    if(is_output)
-    {
-        lv_table_set_cell_value(s_lv_table, 0, 7, "Sw");
-        lv_table_set_cell_value(s_lv_table, 0, 8, "Range");
-    }
-    else
-    {
-        lv_table_set_cell_value(s_lv_table, 0, 7, "Range");
-    }
-
-    // Data rows
-    char buf[32];
-    for(uint16_t i = 0; i < row_count; i++)
-    {
-        uint16_t r = i + 1U;
-
-        lv_snprintf(buf, sizeof(buf), "%u", (unsigned)(i + 1U));
-        lv_table_set_cell_value(s_lv_table, r, 0, buf);
-
-        if(s_param_table_type == PARAM_TABLE_INPUT)
-        {
-            lv_table_set_cell_value(s_lv_table, r, 1, (const char *)inputs[i].description);
-            lv_table_set_cell_value(s_lv_table, r, 2, (const char *)inputs[i].label);
-            lv_snprintf(buf, sizeof(buf), "%ld", (long)inputs[i].value);
-            lv_table_set_cell_value(s_lv_table, r, 3, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].auto_manual);
-            lv_table_set_cell_value(s_lv_table, r, 4, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].digital_analog);
-            lv_table_set_cell_value(s_lv_table, r, 5, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].control);
-            lv_table_set_cell_value(s_lv_table, r, 6, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", inputs[i].range);
-            lv_table_set_cell_value(s_lv_table, r, 7, buf);
-        }
-        else if(s_param_table_type == PARAM_TABLE_OUTPUT)
-        {
-            lv_table_set_cell_value(s_lv_table, r, 1, (const char *)outputs[i].description);
-            lv_table_set_cell_value(s_lv_table, r, 2, (const char *)outputs[i].label);
-            lv_snprintf(buf, sizeof(buf), "%ld", (long)outputs[i].value);
-            lv_table_set_cell_value(s_lv_table, r, 3, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].auto_manual);
-            lv_table_set_cell_value(s_lv_table, r, 4, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].digital_analog);
-            lv_table_set_cell_value(s_lv_table, r, 5, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].control);
-            lv_table_set_cell_value(s_lv_table, r, 6, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].switch_status);
-            lv_table_set_cell_value(s_lv_table, r, 7, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", outputs[i].range);
-            lv_table_set_cell_value(s_lv_table, r, 8, buf);
-        }
-        else // PARAM_TABLE_VARIABLE
-        {
-            lv_table_set_cell_value(s_lv_table, r, 1, (const char *)vars[i].description);
-            lv_table_set_cell_value(s_lv_table, r, 2, (const char *)vars[i].label);
-            lv_snprintf(buf, sizeof(buf), "%ld", (long)vars[i].value);
-            lv_table_set_cell_value(s_lv_table, r, 3, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", vars[i].auto_manual);
-            lv_table_set_cell_value(s_lv_table, r, 4, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", vars[i].digital_analog);
-            lv_table_set_cell_value(s_lv_table, r, 5, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", vars[i].control);
-            lv_table_set_cell_value(s_lv_table, r, 6, buf);
-            lv_snprintf(buf, sizeof(buf), "%d", vars[i].range);
-            lv_table_set_cell_value(s_lv_table, r, 7, buf);
-        }
-    }
-
-    // Font for all cells
-    lv_obj_set_style_text_font(s_lv_table, &lv_font_montserrat_12,
-                               LV_PART_ITEMS | LV_STATE_DEFAULT);
-
-    // Click handler for editing
-    lv_obj_add_event_cb(s_lv_table, param_table_cell_edit_cb,
-                        LV_EVENT_VALUE_CHANGED, NULL);
 }
 
 /**
@@ -855,6 +1293,7 @@ static void param_Clear_table(void)
         lv_obj_del(s_edit_popup);
         s_edit_popup = NULL;
         s_edit_ta    = NULL;
+        s_range_dropdown = NULL;
     }
     if(UI_OBJ_READY(s_lv_table))
     {
@@ -892,10 +1331,15 @@ static void param_table_apply_updates(void)
             param_table_copy_text((char *)inputs[i].label,
                 sizeof(inputs[i].label), CELL(r, 2));
             inputs[i].value          = GETI(r, 3);
-            inputs[i].auto_manual    = S8(GETI(r, 4));
-            inputs[i].digital_analog = S8(GETI(r, 5));
+            inputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
+            inputs[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             inputs[i].control        = S8(GETI(r, 6));
             inputs[i].range          = U8(GETI(r, 7));
+            if(!param_table_range_is_valid(PARAM_TABLE_INPUT, inputs[i].digital_analog,
+                                           inputs[i].range))
+            {
+                inputs[i].range = 0;
+            }
         }
         else if(s_param_table_type == PARAM_TABLE_OUTPUT)
         {
@@ -904,11 +1348,16 @@ static void param_table_apply_updates(void)
             param_table_copy_text((char *)outputs[i].label,
                 sizeof(outputs[i].label), CELL(r, 2));
             outputs[i].value          = GETI(r, 3);
-            outputs[i].auto_manual    = S8(GETI(r, 4));
-            outputs[i].digital_analog = S8(GETI(r, 5));
+            outputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
+            outputs[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             outputs[i].control        = S8(GETI(r, 6));
             outputs[i].switch_status  = U8(GETI(r, 7));
             outputs[i].range          = S8(GETI(r, 8));
+            if(!param_table_range_is_valid(PARAM_TABLE_OUTPUT, outputs[i].digital_analog,
+                                           (uint8_t)outputs[i].range))
+            {
+                outputs[i].range = 0;
+            }
         }
         else // PARAM_TABLE_VARIABLE
         {
@@ -917,10 +1366,15 @@ static void param_table_apply_updates(void)
             param_table_copy_text((char *)vars[i].label,
                 sizeof(vars[i].label), CELL(r, 2));
             vars[i].value          = GETI(r, 3);
-            vars[i].auto_manual    = U8(GETI(r, 4));
-            vars[i].digital_analog = U8(GETI(r, 5));
+            vars[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
+            vars[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             vars[i].control        = U8(GETI(r, 6));
             vars[i].range          = U8(GETI(r, 7));
+            if(!param_table_range_is_valid(PARAM_TABLE_VARIABLE, vars[i].digital_analog,
+                                           vars[i].range))
+            {
+                vars[i].range = 0;
+            }
         }
     }
 
@@ -962,22 +1416,33 @@ static void lv_refresh_NetworkSetup_Data(void)
             set_ip_fields_editable(true);
         }
         // --- Update IP Address UI ---
-        ui_update_textarea_from_int(ui_IPoct1, Modbus.ip_addr[0]);
-        ui_update_textarea_from_int(ui_IPoct2, Modbus.ip_addr[1]);
-        ui_update_textarea_from_int(ui_IPoct3, Modbus.ip_addr[2]);
-        ui_update_textarea_from_int(ui_IPoct4, Modbus.ip_addr[3]);
+        ui_update_textarea_from_int(ui_IPoct1, SSID_Info.ip_addr[0]);
+        ui_update_textarea_from_int(ui_IPoct2, SSID_Info.ip_addr[1]);
+        ui_update_textarea_from_int(ui_IPoct3, SSID_Info.ip_addr[2]);
+        ui_update_textarea_from_int(ui_IPoct4, SSID_Info.ip_addr[3]);
 
-        // --- Update Subnet UI ---
-        ui_update_textarea_from_int(ui_IPoct6, Modbus.subnet[0]);
-        ui_update_textarea_from_int(ui_IPoct7, Modbus.subnet[1]);
-        ui_update_textarea_from_int(ui_IPoct8, Modbus.subnet[2]);
-        ui_update_textarea_from_int(ui_IPoct9, Modbus.subnet[3]);
+        ui_update_textarea_from_int(ui_IPoct6, SSID_Info.net_mask[0]);
+        ui_update_textarea_from_int(ui_IPoct7, SSID_Info.net_mask[1]);
+        ui_update_textarea_from_int(ui_IPoct8, SSID_Info.net_mask[2]);
+        ui_update_textarea_from_int(ui_IPoct9, SSID_Info.net_mask[3]);
 
-        // --- Update Gateway UI ---
-        ui_update_textarea_from_int(ui_IPoct10, Modbus.getway[0]);
-        ui_update_textarea_from_int(ui_IPoct11, Modbus.getway[1]);
-        ui_update_textarea_from_int(ui_IPoct12, Modbus.getway[2]);
-        ui_update_textarea_from_int(ui_IPoct13, Modbus.getway[3]);
+        ui_update_textarea_from_int(ui_IPoct10, SSID_Info.getway[0]);
+        ui_update_textarea_from_int(ui_IPoct11, SSID_Info.getway[1]);
+        ui_update_textarea_from_int(ui_IPoct12, SSID_Info.getway[2]);
+        ui_update_textarea_from_int(ui_IPoct13, SSID_Info.getway[3]);
+
+        Modbus.ip_addr[0] = SSID_Info.ip_addr[0];
+        Modbus.ip_addr[1] = SSID_Info.ip_addr[1];
+        Modbus.ip_addr[2] = SSID_Info.ip_addr[2];
+        Modbus.ip_addr[3] = SSID_Info.ip_addr[3];
+        Modbus.subnet[0] = SSID_Info.net_mask[0];
+        Modbus.subnet[1] = SSID_Info.net_mask[1];
+        Modbus.subnet[2] = SSID_Info.net_mask[2];
+        Modbus.subnet[3] = SSID_Info.net_mask[3];
+        Modbus.getway[0] = SSID_Info.getway[0];
+        Modbus.getway[1] = SSID_Info.getway[1];
+        Modbus.getway[2] = SSID_Info.getway[2];
+        Modbus.getway[3] = SSID_Info.getway[3];
     }
 }
 
@@ -1371,23 +1836,142 @@ static void lv_refresh_Time_Data(void)
  */
 static void lv_refresh_Parameters_Data(void)
 {
-    // Nothing to do — table is built once on screen load.
-    // lv_table renders itself; no periodic async step needed.
-    (void)0;
+    if(s_param_build_active) {
+        param_table_build_step();
+    }
+}
+
+static bool calendar_is_leap_year(uint16_t year)
+{
+    return ((year % 4U) == 0U) && (((year % 100U) != 0U) || ((year % 400U) == 0U));
+}
+
+static int calendar_day_of_year(uint16_t year, uint8_t month, uint8_t day)
+{
+    static const uint8_t mdays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int doy = day;
+
+    if(month == 0U || month > 12U || day == 0U) {
+        return -1;
+    }
+
+    for(uint8_t m = 1; m < month; m++) {
+        doy += mdays[m - 1U];
+        if(m == 2U && calendar_is_leap_year(year)) {
+            doy++;
+        }
+    }
+
+    return doy;
+}
+
+static void calendar_day_of_year_to_date(uint16_t year, int doy, lv_calendar_date_t *out)
+{
+    static const uint8_t mdays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    uint8_t month_len[12];
+    int remaining = doy;
+
+    memcpy(month_len, mdays, sizeof(mdays));
+    if(calendar_is_leap_year(year)) {
+        month_len[1] = 29;
+    }
+
+    out->year = year;
+    for(uint8_t m = 0; m < 12U; m++) {
+        if(remaining <= month_len[m]) {
+            out->month = m + 1U;
+            out->day = (uint8_t)remaining;
+            return;
+        }
+        remaining -= month_len[m];
+    }
+}
+
+static bool calendar_is_holiday_day(int doy)
+{
+    if(doy < 1 || doy > 366) {
+        return false;
+    }
+
+    int octet = (doy - 1) / 8;
+    uint8_t mask = (uint8_t)(1U << ((doy - 1) % 8));
+
+    for(int i = 0; i < MAX_AR; i++) {
+        if(ar_dates[i][octet] & mask) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void calendar_toggle_holiday_day(int doy)
+{
+    if(doy < 1 || doy > 366) {
+        return;
+    }
+
+    int octet = (doy - 1) / 8;
+    uint8_t mask = (uint8_t)(1U << ((doy - 1) % 8));
+
+    for(int i = 0; i < MAX_AR; i++) {
+        ar_dates[i][octet] ^= mask;
+    }
+
+    save_point_info(0);
+}
+
+static void calendar_refresh_highlights(uint16_t year)
+{
+    static lv_calendar_date_t highlighted[366];
+    uint16_t count = 0;
+
+    if(!UI_OBJ_READY(ui_Calendar1)) {
+        return;
+    }
+
+    int days_in_year = calendar_is_leap_year(year) ? 366 : 365;
+    for(int doy = 1; doy <= days_in_year && count < 366U; doy++) {
+        if(calendar_is_holiday_day(doy)) {
+            calendar_day_of_year_to_date(year, doy, &highlighted[count]);
+            count++;
+        }
+    }
+
+    lv_calendar_set_highlighted_dates(ui_Calendar1, highlighted, count);
 }
 
 /**
- * @brief Refreshes the Calendar data by fetching the latest values from the relevant data points and updating the UI components accordingly
- * @details Placeholder for Holiday Calendar screen refresh logic. This is the
- *          location to load calendar highlights/holiday dates and sync widget
- *          state when entering the calendar screen.
- * @param[in] void No parameters
- * @return void
- * @note Function currently has no active refresh behavior.
+ * @brief Refreshes the Holiday Calendar screen from RTC and ar_dates
  */
 static void lv_refresh_calender_Data(void)
 {
-    // TODO: Implement Holiday Calendar screen refresh logic.
+    if(!UI_OBJ_READY(ui_Calendar1)) {
+        return;
+    }
+
+    if(isScreenChanged)
+    {
+        uint16_t year = rtc_date.year;
+        uint8_t month = rtc_date.month;
+        uint8_t day = rtc_date.day;
+
+        if(year < 2025U) {
+            year = 2026U;
+            month = 1U;
+            day = 1U;
+        }
+
+        lv_calendar_set_today_date(ui_Calendar1, year, month, day);
+        lv_calendar_set_showed_date(ui_Calendar1, year, month);
+        calendar_refresh_highlights(year);
+
+        if(UI_OBJ_READY(ui_HolidayDateLabel)) {
+            char buf[40];
+            snprintf(buf, sizeof(buf), "Tap a date to toggle holiday");
+            lv_label_set_text(ui_HolidayDateLabel, buf);
+        }
+    }
 }
 
 /**
@@ -1404,8 +1988,7 @@ static void ui_update_temperature(float temp)
         return;
 
     char buf[8];
-    snprintf(buf, sizeof(buf), "%.1f", temp);
-
+    snprintf(buf, sizeof(buf), " %04.1f", temp);
     lv_textarea_set_text(uic_TemperatureVal, buf);
 }
 
@@ -1503,22 +2086,52 @@ static void ui_set_temperature_unit(bool is_fahrenheit)
 }
 
 /**
- * @brief Controls the visibility of the WiFi symbol on the LCD screen
- * @details Toggles the opacity of the WiFi indicator symbol between fully
- *          visible (opacity 255) and invisible (opacity 0)
- * @param[in] visible If true, makes WiFi symbol visible; if false, hides it
- * @return void
- * @note Checks if the UI object uic_WifiSymb is ready before updating
- * @note Uses LVGL opacity control (0 = invisible, 255 = fully opaque)
+ * @brief Select WiFi icon matching menuidle.c DisplayHeaderSymbol()
  */
-static void ui_set_wifi_visible(bool visible)
+static const lv_image_dsc_t * ui_wifi_symbol_for_status(void)
 {
-    if(!UI_OBJ_READY(uic_WifiSymb))
-        return;
+    if((SSID_Info.IP_Wifi_Status == WIFI_NORMAL) ||
+       (SSID_Info.IP_Wifi_Status == WIFI_CONNECTED))
+    {
+        if(SSID_Info.rssi < -80) {
+            return &ui_img_wifisym_1_png;
+        }
+        if(SSID_Info.rssi < -70) {
+            return &ui_img_wifisym_2_png;
+        }
+        if(SSID_Info.rssi < -60) {
+            return &ui_img_wifisym_3_png;
+        }
+        return &ui_img_wifisym_4_png;
+    }
 
-    lv_obj_set_style_opa(uic_WifiSymb,
-                         visible ? 255 : 0,
-                         LV_PART_MAIN | LV_STATE_DEFAULT);
+    if((SSID_Info.IP_Wifi_Status == WIFI_NO_CONNECT) ||
+       (SSID_Info.IP_Wifi_Status == WIFI_SSID_FAIL) ||
+       (SSID_Info.IP_Wifi_Status == WIFI_DISCONNECTED))
+    {
+        return &ui_img_wifisym_0_png;
+    }
+
+    return &ui_img_wifisym_Disable_png;
+}
+
+/**
+ * @brief Update home-screen WiFi symbol image from connection state and RSSI
+ */
+static void ui_update_wifi_symbol(void)
+{
+    if(!UI_OBJ_READY(uic_WifiSymb)) {
+        return;
+    }
+
+    const lv_image_dsc_t *symbol = ui_wifi_symbol_for_status();
+    if(symbol == NULL) {
+        lv_obj_set_style_opa(uic_WifiSymb, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+        return;
+    }
+
+    lv_image_set_src(uic_WifiSymb, symbol);
+    lv_obj_set_style_opa(uic_WifiSymb, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 }
 
 
@@ -1565,7 +2178,6 @@ void Event_Cb_WifiEn(lv_event_t * e)
         lv_obj_add_state(ui_WifiEnSw, LV_STATE_CHECKED);
     }
 
-    wifi_scan_state = WIFI_SCAN_CHECK_MODE;
     save_block(FLASH_BLOCK1_SSID);
     connect_wifi();
 }
@@ -1698,9 +2310,9 @@ void Event_Cb_UpdateWifiConfig(lv_event_t * e)
 {
     const char * password = lv_textarea_get_text(ui_PasswordText);
     ReconnectWithWifi = true;
-    memset(&SSID_Info.name,0x00,sizeof(SSID_Info.name));
+    memset(SSID_Info.name, 0x00, sizeof(SSID_Info.name));
     lv_dropdown_get_selected_str(ui_Dropdown2, SSID_Info.name, sizeof(SSID_Info.name));
-    memset(&SSID_Info.password,0x00,sizeof(SSID_Info.password));
+    memset(SSID_Info.password, 0x00, sizeof(SSID_Info.password));
     if(password != NULL)
     {
         strncpy(SSID_Info.password, password, sizeof(SSID_Info.password) - 1U);
@@ -1759,8 +2371,8 @@ void Event_Cb_ScheduleTimeSelectedFunc(lv_event_t * e)
     selected_schedule_time_cell = target;
 
     const char *txt = lv_textarea_get_text(target);
-    uint16_t hour = 255U;
-    uint16_t min = 255U;
+    uint16_t hour = 0U;
+    uint16_t min = 0U;
 
     if((txt != NULL) && (txt[0] != '\0'))
     {
@@ -1798,7 +2410,7 @@ void Event_Cb_ScheduleTimeSelectedFunc(lv_event_t * e)
                 p++;
             }
 
-            if((h <= 255U) && (m <= 255U))
+            if((h <= 24U) && (m <= 59U))
             {
                 hour = h;
                 min  = m;
@@ -1933,7 +2545,7 @@ void Event_Cb_IpAutoNext(lv_event_t * e)
 void Event_Cb_UpdateParameterTableFunc(lv_event_t * e)
 {
     (void)e;
-    param_table_build();
+    param_table_build_begin();
 }
 
 /**
@@ -1972,7 +2584,34 @@ void Event_Cb_CalenderValueChangeCallback(lv_event_t * e)
 
     if(obj == NULL) return;
 
-    if(lv_calendar_get_pressed_date(obj, &selected_date) == LV_RES_OK)
+    if(lv_calendar_get_pressed_date(obj, &selected_date) != LV_RES_OK) {
+        return;
+    }
+
+    if(obj == ui_Calendar1)
+    {
+        int doy = calendar_day_of_year(selected_date.year,
+                                       (uint8_t)selected_date.month,
+                                       (uint8_t)selected_date.day);
+        if(doy > 0) {
+            calendar_toggle_holiday_day(doy);
+            calendar_refresh_highlights(selected_date.year);
+        }
+
+        if(UI_OBJ_READY(ui_HolidayDateLabel)) {
+            char buf[40];
+            bool is_holiday = (doy > 0) ? calendar_is_holiday_day(doy) : false;
+            snprintf(buf, sizeof(buf), "%02u-%02u-%04u: %s",
+                     (unsigned)selected_date.day,
+                     (unsigned)selected_date.month,
+                     (unsigned)selected_date.year,
+                     is_holiday ? "Holiday" : "Normal");
+            lv_label_set_text(ui_HolidayDateLabel, buf);
+        }
+        return;
+    }
+
+    if(obj == ui_Calendar3)
     {
         char buf[32];
 
@@ -1981,7 +2620,6 @@ void Event_Cb_CalenderValueChangeCallback(lv_event_t * e)
                 selected_date.month,
                 selected_date.year);
 
-        // Update button label
         lv_label_set_text(ui_Label70, buf);
         isDateUpdated = true;
     }
@@ -1997,47 +2635,34 @@ void Event_Cb_CalenderValueChangeCallback(lv_event_t * e)
  */
 void Event_Cb_NetworkConfigUpdateFunc(lv_event_t * e)
 {
-            // ui_Checkbox2 is for Static IP = 1
-            // ui_Checkbox3 is for Auto DHCP = 0
-    static bool isDataUpdated = false;
-    if(lv_obj_has_state(ui_Checkbox2, LV_STATE_CHECKED) && SSID_Info.IP_Auto_Manual == 0)
-    {
-        // Select Static IP
+    (void)e;
+
+    if(lv_obj_has_state(ui_Checkbox2, LV_STATE_CHECKED)) {
         SSID_Info.IP_Auto_Manual = 1;
-        isDataUpdated = true;
     }
-    else if(lv_obj_has_state(ui_Checkbox3, LV_STATE_CHECKED) && SSID_Info.IP_Auto_Manual == 1)
-    {
-        // Select Auto DHCP
+    else if(lv_obj_has_state(ui_Checkbox3, LV_STATE_CHECKED)) {
         SSID_Info.IP_Auto_Manual = 0;
-        isDataUpdated = true;
     }
 
-    if(SSID_Info.IP_Auto_Manual && isDataUpdated)
+    if(SSID_Info.IP_Auto_Manual)
     {
-            // --- Update IP Address ---
-        SSID_Info.ip_addr[0] = Modbus.ip_addr[0] = ui_get_int_from_textarea( ui_IPoct1 );
-        SSID_Info.ip_addr[1] = Modbus.ip_addr[1] = ui_get_int_from_textarea( ui_IPoct2 );
-        SSID_Info.ip_addr[2] = Modbus.ip_addr[2] = ui_get_int_from_textarea( ui_IPoct3 );
-        SSID_Info.ip_addr[3] = Modbus.ip_addr[3] = ui_get_int_from_textarea( ui_IPoct4 );
+        SSID_Info.ip_addr[0] = Modbus.ip_addr[0] = ui_get_int_from_textarea(ui_IPoct1);
+        SSID_Info.ip_addr[1] = Modbus.ip_addr[1] = ui_get_int_from_textarea(ui_IPoct2);
+        SSID_Info.ip_addr[2] = Modbus.ip_addr[2] = ui_get_int_from_textarea(ui_IPoct3);
+        SSID_Info.ip_addr[3] = Modbus.ip_addr[3] = ui_get_int_from_textarea(ui_IPoct4);
 
-        // --- Update Subnet ---
-        SSID_Info.net_mask[0] = Modbus.subnet[0] = ui_get_int_from_textarea( ui_IPoct6 );
-        SSID_Info.net_mask[1] = Modbus.subnet[1] = ui_get_int_from_textarea( ui_IPoct7 );
-        SSID_Info.net_mask[2] = Modbus.subnet[2] = ui_get_int_from_textarea( ui_IPoct8 );
-        SSID_Info.net_mask[3] = Modbus.subnet[3] = ui_get_int_from_textarea( ui_IPoct9 );
+        SSID_Info.net_mask[0] = Modbus.subnet[0] = ui_get_int_from_textarea(ui_IPoct6);
+        SSID_Info.net_mask[1] = Modbus.subnet[1] = ui_get_int_from_textarea(ui_IPoct7);
+        SSID_Info.net_mask[2] = Modbus.subnet[2] = ui_get_int_from_textarea(ui_IPoct8);
+        SSID_Info.net_mask[3] = Modbus.subnet[3] = ui_get_int_from_textarea(ui_IPoct9);
 
-        // --- Update Gateway ---
-        SSID_Info.getway[0] = Modbus.getway[0] = ui_get_int_from_textarea( ui_IPoct10 );
-        SSID_Info.getway[1] = Modbus.getway[1] = ui_get_int_from_textarea( ui_IPoct11 );
-        SSID_Info.getway[2] = Modbus.getway[2] = ui_get_int_from_textarea( ui_IPoct12 );
-        SSID_Info.getway[3] = Modbus.getway[3] = ui_get_int_from_textarea( ui_IPoct13 );
-        save_wifi_info();
+        SSID_Info.getway[0] = Modbus.getway[0] = ui_get_int_from_textarea(ui_IPoct10);
+        SSID_Info.getway[1] = Modbus.getway[1] = ui_get_int_from_textarea(ui_IPoct11);
+        SSID_Info.getway[2] = Modbus.getway[2] = ui_get_int_from_textarea(ui_IPoct12);
+        SSID_Info.getway[3] = Modbus.getway[3] = ui_get_int_from_textarea(ui_IPoct13);
     }
-    if(isDataUpdated)
-    {
-        save_wifi_info();
-    }
+
+    save_wifi_info();
 }
 
 /**
@@ -2228,6 +2853,11 @@ void Event_Cb_ParameterUpdateFunc(lv_event_t * e)
 {
     (void)e;
     param_table_apply_updates();
+    /* The table edits change point configuration, so retain them across reboot. */
+    if(save_point_info(0) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to save parameter point settings");
+    }
     param_Clear_table();
 }
 
@@ -2361,6 +2991,7 @@ void Event_Cb_ScheduleSetupUpdateBtnFunc(lv_event_t * e)
             weekly_routines[i].value = lv_obj_has_state(value_switches[i], LV_STATE_CHECKED) ? 1U : 0U;
         }
     }
+    save_point_info(0);
 }
 
 /**

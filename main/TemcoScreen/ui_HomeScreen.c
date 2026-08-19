@@ -17,6 +17,9 @@ lv_obj_t * uic_TempratureSymbol;
 lv_obj_t * uic_TemperatureVal;
 lv_obj_t * uic_RunTime;
 lv_obj_t * ui_HomeScreen = NULL;
+lv_obj_t * ui_RunningModeLabel = NULL;
+lv_obj_t * ui_RS485ArrowUpImg = NULL;
+lv_obj_t * ui_RS485ArrowDnImg = NULL;
 lv_obj_t * ui_RunTime = NULL;
 lv_obj_t * ui_TemperatureContainer = NULL;
 lv_obj_t * ui_TempSetPoint1 = NULL;
@@ -251,6 +254,26 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_bg_color(ui_RunTime, lv_color_hex(0xFFFFFF), LV_PART_SELECTED | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_RunTime, 0, LV_PART_SELECTED | LV_STATE_DEFAULT);
 
+    ui_RunningModeLabel = lv_label_create(ui_HomeScreen);
+    lv_obj_align(ui_RunningModeLabel, LV_ALIGN_TOP_MID, 0, 8);
+    lv_label_set_text(ui_RunningModeLabel, "Mode: --");
+    lv_obj_set_style_text_color(ui_RunningModeLabel, lv_color_hex(0x62B7FF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_RunningModeLabel, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_RS485ArrowUpImg = lv_img_create(ui_HomeScreen);
+    lv_img_set_src(ui_RS485ArrowUpImg, &ui_img_backsmallarrow_png);
+
+    lv_obj_set_style_transform_angle(ui_RS485ArrowUpImg, 900, LV_PART_MAIN);
+    lv_obj_align(ui_RS485ArrowUpImg, LV_ALIGN_TOP_RIGHT, -27, 00);
+    lv_obj_add_flag(ui_RS485ArrowUpImg, LV_OBJ_FLAG_HIDDEN);
+
+    ui_RS485ArrowDnImg = lv_img_create(ui_HomeScreen);
+    lv_img_set_src(ui_RS485ArrowDnImg, &ui_img_backsmallarrow_png);
+
+    lv_obj_set_style_transform_angle(ui_RS485ArrowDnImg, 2700, LV_PART_MAIN);
+    lv_obj_align(ui_RS485ArrowDnImg, LV_ALIGN_TOP_RIGHT, -60, 40);
+    lv_obj_add_flag(ui_RS485ArrowDnImg, LV_OBJ_FLAG_HIDDEN);
+
     ui_TemperatureContainer = lv_obj_create(ui_HomeScreen);
     lv_obj_remove_style_all(ui_TemperatureContainer);
     lv_obj_set_width(ui_TemperatureContainer, 230);
@@ -375,7 +398,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_border_opa(ui_TemperatureSetPoint, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_WifiSymb = lv_image_create(ui_HomeScreen);
-    lv_image_set_src(ui_WifiSymb, &ui_img_wifisym_png);
+    lv_image_set_src(ui_WifiSymb, &ui_img_wifisym_Disable_png);
     lv_obj_set_width(ui_WifiSymb, LV_SIZE_CONTENT);   /// 34
     lv_obj_set_height(ui_WifiSymb, LV_SIZE_CONTENT);    /// 29
     lv_obj_set_x(ui_WifiSymb, 210);
@@ -1016,6 +1039,9 @@ void ui_HomeScreen_screen_destroy(void)
 
     // NULL screen variables
     ui_HomeScreen = NULL;
+    ui_RunningModeLabel = NULL;
+    ui_RS485ArrowUpImg = NULL;
+    ui_RS485ArrowDnImg = NULL;
     uic_RunTime = NULL;
     ui_RunTime = NULL;
     ui_TemperatureContainer = NULL;

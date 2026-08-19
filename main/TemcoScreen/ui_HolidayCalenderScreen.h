@@ -20,6 +20,8 @@ extern void ui_event_GotoMenuButton4(lv_event_t * e);
 extern lv_obj_t * ui_GotoMenuButton4;
 extern lv_obj_t * ui_Container4;
 extern lv_obj_t * ui_Calendar1;
+extern lv_obj_t * ui_HolidayDateLabel;
+extern void ui_event_Calendar1(lv_event_t * e);
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

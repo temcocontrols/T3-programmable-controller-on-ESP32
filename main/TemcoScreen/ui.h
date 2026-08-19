@@ -24,6 +24,7 @@ extern "C" {
 
 #include "ui_helpers.h"
 #include "ui_events.h"
+#include "define.h"
 
 ///////////////////// SCREENS ////////////////////
 
@@ -38,6 +39,7 @@ extern "C" {
 #include "ui_ScheduleScreen.h"
 #include "ui_ScheduleEditScreen.h"
 #include "ui_HolidayCalenderScreen.h"
+#include "ui_RemoteAccess.h"
 
 ///////////////////// VARIABLES ////////////////////
 
@@ -52,7 +54,12 @@ extern lv_anim_t * RightIn_Animation(lv_obj_t * TargetObject, int delay);
 extern lv_obj_t * ui____initial_actions0;
 
 // IMAGES AND IMAGE SETS
-LV_IMG_DECLARE(ui_img_wifisym_png);    // assets/wifiSym.png
+LV_IMG_DECLARE(ui_img_wifisym_0_png);           // WiFi disconnected / trying to connect
+LV_IMG_DECLARE(ui_img_wifisym_1_png);           // WiFi connected, weakest signal
+LV_IMG_DECLARE(ui_img_wifisym_2_png);           // WiFi connected, weak signal
+LV_IMG_DECLARE(ui_img_wifisym_3_png);           // WiFi connected, good signal
+LV_IMG_DECLARE(ui_img_wifisym_4_png);           // WiFi connected, strong signal
+LV_IMG_DECLARE(ui_img_wifisym_Disable_png);     // WiFi disabled / not configured
 LV_IMG_DECLARE(ui_img_rightarrow_png);    // assets/RightArrow.png
 LV_IMG_DECLARE(ui_img_displayhomescreendot_png);    // assets/DisplayHomeScreenDot.png
 LV_IMG_DECLARE(ui_img_fan_auto_new_png);    // assets/fan_Auto_New.png
