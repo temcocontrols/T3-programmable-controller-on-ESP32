@@ -151,6 +151,49 @@ static void update_max_trend_page(void)
 
 
 
+// if use new parition.cvs,storage size is 0x40000, point length is 0x20000, trendlog length is 0x20000 
+#define POINT_INFO_LEN_NEW 	0x20000
+#define TRENDLOG_ADDR_NEW	0x20000
+#define MAX_TREND_PAGE_NEW 	TRENDLOG_ADDR_NEW / 0x1000    // 32	// max page is 32, 32 * 4k = 128K
+
+// 16MB flash: storage at 0x800000, size 0x80000 (last 8MB)
+// if 16M,storage size is 0x800000, point length is 0x10000, trendlog length is 0x70000 
+#define STORAGE_SIZE_16MB      0x800000
+#define POINT_INFO_LEN_16MB     0x100000
+#define TRENDLOG_ADDR_16MB     0x700000
+#define MAX_TREND_PAGE_16MB    (0x700000 / SPI_FLASH_SEC_SIZE)  // 256 * 7 pages, 7MB trendlog
+
+static uint32_t get_point_info_erase_len(size_t partition_size)
+{
+	if (partition_size == 0x20000) {Test[20] = 2;
+		return POINT_INFO_LEN;
+	}
+	if (partition_size == 0x40000) {Test[20] = 4;
+		return POINT_INFO_LEN_NEW;
+	}Test[20] = 20;
+	return POINT_INFO_LEN_16MB;
+}
+
+static void get_trendlog_layout(size_t partition_size, uint32_t *addr, uint16_t *max_page)
+{
+	if (partition_size == 0x20000) {Test[21] = 2;
+		*addr = TRENDLOG_ADDR;
+		*max_page = MAX_TREND_PAGE;
+	} else if (partition_size == 0x40000) {Test[21] = 4;
+		*addr = TRENDLOG_ADDR_NEW;
+		*max_page = MAX_TREND_PAGE_NEW;
+	} else {Test[21] = 20;
+		*addr = TRENDLOG_ADDR_16MB;
+		*max_page = MAX_TREND_PAGE_16MB;
+	}
+}
+
+
+
+
+
+
+
 esp_err_t save_uint8_to_flash(const char* key, uint8_t value)
 {
 	nvs_handle_t my_handle;

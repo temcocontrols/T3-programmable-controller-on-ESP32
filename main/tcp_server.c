@@ -239,6 +239,7 @@ void ENALBE_LSW_Ethernet(void);
 void Save_SPD_CNT(void);
 void start_fw_update(void)
 {
+
    const esp_partition_t *factory = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
 
    if(factory == NULL)
@@ -2913,7 +2914,6 @@ void Timer_task(void *pvParameters)
 
 		}
 
-
 		if((run_time > 15) && (flag_clear_count_reboot == 0))
 		{ // 20s clear reboot count
 			flag_clear_count_reboot = 1;
@@ -2955,12 +2955,8 @@ void Timer_task(void *pvParameters)
 
 		//vTaskDelay(TIMER_INTERVAL / portTICK_PERIOD_MS);
 		vTaskDelayUntil( &xLastWakeTime,TIMER_INTERVAL); // 10ms
-
 	}
-
-
 }
-
 
 #define GPIO_STM_RST    	32
 #define GPIO_STM_RST_SEL  	(1ULL<<GPIO_STM_RST)
@@ -3025,9 +3021,6 @@ void Updata_Comm_Led(void)
 	led_buf[0] = temp1;
 	//if(pre_status1 != CommLed[0])
 	//	flag_led_comm_changed = 1;
-
-
-
 }
 
 uint8_t InputLed[32];  // high 4 bits - input type, low 4 bits - brightness
@@ -5447,6 +5440,7 @@ void app_main()
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
+
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
