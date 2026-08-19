@@ -29,43 +29,7 @@ extern uint8_t InputLed[32];
 extern uint8 flag_internal_temperature;
 U8_T change_value_by_range(U8_T channel)
 {
-	/*if(Modbus.mini_type == MINI_T10P)
-	{
-		// if no internal temperature sensor, use temperature of humidity
-		if(input_raw[HI_COMMON_CHANNEL] > 1000)
-		{
-			if(channel < HI_COMMON_CHANNEL)  // 12
-				return 1;
-			else
-				return 0;
-		}
-		else
-		{
-			if(channel <= HI_COMMON_CHANNEL)  // 12
-				return 1;
-			else
-				return 0;
-		}
-	}
-	else if(Modbus.mini_type == MINI_T3OEM_12I)
-	{
-		// if no internal temperature sensor, use temperature of humidity
-		if(input_raw[HI_COMMON_CHANNEL2] > 1000)
-		{
-			if(channel < HI_COMMON_CHANNEL2)  // 16
-				return 1;
-			else
-				return 0;
-		}
-		else
-		{
-			if(channel <= HI_COMMON_CHANNEL2)  // 16
-				return 1;
-			else
-				return 0;
-		}
-	}
-	else */if(Modbus.mini_type == MINI_TSTAT10)
+	if(Modbus.mini_type == MINI_TSTAT10)
 	{
 		// if no internal temperature sensor, use temperature of humidity
 		if(flag_internal_temperature == 0)
@@ -96,7 +60,7 @@ void Set_Input_Type(U8_T point)
 {
 	// maybe not need it
 #if 1//I2C_TASK
-	if((Modbus.mini_type == MINI_BIG_ARM) || (Modbus.mini_type == MINI_SMALL_ARM) || (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
+	if((Modbus.mini_type == MINI_BIG_ARM) || (Modbus.mini_type == MINI_SMALL_ARM) || (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == PROJECT_NG3))
 	{
 		InputLed[point] &= 0x0f;
 		if(input_type[point] >= 1)
@@ -131,7 +95,7 @@ U32_T conver_by_unit_5v(U32_T sample)
 	{
 		return  (5000L * sample ) >> 10;
 	}
-	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232 || Modbus.mini_type == PROJECT_NG3) // rev4  use input moudle
 	{
 		return  (5000L * sample ) >> 10;
 	}
@@ -152,7 +116,7 @@ U32_T conver_by_unit_10v(U32_T sample)
 	{
 		return (10000l * sample) >> 10;
 	}
-	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+	else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 ||  Modbus.mini_type == PROJECT_RMC1232 || Modbus.mini_type == PROJECT_NG3) // rev4  use input moudle
 	{
 		return (10000l * sample) >> 10;
 	}
@@ -174,7 +138,7 @@ U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 		{
 			return  ( 5000L * sample) >> 10;
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232 || Modbus.mini_type == PROJECT_NG3) // rev4  use input moudle
 		{
 			return  ( 5000L * sample  ) >> 10;
 		}
@@ -198,7 +162,7 @@ U32_T conver_by_unit_custable(U8_T point,U32_T sample)
 		{
 			return ( 10000l * sample) >> 10;
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW) // rev4  use input moudle
+		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232 || Modbus.mini_type == PROJECT_NG3) // rev4  use input moudle
 		{
 			return (10000l * sample ) >> 10;
 		}
@@ -261,11 +225,15 @@ U8_T get_max_internal_input(void)
 	}
 	else if(Modbus.mini_type == PROJECT_RMC1216 )
 	{
-	  return NG2_MAX_AIS;
+	  return RMC1216_MAX_AIS;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2_NEW)
+	else if(Modbus.mini_type == PROJECT_RMC1232 )
 	{
-	  return NEWNG2_MAX_AIS;
+		return RMC32I_MAX_AIS; 	  		
+	}
+	else if(Modbus.mini_type == PROJECT_NG3)
+	{
+	  return NG3_MAX_AIS;
 	}
 
 	return 0;
@@ -291,11 +259,15 @@ U8_T get_max_internal_output(void)
 	}
 	else if(Modbus.mini_type == PROJECT_RMC1216)
 	{
-	  return NG2_MAX_AOS + NG2_MAX_DOS;
+	  return RMC1216_MAX_AOS + RMC1216_MAX_DOS;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2_NEW)
+	else if(Modbus.mini_type == PROJECT_RMC1232)
 	{
-	  return NEWNG2_MAX_AOS + NEWNG2_MAX_DOS;
+	  return RMC32I_MAX_AOS + RMC32I_MAX_DOS;
+	}
+	else if(Modbus.mini_type == PROJECT_NG3)
+	{
+	  return NG3_MAX_AOS + NG3_MAX_DOS;
 	}
 	else if(Modbus.mini_type == MINI_NANO)
 	{
@@ -326,8 +298,11 @@ uint8_t Level_Spd[HI_COMMON_CHANNEL];
 
 uint32_t get_high_spd_counter(uint8_t point)
 {
+	Str_points_ptr ptr;
+	ptr = put_io_buf(IN,point);
 
-	inputs[point].value = ((/*high_spd_counter[point] +*/ high_spd_counter_tempbuf[point]) * 1000);
+	ptr.pin->value = ((/*high_spd_counter[point] +*/ high_spd_counter_tempbuf[point]) * 1000);
+
 	return (/*high_spd_counter[point] +*/ high_spd_counter_tempbuf[point]) * 1000;
 }
 
@@ -336,24 +311,24 @@ void Store_Pulse_Counter(uint8 flag)
 {
 	uint16 save_time;
 	static u32 old_pulse[HI_COMMON_CHANNEL];
-
+	Str_points_ptr ptr;
 	uint8_t i;
 
 	save_time = 300;
+
 
 	if((run_time % save_time == 0) || (flag == 1))
 	{
 		for(i = 0;i < HI_COMMON_CHANNEL;i++)
 		{
-			if((inputs[i].range == 15/*HI_spd_count*/) || (inputs[i].range == 25/*N0_2_32counts*/)
-					|| (inputs[i].range == 29/*RPM*/))
+			ptr = put_io_buf(IN,i);
+			if((ptr.pin->range == 15/*HI_spd_count*/) || (ptr.pin->range == 25/*N0_2_32counts*/)
+					|| (ptr.pin->range == 29/*RPM*/))
 			{
 				if(old_pulse[i] != (/*high_spd_counter[i] +*/ high_spd_counter_tempbuf[i]))
 				{
 					old_pulse[i] = (/*high_spd_counter[i] +*/ high_spd_counter_tempbuf[i]);
 					// store it into flash memory
-					//write_page_en[1] = 1;
-					//ChangeFlash = 2;
 					Save_SPD_CNT();
 				}
 			}
@@ -364,21 +339,15 @@ void Store_Pulse_Counter(uint8 flag)
 void initial_HSP(void)
 {
 	uint8_t i;
-
-//	flag_high_spd_changed = 0;
-
-	//memset(&high_spd_counter,0,4 * HI_COMMON_CHANNEL);
-	//memset(&high_spd_counter_tempbuf,0,4*HI_COMMON_CHANNEL);
+	Str_points_ptr ptr;
 
 	for(i = 0;i < HI_COMMON_CHANNEL;i++)
 	{
-		//high_spd_counter[i] = 0;
-		//high_spd_counter_tempbuf[i] = 0;
-		if((inputs[i].range == 15/*HI_spd_count*/) || (inputs[i].range == 25/*N0_2_32counts*/)
-			|| (inputs[i].range == 29/*RPM*/)
+		ptr = put_io_buf(IN,i);
+		if((ptr.pin->range == 15/*HI_spd_count*/) || (ptr.pin->range == 25/*N0_2_32counts*/)
+			|| (ptr.pin->range == 29/*RPM*/)
 		)
 		{
-			//high_spd_counter[i] = (inputs[i].value) / 1000;
 			high_spd_counter_tempbuf[i] = 0;
 		}
 		count_clear_hsp[i] = 0;
@@ -392,10 +361,14 @@ void initial_HSP(void)
 
 void clear_pulse_counter(uint8_t i)
 {
-	if((inputs[i].range == 15/*HI_spd_count*/) || (inputs[i].range == 25/*N0_2_32counts*/)
-		|| (inputs[i].range == 29/*RPM*/)	)
+	Str_points_ptr ptr;
+	ptr = put_io_buf(IN,i);
+
+	if((ptr.pin->range == 15/*HI_spd_count*/) || (ptr.pin->range == 25/*N0_2_32counts*/)
+		|| (ptr.pin->range == 29/*RPM*/)	)
 	{
-		if(inputs[i].value == 0)
+
+		if(ptr.pin->value == 0)
 		{
 			//high_spd_counter[i] = 0; // clear high spd count
 
@@ -415,8 +388,11 @@ void Check_Pulse_Counter(void)
 {
 	uint8_t loop;
 
+	Str_points_ptr ptr;
+
 	for(loop = 0;loop < HI_COMMON_CHANNEL;loop++)
 	{
+		ptr = put_io_buf(IN,loop);
 		if(high_spd_flag[loop] == 1) // start
 		{
 
@@ -444,7 +420,7 @@ void Check_Pulse_Counter(void)
 		if(high_spd_flag[loop] == 2) // clear
 		{
 			high_spd_counter_tempbuf[loop] = 0;
-			inputs[loop].value = 0;
+			ptr.pin->value = 0;
 		}
 
 
@@ -466,8 +442,8 @@ void Check_Pulse_Counter(void)
 		}
 		else
 		{
-			if((inputs[loop].range == 15/*HI_spd_count*/) || (inputs[loop].range == 25/*N0_2_32counts*/)
-				|| (inputs[loop].range == 29/*RPM*/)
+			if((ptr.pin->range == 15/*HI_spd_count*/) || (ptr.pin->range == 25/*N0_2_32counts*/)
+				|| (ptr.pin->range == 29/*RPM*/)
 
 			)
 			{

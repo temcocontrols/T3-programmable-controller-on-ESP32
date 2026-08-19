@@ -345,6 +345,7 @@ static void transducer_output_task(void* arg)
 			{
 				Modbus.com_config[0] = MODBUS_SLAVE;
 				save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+				com_config_back[0] = Modbus.com_config[0];
 				// uart_init(0);
 				Count_com_config();
 			}
@@ -355,6 +356,7 @@ static void transducer_output_task(void* arg)
 			{
 				Modbus.com_config[0] = BACNET_SLAVE;
 				save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+				com_config_back[0] = Modbus.com_config[0];
 				// uart_init(0);
 				Count_com_config();
 			}

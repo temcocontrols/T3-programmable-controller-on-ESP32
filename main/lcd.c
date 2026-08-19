@@ -575,7 +575,16 @@ void disp_str(uint8_t form, uint16_t x,uint16_t y,char *str,uint16_t dcolor,uint
 		if(form == FORM32X64) //big form
 			x1+=31;
 		else
-			x1+=23;
+			if(*str == 'i')
+				x1 += 18;
+			else if(*str == 'l' || *str == 'I' || *str == 'j')
+				x1 += 21;
+			else if(*str == 'W' || *str == 'M' || *str == 'w' || *str == 'm')
+				x1 += 27;
+			else if( *str == 'U' || *str == 'O')
+				x1 += 24;
+			else
+				x1 += 23;
 		str++;
 	}
 }
@@ -656,8 +665,8 @@ void disp_str_16_24(uint8 form, uint16 x, uint16 y, uint8 *str, uint16 dcolor, u
 			else if(*str == 't' || *str == 'l' || *str == 'I' || *str == 'j')
 				x1 += 12;
 			else if(*str == 'W' || *str == 'M' || *str == 'w' || *str == 'm')
-				x1 += 16;
-			else if( *str == 'U' || *str == 'O')
+				x1 += 18;
+			else if( *str == 'U' || *str == 'O' || *str == 'o')
 				x1 += 15;
 			else
 				x1 += 14;

@@ -6,7 +6,7 @@
 #include "esp_attr.h"
 #include "bacnet.h"
 
-#define NEW_IO  0  // 要同步修改bacnet库里的定义
+#define NEW_IO  1  // 要同步修改bacnet库里的定义
 
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
@@ -231,8 +231,14 @@ typedef	union
 
 	U8_T fix_com_config; // 0
 	U8_T write_flash;
+	
+	uint32_t bbmd_ip;
+	uint16_t bbmd_port;
+	uint16_t bbmd_ttl;
 	}reg;
 }Str_Setting_Info;
+
+_Static_assert(sizeof(Str_Setting_Info) <= 400, "Str_Setting_Info overflow");
 
 typedef union
 {
@@ -376,7 +382,7 @@ extern EXT_RAM_BSS_ATTR Str_Setting_Info     		Setting_Info;
 extern EXT_RAM_BSS_ATTR Str_MISC  						 	MISC_Info;
 extern EXT_RAM_BSS_ATTR Str_Special  Write_Special;
 
-
+extern Str_TemcoVar_point pvars[MAX_TEMCOVARS];
 extern Str_in_point 		*new_inputs;
 extern Str_out_point 		*new_outputs;
 extern Str_variable_point 	*new_vars;
@@ -527,6 +533,10 @@ extern STR_STORE_PIC store_pic[PIC_PACKET_STACK];
 
 void init_panel(void);
 
+#if NEW_IO
+void resize_io_arrays(uint8_t point_type, uint8_t old_count, uint8_t new_count);
+#endif
+
 
 
 void update_timers( void );
@@ -543,6 +553,7 @@ extern U8_T  ID_Config_Sche[254];
 extern U8_T  output_pri_live[MAX_OUTS];
 extern float  output_priority[MAX_OUTS][16];
 extern float  output_relinquish[MAX_OUTS];
+extern uint8_t TemcoVars;
 
 
 U16_T convert_pointer_to_word( U8_T *iAddr );  //	 mGetPointWord
@@ -574,6 +585,10 @@ void put_remote_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op , uint8_
 void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
 void put_network_point_value( S16_T index, S32_T *val_ptr, S16_T prog_op );
 void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_ptr,U8_T specail,U8_T float_type);
+uint8_t find_next_remote_bacnet_point(uint8_t current_index);
+uint8_t find_next_remote_modbus_point(uint8_t current_index);
+uint8_t find_next_network_bacnet_point(uint8_t current_index);
+uint8_t find_next_network_modbus_point(uint8_t current_index);
 
 void change_panel_number_in_code(U8_T old, U8_T new_panel);
 

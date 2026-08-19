@@ -351,6 +351,7 @@ extern U8_T flag_writing_code;
 extern U8_T count_wring_code;
 extern U8_T max_dos;
 extern U8_T max_aos;
+extern U8_T max_dos_2;
 extern U16_T output_raw[MAX_OUTS];
 
 #define		SW_OFF 	 0
@@ -434,7 +435,8 @@ void check_output_priority_HOA(U8_T i)
 				{ // inverse
 					output_priority[i][6] = 1;	
 
-					if(i < max_dos)
+					if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+					//if(i < max_dos)
 						ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;
 					else
 						ptr.pout->control = Analog_Output_Present_Value(i) ? 0 : 1;
@@ -442,13 +444,15 @@ void check_output_priority_HOA(U8_T i)
 				else
 				{
 					output_priority[i][6] = 0;	
-					if(i < max_dos)
+					if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+					//if(i < max_dos)
 						ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;
 					else
 						ptr.pout->control = Analog_Output_Present_Value(i) ? 1 : 0;
 					
-				}				
-				if(i < max_dos)
+				}	
+				if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+				//if(i < max_dos)
 				{
 					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);					
 				}
@@ -457,18 +461,18 @@ void check_output_priority_HOA(U8_T i)
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);					
 				}
 				
-				if(ptr.pout->control) 
+				if(ptr.pout->control)
 					set_output_raw(i,1000);
-				else 
-					set_output_raw(i,0);	
+				else
+					set_output_raw(i,0);
 				
 			}
 			else
 			{
 				output_priority[i][6] = 0;
 				ptr.pout->control = 0;
-				
-				if(i < max_dos)
+				if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+				//if(i < max_dos)
 				{
 					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);					
 					set_output_raw(i,Binary_Output_Present_Value(i) * 1000);
@@ -493,7 +497,8 @@ void check_output_priority_HOA(U8_T i)
 					&& digi_units[ptr.pout->range - custom_digital1].direct == 1))
 				{// inverse
 					output_priority[i][6] = 0;	
-					if(i < max_dos)
+					if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+					//if(i < max_dos)
 						ptr.pout->control = Binary_Output_Present_Value(i) ? 0 : 1;	
 					else
 						ptr.pout->control = Analog_Output_Present_Value(i) ? 0 : 1;
@@ -501,22 +506,23 @@ void check_output_priority_HOA(U8_T i)
 				else
 				{
 					output_priority[i][6] = 1;
-					if(i < max_dos)					
+					if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+					//if(i < max_dos)					
 						ptr.pout->control = Binary_Output_Present_Value(i) ? 1 : 0;	
 					else
 						ptr.pout->control = Analog_Output_Present_Value(i) ? 1 : 0;	
 				}	
 				
-				if(i < max_dos)
+				if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+				//if(i < max_dos)
 					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 				else
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
 
 				if(ptr.pout->control) 
 					set_output_raw(i,1000);
-				else 
-					set_output_raw(i,0);					
-			
+				else
+					set_output_raw(i,0);
 			}
 			else
 			{
@@ -542,7 +548,8 @@ void check_output_priority_HOA(U8_T i)
 					
 				}						
 				
-				if(i < max_dos)
+				if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+				//if(i < max_dos)
 					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 				else
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
@@ -571,10 +578,17 @@ void check_output_priority_HOA(U8_T i)
 void check_output_priority_array(U8_T i,U8_T HOA)
 {	
 	Str_points_ptr ptr;
+#if NEW_IO
+	if(i >= max_outputs)
+	{
+		output_priority[i][7] = 0xff;
+		return;
+	}
+#endif
 	ptr = put_io_buf(OUT,i);
 
-	if(i >= max_dos + max_aos)
-	{
+	if(i >= max_dos + max_aos + max_dos_2) // max_dos_2 is only for PLC-NG3
+	{ 
 		output_priority[i][7] = 0xff;	
 	}
 	else
@@ -643,7 +657,8 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 					else
 						output_priority[i][7] = 0;
 				}
-				if(i < max_dos)
+				if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+				//if(i < max_dos)
 					ptr.pout->value = (Binary_Output_Present_Value(i) * 1000); 
 				else
 					ptr.pout->value = (Analog_Output_Present_Value(i) * 1000);
@@ -706,8 +721,15 @@ void check_output_priority_array(U8_T i,U8_T HOA)
 void check_output_priority_array_without_AM(U8_T i)
 {	
 	Str_points_ptr ptr;
+#if NEW_IO
+	if(i >= max_outputs)
+	{
+		output_priority[i][7] = 0xff;
+		return;
+	}
+#endif
 	ptr = put_io_buf(OUT,i);
-	if(i >= max_dos + max_aos)
+	if(i >= max_dos + max_aos + max_dos_2) // max_dos_2 only for PLC-NG3
 	{
 		output_priority[i][7] = 0xff;	
 	}
@@ -715,7 +737,8 @@ void check_output_priority_array_without_AM(U8_T i)
 	{		
 		if(ptr.pout->digital_analog == 0)
 		{	// digital
-			if(i < max_dos)
+			if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+			//if(i < max_dos)
 			{
 				ptr.pout->value = (Binary_Output_Present_Value(i) * 1000);
 			}				
@@ -735,7 +758,8 @@ void check_output_priority_array_without_AM(U8_T i)
 		}		
 		else
 		{  // analog
-			if(i < max_dos)
+			if(i < max_dos || (max_dos_2 && i >= max_dos + max_aos && i < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
+			//if(i < max_dos)
 			{
 				ptr.pout->value = (Binary_Output_Present_Value(i) * 1000); 
 				set_output_raw(i,Binary_Output_Present_Value(i) * 1000);

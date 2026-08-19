@@ -7,7 +7,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6602
+#define SOFTREV     6703
 
 
 #define		SW_OFF 	 0
@@ -23,7 +23,19 @@ typedef	struct
 }STR_Task_Test;
 extern STR_Task_Test task_test;
 
+typedef	struct
+{	
+	uint8_t  CT_channel[6];
+	uint8_t  en_power[24];
+	uint32_t power[24];
+	uint8_t battery[7];
+	uint16_t battery_sum;
+	uint8_t flag_bms_comm;
+}STR_PLC;
 
+extern STR_PLC plc_power;
+void calculate_plc_power(void);
+void plc_power_sync_acc(void);  /* power[] → energy accumulator after NVS load / Modbus write */
 
 #define UIP_HEAD 6
 // must change library if change it
@@ -81,7 +93,7 @@ typedef struct
 	U8_T uart_stopbit[3];
 //	U8_T network_ID[3]; // 3 RS485 port
 	U16_T zigbee_module_id;
-	U8_T dead_master_for_PLC;;
+	U8_T RMC1232_led_Test;
 	U8_T disable_tstat10_display;  // display icons and scrolling string
 	U8_T enabled_Display_HomeScreen;
 	//lcdconfig display_lcd;
@@ -99,6 +111,7 @@ typedef struct
 	U8_T icon_config;
 	U8_T mstp_master;
 	U16_T write_flash;
+
 
 
 }STR_MODBUS;
@@ -179,14 +192,17 @@ typedef	enum
 #define PROJECT_RMC1216		19  	// old NG2 = RMC1216
 #define PROJECT_MPPT		20
 #define PROJECT_LSW_BTN		21
-#define PROJECT_NG2_NEW		22
+#define PROJECT_NG3			22
 #define PROJECT_MULTIMETER	23
 #define PROJECT_LIGHT_PWM	24
 #define PROJECT_MULTIMETER_NEW	25
 #define PROJECT_CO2 		26
 #define PROJECT_LSW_SENSOR	27
+#define PROJECT_LORA_GATEWAY	28
 
-#define MAX_MINI_TYPE 		28
+#define PROJECT_RMC1232		29
+
+#define MAX_MINI_TYPE 		30
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;
@@ -214,6 +230,8 @@ extern uint8 flag_change_uart0;
 extern uint8 flag_change_uart2;
 extern uint8 count_change_uart0;
 extern uint8 count_change_uart2;
+
+extern U8_T bbmd_en;
 
 void modbus_task0(void *arg);
 void modbus_task2(void *arg);

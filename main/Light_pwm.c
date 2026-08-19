@@ -116,7 +116,6 @@ void Light_PWM_AO_Update(void)
 	for(i = 0;i < 4; i++)
 	{
 		check_output_priority_HOA(i);
-		Test[34 + i] = get_output_raw(i);
 		if(get_output_raw(i) <= 500)  // 50%
 		{
 			Set_PWM_Duty(i,get_output_raw(i) * 2);

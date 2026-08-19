@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -35,7 +37,6 @@
 #include "ethernet_task.h"
 #include "flash.h"
 #include "rtc.h"
-
 #include "i2c_task.h"
 //#include "microphone.h"
 //#include "pyq1548.h"
@@ -44,6 +45,7 @@
 //#include "ud_str.h"
 //#include "controls.h"
 #include "bacnet.h"
+#include "bvlc.h"
 #include "ud_str.h"
 #include "user_data.h"
 #include "controls.h"
@@ -62,10 +64,12 @@
 #include "mm_spi.h"
 #include "co2.h"
 #include "LcdTheme.h"
+#include "lora.h"
 
 //#include "lowPower.h"
 
 //#include "types.h"
+
 
 #define PORT CONFIG_EXAMPLE_PORT
 
@@ -103,6 +107,7 @@ extern uint8_t gIdentify;
 extern uint8_t count_gIdentify;
 extern U8_T max_dos;
 extern U8_T max_aos;
+extern U8_T max_dos_2;
 //extern U16_T qKey;
 extern uint32_t ether_rx;
 
@@ -117,6 +122,7 @@ extern uint8_t bip_client_send_buf[MAX_MPDU_IP];
 extern int bip_client_send_len;
 extern U8_T Send_bip_address[6];
 void Test_Array(void);
+void bmv080_task(void *pvParam);
 
 uint8_t uart0_config;  // no used
 //void modbus0_task(void *arg);
@@ -131,6 +137,7 @@ void LCD_TEST(void);
 void vPM25Task(void *pvParameters);
 void vInputTask(void *pvParameters);
 void lightswitch_adc_init(void);
+void key_task(void);
 void Light_Switch_IO_Init(void);
 //閿熸枻鎷烽敓鏂ゆ嫹閿熻剼鐚存嫹閿熸枻鎷烽敓鏂ゆ嫹閿燂拷 閿熻剼鐚存嫹閿熸枻鎷烽敓鏂ゆ嫹閿燂拷 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰�奸敓鏂ゆ嫹閿熸枻鎷峰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰�� 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鑴氱尨鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熻鍑ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹婧愰敓鏂ゆ嫹閿熺煫鈽呮嫹閿熸枻鎷�
 //MAX_COUNT 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷峰睉閿熸枻鎷烽敓鏂ゆ嫹閿熺殕锟�
@@ -168,6 +175,8 @@ TaskFunction_t taskList[MAX_SOC_COUNT] = {tcp_server_dealwith0,
 										  tcp_server_dealwith5,
 										  tcp_server_dealwith6};
 TaskHandle_t Task_handle[MAX_SOC_COUNT] = {0};
+/* Per-slot copy for xTaskCreate arg - must not pass stack address of accept loop */
+static struct sockinfo remoteInfo_slots[MAX_SOC_COUNT];
 //WIFI閿熼摪纭锋嫹閿熸枻鎷峰織閿熸枻鎷� 涔熼敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鍙唻鎷峰織閿熶粙锛堥敓鏂ゆ嫹閿熶粖琚揪鎷烽敓鏂ゆ嫹閿熸枻鎷穝et 閿熸枻鎷峰垹閿熸枻鎷烽敓鏂ゆ嫹clean 閿熸磥褰撻敓鏂ゆ嫹閿熸枻鎷锋簮閿熻棄鍗曢敓鏂ゆ嫹浜涢敓鏂ゆ嫹婧愰敓瑙掑尅鎷烽敓鐭殑锝忔嫹
 EventGroupHandle_t network_EventHandle = NULL;
 const int CONNECTED_BIT = BIT0;
@@ -179,27 +188,77 @@ const int TASK5_BIT		= BIT5;
 const int TASK6_BIT		= BIT6;
 const int TASK7_BIT		= BIT7;
 int task_sock[MAX_SOC_COUNT] = {0};
+static SemaphoreHandle_t modbus_tcp_mutex = NULL;
+
+static void tcp_server_close_sock(int sock)
+{
+	if(sock < 0)
+	{
+		return;
+	}
+	shutdown(sock, SHUT_RDWR);
+	close(sock);
+}
+
+static int tcp_server_pick_slot(EventBits_t uxBits)
+{
+	for(int i = 0; i < MAX_SOC_COUNT; i++)
+	{
+		if((uxBits & (1 << (i + 1))) != 0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+static void tcp_server_release_slot(int task_index, TaskHandle_t self)
+{
+	const int nTask_Bit = (1 << (task_index + 1));
+
+	if(Task_handle[task_index] != self)
+	{
+		return; /* slot already reused by a newer connection task */
+	}
+
+	Task_handle[task_index] = 0;
+	task_sock[task_index] = -1;
+
+	if(CountHandle != NULL)
+	{
+		xSemaphoreGive(CountHandle);
+	}
+
+	if(network_EventHandle != NULL)
+	{
+		xEventGroupSetBits(network_EventHandle, nTask_Bit);
+	}
+}
+
 void ENALBE_LSW_Ethernet(void);
 void Save_SPD_CNT(void);
 void start_fw_update(void)
 {
    const esp_partition_t *factory = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
 
-//   save_point_info(0);
-   Save_SPD_CNT();
+   if(factory == NULL)
+   {
+	   sprintf(debug_array,"start_fw_update: no factory partition!\r\n");
+	   uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+	   esp_retboot();
+	   return;
+   }
 
-   esp_ota_set_boot_partition(factory);
-#if LSW_ON_OFF
-   if(Modbus.mini_type == PROJECT_LSW_SENSOR)
-	   ENALBE_LSW_Ethernet();
-#endif
+   esp_err_t err = esp_ota_set_boot_partition(factory);
+   sprintf(debug_array,"start_fw_update boot=%s err=%d\r\n", factory->label, (int)err);
+   uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
    esp_retboot();
 }
 
 
 void esp_retboot(void)
 {
-
+   rtc_value_backup_flush();
    esp_restart();
 }
 
@@ -273,10 +332,6 @@ void UdpData(unsigned char type)
 
 }
 
-void Set_icon_config(U8_T icon_config)
-{
-	Modbus.icon_config = icon_config;
-}
 
 uint32_t get_ip_addr(void)
 {
@@ -376,12 +431,12 @@ static void udp_debug_task(void *pvParameters)
 			int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
 
 			// Error occurred during receiving
-			if (len < 0) {Test[3] = 6;
+			if (len < 0) {
 			   // ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
 				break;
 			}
 			// Data received
-			else {Test[3] = 7;
+			else {
 				rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
 				//ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
 				//ESP_LOGI(TAG, "%s", rx_buffer);
@@ -439,6 +494,7 @@ static void bip_task(void *pvParameters)
             //ESP_LOGE(UDP_TASK_TAG, "Unable to create socket: errno %d", errno);
             break;
          }
+         bip_set_udp_sock(bip_sock);
          ESP_LOGI(UDP_TASK_TAG, "Socket created");
 
 
@@ -479,8 +535,11 @@ static void bip_task(void *pvParameters)
                  // ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
                }
 
-               //memcpy(&BIP_src_addr[0],&bip_source_addr.sin6_flowinfo,4);
-               //memcpy(&BIP_src_addr[4],&bip_source_addr.sin6_port,2);
+               if (bip_source_addr.sin6_family == PF_INET) {
+                  struct sockaddr_in src_sin;
+                  memcpy(&src_sin, (struct sockaddr_in *)&bip_source_addr, sizeof(src_sin));
+                  bip_set_source_addr(&src_sin);
+               }
 
                pdu_len = datalink_receive(&src, &PDUBuffer_BIP[0], sizeof(PDUBuffer_BIP), 0,BAC_IP);
                {
@@ -489,7 +548,14 @@ static void bip_task(void *pvParameters)
 						npdu_handler(&src, &PDUBuffer_BIP[0], pdu_len, BAC_IP);
 						if(bip_send_len > 0)
 						{
-							sendto(bip_sock, (uint8_t *)&bip_send_buf, bip_send_len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
+							if (bip_mpdu_dest_valid) {
+								sendto(bip_sock, (uint8_t *)&bip_send_buf, bip_send_len, 0,
+									(struct sockaddr *)&bip_mpdu_dest, sizeof(bip_mpdu_dest));
+								bip_mpdu_dest_valid = 0;
+							} else {
+								sendto(bip_sock, (uint8_t *)&bip_send_buf, bip_send_len, 0,
+									(struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
+							}
 
 							bip_send_len = 0;
 							memset(bip_send_buf,0,MAX_MPDU_IP);
@@ -618,7 +684,7 @@ static void udp_scan_task(void *pvParameters)
                break;
             }
             // Data received
-            else
+            else 
             {//debug_info("udp1234 recv ok\r\n");
             	ether_rx += len;
                // Get the sender's ip address as string
@@ -705,6 +771,7 @@ static void udp_scan_task(void *pvParameters)
   					}
   				}
   				// for MSTP device
+
 					for(u8 i = 0;i < remote_panel_num;i++)
 					{
 						if((remote_panel_db[i].protocal == BAC_MSTP) && (remote_panel_db[i].sn != 0))
@@ -863,51 +930,61 @@ U16_T modbus_send_len;
 u8 modbus_send_buf[500];
 int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 {
-	memset(modbus_send_buf,0,500);
-	modbus_send_len = 0;
-	if (len == 5)
+	U8_T local_send_buf[512];
+	U16_T local_send_len = 0;
+	U8_T *cmd = rx_buffer;
+	uint16_t cmd_len = len;
+
+	/* Jump-to-boot: never wait on shared mutex / other TCP sessions */
+	if(len >= 14 &&
+		rx_buffer[2] == 0x00 && rx_buffer[3] == 0x00 &&
+		rx_buffer[6] == 0xee && rx_buffer[7] == 0x10)
 	{
-		//ESP_LOGI(TCP_TASK_TAG, "Receive: %02x %02x %02x %02x %02x.", rx_buffer[0], rx_buffer[1], rx_buffer[2], rx_buffer[3], rx_buffer[4]);
+		cmd = &rx_buffer[6];
+		cmd_len = len - 6;
 	}
 
-	//ESP_LOG_BUFFER_HEX(TCP_TASK_TAG, rx_buffer, len);
-
+	if(cmd_len >= 7 &&
+		cmd[0] == 0xee && cmd[1] == 0x10 &&
+		cmd[2] == 0x00 && cmd[3] == 0x00 &&
+		cmd[4] == 0x00 && cmd[5] == 0x00 &&
+		cmd[6] == 0x00 &&
+		(cmd_len < 8 || cmd[7] == 0x00))
 	{
-		if( (rx_buffer[0] == 0xee) && (rx_buffer[1] == 0x10) &&
-			(rx_buffer[2] == 0x00) && (rx_buffer[3] == 0x00) &&
-			(rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
-			(rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00) )
+		sprintf(debug_array,"Modbus_Tcp got EE10, jump boot\r\n");
+		uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+
+		if(Modbus.mini_type == PROJECT_CO2)
 		{
-			if(Modbus.mini_type == PROJECT_CO2)
-			 {
-				 flag_updating = 1;
-				 delay_ms(2000);
-			 }
-			start_fw_update();
+			flag_updating = 1;
+			delay_ms(2000);
 		}
+		Save_SPD_CNT();
+		start_fw_update();
+		return 0;
 	}
 
+	memset(local_send_buf, 0, sizeof(local_send_buf));
+
+	/* Local device: per-connection stack buffer — concurrent TCP sessions OK */
 	if( (rx_buffer[6]== Modbus.address) || ((rx_buffer[6]==255) && (rx_buffer[7]!=0x19)))
 	{
-		responseModbusCmd(WIFI, (uint8_t *)rx_buffer, len ,modbus_send_buf,&modbus_send_len,0);
-		if(modbus_send_len > 0)
+		responseModbusCmd(WIFI, (uint8_t *)rx_buffer, len ,local_send_buf,&local_send_len,0);
+		if(local_send_len > 0)
 		{
-			int err = send(sock, (uint8_t *)&modbus_send_buf, modbus_send_len, 0);
-
+			int err = send(sock, local_send_buf, local_send_len, 0);
 			if (err < 0)
 			{
 				return -1;
-				//ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
-				//break;
 			}
-			else
 			flagLED_ether_tx = 1;
 			return err;
 		}
+		return 0;
 	}
-	else
+
+	/* TCP->RS485 gateway shares modbus_send_buf — serialize only this path */
 	{
-		// transfer data to sub ,TCP TO RS485
 		U8_T header[6];
 		U8_T i;
 		U16_T send_len;
@@ -957,46 +1034,51 @@ int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 		}
 
 		if((rx_buffer[UIP_HEAD + 1] == READ_DIS_INPUT) || (rx_buffer[UIP_HEAD + 1] == READ_COIL))
-			send_len = (rx_buffer[UIP_HEAD + 5] + 7) / 8 + 3; // (buf[5] + 7) / 8 + 5;
+			send_len = (rx_buffer[UIP_HEAD + 5] + 7) / 8 + 3;
 		else if((rx_buffer[UIP_HEAD + 1] == READ_VARIABLES) || (rx_buffer[UIP_HEAD + 1] == READ_INPUT))
 			send_len = rx_buffer[UIP_HEAD + 5] * 2 + 3;
+		else if((rx_buffer[UIP_HEAD + 1] == WRITE_VARIABLES) || (rx_buffer[UIP_HEAD + 1] == WRITE_COIL)
+			|| (rx_buffer[UIP_HEAD + 1] == MULTIPLE_WRITE) || (rx_buffer[UIP_HEAD + 1] == WRITE_MULTI_COIL))
+			send_len = 6; /* Unit + Func + Addr(2) + Value/Qty(2) */
 		else
 			send_len = 8;
 
 		Set_transaction_ID(header, ((U16_T)rx_buffer[0] << 8) | rx_buffer[1],send_len);
 
-		//vTaskSuspend(&main_task_handle[5]);
-
 		flag_suspend_scan = 1;
 		suspend_scan_count = 0;
-		//if(xSemaphoreTake(xSem_comport,0))
+
+		if(modbus_tcp_mutex != NULL)
 		{
-			//if(Test[35] == 100)
-			Response_TCPIP_To_SUB(rx_buffer + UIP_HEAD,len - UIP_HEAD,Modbus.sub_port,header);
-			if(modbus_send_len > 0)
-			{
-				int err = send(sock, (uint8_t *)&modbus_send_buf, modbus_send_len, 0);
-
-				if (err < 0) {Test[46]++;
-					//ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
-					//break;
-				}
-				else
-					flagLED_ether_tx = 1;
-
-				//xSemaphoreGive(xSem_comport);
-				return err;
-			}
-			//xSemaphoreGive(xSem_comport);
+			xSemaphoreTake(modbus_tcp_mutex, portMAX_DELAY);
 		}
-		//vTaskResume(&main_task_handle[5]);
+		memset(modbus_send_buf,0,500);
+		modbus_send_len = 0;
+		Response_TCPIP_To_SUB(rx_buffer + UIP_HEAD,len - UIP_HEAD,Modbus.sub_port,header);
+		local_send_len = modbus_send_len;
+		if(local_send_len > 0 && local_send_len <= sizeof(local_send_buf))
+		{
+			memcpy(local_send_buf, modbus_send_buf, local_send_len);
+		}
+		else
+		{
+			local_send_len = 0;
+		}
+		if(modbus_tcp_mutex != NULL)
+		{
+			xSemaphoreGive(modbus_tcp_mutex);
+		}
 
-
+		if(local_send_len > 0)
+		{
+			int err = send(sock, local_send_buf, local_send_len, 0);
+			if (err < 0) {Test[46]++;}
+			else flagLED_ether_tx = 1;
+			return err;
+		}
 		return 0;
 	}
-	return 0;
 }
-
 
 int readable__timeo(int fd, int sec)
 {
@@ -1031,10 +1113,8 @@ void tcp_server_handle(void *args, int task_index)
 {
 
 	int ret = 0;
-
-	int shudown_ret = 0;
-	int close_ret = 0;
 	struct sockinfo remoteInfo = {0};
+	TaskHandle_t self = xTaskGetCurrentTaskHandle();
 	int nTask_Bit = 0;
 	switch(task_index)
 	{
@@ -1075,124 +1155,62 @@ void tcp_server_handle(void *args, int task_index)
 	memcpy(remoteInfo.remoteIp,((struct sockinfo *)args)->remoteIp,strlen(((struct sockinfo *)args)->remoteIp));
 
 	EventBits_t res = xEventGroupClearBits(network_EventHandle,nTask_Bit);
-	//if((res & nTask_Bit) != 0)
-	//	debug_print("TASK _BIT cleared successfully",task_index);
-	//else
-	//{
-	//	debug_print("TASK _BIT clear failed",task_index);
-	//}
+	(void)res;
 
-	int keepAlive = 1; // 閿熸枻鎷烽敓鏂ゆ嫹keepalive閿熸枻鎷烽敓鏂ゆ嫹
-	int keepIdle = 10; // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿燂拷10閿熸枻鎷烽敓鏂ゆ嫹娌￠敓鏂ゆ嫹閿熻娇鐚存嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹,閿熸枻鎷烽敓鏂ゆ嫹閿熸暀鏂ゆ嫹閿燂拷
-	int keepInterval = 4; // 鎺㈤敓鏂ゆ嫹鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鏃堕敓鏂ゆ嫹閿熸枻鎷蜂负5 閿熸枻鎷�
-	int keepCount = 1; // 鎺㈤敓瑙ｅ皾閿熺殕鐨勮揪鎷烽敓鏂ゆ嫹.閿熸枻鎷烽敓鏂ゆ嫹閿燂拷1閿熸枻鎷锋帰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风洀閿熸枻鎷烽敓鎺ワ讣鎷烽敓锟�,閿熸枻鎷烽敓锟�2閿熻娇鐨勮鎷烽敓鍔嚖鎷�.
+	/* Keep session until peer disconnects — do NOT drop on idle timeout */
+	{
+		struct timeval tv;
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+		setsockopt(remoteInfo.sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+	}
 
-	setsockopt(remoteInfo.sock,SOL_SOCKET,SO_KEEPALIVE,	(void *)&keepAlive,		sizeof(keepAlive));
-	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPIDLE,	(void *)&keepIdle,		sizeof(keepIdle));
-	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPINTVL,(void *)&keepInterval, 	sizeof(keepInterval));
-	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPCNT,	(void *)&keepCount, 	sizeof(keepCount));
-
-    //struct timeval tv_out;
-    //tv_out.tv_sec = 20;
-    //tv_out.tv_usec = 0;
-	//setsockopt(remoteInfo.sock, SOL_SOCKET, SO_RCVTIMEO, &tv_out, sizeof(tv_out));
-
-	char len;
+	int len;
 	for(;;)
 	{
-		if(task_index == 6)
+		len = recv(remoteInfo.sock, rx_buffer[task_index], sizeof(rx_buffer[0]), 0);
+
+		if(len > 0)
 		{
-			vTaskDelay(50 / portTICK_PERIOD_MS);
-			taskYIELD();
-			debug_print("Close the last task when recv",task_index);
-			break;
+			flagLED_ether_rx = 1;
+			ether_rx += len;
+			ret = Modbus_Tcp(len,remoteInfo.sock,rx_buffer[task_index]);
+			if(ret < 0)
+			{
+				debug_print("Modbus_Tcp ret < 0 error! ",task_index);
+				break;
+			}
 		}
-        //if(task_index == 4)
-        //{
-        //	debug_print("task_index = 4 running",task_index);
-        //}
-		//debug_print("Readable_timeo ",task_index);
-
-		ret = Readable_timeo(remoteInfo.sock, 60);//涓�閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸嵎灏卞叧鎲嬫嫹閿熼樁鏂ゆ嫹閿熸枻鎷� set timeout and add if
-        //if(task_index == 4)
-        //{
-        	//char temp[20];
-        	//sprintf(temp,"ret = %d",ret);
-        	//debug_print(temp,task_index);
-        //}
-		if (ret > 0)
+		else if(len == 0)
 		{
-			len = recv(remoteInfo.sock, rx_buffer[task_index], sizeof(rx_buffer) - 1, 0);
-
-			if(len > 0)
-			{flagLED_ether_rx = 1;ether_rx += len;
-				ret = Modbus_Tcp(len,remoteInfo.sock,rx_buffer[task_index]);
-				if(ret < 0)
-				{
-					debug_print("Modbus_Tcp ret < 0 error! ",task_index);
-					break;
-				}
-
-			}
-			else if(len == 0)
-			{
-				debug_print("Connection closed",task_index);
-				break;
-			}
-			else
-			{
-				debug_print("Connection lost",task_index);
-				break;
-			}
+			/* Peer (Modbus Poll) closed — free slot ASAP for immediate reconnect */
+			debug_print("Connection closed",task_index);
+			break;
 		}
 		else
 		{
-			debug_print("Read Timeout ",task_index);
-            break;
+			if(errno == EAGAIN || errno == EWOULDBLOCK)
+			{
+				continue; /* idle: keep connection */
+			}
+			debug_print("Connection lost",task_index);
+			break;
 		}
-
-		vTaskDelay(50 / portTICK_PERIOD_MS);
-		taskYIELD();
-		//xQueueGiveMutexRecursive(sem_tcp_server);
 	}
 	if (remoteInfo.sock != -1)
 	{
 		debug_print("Shutting down socket",task_index);
-		shudown_ret = shutdown(remoteInfo.sock, 0);
-		if(shudown_ret!= 0)
+		if(task_sock[task_index] == remoteInfo.sock)
 		{
-			debug_print("shutdown error!",task_index);
+			tcp_server_close_sock(remoteInfo.sock);
+			task_sock[task_index] = -1;
 		}
-		close_ret = close(remoteInfo.sock);
-		if(close_ret!= 0)
-		{
-			debug_print("close error!",task_index);
-		}
+		remoteInfo.sock = -1;
 	}
 
-	if(CountHandle != NULL)
-	{
-		if(xSemaphoreGive(CountHandle) != pdTRUE)
-		{
-			debug_print("Try to Give semaphore and failed!",task_index);
-		}
-		else
-			debug_print("Give semaphore success!",task_index);
-	}
-
-	if(network_EventHandle != NULL)
-	{
-			EventBits_t uxBits = xEventGroupSetBits(network_EventHandle,nTask_Bit);
-			if((uxBits & nTask_Bit) != 0)
-				debug_print("set event bit ok",task_index);
-			else
-				debug_print("set event bit failed",task_index);
-	}
-	else
-		debug_print("network_EventHandle is NULL",task_index);
+	tcp_server_release_slot(task_index, self);
 
 	debug_print("vTaskDelete",task_index);
-	Task_handle[task_index] = 0;
 	vTaskDelete(NULL);
 
 }
@@ -1275,7 +1293,17 @@ static void tcp_server_task(void *pvParameters)
 	int ip_protocol;
 	char debug_buffer[100] =  {0};
 	task_test.enable[2] = 1;
-	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT); //Fandu : CONNECTED_BIT锟斤拷锟斤还锟斤拷要锟斤拷锟斤拷 wifi锟角凤拷锟斤拷锟接碉拷锟脚猴拷锟斤拷
+
+	if(CountHandle == NULL)
+	{
+		CountHandle = xSemaphoreCreateCounting(MAX_SOC_COUNT, MAX_SOC_COUNT);
+	}
+	if(modbus_tcp_mutex == NULL)
+	{
+		modbus_tcp_mutex = xSemaphoreCreateMutex();
+	}
+
+	xEventGroupSetBits(network_EventHandle,CONNECTED_BIT|TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT);
 
 #if 0//DDNS
     // 更新动态 DNS
@@ -1302,22 +1330,28 @@ static void tcp_server_task(void *pvParameters)
 			if (listen_sock < 0)
 			{
 				debug_info("Unable to create socket\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5锟斤拷锟接猴拷锟斤拷锟斤拷锟斤拷执锟斤拷
+				vTaskDelay(5000 / portTICK_PERIOD_MS);
 				continue;
+			}
+			{
+				int yes = 1;
+				setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 			}
 			int err = bind(listen_sock, (struct sockaddr *)&localAddr, sizeof(localAddr));
 			if (err < 0) {
 				debug_info("Socket unable to bind: errno\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5锟斤拷锟接猴拷锟斤拷锟斤拷锟斤拷执锟斤拷
+				close(listen_sock);
+				vTaskDelay(5000 / portTICK_PERIOD_MS);
 				continue;
 			}
 
 			//锟斤拷锟斤拷锟斤拷锟斤拷 锟斤拷锟斤拷7681锟剿匡拷
-			err = listen(listen_sock,0);
+			err = listen(listen_sock, MAX_SOC_COUNT);
 			if(err != 0)
 			{
 				debug_info("Socket unable to connect: errno\r");
-				vTaskDelay(5000 / portTICK_PERIOD_MS); //5锟斤拷锟接猴拷锟斤拷锟斤拷锟斤拷执锟斤拷
+				close(listen_sock);
+				vTaskDelay(5000 / portTICK_PERIOD_MS);
 				continue;
 			}
 			debug_info("Socket is listening\r");
@@ -1329,66 +1363,99 @@ static void tcp_server_task(void *pvParameters)
 			{
 				debug_info("ready to accept %d\r");
 				task_test.count[2]++;
-				//锟斤拷取锟脚猴拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷portMAX_DELAY
-				if(CountHandle != NULL)
-				{
-					xSemaphoreTake(CountHandle,portMAX_DELAY);
-					UBaseType_t semapCount = uxSemaphoreGetCount(CountHandle);
-					sprintf(debug_buffer,"Semaphore take success semapCount is:%d",semapCount);
-					debug_info(debug_buffer);
-				}
-				else
-					debug_info("SemaphoreHandle is NULL");
 
-				//accept锟角伙拷锟斤拷锟斤拷锟斤拷锟斤拷锟�  锟斤拷锟絊emaphorTake 也一直锟斤拷锟酵诧拷知锟斤拷锟叫诧拷锟叫★拷
+				/* Accept first so multiple clients can connect; limit after claim */
 				int sock = accept(listen_sock, (struct sockaddr *)&sourceAddr, &addrLen);
 				if (sock < 0)
 				{
-					ESP_ERROR_CHECK(sock);
-					debug_info("Unable to accept connection\r");
-					break;
+					sprintf(debug_buffer,"Unable to accept connection errno:%d\r", errno);
+					debug_info(debug_buffer);
+					vTaskDelay(100 / portTICK_PERIOD_MS);
+					continue;
 				}
 				debug_info("Socket accepted\r");
 
-				//锟斤拷取锟斤拷accept锟斤拷IP sock 锟剿匡拷锟斤拷息锟斤拷锟斤拷
 				struct sockinfo remoteInfo;
-
+				memset(&remoteInfo, 0, sizeof(remoteInfo));
 				remoteInfo.sock = sock;
 				if(sourceAddr.sin6_family == PF_INET)
 				{
 					memcpy(remoteInfo.remoteIp ,inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr,addr_str,sizeof(addr_str) - 1),32);
-					//remoteInfo.remoteIp = inet_ntoa_r(((struct sockaddr_in *)&sourceAddr)->sin_addr.s_addr,addr_str,sizeof(addr_str) - 1);
 					remoteInfo.sa_familyType = PF_INET;
 
 				}else if(sourceAddr.sin6_family == PF_INET6)
 				{
 					memcpy(remoteInfo.remoteIp,inet6_ntoa_r(sourceAddr.sin6_addr,addr_str,sizeof(addr_str) - 1),32);
-					//remoteInfo.remoteIp = inet6_ntoa_r(sourceAddr.sin6_addr,addr_str,sizeof(addr_str) - 1);
 					remoteInfo.sa_familyType = PF_INET6;
 				}
 				remoteInfo.remotePort = ntohs(sourceAddr.sin6_port);
-				//sprintf(debug_buffer,"ip:%s,port:%d ,sock:%d connected\r",remoteInfo.remoteIp,remoteInfo.remotePort,remoteInfo.sock);
-				//debug_info(debug_buffer);
 
-
-				uxBits = xEventGroupWaitBits(network_EventHandle,TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT,false,false,portMAX_DELAY);
-				//debug_info("tcp_server_task get  xEventGroupWaitBits success\r");
-				for(int i = 0; i < MAX_SOC_COUNT; i++)
+				/* Multi-connection: pick any free slot; retry briefly instead of dropping */
+				int slot = -1;
+				for(int wait = 0; wait < 100 && slot < 0; wait++)
 				{
-					if((uxBits & (1 << (i + 1))) != 0)
-					{ //锟斤拷锟斤拷i + 1锟斤拷锟斤拷为 锟铰硷拷锟斤拷志锟斤拷锟斤拷锟斤拷一位锟斤拷锟斤拷CONNECT_BIT锟斤拷占锟斤拷 TASK2_BIT锟角从碉拷BIT1锟斤拷始
-						sprintf(taskName,"tcp_server_dealwith%d",i);
-						//锟斤拷印remoteInfo锟斤拷锟斤拷锟斤拷然锟斤拷锟劫斤拷锟斤拷锟斤拷锟斤拷
-						//ESP_LOGI(TAG,"Currently socket NO:%d IP is:%s PORT is:%d",sock,remoteInfo.remoteIp,remoteInfo.remotePort);
-						task_sock[i] = remoteInfo.sock;
-						int res1 = xTaskCreate(taskList[i], taskName,	4096, (void *)&remoteInfo,1, &Task_handle[i]);
-						//assert(res1 == pdTRUE);
-						sprintf(debug_buffer,"xTaskCreate %d\r",i);
-						debug_info(debug_buffer);
-						break; //锟斤拷锟斤拷晒锟斤拷拇锟斤拷锟斤拷锟揭伙拷锟斤拷锟斤拷锟斤拷应锟矫斤拷锟斤拷锟斤拷锟轿诧拷锟斤拷锟斤拷
+					uxBits = xEventGroupWaitBits(network_EventHandle,TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT,false,false,pdMS_TO_TICKS(50));
+					for(int i = 0; i < MAX_SOC_COUNT; i++)
+					{
+						if((uxBits & (1 << (i + 1))) == 0)
+						{
+							continue;
+						}
+						if(Task_handle[i] != NULL)
+						{
+							continue;
+						}
+						xEventGroupClearBits(network_EventHandle, (1 << (i + 1)));
+						if(Task_handle[i] != NULL)
+						{
+							xEventGroupSetBits(network_EventHandle, (1 << (i + 1)));
+							continue;
+						}
+						slot = i;
+						break;
 					}
 				}
-				vTaskDelay(200 / portTICK_PERIOD_MS);
+
+				if(slot < 0)
+				{
+					debug_info("No free tcp handler slot\r");
+					tcp_server_close_sock(sock);
+					continue;
+				}
+
+				if(CountHandle != NULL)
+				{
+					if(xSemaphoreTake(CountHandle, 0) != pdTRUE)
+					{
+						debug_info("TCP connection limit reached\r");
+						xEventGroupSetBits(network_EventHandle, (1 << (slot + 1)));
+						tcp_server_close_sock(sock);
+						continue;
+					}
+				}
+
+				remoteInfo_slots[slot] = remoteInfo;
+				task_sock[slot] = remoteInfo.sock;
+				sprintf(taskName,"tcp_server_dealwith%d",slot);
+				/* prio 12 > i2c(10); each connection has its own dealwithN task */
+				BaseType_t res1 = xTaskCreate(taskList[slot], taskName, 4096, (void *)&remoteInfo_slots[slot], 12, &Task_handle[slot]);
+				if(res1 != pdPASS)
+				{
+					debug_info("xTaskCreate failed\r");
+					Task_handle[slot] = 0;
+					task_sock[slot] = -1;
+					tcp_server_close_sock(sock);
+					xEventGroupSetBits(network_EventHandle, (1 << (slot + 1)));
+					if(CountHandle != NULL)
+					{
+						xSemaphoreGive(CountHandle);
+					}
+				}
+				else
+				{
+					sprintf(debug_buffer,"xTaskCreate %d sock=%d\r",slot, sock);
+					debug_info(debug_buffer);
+				}
 
 			}
 			if (listen_sock != -1)
@@ -1409,24 +1476,119 @@ typedef struct
 	uint8_t ip;
 	uint32_t time;
 }Str_Tcp_CS;
-Str_Tcp_CS tcp_client[6];
-// check whether need creat a new socket
+#define TCP_CLIENT_SLOT_COUNT 6
+#define TCP_CLIENT_CONNECT_TIMEOUT_SEC 3
+Str_Tcp_CS tcp_client[TCP_CLIENT_SLOT_COUNT];
+
+static void tcp_client_close_slot(int index)
+{
+	if(index < 0 || index >= TCP_CLIENT_SLOT_COUNT)
+	{
+		return;
+	}
+	if(tcp_client[index].socket >= 0)
+	{
+		shutdown(tcp_client[index].socket, 2);
+		close(tcp_client[index].socket);
+	}
+	tcp_client[index].socket = -1;
+	tcp_client[index].ip = 0;
+	tcp_client[index].time = 0;
+}
+
+/* Find existing slot for ip, or a free slot. Returns -1 if none available. */
 int get_current_client_socket(uint8_t ip)
 {
 	uint8_t i;
-	for(i = 0;i < 6;i++)
+	for(i = 0; i < TCP_CLIENT_SLOT_COUNT; i++)
 	{
-		if(ip == tcp_client[i].ip)
+		if(tcp_client[i].ip == ip && tcp_client[i].socket >= 0)
+		{
 			return i;
+		}
 	}
-	return 0;
+	for(i = 0; i < TCP_CLIENT_SLOT_COUNT; i++)
+	{
+		if(tcp_client[i].socket < 0)
+		{
+			return i;
+		}
+	}
+	return -1;
 }
 
+/* Non-blocking connect with timeout; stores fd in tcp_client[index] on success. */
+static int tcp_client_connect_addr(int index, const struct sockaddr_in *dest_addr)
+{
+	int sock;
+	int flags;
+	int err;
+	int so_error = 0;
+	socklen_t len = sizeof(so_error);
+	fd_set fdset;
+	struct timeval tv;
+
+	if(index < 0 || index >= TCP_CLIENT_SLOT_COUNT || dest_addr == NULL)
+	{
+		return -1;
+	}
+
+	sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+	if(sock < 0)
+	{
+		return -1;
+	}
+
+	flags = fcntl(sock, F_GETFL, 0);
+	if(flags >= 0)
+	{
+		fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+	}
+
+	err = connect(sock, (struct sockaddr *)dest_addr, sizeof(*dest_addr));
+	if(err != 0 && errno != EINPROGRESS)
+	{
+		close(sock);
+		return -1;
+	}
+	if(err != 0)
+	{
+		FD_ZERO(&fdset);
+		FD_SET(sock, &fdset);
+		tv.tv_sec = TCP_CLIENT_CONNECT_TIMEOUT_SEC;
+		tv.tv_usec = 0;
+		err = select(sock + 1, NULL, &fdset, NULL, &tv);
+		if(err <= 0)
+		{
+			close(sock);
+			return -1;
+		}
+		if(getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0 || so_error != 0)
+		{
+			close(sock);
+			return -1;
+		}
+	}
+
+	if(flags >= 0)
+	{
+		fcntl(sock, F_SETFL, flags);
+	}
+
+	tv.tv_sec = 10;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+	tcp_client[index].socket = sock;
+	tcp_client[index].time = system_timer;
+	return 0;
+}
 
 void intial_tcp_client(void)
 {
 	uint8_t i;
-	for(i = 0;i < 6;i++)
+	for(i = 0; i < TCP_CLIENT_SLOT_COUNT; i++)
 	{
 		tcp_client[i].ip = 0;
 		tcp_client[i].socket = -1;
@@ -1437,20 +1599,17 @@ void intial_tcp_client(void)
 uint8_t check_time_to_live(void)
 {
 	uint8_t i;
-	for(i = 0;i < 6;i++)
+	for(i = 0; i < TCP_CLIENT_SLOT_COUNT; i++)
 	{
-		if((tcp_client[i].ip != 0) && (tcp_client[i].socket != -1))
+		if(tcp_client[i].socket < 0)
 		{
-			if(system_timer - tcp_client[i].time > 10000)
-			{
-				shutdown(tcp_client[i].socket, 2);
-				close(tcp_client[i].socket);
-				tcp_client[i].ip = 0;
-				tcp_client[i].socket = -1;
-				//tcp_client[i].time = 0;
-				return 1;
-			}
-
+			continue;
+		}
+		/* Also reclaim sockets that failed before ip was assigned */
+		if(system_timer - tcp_client[i].time > 10000)
+		{
+			tcp_client_close_slot(i);
+			return 1;
 		}
 	}
 	return 0;
@@ -1468,7 +1627,7 @@ static void tcp_client_task(void *pvParameters)
     uint8_t Modbus_Client_Command[20];
     uint8_t Modbus_Client_CmdLen = 0;
     static u8_t tcp_client_transaction_id = 0;
-    static uint8_t index = 0;
+    int index = 0;
     intial_tcp_client();
     memset(NPM_node_write,0,sizeof(STR_NPM_NODE_OPERATE) * STACK_LEN);
     task_test.enable[3] = 1;
@@ -1505,148 +1664,142 @@ static void tcp_client_task(void *pvParameters)
 					addr_family = AF_INET;
 					ip_protocol = IPPROTO_IP;
 
-					int sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-					index = get_current_client_socket(ip);
 					check_time_to_live();
-
-					if(tcp_client[index].socket == -1)
+					index = get_current_client_socket(ip);
+					if(index < 0)
 					{
-						tcp_client[index].socket = socket(addr_family, SOCK_STREAM, ip_protocol);
-						if (tcp_client[index].socket < 0) {
+						vTaskDelay(200 / portTICK_PERIOD_MS);
+						continue;
+					}
+
+					if(tcp_client[index].socket < 0)
+					{
+						if(tcp_client_connect_addr(index, &dest_addr) != 0)
+						{
+							tcp_client_close_slot(index);
+							vTaskDelay(200 / portTICK_PERIOD_MS);
 							continue;
 						}
-						err = connect(tcp_client[index].socket, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr_in6));
+						tcp_client[index].ip = ip;
 					}
+
+					if(tcp_client_transaction_id < 127)
+						tcp_client_transaction_id++;
 					else
-						err = 0;
+						tcp_client_transaction_id = 1;
 
 
-					if (err != 0) {
-							continue;
-						 }
-						 else //while(1)
-						 {
-							if(tcp_client_transaction_id < 127)
-								tcp_client_transaction_id++;
-							else
-								tcp_client_transaction_id = 1;
+					Modbus_Client_Command[0] = NPM_node_write[i].ip;//transaction_id >> 8;
+					Modbus_Client_Command[1] = tcp_client_transaction_id;
+					Modbus_Client_Command[2] = 0x00;
+					Modbus_Client_Command[3] = 0x00;
+					Modbus_Client_Command[4] = 0x00;
+					Modbus_Client_Command[5] = 0x06;  // len
+					if(NPM_node_write[i].id == 0)
+						NPM_node_write[i].id = 255;
+					Modbus_Client_Command[6] = NPM_node_write[i].id;
+					Modbus_Client_Command[7] = NPM_node_write[i].func;
 
 
-							Modbus_Client_Command[0] = NPM_node_write[i].ip;//transaction_id >> 8;
-							Modbus_Client_Command[1] = tcp_client_transaction_id;
-							Modbus_Client_Command[2] = 0x00;
-							Modbus_Client_Command[3] = 0x00;
-							Modbus_Client_Command[4] = 0x00;
-							Modbus_Client_Command[5] = 0x06;  // len
-							if(NPM_node_write[i].id == 0)
-								NPM_node_write[i].id = 255;
-							Modbus_Client_Command[6] = NPM_node_write[i].id;
-							Modbus_Client_Command[7] = NPM_node_write[i].func;
-
-
-							Modbus_Client_Command[8] = NPM_node_write[i].reg >> 8;
-							Modbus_Client_Command[9] = NPM_node_write[i].reg;
-							if(NPM_node_write[i].len == 1)
+					Modbus_Client_Command[8] = NPM_node_write[i].reg >> 8;
+					Modbus_Client_Command[9] = NPM_node_write[i].reg;
+					if(NPM_node_write[i].len == 1)
+					{
+						if(NPM_node_write[i].func == 0x06)
+						{
+							Modbus_Client_Command[10] = NPM_node_write[i].value[0] >> 8;
+							Modbus_Client_Command[11] = NPM_node_write[i].value[0];
+						}
+						else if(NPM_node_write[i].func == 0x05) // wirte coil
+						{
+							if(NPM_node_write[i].value[0] == 0)
 							{
-								if(NPM_node_write[i].func == 0x06)
-								{
-									Modbus_Client_Command[10] = NPM_node_write[i].value[0] >> 8;
-									Modbus_Client_Command[11] = NPM_node_write[i].value[0];
-								}
-								else if(NPM_node_write[i].func == 0x05) // wirte coil
-								{
-									if(NPM_node_write[i].value[0] == 0)
-									{
-										Modbus_Client_Command[10] = 0x00;
-										Modbus_Client_Command[11] = 0x00;
-									}
-									else  // *value = 0
-									{
-										Modbus_Client_Command[10] = 0xFF;
-										Modbus_Client_Command[11] = 0x00;
-									}
-								}
-
-								Modbus_Client_CmdLen = 12;
-							}
-							if(NPM_node_write[i].len == 2)
-							{
-								Modbus_Client_Command[5] = 0x0b;  // len
 								Modbus_Client_Command[10] = 0x00;
-								Modbus_Client_Command[11] = 0x02;
-								Modbus_Client_Command[12] = 0x04;
-								Modbus_Client_Command[13] = NPM_node_write[i].value[0];
-								Modbus_Client_Command[14] = NPM_node_write[i].value[0] >> 8;
-								Modbus_Client_Command[15] = NPM_node_write[i].value[1];
-								Modbus_Client_Command[16] = NPM_node_write[i].value[1] >> 8;
-								Modbus_Client_CmdLen = 17;
+								Modbus_Client_Command[11] = 0x00;
 							}
-
-							err = send(tcp_client[index].socket, Modbus_Client_Command,Modbus_Client_CmdLen, 0);
-
-							if (err < 0) {
-								//ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-								//break;
-								continue;
-								}
-							else
-								flagLED_ether_tx = 1;
-
-							err = Readable_timeo(tcp_client[index].socket, 10);
-							if(err > 0)
+							else  // *value = 0
 							{
-								int len = recv(tcp_client[index].socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
-								// Error occurred during receiving
+								Modbus_Client_Command[10] = 0xFF;
+								Modbus_Client_Command[11] = 0x00;
+							}
+						}
 
-								if (len < 0) {
-									//ESP_LOGE(TAG, "recv failed: errno %d", errno);
-									continue;
-								}
-								// Data received
-								else {
-									ether_rx += len;
-									flagLED_ether_rx = 1;
-									tcp_client[index].time = system_timer;
-									U8_T tcp_clinet_buf[20];
-									S32_T val_ptr = 0;
-									U8_T float_type = 0;
-									if(len == 12 || len == 17)	// response write
+						Modbus_Client_CmdLen = 12;
+					}
+					if(NPM_node_write[i].len == 2)
+					{
+						Modbus_Client_Command[5] = 0x0b;  // len
+						Modbus_Client_Command[10] = 0x00;
+						Modbus_Client_Command[11] = 0x02;
+						Modbus_Client_Command[12] = 0x04;
+						Modbus_Client_Command[13] = NPM_node_write[i].value[0];
+						Modbus_Client_Command[14] = NPM_node_write[i].value[0] >> 8;
+						Modbus_Client_Command[15] = NPM_node_write[i].value[1];
+						Modbus_Client_Command[16] = NPM_node_write[i].value[1] >> 8;
+						Modbus_Client_CmdLen = 17;
+					}
+
+					err = send(tcp_client[index].socket, Modbus_Client_Command,Modbus_Client_CmdLen, 0);
+
+					if (err < 0) {
+						tcp_client_close_slot(index);
+						continue;
+						}
+					else
+						flagLED_ether_tx = 1;
+
+					err = Readable_timeo(tcp_client[index].socket, 10);
+					if(err > 0)
+					{
+						int len = recv(tcp_client[index].socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
+						// Error occurred during receiving
+
+						if (len < 0) {
+							tcp_client_close_slot(index);
+							continue;
+						}
+						// Data received
+						else {
+							ether_rx += len;
+							flagLED_ether_rx = 1;
+							tcp_client[index].time = system_timer;
+							U8_T tcp_clinet_buf[20];
+							S32_T val_ptr = 0;
+							U8_T float_type = 0;
+							if(len == 12 || len == 17)	// response write
+							{
+								memcpy(&tcp_clinet_buf, rx_buffer,len);
+
+								//float_type = NP_node_write[i].func;
+
+								if(ip == tcp_clinet_buf[0])
+								{
+									//if(float_type == 0)
 									{
-										memcpy(&tcp_clinet_buf, rx_buffer,len);
+										val_ptr = tcp_clinet_buf[10] * 256 + tcp_clinet_buf[11];
 
-										//float_type = NP_node_write[i].func;
+										add_network_point( NPM_node_write[i].ip,
+												NPM_node_write[i].id,
+												NPM_node_write[i].func,
+												NPM_node_write[i].reg,
+												val_ptr * 1000,
+										0,float_type);
 
-										if(ip == tcp_clinet_buf[0])
-										{
-											//if(float_type == 0)
-											{
-												val_ptr = tcp_clinet_buf[10] * 256 + tcp_clinet_buf[11];
-
-												add_network_point( NPM_node_write[i].ip,
-														NPM_node_write[i].id,
-														NPM_node_write[i].func,
-														NPM_node_write[i].reg,
-														val_ptr * 1000,
-												0,float_type);
-
-												//flag_receive_netp_modbus = 1;
-												//network_points_list[network_point_index].lose_count = 0;
-												//network_points_list[network_point_index].decomisioned = 1;
-											}
-
-										}
-
+										//flag_receive_netp_modbus = 1;
+										//network_points_list[network_point_index].lose_count = 0;
+										//network_points_list[network_point_index].decomisioned = 1;
 									}
+
 								}
 
-
-						 }
+							}
+						}
+					}
     				}
     		}
 
-    	}
-    		// 閿熸枻鎷穘etwork modbus point
-    		for(network_point_index = 0;network_point_index < number_of_network_points_modbus;network_point_index++)
+    		// network modbus point
+    		for(network_point_index = 0;network_point_index < number_of_network_points_bacnet + number_of_network_points_modbus;/*network_point_index++*/)
     		{
     			if(network_points_list[network_point_index].lose_count > 3)
 				{
@@ -1655,8 +1808,6 @@ static void tcp_client_task(void *pvParameters)
 				}
 
 				//flag_receive_netp_modbus = 0;
-    			Test[9] = number_of_network_points_modbus;
-    			Test[10]++;
 				ip = network_points_list[network_point_index].point.panel;
 				sub_id = network_points_list[network_point_index].tb.NT_modbus.id;
 				func = network_points_list[network_point_index].tb.NT_modbus.func & 0x7f;
@@ -1671,156 +1822,153 @@ static void tcp_client_task(void *pvParameters)
 				dest_addr.sin_port = htons(Modbus.tcp_port);
 				addr_family = AF_INET;
 				ip_protocol = IPPROTO_IP;
-				int sock =  socket(addr_family, SOCK_STREAM, ip_protocol);
-				index = get_current_client_socket(ip);
-				check_time_to_live();
 
-				if(tcp_client[index].socket == -1)
-				{Test[11]++;
-					tcp_client[index].socket = socket(addr_family, SOCK_STREAM, ip_protocol);
-					if (tcp_client[index].socket < 0) {
-						//ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
-					//debug_info("Unable to create socket: errno");
+				check_time_to_live();
+				index = get_current_client_socket(ip);
+				if(index < 0)
+				{
+					network_points_list[network_point_index].lose_count++;
+					network_point_index = find_next_network_modbus_point(network_point_index);
+					vTaskDelay(200 / portTICK_PERIOD_MS);
+					continue;
+				}
+
+				if(tcp_client[index].socket < 0)
+				{
+					if(tcp_client_connect_addr(index, &dest_addr) != 0)
+					{
+						tcp_client_close_slot(index);
+						network_points_list[network_point_index].lose_count++;
+						network_point_index = find_next_network_modbus_point(network_point_index);
+						vTaskDelay(200 / portTICK_PERIOD_MS);
 						continue;
 					}
-					err = connect(tcp_client[index].socket, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr_in6));
+					tcp_client[index].ip = ip;
 				}
+
+				if(tcp_client_transaction_id < 127)
+					tcp_client_transaction_id++;
 				else
-					err = 0;
+					tcp_client_transaction_id = 1;
 
+				Modbus_Client_Command[0] =  ip;// 0x00;//transaction_id >> 8;
+				Modbus_Client_Command[1] = tcp_client_transaction_id;
+				Modbus_Client_Command[2] = 0x00;
+				Modbus_Client_Command[3] = 0x00;
+				Modbus_Client_Command[4] = 0x00;
+				Modbus_Client_Command[5] = 0x06;  // len
+				if(sub_id == 0)
+						sub_id = 255;
+				Modbus_Client_Command[6] = sub_id;
+				Modbus_Client_Command[7] = func;
+				
+				if(func == READ_VARIABLES || func == READ_COIL
+					|| func == READ_DIS_INPUT || func == READ_INPUT)  // read command
+				{// 01 03 02 04
+					U8_T float_type;
+					Modbus_Client_Command[8] = reg >> 8;
+					Modbus_Client_Command[9] = reg;
+					Modbus_Client_Command[10] = 0x00;
+					float_type = (network_points_list[network_point_index].tb.NT_modbus.func & 0xff00) >> 8;
+					// for specail customer, use READ_INPUT to replace INPUT_FLOATABCD,
+					if(func == READ_INPUT) float_type = 1;
+					if(float_type == 0)
+					{
+						Modbus_Client_Command[11] = 0x01;
+						Modbus_Client_CmdLen = 12;
+					}
+					else
+					{
+						Modbus_Client_Command[11] = 0x02;
+						Modbus_Client_CmdLen = 12;
+					}
+				}
 
+				err = send(tcp_client[index].socket, Modbus_Client_Command,Modbus_Client_CmdLen, 0);
 
+				if (err < 0) {
+					tcp_client_close_slot(index);
+					network_points_list[network_point_index].lose_count++;
+					network_point_index = find_next_network_modbus_point(network_point_index);
+					vTaskDelay(200 / portTICK_PERIOD_MS);
+					continue;
+					}
+				else
+					flagLED_ether_tx = 1;
 
-				if (err != 0) {
-						//ESP_LOGE(TAG, "Socket unable to connect: errno %d", errno);
-				//debug_info("Socket unable to connect");
+				Test[13]++;
+				err = Readable_timeo(tcp_client[index].socket, 10);
+				if(err > 0)
+				{
+					int len = recv(tcp_client[index].socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
+					// Error occurred during receiving
+
+					if (len < 0) {
+						tcp_client_close_slot(index);
+						network_points_list[network_point_index].lose_count++;
+						network_point_index = find_next_network_modbus_point(network_point_index);
+						vTaskDelay(200 / portTICK_PERIOD_MS);
 						continue;
-					 }
-					 else //while(1)
-					 {
-						 // check time to live
-						 tcp_client[index].ip = ip;
-				    // send packet to tcp_server
-				    	if(tcp_client_transaction_id < 127)
-							tcp_client_transaction_id++;
-						else
-							tcp_client_transaction_id = 1;
-
-				    	Modbus_Client_Command[0] =  ip;// 0x00;//transaction_id >> 8;
-						Modbus_Client_Command[1] = tcp_client_transaction_id;
-						Modbus_Client_Command[2] = 0x00;
-						Modbus_Client_Command[3] = 0x00;
-						Modbus_Client_Command[4] = 0x00;
-						Modbus_Client_Command[5] = 0x06;  // len
-						if(sub_id == 0)
-								sub_id = 255;
-						Modbus_Client_Command[6] = sub_id;
-						Modbus_Client_Command[7] = func;
-						Test[12]++;
-						if(func == READ_VARIABLES || func == READ_COIL
-							|| func == READ_DIS_INPUT || func == READ_INPUT)  // read command
-						{// 01 03 02 04
-							U8_T float_type;
-							Modbus_Client_Command[8] = reg >> 8;
-							Modbus_Client_Command[9] = reg;
-							Modbus_Client_Command[10] = 0x00;
+					}
+					// Data received
+					else {flagLED_ether_rx = 1;ether_rx += len;
+					//debug_info("revc ok");
+						tcp_client[index].time = system_timer;
+						U8_T tcp_clinet_buf[20];
+						S32_T val_ptr = 0;
+						U8_T float_type = 0;
+						if(len == 11 || len == 13 || len == 10)  // response read
+						{ // READ ONE is 11, read 2bytes is 13, read coil is 10
+							memcpy(&tcp_clinet_buf, rx_buffer,len);
+							Test[14]++;
+							//if(network_points_list[network_point_index].point.panel == (U8_T)(ip >> 24) )
 							float_type = (network_points_list[network_point_index].tb.NT_modbus.func & 0xff00) >> 8;
-							// for specail customer, use READ_INPUT to replace INPUT_FLOATABCD,
-							if(func == READ_INPUT) float_type = 1;
-							if(float_type == 0)
+							if(ip == tcp_clinet_buf[0])
 							{
-								Modbus_Client_Command[11] = 0x01;
-								Modbus_Client_CmdLen = 12;
-							}
-							else
-							{
-								Modbus_Client_Command[11] = 0x02;
-								Modbus_Client_CmdLen = 12;
-							}
-						}
+								if(len == 13)	// read input float 32bit
+									float_type = 1;
+								if(float_type == 1)
+									val_ptr = (U32_T)(tcp_clinet_buf[9] << 24) + (U32_T)(tcp_clinet_buf[10] << 16) \
+												+ (U16_T)(tcp_clinet_buf[11] << 8) + tcp_clinet_buf[12];
+								else
+								{
+									if(len == 11)
+										val_ptr = tcp_clinet_buf[9] * 256 + tcp_clinet_buf[10];
+									else if(len == 10)
+										val_ptr = tcp_clinet_buf[9];
+									else
+										;// error
+								}
 
-						err = send(tcp_client[index].socket, Modbus_Client_Command,Modbus_Client_CmdLen, 0);
+								if((tcp_clinet_buf[6] == network_points_list[network_point_index].tb.NT_modbus.id)
+									&& (network_points_list[network_point_index].tb.NT_modbus.id != 0)
+									&& (tcp_clinet_buf[7] == (network_points_list[network_point_index].tb.NT_modbus.func & 0x7f))
+								)
+								{
+									add_network_point( network_points_list[network_point_index].point.panel,
+									network_points_list[network_point_index].point.sub_id,
+									network_points_list[network_point_index].point.point_type - 1,
+									network_points_list[network_point_index].point.number + 1,
+									val_ptr,
+									0,float_type);
 
-						if (err < 0) {
-							//ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
-							//break;
-							continue;
-							}
-						else
-							flagLED_ether_tx = 1;
-
-						Test[13]++;
-						err = Readable_timeo(tcp_client[index].socket, 10);
-						if(err > 0)
-						{
-							int len = recv(tcp_client[index].socket, rx_buffer, sizeof(rx_buffer) - 1, 0);
-							// Error occurred during receiving
-
-							if (len < 0) {
-								//ESP_LOGE(TAG, "recv failed: errno %d", errno);
-								continue;
-							}
-							// Data received
-							else {flagLED_ether_rx = 1;ether_rx += len;
-							//debug_info("revc ok");
-								tcp_client[index].time = system_timer;
-								U8_T tcp_clinet_buf[20];
-								S32_T val_ptr = 0;
-								U8_T float_type = 0;
-								if(len == 11 || len == 13 || len == 10)  // response read
-								{ // READ ONE is 11, read 2bytes is 13, read coil is 10
-									memcpy(&tcp_clinet_buf, rx_buffer,len);
-									Test[14]++;
-									//if(network_points_list[network_point_index].point.panel == (U8_T)(ip >> 24) )
-									float_type = (network_points_list[network_point_index].tb.NT_modbus.func & 0xff00) >> 8;
-									if(ip == tcp_clinet_buf[0])
-									{
-										if(len == 13)	// read input float 32bit
-											float_type = 1;
-										if(float_type == 1)
-											val_ptr = (U32_T)(tcp_clinet_buf[9] << 24) + (U32_T)(tcp_clinet_buf[10] << 16) \
-														+ (U16_T)(tcp_clinet_buf[11] << 8) + tcp_clinet_buf[12];
-										else
-										{
-											if(len == 11)
-												val_ptr = tcp_clinet_buf[9] * 256 + tcp_clinet_buf[10];
-											else if(len == 10)
-												val_ptr = tcp_clinet_buf[9];
-											else
-												;// error
-										}
-
-										if((tcp_clinet_buf[6] == network_points_list[network_point_index].tb.NT_modbus.id)
-											&& (network_points_list[network_point_index].tb.NT_modbus.id != 0)
-											&& (tcp_clinet_buf[7] == (network_points_list[network_point_index].tb.NT_modbus.func & 0x7f))
-										)
-										{Test[15]++;
-											add_network_point( network_points_list[network_point_index].point.panel,
-											network_points_list[network_point_index].point.sub_id,
-											network_points_list[network_point_index].point.point_type - 1,
-											network_points_list[network_point_index].point.number + 1,
-											val_ptr,
-											0,float_type);
-
-											//flag_receive_netp_modbus = 1;
-											network_points_list[network_point_index].lose_count = 0;
-											network_points_list[network_point_index].decomisioned = 1;
-										}
-									}
+									//flag_receive_netp_modbus = 1;
+									network_points_list[network_point_index].lose_count = 0;
+									network_points_list[network_point_index].decomisioned = 1;
 								}
 							}
 						}
-						else
-						{
-
-							network_points_list[network_point_index].lose_count++;
-						}
-
-						vTaskDelay(200 / portTICK_PERIOD_MS);
 					}
+				}
+				else
+				{
+					network_points_list[network_point_index].lose_count++;
+				}
 
+				vTaskDelay(200 / portTICK_PERIOD_MS);
 
-    		}// end 閿熸枻鎷穘etwork modbus point
+				network_point_index = find_next_network_modbus_point(network_point_index);
+    		}// end Network modbus point
     	}
     	else
     	{
@@ -1843,19 +1991,24 @@ void Trend_Log_Init(void);
 void Initial_points(uint8_t point_type);
 void set_default_parameters(void)
 {
+	Flash_Inital();
 	save_uint8_to_flash(FLASH_MODBUS_ID,1);
 	save_uint8_to_flash(FLASH_EN_SNTP,1);
 	save_uint8_to_flash(FLASH_EN_TIME_SYNC_PC,1);
 	save_uint8_to_flash(FLASH_LCD_TIME_OFF_DELAY,255);
 	save_uint16_to_flash(FLASH_WRITE_FLASH,0);
 	save_uint8_to_flash(FLASH_FIX_COM_CONFIG,1);
+#if NEW_IO
+	new_inputs = NULL;
+	new_outputs = NULL;
+	new_vars = NULL;
+#endif
 	Bacnet_Initial_Data();
 
 	Initial_points(OUT);
 	Initial_points(IN);
 	Initial_points(VAR);
 	save_point_info(0);
-
 }
 
 void Inital_Bacnet_Server(void)
@@ -1881,8 +2034,10 @@ void Inital_Bacnet_Server(void)
 			Set_Object_Name("T3-POWER-ESP");
 		else if(Modbus.mini_type == PROJECT_RMC1216)
 			Set_Object_Name("T3-RMC1216");
-		else if(Modbus.mini_type == PROJECT_NG2_NEW)
-			Set_Object_Name("T3-NEWNG2-ESP");
+		else if(Modbus.mini_type == PROJECT_RMC1232)
+			Set_Object_Name("T3-RMC1232");
+		else if(Modbus.mini_type == PROJECT_NG3)
+			Set_Object_Name("T3-NG3-ESP");
 		else if(Modbus.mini_type == PROJECT_LIGHT_PWM)
 			Set_Object_Name("T3-LPWM-ESP");
 		else
@@ -1903,9 +2058,9 @@ void Inital_Bacnet_Server(void)
 	//Modbus.mini_type = PROJECT_FAN_MODULE;
 	//memset(panelname,"T3-XB_ESP",15);
 	panel_number = Station_NUM;
-
 	Sync_Panel_Info();
 	read_point_info();
+	rtc_value_backup_restore();
 
 	if(Setting_Info.reg.webview_json_flash != 2)
 	{
@@ -1917,7 +2072,11 @@ void Inital_Bacnet_Server(void)
 	Device_Set_Object_Instance_Number(Instance);
 	address_init();
 	bip_set_broadcast_addr(0xffffffff);
-
+	bvlc_intial();
+	bbmd_apply_config();
+#ifdef BBMD_TEST_DEMO
+	bbmd_test_demo();
+#endif
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 	{
 		AIS = 6;
@@ -1968,7 +2127,7 @@ void Inital_Bacnet_Server(void)
 		AOS = MAX_AOS + 1;
 		AVS = MAX_AVS + 1;
 		BOS = 0;
-		TemcoVars = 9;
+		TemcoVars = 30;
 	}
 	else
 	{
@@ -1976,7 +2135,7 @@ void Inital_Bacnet_Server(void)
 		AOS = MAX_AOS + 1;
 		AVS = MAX_AVS + 1;
 		BOS = 0;
-#if 1//BAC_TRENDLOG
+#if BAC_TRENDLOG
 		TRENDLOGS = 0;
 #endif
 	}
@@ -1997,7 +2156,7 @@ uint16_t dlmstp_receive(
     uint8_t * pdu,      /* PDU data */
     uint16_t max_pdu,   /* amount of space available in the PDU  */
     unsigned port);
-// uint8_t flag_receive_rmbp;
+uint8_t flag_receive_rmbp;
 uint8_t flag_start_scan_mstp = 0;
 uint8_t start_scan_mstp_count = 0;
 uint16_t Master_Scan_Mstp_Count = 0;
@@ -2063,21 +2222,13 @@ void MSTP_Master_roution(uint16 count_start_task)
 					}
 
 				// read remote mstp points
-					if(remote_bacnet_index < number_of_remote_points_bacnet)
-					{
-						remote_bacnet_index++;
-					}
-					else
-					{
-						remote_bacnet_index = 0;
-					}
+					remote_bacnet_index = find_next_remote_bacnet_point(remote_bacnet_index);
 
-					if(remote_bacnet_index == number_of_remote_points_bacnet)
 					{  // read private modbus from Temco product
 
 						static uint8_t j = 0;
 						uint8_t count = 0;
-						if(j < remote_panel_num)//for(j = 0;j < remote_panel_num;j++)
+						if(j < remote_panel_num)
 						{
 							if(remote_panel_db[j].protocal == BAC_MSTP
 								&& remote_panel_db[j].sn == 0)
@@ -2088,23 +2239,26 @@ void MSTP_Master_roution(uint16 count_start_task)
 								remote_mstp_panel_index = j;
 								while((flag_receive_rmbp == 0) && count++ < 20)
 									delay_ms(200);
+
+								// add this condition to avoid reading remote points at same time, if that maybe cause conlict.
+								remote_bacnet_index = 0xff;
 							}
-							if(remote_panel_db[j].retry_reading_panel > 5)
+							if(remote_panel_db[j].retry_reading_panel >= 5)
 							{
 								remote_panel_db[j].sn = remote_panel_db[j].device_id;
 								remote_panel_db[j].retry_reading_panel = 0;
 								remote_panel_db[j].product_model = 0;
 							}
 						}
-						j++;
 
+						j++;
 						if(j > remote_panel_num)
 							j = 0;
 
-
 					}
-					else
+					if(remote_bacnet_index != 0xff)
 					{
+
 						if(number_of_remote_points_bacnet > 0)
 						{
 							// read remote bacnet point
@@ -2129,6 +2283,7 @@ void MSTP_Master_roution(uint16 count_start_task)
 								}
 							}
 						}
+
 					}
 				}
 			}
@@ -2243,7 +2398,6 @@ void Master2_Node_task(void *pvParameters)
 				else
 					count_start_task = 0;
 			}
-
 
 			uint8_t count;
 			int invoke;
@@ -2430,6 +2584,7 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, int32_t value)
 void Update_Value_List(uint8_t type, uint32_t instance)
 {
 	char text[10];
+	Str_points_ptr ptr;
 	cov_data_value_list_link(&cov_data, &value_list, 1);
 	value_list.propertyIdentifier = PROP_PRESENT_VALUE;
 	value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
@@ -2438,63 +2593,69 @@ void Update_Value_List(uint8_t type, uint32_t instance)
 	switch(type)
 	{
 		case OBJECT_ANALOG_INPUT:
-			if(inputs[instance].range == 0)
+			ptr = put_io_buf(IN,instance);
+			if(ptr.pin->range == 0)
 				break;
-			if(inputs[instance].digital_analog == 1)
+			if(ptr.pin->digital_analog == 1)
 			{
-				sprintf(text, "%f",(float)inputs[instance].value / 1000);
+				sprintf(text, "%f",(float)ptr.pin->value / 1000);
 				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
 					&value_list.value);
 			}
 		break;
 		case OBJECT_ANALOG_OUTPUT:
-			if(outputs[instance].range == 0)
+			ptr = put_io_buf(OUT,instance);
+			if(ptr.pout->range == 0)
 				break;
-			if(outputs[instance].digital_analog == 1)
+			if(ptr.pout->digital_analog == 1)
 			{
-				sprintf(text, "%f",(float)outputs[instance].value / 1000);
+				sprintf(text, "%f",(float)ptr.pout->value / 1000);
 				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
 					&value_list.value);
 			}
 		break;
 		case OBJECT_ANALOG_VALUE:
-			if(vars[instance].range == 0)
+			ptr = put_io_buf(OUT,instance);
+			if(ptr.pvar->range == 0)
 				break;
-			if(vars[instance].digital_analog == 1)
+			if(ptr.pvar->digital_analog == 1)
 			{
-				sprintf(text, "%f",(float)vars[instance].value / 1000);
+				sprintf(text, "%f",(float)ptr.pvar->value / 1000);
 				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
 					&value_list.value);
 			}
 		break;
 		case OBJECT_BINARY_INPUT:
-			if(inputs[instance].range == 0)
+			ptr = put_io_buf(IN,instance);
+			if(ptr.pin->range == 0)
 				break;
-			if(inputs[instance].digital_analog == 0)
+			if(ptr.pin->digital_analog == 0)
 			{
-				if(inputs[instance].control == 1)
+				if(ptr.pin->control == 1)
 					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
 				else
 					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
 			}
 		break;
 		case OBJECT_BINARY_OUTPUT:
-			if(outputs[instance].range == 0)
+			ptr = put_io_buf(OUT,instance);
+			if(ptr.pout->range == 0)
 				break;
-			if(outputs[instance].digital_analog == 0)
+			if(ptr.pout->digital_analog == 0)
 			{
-				if(outputs[instance].control == 1)
+				if(ptr.pout->control == 1)
 					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
 				else
 					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
 			}
 		break;
 		case OBJECT_BINARY_VALUE:
-			if(vars[instance].range == 0)
+			ptr = put_io_buf(VAR,instance);
+			if(ptr.pvar->range == 0)
 				break;
-			if(vars[instance].digital_analog == 0)
+			if(ptr.pvar->digital_analog == 0)
 			{
-				if(vars[instance].control == 1)
+				if(ptr.pvar->control == 1)
 					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
 				else
 					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
@@ -2616,6 +2777,7 @@ void enable_light_sleep(void)
 
 void enable_deep_sleep(void)
 {
+    rtc_value_backup_flush();
     esp_sleep_enable_timer_wakeup(10000000); // 设置 10 秒后唤醒
     esp_deep_sleep_start(); // 进入深度睡眠模式
 }
@@ -2648,40 +2810,27 @@ void Timer_task(void *pvParameters)
 	//Rtc_Set(22,4,26,9,40,10,0); // to be deleted
 	if(Modbus.mini_type == PROJECT_LIGHT_PWM)
 		Light_PWM_Init();
-
 	for (;;)
 	{// 10ms
 		task_test.count[13]++;
-
-		/*if(Test[20] == 100)
-		{
-			enable_modem_sleep();
-			Test[20] = 10;
-		}
-		if(Test[20] == 200)
-		{	enable_light_sleep();Test[20] = 20;}
-		if(Test[20] == 300)
-		{	enable_deep_sleep();Test[20] = 30;}
-
-		// for LIGTH_PWM
-		if(Modbus.mini_type == PROJECT_LIGHT_PWM)
-		{
-			Light_PWM_AO_Update();
-		}*/
-
-
-
 
 #if COV
 		handler_cov_task(BAC_IP_CLIENT);
 #endif
 		if(Eth_IP_Change == 1)
 		{
+			if(ip_change_count == 0)
+			{
+				bbmd_apply_config();
+			}
 			if(ip_change_count++ > 5)
 			{
-			Save_Ethernet_Info();
-			Eth_IP_Change = 0;
-			esp_retboot();
+				Save_Ethernet_Info();
+				Eth_IP_Change = 0;
+				Save_SPD_CNT();
+				// save IN,OUT,VAR
+				save_point_info(0);
+				esp_retboot();
 			}
 		}
 
@@ -2719,27 +2868,35 @@ void Timer_task(void *pvParameters)
 				}
 			}
 #endif
-			Test[0] = flag_ethernet_initial + 10;
+			Test[10] = flag_ethernet_initial + 10;
+			/*if(flag_ethernet_initial != 0)
+			{Test[1]++;
+				flag_ethernet_initial = ethernet_init();
+			}*/
+
 #if COV
 			handler_cov_timer_seconds(1);
 #endif
+			bvlc_maintenance_timer(1);
+			dlenv_maintenance_timer(1);
 			if(Modbus.ethernet_status == 4 || SSID_Info.IP_Wifi_Status == 2/*WIFI_NORMAL*/) // got ip
 			{
 				if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
 					flag_start_scan_mstp = 1;
-				check_modbus_slave();
 			}
 			else
 				flag_start_scan_mstp = 0;
+
+
+			check_modbus_slave();
 
 			if((Modbus.mini_type != PROJECT_FAN_MODULE)&&(Modbus.mini_type != PROJECT_TRANSDUCER)&&(Modbus.mini_type != PROJECT_POWER_METER)
 					 && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR))
 			{
 				PCF_GetDateTime(&rtc_date);
-				Test[40]++;
 				// syc time per hour
 				if(rtc_date.minute == 0 && rtc_date.second == 0)
-				{Test[41]++;
+				{
 					PCF_systohc();
 				}
 			}
@@ -2750,6 +2907,9 @@ void Timer_task(void *pvParameters)
 
 			check_net_health(60);
 			Check_change_uart();
+
+			/* Refresh RTC-backed .value snapshot once per second */
+			rtc_value_backup_save();
 
 		}
 
@@ -2763,12 +2923,16 @@ void Timer_task(void *pvParameters)
 		if(ChangeFlash != 0)
 		{
 			uint32_t write_delay;
-			if(ChangeFlash == 1)
+			if(ChangeFlash == 1)// normal write
 			{
-				write_delay = 5;
+				write_delay = 10;
 			}
-			else //  ChangeFlash == 2
+			else if(ChangeFlash == 3) // write it now
 			{
+				write_delay = 1;
+			}
+			else //  ChangeFlash == 2 write it on time
+			{// at least 1 hour
 				write_delay = Modbus.write_flash * 60;
 			}
 
@@ -2776,14 +2940,14 @@ void Timer_task(void *pvParameters)
 			{
 				save_point_info(0);
 				Store_Pulse_Counter(1);
+				Store_PLC_Power(1);
 				if(Modbus.write_flash == 0)
 					ChangeFlash = 0;
 				else
-					ChangeFlash = 2;
+					ChangeFlash = 2; //write it on time
 
 				count_write_Flash = 0;
 			}
-
 
 		}
 
@@ -2835,7 +2999,7 @@ void Updata_Comm_Led(void)
 	if(flagLED_main_rx)	{ temp1 |= 0x02;	 	flagLED_main_rx = 0; }
 	if(flagLED_main_tx)	{ temp1 |= 0x01;		flagLED_main_tx = 0; }
 
-	if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW)
+	if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232 || Modbus.mini_type == PROJECT_NG3)
 	{
 		if(flagLED_ether_rx)	{	temp1 |= 0x08;		flagLED_ether_rx = 0; 	}
 		if(flagLED_ether_tx)	{	temp1 |= 0x04;		flagLED_ether_tx = 0;	}
@@ -2905,10 +3069,10 @@ void Update_Led(void)
 		max_out = 10;
 		max_digout = 6;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2_NEW)
+	else if(Modbus.mini_type == PROJECT_NG3)  // 6DO + 5AO + 2DO
 	{
 		max_in = 24;
-		max_out = 12;
+		max_out = 13;
 		max_digout = 8;
 	}
 	else if(Modbus.mini_type == PROJECT_RMC1216)
@@ -2917,13 +3081,18 @@ void Update_Led(void)
 		max_out = 7;
 		max_digout = 7;
 	}
+	else if(Modbus.mini_type == PROJECT_RMC1232)
+	{
+		max_in = 32;
+		max_out = 4;
+		max_digout = 4;
+	}
 	else if(Modbus.mini_type == MINI_TSTAT10)
 	{
 		max_in = 8;
 		max_out = 7;
 		max_digout = 5;
 	}
-
 
 	for(loop = 0;loop < max_in;loop++)
 	{
@@ -2932,7 +3101,7 @@ void Update_Led(void)
 			error_in = input_raw[loop]  - pre_in[loop];
 		else
 			error_in = pre_in[loop] - input_raw[loop];
-
+		
 		ptr = put_io_buf(IN,loop);
 
 		if(ptr.pin->range == not_used_input)
@@ -2963,7 +3132,21 @@ void Update_Led(void)
 						else  if(input_raw[loop] < 3200) 	InputLed[loop] = 4;
 						else
 							InputLed[loop] = 5;
-
+							
+						if((Modbus.mini_type == PROJECT_RMC1232) && (loop == 8 || loop == 9 || loop == 10))
+						{
+							if(input_raw[loop] < 800)	InputLed[loop] = 0;	
+						}
+						if((Modbus.mini_type == PROJECT_RMC1232) && (ptr.pin->range == AHKC_Hall))
+						{
+							if(input_raw[loop] < 400)	InputLed[loop] = 0;	
+							else  if(input_raw[loop] < 800) 	InputLed[loop] = 1;
+							else  if(input_raw[loop] < 1600) 	InputLed[loop] = 2;
+							else  if(input_raw[loop] < 2400) 	InputLed[loop] = 3;
+							else  if(input_raw[loop] < 3200) 	InputLed[loop] = 4;
+							else
+								InputLed[loop] = 5;							
+						}
 					}
 
 				}
@@ -3009,7 +3192,7 @@ void Update_Led(void)
 				}
 				else   // analog
 				{
-					U32_T tempvalue;
+					S32_T tempvalue;
 					tempvalue = (ptr.pin->value) / 1000;
 					if(ptr.pin->range <= PT1000_200_570DegF)	  // temperature
 					{	//  10k termistor GREYSTONE
@@ -3033,6 +3216,11 @@ void Update_Led(void)
 							else  if(tempvalue <= 4) 	InputLed[loop] = 4;	// 40 degree
 							else
 								InputLed[loop] = 5;	   // > 50 degree
+							// deal with RMC1232 IN9 10 11
+							if((Modbus.mini_type == PROJECT_RMC1232) && (loop == 8 || loop == 9 || loop == 10))
+							{
+								if(tempvalue < 1)	InputLed[loop] = 0;	
+							}
 						}
 						if(ptr.pin->range == I0_20ma)
 						{
@@ -3053,8 +3241,23 @@ void Update_Led(void)
 							else  if(tempvalue <= 8) 	InputLed[loop] = 4;	// 40 degree
 							else
 								InputLed[loop] = 5;	   // > 50 degree
+							// deal with RMC1232 IN9 10 11
+							if((Modbus.mini_type == PROJECT_RMC1232) && (loop == 8 || loop == 9 || loop == 10))
+							{
+								if(tempvalue < 1)	InputLed[loop] = 0;	
+							}
 						}
-
+						if((Modbus.mini_type == PROJECT_RMC1232) && (ptr.pin->range == AHKC_Hall))
+						{
+							if(tempvalue <= -180) 	InputLed[loop] = 0;	   // 0 degree
+							else  if(tempvalue <= -100) 	InputLed[loop] = 1;	// 10 degree
+							else  if(tempvalue <= 0) 	InputLed[loop] = 2;	// 20 degree
+							else  if(tempvalue <= 100) 	InputLed[loop] = 3;	// 30 degree
+							else  if(tempvalue <= 180) 	InputLed[loop] = 4;	// 40 degree
+							else
+								InputLed[loop] = 5;	   // > 50 degree						
+						}
+						
 					}
 				}
 			}
@@ -3094,7 +3297,8 @@ void Update_Led(void)
 				}
 				else
 				{
-					if(loop < max_digout)	  // digital
+					//if(loop < max_digout)	  // digital
+					if(loop < max_dos || (max_dos_2 && loop >= max_dos + max_aos && loop < max_dos + max_aos + max_dos_2))  // max_dos_2 is only for PLC-NG3
 					{
 						if(ptr.pout->value == 0) OutputLed[loop] = 0;
 						else
@@ -3178,19 +3382,25 @@ uint16_t adjust_output(uint16_t output)
 }
 
 uint8 flag_internal_temperature = 1;
+uint8 flag_SHT4X = 0;
+uint8 flag_SCD40 = 0;
 extern QueueHandle_t qKey;
 uint8_t i2c_send_buf[100];
 uint8_t i2c_rcv_buf[200];
 uint8_t lastSequenceNumber = 0xFF; // Initialize to an invalid value
 extern uint16_t count_lcd_time_off_delay;
 void lcd_back_set(uint8_t status);
+extern uint16 rmc_cuv;
+extern uint16 rmc_cov;
+extern uint16 rmc_stack;
+extern uint16 rmc_oc_chg;
+extern uint16 rmc_oc_dsg;
 
 void reboot_sub_chip(void)
 {
 	gpio_set_level(GPIO_NUM_32, 0);
 	usleep(100000); // 500ms
 	gpio_set_level(GPIO_NUM_32, 1);
-	Test[11]++;
 }
 void i2c_master_task(void *pvParameters)
 {
@@ -3204,8 +3414,9 @@ void i2c_master_task(void *pvParameters)
 	uint8_t top_hardware = 0;
 	uint8_t top_firmware = 0;
 	uint32_t multiMeterChannelvalue;
-#if 1
+
 	// RESET LED chip IO32
+	
 	//if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM)
 	{
 		i2c_master_init();
@@ -3214,7 +3425,7 @@ void i2c_master_task(void *pvParameters)
 		usleep(100000); // 500ms
 		gpio_set_level(GPIO_NUM_32, 1);
 	}
-#endif
+
 	if(Modbus.mini_type == PROJECT_CO2)
 	{
 		qSendCo2 = xQueueCreate(2, 2);
@@ -3279,9 +3490,80 @@ void i2c_master_task(void *pvParameters)
 		if(ptr.pin->range == 0)
 			ptr.pin->range = Humidty;
 		memcpy(ptr.pin->label,"HUM3",strlen("HUM3"));
+		ptr = put_io_buf(IN,22);
+		if(ptr.pin->range == 0)
+			ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"VOL",strlen("VOL"));
 	}
-
-	if(Modbus.mini_type == PROJECT_NG2_NEW)
+	if(Modbus.mini_type == PROJECT_RMC1232)
+	{
+		Modbus.RMC1232_led_Test = Modbus.mini_type;
+		ptr = put_io_buf(IN,8);
+		ptr.pin->range = V0_5;
+		ptr = put_io_buf(IN,9);
+		ptr.pin->range = V0_5;
+		ptr = put_io_buf(IN,10);
+		ptr.pin->range = V0_5;
+		ptr = put_io_buf(IN,11);
+		ptr.pin->range = V0_5;
+		
+		ptr = put_io_buf(IN,33);
+		ptr.pin->range = R10K_40_120DegC;
+		memcpy(ptr.pin->label,"TEMP1",strlen("TEMP1"));
+		ptr = put_io_buf(IN,34);
+		ptr.pin->range = Humidty;
+		memcpy(ptr.pin->label,"HUM1",strlen("HUM1"));
+		ptr = put_io_buf(IN,35);
+		ptr.pin->range = R10K_40_120DegC;
+		memcpy(ptr.pin->label,"TEMP2",strlen("TEMP2"));
+		ptr = put_io_buf(IN,36);
+		ptr.pin->range = Humidty;
+		memcpy(ptr.pin->label,"HUM2",strlen("HUM2"));
+		ptr = put_io_buf(IN,37);
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT",strlen("BAT"));
+		ptr = put_io_buf(IN,38); // current
+		ptr.pin->range = I0_20ma;
+		memcpy(ptr.pin->label,"CURRENT",strlen("CURRENT"));
+		ptr = put_io_buf(IN,39); // cuv_threshold_mv
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"CUVT",strlen("CUVT"));
+		ptr = put_io_buf(IN,40); // cov_threshold_mv
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"COVT",strlen("COVT"));
+		ptr = put_io_buf(IN,32); // internal temperature
+		ptr.pin->range = R10K_40_120DegC;
+		memcpy(ptr.pin->label,"Int_T",strlen("Int_T"));
+		
+		// IN42-IN48
+		ptr = put_io_buf(IN,41); 
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT1",strlen("BAT1"));
+		ptr = put_io_buf(IN,42); 
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT2",strlen("BAT2"));
+		ptr = put_io_buf(IN,43); 
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT3",strlen("BAT3"));
+		ptr = put_io_buf(IN,44); 
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT4",strlen("BAT4"));
+		ptr = put_io_buf(IN,45); 
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT5",strlen("BAT5"));
+		ptr = put_io_buf(IN,46); 
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT6",strlen("BAT6"));
+		ptr = put_io_buf(IN,47); 
+		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"BAT7",strlen("BAT7"));
+		ptr = put_io_buf(IN,48);
+		ptr.pin->digital_analog = 0;
+		ptr.pin->range = ALARM_NORMAL;
+		memcpy(ptr.pin->label,"BMS_LIVE",strlen("BMS_LIVE"));	
+		
+	}
+	if(Modbus.mini_type == PROJECT_NG3)
 	{
 		ptr = put_io_buf(IN,24);
 		if(ptr.pin->range == 0)
@@ -3325,8 +3607,8 @@ void i2c_master_task(void *pvParameters)
 
 	for (;;)
 	{
-		//if(Test[42] != 0)
-		//	ethernet_init();
+
+
 		task_test.count[0]++;
 
 
@@ -3379,17 +3661,25 @@ void i2c_master_task(void *pvParameters)
 			LED_i2c_write(0x74,led_buf,4);
 			vTaskDelay(500 / portTICK_PERIOD_MS);
 		}
-		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_RMC1216
-				|| Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
+		else if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232
+				|| Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG3 || Modbus.mini_type == PROJECT_CO2)
 		{
 			// send
 			// led
 			if(index++ % 2 == 0)
 			{
 				{
+					Str_points_ptr ptr;
+					Str_points_ptr ptr1;
+
 					Update_Led();
 					i2c_send_buf[0] = led_buf[0];
-					i2c_send_buf[1] = Modbus.mini_type;
+					if(Modbus.RMC1232_led_Test == 0xff)
+						i2c_send_buf[1] = 0xff;
+					else if(Modbus.RMC1232_led_Test == 0)
+ 						i2c_send_buf[1] = 0;
+ 					else
+						i2c_send_buf[1] = Modbus.mini_type;
 
 					memcpy(&i2c_send_buf[2],OutputLed,24);
 					memcpy(&i2c_send_buf[26],InputLed,32);
@@ -3399,8 +3689,6 @@ void i2c_master_task(void *pvParameters)
 						static uint32_t start_write_timer = 0;
 
 						// 100 以前的寄存器，about基础信息的修改
-
-						Test[20]++;
 						for(kk = 0;kk < 4;kk++)
 						{
 							i2c_send_buf[2 + kk] = Modbus.ip_addr[kk];
@@ -3412,69 +3700,240 @@ void i2c_master_task(void *pvParameters)
 						}
 
 						kk = 26;
-						if(Modbus.address != co2_data.address)
+						if(Modbus.address != co2_data.address || Modbus.baudrate[0] != co2_data.baud)
+						{
 							i2c_send_buf[kk++] = Modbus.address;
-						else
-							i2c_send_buf[kk++] = 0;
-
-						if(Modbus.com_config[0] == 1 || Modbus.com_config[0] == 9)
-							i2c_send_buf[kk++] = 1;//Mstp;
-						else
-							i2c_send_buf[kk++] = 0;//Modbus;
-
-						if(Modbus.baudrate[0] != co2_data.baud)
+							if(Modbus.com_config[0] == 1 || Modbus.com_config[0] == 9)
+								i2c_send_buf[kk++] = 1;//Mstp;
+							else
+								i2c_send_buf[kk++] = 0;//Modbus;
 							i2c_send_buf[kk++] = Modbus.baudrate[0];
+						}
 						else
+						{
 							i2c_send_buf[kk++] = 0;
-
-
+							if(Modbus.com_config[0] == 1 || Modbus.com_config[0] == 9)
+								i2c_send_buf[kk++] = 1;//Mstp;
+							else
+								i2c_send_buf[kk++] = 0;//Modbus;
+							i2c_send_buf[kk++] = 0;
+						}
 
 						i2c_send_buf[kk++] = SSID_Info.IP_Wifi_Status;
 						i2c_send_buf[kk++] = SSID_Info.rssi;
 
-						i2c_send_buf[kk++] = (vars[0].value / 100)>> 8;
-						i2c_send_buf[kk++] = vars[0].value / 100;
-						i2c_send_buf[kk++] = (vars[1].value / 100) >> 8;
-						i2c_send_buf[kk++] = vars[1].value / 100;
-						i2c_send_buf[kk++] = (vars[2].value / 100)>> 8;
-						i2c_send_buf[kk++] = (vars[2].value / 100);
-
-						if(vars[0].range == 0)
-							vars[0].range = degC;
-						i2c_send_buf[kk++] = vars[0].range;
-						if(vars[1].range == 0)
-							vars[1].range = RH;
-						i2c_send_buf[kk++] = vars[1].range;
-						if(vars[2].range == 0)
-							vars[2].range = ppm;
-						i2c_send_buf[kk++] = vars[2].range;
-
-						if(co2_data.output_mode == E_4_20MA)
+						ptr = put_io_buf(VAR,0);
+						if(programs[0].on_off == 0 && co2_data_screenArea[0] != 0xff)
 						{
-							i2c_send_buf[kk++] = ((outputs[0].value) / 20) >> 8;
-							i2c_send_buf[kk++] = ((outputs[0].value) / 20);
-							i2c_send_buf[kk++] = ((outputs[1].value) / 20) >> 8;
-							i2c_send_buf[kk++] = ((outputs[1].value) / 20);
-							i2c_send_buf[kk++] = ((outputs[2].value) / 20) >> 8;
-							i2c_send_buf[kk++] = ((outputs[2].value) / 20);
+							ptr1 = put_io_buf(IN,co2_data_screenArea[0]);
+							ptr.pvar->value = ptr1.pin->value;
 						}
-						else if(co2_data.output_mode == E_0_5V)
+						i2c_send_buf[kk++] = (ptr.pvar->value / 100)>> 8;
+						i2c_send_buf[kk++] = ptr.pvar->value / 100;
+
+						ptr = put_io_buf(VAR,1);
+						if(programs[0].on_off == 0 && co2_data_screenArea[1] != 0xff)
 						{
-							i2c_send_buf[kk++] = (outputs[0].value / 5) >> 8;
-							i2c_send_buf[kk++] = (outputs[0].value / 5);
-							i2c_send_buf[kk++] = (outputs[1].value / 5) >> 8;
-							i2c_send_buf[kk++] = (outputs[1].value / 5);
-							i2c_send_buf[kk++] = (outputs[2].value / 5) >> 8;
-							i2c_send_buf[kk++] = (outputs[2].value / 5);
+							ptr1 = put_io_buf(IN,co2_data_screenArea[1]);
+							ptr.pvar->value = ptr1.pin->value;
 						}
-						else //if(co2_data.output_mode == E_0_10V)
+						i2c_send_buf[kk++] = (ptr.pvar->value / 100) >> 8;
+						i2c_send_buf[kk++] = ptr.pvar->value / 100;
+
+						ptr = put_io_buf(VAR,2);
+						if(programs[0].on_off == 0 && co2_data_screenArea[2] != 0xff)
 						{
-							i2c_send_buf[kk++] = (outputs[0].value / 10) >> 8;
-							i2c_send_buf[kk++] = (outputs[0].value / 10);
-							i2c_send_buf[kk++] = (outputs[1].value / 10) >> 8;
-							i2c_send_buf[kk++] = (outputs[1].value / 10);
-							i2c_send_buf[kk++] = (outputs[2].value / 10) >> 8;
-							i2c_send_buf[kk++] = (outputs[2].value / 10);
+							ptr1 = put_io_buf(IN,co2_data_screenArea[2]);
+							ptr.pvar->value = ptr1.pin->value;
+						}
+						i2c_send_buf[kk++] = (ptr.pvar->value / 100)>> 8;
+						i2c_send_buf[kk++] = (ptr.pvar->value / 100);
+
+						ptr = put_io_buf(VAR,0);
+						if(programs[0].on_off == 0 && co2_data_screenArea[0] != 0xff)
+						{
+							ptr1 = put_io_buf(IN,co2_data_screenArea[0]);
+							if(ptr1.pin->range == R10K_40_120DegC)
+								ptr.pvar->range = degC;
+							if(ptr1.pin->range == R10K_40_250DegF)
+								ptr.pvar->range = degF;
+							if(ptr1.pin->range == Humidty)
+								ptr.pvar->range = RH;
+							if(ptr1.pin->range == CO2_PPM)
+								ptr.pvar->range = ppm;
+						}
+
+						i2c_send_buf[kk++] = ptr.pvar->range;
+
+						ptr = put_io_buf(VAR,1);
+						if(programs[0].on_off == 0 && co2_data_screenArea[1] != 0xff)
+						{
+							ptr1 = put_io_buf(IN,co2_data_screenArea[1]);
+							if(ptr1.pin->range == R10K_40_120DegC)
+								ptr.pvar->range = degC;
+							if(ptr1.pin->range == R10K_40_250DegF)
+								ptr.pvar->range = degF;
+							if(ptr1.pin->range == Humidty)
+								ptr.pvar->range = RH;
+							if(ptr1.pin->range == CO2_PPM)
+								ptr.pvar->range = ppm;
+						}
+
+						i2c_send_buf[kk++] = ptr.pvar->range;
+
+						ptr = put_io_buf(VAR,2);
+						if(programs[0].on_off == 0 && co2_data_screenArea[2] != 0xff)
+						{
+							ptr1 = put_io_buf(IN,co2_data_screenArea[2]);
+							if(ptr1.pin->range == R10K_40_120DegC)
+								ptr.pvar->range = degC;
+							if(ptr1.pin->range == R10K_40_250DegF)
+								ptr.pvar->range = degF;
+							if(ptr1.pin->range == Humidty)
+								ptr.pvar->range = RH;
+							if(ptr1.pin->range == CO2_PPM)
+								ptr.pvar->range = ppm;
+						}
+
+						i2c_send_buf[kk++] = ptr.pvar->range;
+
+						if(co2_data.output_mode == E_4_20MA) // E_4_20MA == 3
+						{
+							uint16_t tempvalue;
+							ptr = put_io_buf(OUT,0);
+							if(programs[0].on_off == 0 && co2_data_screenArea[0] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[0]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 5;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 5;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 100;
+							}
+							tempvalue = ptr.pout->value;
+							if(tempvalue < 4000)	tempvalue = 4000;
+							tempvalue = (tempvalue - 4000) / 16;
+							i2c_send_buf[kk++] = tempvalue >> 8;
+							i2c_send_buf[kk++] = tempvalue;
+
+							ptr = put_io_buf(OUT,1);
+							if(programs[0].on_off == 0 && co2_data_screenArea[1] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[1]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 5;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 5;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 100;
+							}
+							tempvalue = ptr.pout->value;
+							if(tempvalue < 4000)	tempvalue = 4000;
+							tempvalue = (tempvalue - 4000) / 16;
+							i2c_send_buf[kk++] = tempvalue >> 8;
+							i2c_send_buf[kk++] = tempvalue;
+
+							ptr = put_io_buf(OUT,2);
+							if(programs[0].on_off == 0 && co2_data_screenArea[2] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[2]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 5;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 5;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 100;
+							}
+							tempvalue = ptr.pout->value;
+							if(tempvalue < 4000)	tempvalue = 4000;
+							tempvalue = (tempvalue - 4000) / 16;
+							i2c_send_buf[kk++] = tempvalue >> 8;
+							i2c_send_buf[kk++] = tempvalue;
+						}
+						else if(co2_data.output_mode == E_0_5V) //E_0_10V == 2
+						{
+							ptr = put_io_buf(OUT,0);
+							if(programs[0].on_off == 0 && co2_data_screenArea[0] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[0]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 20;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 20;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 400;
+							}
+							i2c_send_buf[kk++] = (ptr.pout->value / 5) >> 8;
+							i2c_send_buf[kk++] = (ptr.pout->value / 5);
+							ptr = put_io_buf(OUT,1);
+							if(programs[0].on_off == 0 && co2_data_screenArea[1] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[1]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 20;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 20;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 400;
+							}
+							i2c_send_buf[kk++] = (ptr.pout->value / 5) >> 8;
+							i2c_send_buf[kk++] = (ptr.pout->value / 5);
+							ptr = put_io_buf(OUT,2);
+							if(programs[0].on_off == 0 && co2_data_screenArea[2] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[2]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 20;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 20;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 400;
+							}
+							i2c_send_buf[kk++] = (ptr.pout->value / 5) >> 8;
+							i2c_send_buf[kk++] = (ptr.pout->value / 5);
+						}
+						else //if(co2_data.output_mode == E_0_10V) E_0_10V == 1
+						{
+							ptr = put_io_buf(OUT,0);
+							if(programs[0].on_off == 0 && co2_data_screenArea[0] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[0]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 10;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 10;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 200;
+							}
+							i2c_send_buf[kk++] = (ptr.pout->value / 10) >> 8;
+							i2c_send_buf[kk++] = (ptr.pout->value / 10);
+							ptr = put_io_buf(OUT,1);
+							if(programs[0].on_off == 0 && co2_data_screenArea[1] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[1]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 10;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 10;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 200;
+							}
+							i2c_send_buf[kk++] = (ptr.pout->value / 10) >> 8;
+							i2c_send_buf[kk++] = (ptr.pout->value / 10);
+							ptr = put_io_buf(OUT,2);
+							if(programs[0].on_off == 0 && co2_data_screenArea[2] != 0xff)
+							{
+								ptr1 = put_io_buf(IN,co2_data_screenArea[2]);
+								if(ptr1.pin->range == R10K_40_120DegC)
+									ptr.pout->value = (ptr1.pin->value + 40000) / 10;
+								else if(ptr1.pin->range == Humidty)
+									ptr.pout->value = ptr1.pin->value / 10;
+								else // co2
+									ptr.pout->value = ptr1.pin->value / 200;
+							}
+							i2c_send_buf[kk++] = (ptr.pout->value / 10) >> 8;
+							i2c_send_buf[kk++] = (ptr.pout->value / 10);
 						}
 
 						i2c_send_buf[kk++] = SSID_Info.ip_addr[0];
@@ -3497,10 +3956,10 @@ void i2c_master_task(void *pvParameters)
 						i2c_send_buf[kk++] = CO2_modbus_Addr;
 						i2c_send_buf[kk++] = CO2_modbus_value >> 8;
 						i2c_send_buf[kk++] = CO2_modbus_value;
-						if(flag_write_i2c == 1)	Test[20]++;
+
 						if((run_time - start_write_timer >= 3) && (flag_write_i2c == 1))
 						{
-							flag_write_i2c = 0;Test[21]++;
+							flag_write_i2c = 0;
 						}
 						if(xQueueReceive(qSendCo2, &flag_write_i2c, 5) == pdTRUE)
 						{
@@ -3509,11 +3968,10 @@ void i2c_master_task(void *pvParameters)
 								start_write_timer = run_time;
 								if(check_write_co2(CO2_modbus_Addr,CO2_modbus_value))
 								{
-									flag_write_i2c = 0;Test[22]++;
+									flag_write_i2c = 0;
 								}
 							}
 						}
-
 					}
 					else if(Modbus.mini_type == MINI_SMALL_ARM )
 					{
@@ -3526,17 +3984,25 @@ void i2c_master_task(void *pvParameters)
 							i2c_send_buf[70 + kk] = (output_raw[kk + 6]) / 4;
 						}
 					}
-					else if(Modbus.mini_type == PROJECT_NG2_NEW)
+					else if(Modbus.mini_type == PROJECT_NG3)
 					{
-						for(uint8_t kk = 0;kk < 8;kk++)
+						// 交换output的位置
+						for(uint8_t kk = 0;kk < 6;kk++)
 						{
 							i2c_send_buf[64 + kk] = output_raw[kk] > 512 ? 1 :0;
+							i2c_send_buf[2 + kk] = OutputLed[kk];
 						}
-						for(uint8_t kk = 0;kk < 4;kk++)
+						for(uint8_t kk = 0;kk < 5;kk++)
 						{
-							i2c_send_buf[72 + kk * 2] = output_raw[kk + 8] >> 8;
-							i2c_send_buf[72 + kk * 2 + 1] = output_raw[kk + 8];
+							i2c_send_buf[72 + kk * 2] = output_raw[kk + 6] >> 8;
+							i2c_send_buf[72 + kk * 2 + 1] = output_raw[kk + 6];
+							i2c_send_buf[10 + kk] = OutputLed[kk + 6];
 						}
+						i2c_send_buf[8] = OutputLed[11];
+						i2c_send_buf[9] = OutputLed[12];
+						
+						i2c_send_buf[70] = output_raw[12] > 512 ? 1 :0;  	// DO8
+						i2c_send_buf[71] = output_raw[11] > 512 ? 1 :0;		// DO7											
 					}
 					else if(Modbus.mini_type == PROJECT_RMC1216)
 					{
@@ -3545,10 +4011,28 @@ void i2c_master_task(void *pvParameters)
 							i2c_send_buf[64 + kk] = output_raw[kk] > 512 ? 1 :0;
 						}
 					}
+					else if(Modbus.mini_type == PROJECT_RMC1232)
+					{
+						for(uint8_t kk = 0;kk < 4;kk++)
+						{
+							i2c_send_buf[64 + kk] = output_raw[kk] > 512 ? 1 :0;
+						}
+						/* CUV/COV/shutdown/OC_CHG/OC_DSG → RMC POWER_* thresholds */
+						i2c_send_buf[68] = rmc_cuv >> 8;
+						i2c_send_buf[69] = rmc_cuv;
+						i2c_send_buf[70] = rmc_cov >> 8;
+						i2c_send_buf[71] = rmc_cov;
+						i2c_send_buf[72] = rmc_stack >> 8;
+						i2c_send_buf[73] = rmc_stack;
+						i2c_send_buf[74] = rmc_oc_chg >> 8;
+						i2c_send_buf[75] = rmc_oc_chg;
+						i2c_send_buf[76] = rmc_oc_dsg >> 8;
+						i2c_send_buf[77] = rmc_oc_dsg;
+					}
 					else if(Modbus.mini_type == MINI_TSTAT10)
 					{
 					//ESP --> ARM  79bytes
-					//1 + 1 + 24 + 32 + 6 + 10 + 6
+					// 1 + 1 + 24 + 32 + 6 + 10 + 6
 					// 1 - communication led
 					// 1 - mini_type
 					// 24 - led of outputs status
@@ -3556,6 +4040,18 @@ void i2c_master_task(void *pvParameters)
 					// 6 -> reserved
 					// 10  -> output value
 					// 5 -> reserved
+						//top_firmware >= 8 加入校正CO2的功能
+						if(flag_write_i2c == 1)
+						{
+							Test[43] = co2_frc;
+							Test[42]++;
+							i2c_send_buf[0] = 1;
+							i2c_send_buf[1] = co2_frc >> 8;
+							i2c_send_buf[2] = co2_frc;
+							flag_write_i2c = 0;
+						}
+						else
+							i2c_send_buf[0] = 0;
 						for(uint8_t kk = 0;kk < 5;kk++)
 						{
 							i2c_send_buf[64 + kk] = output_raw[kk] > 512 ? 1 :0;
@@ -3596,40 +4092,46 @@ void i2c_master_task(void *pvParameters)
 						Test[28]++;
 						Test[29] = stm_i2c_write(S_ALL_NEW,i2c_send_buf,89);
 					}
-					else
+					else if(Modbus.mini_type == PROJECT_CO2 || Modbus.mini_type == MINI_TSTAT10)
 					{
-						// new NG2 have more IO, send length is bigger
-						if(Modbus.mini_type == PROJECT_CO2)
-						{
-							//if(Test[11] == 100)  // ONLY FOR CO2 TEST
-							{
-								uint8_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,79);
-								Test[6]++;
-								if(ret != 0)
-									Test[7]++;
-							}
+						esp_err_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,79);
+						Test[6]++;
+						if(ret != ESP_OK)	Test[7]++;
+
+					}
+					else if(Modbus.mini_type == PROJECT_NG3 || Modbus.mini_type == PROJECT_RMC1232)
+					{ 	
+						esp_err_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,83);
+						Test[6]++;
+						Test[7] = (U16_T)ret; /* 0=OK, else real esp_err_t */
+						/* Give STM slave time to finish STOP / leave RX ISR before next transfer */
+						if(ret == ESP_OK)
+							vTaskDelay(5 / portTICK_PERIOD_MS);								
+					}
+					else if(Modbus.mini_type == PROJECT_RMC1216)
+					{	// new NG2 have more IO, send length is bigger
+						//兼容RMC1216的TOP的不同版本的firmware
+						if(top_firmware < 8)
+						{ // 旧的NG2，可用的TOP REV == 2
+							esp_err_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,79);
+							Test[6]++;
+							if(ret != ESP_OK)
+								Test[7]++;
+						}
+						else if(top_firmware < 14) // OLD NG2
+						{ // RMC1216 可用TOP REV == 12
+							esp_err_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,81);
+							Test[8]++;
+							if(ret != ESP_OK)
+								Test[9]++;
 						}
 						else
 						{
-							if(top_firmware < 8)
-							{
-								uint8_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,79);
-								Test[6]++;
-								if(ret != 0)
-									Test[7]++;
+							// TBD:
 
-							}
-							else
-							{
-								uint8_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,81);
-								Test[6]++;
-								if(ret != 0)
-									Test[7]++;
-							}
 						}
 					}
 				}
-
 			}
 			else if(index > 3)
 			{
@@ -3639,13 +4141,23 @@ void i2c_master_task(void *pvParameters)
 					uint32_t temp = 0;
 					static uint8_t err = 0;
 					int ret = 0;
+					uint8_t read_i2c_len = 0;
 
 					{
-						if(Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG2_NEW)
+						Test[2] = top_firmware;
+						if(Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232  || Modbus.mini_type == PROJECT_NG3)
 						{
-							u16 crc_check;
-
-							ret = stm_i2c_read(G_ALL_NEW,i2c_rcv_buf,114);
+							u16 crc_check = 0;
+							
+							if(Modbus.mini_type == PROJECT_RMC1232)
+								read_i2c_len = 120;
+							else
+								read_i2c_len = 114;
+							
+							ret = stm_i2c_read(G_ALL_NEW,i2c_rcv_buf,read_i2c_len);
+							Test[8]++;
+							if(ret != 0) Test[9]++;
+							
 							if(ret == 0)
 								err = 0;
 							else
@@ -3656,69 +4168,29 @@ void i2c_master_task(void *pvParameters)
 									reboot_sub_chip();
 								}
 							}
-							crc_check = crc16(i2c_rcv_buf, 114 - 2);
+							crc_check = crc16(i2c_rcv_buf, read_i2c_len - 2);
 
-							if((HIGH_BYTE(crc_check) == i2c_rcv_buf[112]) && (LOW_BYTE(crc_check) == i2c_rcv_buf[113]))
-							{// for TCU_NG2_TOP
-								// check whether i2c error
-								Test[12]++;
-								for(i = 0;i < 12;i++)
-								{
-									ptr = put_io_buf(OUT,i);
-									ptr.pout->switch_status = 1;//i2c_rcv_buf[i];
-									//check_output_priority_HOA(i);??????????????
-									flag_read_switch = 1;
-								}
-
-								if((i2c_rcv_buf[0] == 0) && (i2c_rcv_buf[1] == 0) && (i2c_rcv_buf[3] == 0) && (i2c_rcv_buf[3] == 0))
-								{// no used
-									Test[13]++;
-									ptr = put_io_buf(IN,16);
-									ptr.pin->value = -40000;
-									ptr = put_io_buf(IN,17);
-									ptr.pin->value = 0;
-								}
-								else if(i2c_rcv_buf[0] == 0x55 && i2c_rcv_buf[1] == 0xaa)
-								{  // hardware >= 6
-									Test[14]++;
+							if((HIGH_BYTE(crc_check) == i2c_rcv_buf[read_i2c_len - 2]) && (LOW_BYTE(crc_check) == i2c_rcv_buf[read_i2c_len - 1]))
+							{
+								if(i2c_rcv_buf[0] == 0x55 && i2c_rcv_buf[1] == 0xaa)
+								{	// normal format : 0x55 + 0xaa + top_rev + sw_rev
 									top_hardware = i2c_rcv_buf[2];
 									top_firmware = i2c_rcv_buf[3];
-								}
-								else
-								{// no used
-									Test[15]++;
-									ptr = put_io_buf(IN,16);
-									ptr.pin->value = (i2c_rcv_buf[0] * 256 + i2c_rcv_buf[1]) * 100;
-									ptr = put_io_buf(IN,17);
-									ptr.pin->value = (i2c_rcv_buf[2] * 256 + i2c_rcv_buf[3]) * 100;
-								}
-
-								for(i = 0;i < 48 / 2;i++)	  // 88 == 24+64
-								{
-									//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
-									//uint16 temp1 = i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256;
-									temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
-									if((temp > 0) && (temp < 4200))
-									//if(temp != 0xffff)
-									{// rev42 of top is 12U8_T, older rev is 10U8_T
-										//temp = Filter(i,temp);
-										//input_raw[i] = temp;//* input_cal[i] / 4095;
-										//
-										if(input_cal[0] != 0)
-											temp = temp * 4095 / input_cal[0];
-										temp = Filter(i,temp);
-										input_raw[i] = temp;
-									}
-									else
-										Test[29]++;
-								}
-
-								if(Modbus.mini_type == PROJECT_RMC1216)
-								{Test[16]++;
-									for(i = 0;i < 6;i++)	  //6  high spd counter
-									{
-										if(top_hardware >= 6)
+									if(Modbus.mini_type == PROJECT_RMC1216)
+									{// 8DO+4AO+24AI?
+										// get output switch
+										for(i = 0;i < 12;i++)
 										{
+											ptr = put_io_buf(OUT,i);
+											if(top_firmware <= 12) // old NG2 dont have switch
+											{
+												ptr.pout->switch_status = 1;
+												flag_read_switch = 1;
+											}
+										}
+
+										if(top_hardware >= 6) // REV6 REV7
+										{// 3路 i2c sensor
 											if((i2c_rcv_buf[88] == 0) && (i2c_rcv_buf[89] == 0) && (i2c_rcv_buf[90] == 0) && (i2c_rcv_buf[91] == 0))
 											{
 												ptr = put_io_buf(IN,16);
@@ -3761,67 +4233,285 @@ void i2c_master_task(void *pvParameters)
 												ptr = put_io_buf(IN,21);
 												ptr.pin->value = (i2c_rcv_buf[98] * 256 + i2c_rcv_buf[99]) * 100;
 											}
-
 										}
-										/*temp = i2c_rcv_buf[i * 4 + 88] + ((U16_T)i2c_rcv_buf[i * 4 + 89] * 256) \
-										 + ((U32_T)i2c_rcv_buf[i * 4 + 90] << 16) + ((U32_T)i2c_rcv_buf[i * 4 + 91] << 24);*/
-									}
-								}
-								if(Modbus.mini_type == PROJECT_NG2_NEW)
-								{
-									for(i = 0;i < 4;i++)	  //6  high spd counter
-									{
-										if(top_hardware >= 6)
+										// whether RMC1216 have switch ??????
+										if(top_firmware >= 13)//NG3 top firmware >= 13
 										{
-											if((i2c_rcv_buf[88] == 0) && (i2c_rcv_buf[89] == 0) && (i2c_rcv_buf[90] == 0) && (i2c_rcv_buf[91] == 0))
+											for(uint8_t i = 0;i < 8;i++)
 											{
-												ptr = put_io_buf(IN,24);
-												ptr.pin->range = R10K_40_120DegC;
-												ptr.pin->value = -40000;
-												ptr = put_io_buf(IN,25);
-												ptr.pin->range = Humidty;
-												ptr.pin->value = 0;
+												uint8_t switch_temp = 0;
+												ptr = put_io_buf(OUT,i);
+												if(i == 0)	switch_temp = i2c_rcv_buf[4] & 0x03;
+												if(i == 1)	switch_temp = (i2c_rcv_buf[4] >> 2 ) & 0x03;
+												if(i == 2)	switch_temp = (i2c_rcv_buf[4] >> 4 ) & 0x03;
+												if(i == 3)	switch_temp = (i2c_rcv_buf[4] >> 6 ) & 0x03;
+												if(i == 4)	switch_temp = i2c_rcv_buf[5] & 0x03;
+												if(i == 5)	switch_temp = (i2c_rcv_buf[5] >> 2 ) & 0x03;
+												if(i == 6)	switch_temp = (i2c_rcv_buf[5] >> 4 ) & 0x03;
+												if(i == 7)	switch_temp = (i2c_rcv_buf[5] >> 6 ) & 0x03;
+
+												if(ptr.pout->switch_status != switch_temp)
+												{
+													ptr.pout->switch_status = switch_temp;
+													check_output_priority_HOA(i);
+												}
 											}
-											else
+											flag_read_switch = 1;
+										}
+										// get inputs value
+										for(i = 0;i < 48 / 2;i++)	  // 88 == 24+64
+										{
+											temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+											if((temp >= 0) && (temp < 4200))
 											{
-												ptr = put_io_buf(IN,24);
-												ptr.pin->range = R10K_40_120DegC;
-												ptr.pin->value = (i2c_rcv_buf[88] * 256 + i2c_rcv_buf[89]) * 100;
-												ptr = put_io_buf(IN,25);
-												ptr.pin->range = Humidty;
-												ptr.pin->value = (i2c_rcv_buf[90] * 256 + i2c_rcv_buf[91]) * 100;
+												if(input_cal[0] != 0)
+													temp = temp * 4095 / input_cal[0];
+												temp = Filter(i,temp);
+												input_raw[i] = temp;
+
+												if(top_hardware == 7)  // add 1 input , check voltage
+												{
+													ptr = put_io_buf(IN,22);
+													if(input_raw[16] <= 1270) // 21v
+														ptr.pin->value = input_raw[16] * 991 / 60 + 110; // 转换成实际电压
+													else if(input_raw[16] <= 1452) // 24v
+														ptr.pin->value = input_raw[16] * 991 / 60 + 80; // 转换成实际电压
+													else
+														ptr.pin->value = input_raw[16] * 991 / 60; // 转换成实际电压
+												}
 											}
-											if((i2c_rcv_buf[92] == 0) && (i2c_rcv_buf[93] == 0) && (i2c_rcv_buf[94] == 0) && (i2c_rcv_buf[95] == 0))
+										}
+									}
+									if(Modbus.mini_type == PROJECT_RMC1232)
+									{// RMC1216_32I基于RMC1216的top板，但是不共享代码，所以不能使用top firmware来区别
+										// 32AI + 4DO + 2HUM + 1battery + 1 TEMP SENSOR + 6cell
+										for(i = 0;i < 4;i++)
+										{// dont have switch
+											ptr = put_io_buf(OUT,i);
+											ptr.pout->switch_status = 1;
+											flag_read_switch = 1;
+										}
+																				
+										for(i = 0; i < 7;i++)
+										{
+											plc_power.battery[i] = i2c_rcv_buf[100 + i];
+											ptr = put_io_buf(IN,41 + i); // IN38 BATTERY VOLTAGE
+											ptr.pin->value = plc_power.battery[i] * 100;
+										}
+										
+										ptr = put_io_buf(IN,48); // BMS ON/OFF
+										ptr.pin->control = i2c_rcv_buf[115];
+										plc_power.flag_bms_comm = i2c_rcv_buf[115];
+										
+										// 两路I2C sensor // IN34 35
+										if((i2c_rcv_buf[88] == 0) && (i2c_rcv_buf[89] == 0) && (i2c_rcv_buf[90] == 0) && (i2c_rcv_buf[91] == 0))
+										{
+											ptr = put_io_buf(IN,33);
+											ptr.pin->value = -40000;
+											ptr = put_io_buf(IN,34);
+											ptr.pin->value = 0;
+										}
+										else
+										{
+											ptr = put_io_buf(IN,33);
+											ptr.pin->value = (i2c_rcv_buf[88] * 256 + i2c_rcv_buf[89]) * 100;
+											ptr = put_io_buf(IN,34);
+											ptr.pin->value = (i2c_rcv_buf[90] * 256 + i2c_rcv_buf[91]) * 100;
+										}
+										// IN36 37
+										if((i2c_rcv_buf[92] == 0) && (i2c_rcv_buf[93] == 0) && (i2c_rcv_buf[94] == 0) && (i2c_rcv_buf[95] == 0))
+										{
+											ptr = put_io_buf(IN,35);
+											ptr.pin->value = -40000;
+											ptr = put_io_buf(IN,36);
+											ptr.pin->value = 0;
+										}
+										else
+										{
+											ptr = put_io_buf(IN,35);
+											ptr.pin->value = (i2c_rcv_buf[92] * 256 + i2c_rcv_buf[93]) * 100;
+											ptr = put_io_buf(IN,36);
+											ptr.pin->value = (i2c_rcv_buf[94] * 256 + i2c_rcv_buf[95]) * 100;
+										}
+
+										ptr = put_io_buf(IN,37); // IN38 BATTERY VOLTAGE
+										ptr.pin->value = (i2c_rcv_buf[96] * 256 + i2c_rcv_buf[97]) * 100;
+										plc_power.battery_sum = i2c_rcv_buf[96] * 256 + i2c_rcv_buf[97];													
+										
+										ptr = put_io_buf(IN,38); // IN39 Current (signed userA)
+										ptr.pin->value = ((S16_T)((i2c_rcv_buf[107] << 8) | i2c_rcv_buf[108])) * 1000;
+										ptr = put_io_buf(IN,39); // CUVT
+										ptr.pin->value = (i2c_rcv_buf[109] * 256 + i2c_rcv_buf[110]);
+										ptr = put_io_buf(IN,40); // COVT
+										ptr.pin->value = (i2c_rcv_buf[111] * 256 + i2c_rcv_buf[112]);
+										
+										ptr = put_io_buf(IN,32); // IN33 internal temperature
+										ptr.pin->value = (i2c_rcv_buf[98] * 256 + i2c_rcv_buf[99]) * 1000;
+										// get 32AI
+										for(i = 0;i < 64 / 2;i++)	  // 88 == 24+64
+										{
+											temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+											
+											if((temp >= 0) && (temp < 4200))
 											{
-												ptr = put_io_buf(IN,26);
-												ptr.pin->range = R10K_40_120DegC;
-												ptr.pin->value = -40000;
-												ptr = put_io_buf(IN,27);
-												ptr.pin->range = Humidty;
-												ptr.pin->value = 0;
+												if(input_cal[0] != 0)
+													temp = temp * 4095 / input_cal[0];
+												temp = Filter(i,temp);
+												input_raw[i] = temp;
 											}
-											else
+										}
+
+									}
+									if(Modbus.mini_type == PROJECT_NG3)
+									{// RMC1216 和 NG3 基本共享top firmware，需要通过版本号来区别不同硬件的功能
+										//if(top_firmware >= 13)  NG3 top firmware >= 13
+										// 24AI + 6 DO + 5 AO + 2 DO + 2HUM
+										// OUT layout: DO1-6 (0-5), AO1-5 (6-10), DO7-8 (11-12)
+										for(uint8_t i = 0;i < 6;i++)
+										{
+											uint8_t switch_temp = 0;
+											ptr = put_io_buf(OUT,i);
+											if(i == 0)	switch_temp = i2c_rcv_buf[4] & 0x03;
+											if(i == 1)	switch_temp = (i2c_rcv_buf[4] >> 2 ) & 0x03;
+											if(i == 2)	switch_temp = (i2c_rcv_buf[4] >> 4 ) & 0x03;
+											if(i == 3)	switch_temp = (i2c_rcv_buf[4] >> 6 ) & 0x03;
+											if(i == 4)	switch_temp = i2c_rcv_buf[5] & 0x03;
+											if(i == 5)	switch_temp = (i2c_rcv_buf[5] >> 2 ) & 0x03;
+
+											if(ptr.pout->switch_status != switch_temp)
 											{
-												ptr = put_io_buf(IN,26);
-												ptr.pin->range = R10K_40_120DegC;
-												ptr.pin->value = (i2c_rcv_buf[92] * 256 + i2c_rcv_buf[93]) * 100;
-												ptr = put_io_buf(IN,27);
-												ptr.pin->range = Humidty;
-												ptr.pin->value = (i2c_rcv_buf[94] * 256 + i2c_rcv_buf[95]) * 100;
+												ptr.pout->switch_status = switch_temp;
+												check_output_priority_HOA(i);
 											}
-											// HSP COUNTER
-											ptr = put_io_buf(IN,28);
-											ptr.pin->range = Frequence;
-											ptr.pin->value = (((U32_T)i2c_rcv_buf[100] << 24) + ((U32_T)i2c_rcv_buf[101] << 16) + ((U16_T)i2c_rcv_buf[102] << 8) + i2c_rcv_buf[103]) * 1000;
-											ptr = put_io_buf(IN,29);
-											ptr.pin->range = Frequence;
-											ptr.pin->value = (((U32_T)i2c_rcv_buf[104] << 24) + ((U32_T)i2c_rcv_buf[105] << 16) + ((U16_T)i2c_rcv_buf[106] << 8) + i2c_rcv_buf[107]) * 1000;
+										}
+
+										{
+											uint8_t switch_temp;
+											ptr = put_io_buf(OUT,11);
+											switch_temp = (i2c_rcv_buf[5] >> 4 ) & 0x03;
+											if(ptr.pout->switch_status != switch_temp)
+											{
+												ptr.pout->switch_status = switch_temp;
+												check_output_priority_HOA(11);
+											}
+											ptr = put_io_buf(OUT,12);
+											switch_temp = (i2c_rcv_buf[5] >> 6 ) & 0x03;
+											if(ptr.pout->switch_status != switch_temp)
+											{
+												ptr.pout->switch_status = switch_temp;
+												check_output_priority_HOA(12);
+											}
+										}
+
+										for(uint8_t i = 6;i < 11;i++)
+										{// AO DONT HAVE SWITCH
+											ptr = put_io_buf(OUT,i);
+											ptr.pout->switch_status = 1;
+										}
+										flag_read_switch = 1;
+
+
+										// 2路I2C sensor + 2 HSP conter
+										if((i2c_rcv_buf[88] == 0) && (i2c_rcv_buf[89] == 0) && (i2c_rcv_buf[90] == 0) && (i2c_rcv_buf[91] == 0))
+										{
+											ptr = put_io_buf(IN,24);
+											ptr.pin->range = R10K_40_120DegC;
+											ptr.pin->value = -40000;
+											ptr = put_io_buf(IN,25);
+											ptr.pin->range = Humidty;
+											ptr.pin->value = 0;
+										}
+										else
+										{
+											ptr = put_io_buf(IN,24);
+											ptr.pin->range = R10K_40_120DegC;
+											ptr.pin->value = (i2c_rcv_buf[88] * 256 + i2c_rcv_buf[89]) * 100;
+											ptr = put_io_buf(IN,25);
+											ptr.pin->range = Humidty;
+											ptr.pin->value = (i2c_rcv_buf[90] * 256 + i2c_rcv_buf[91]) * 100;
+										}
+										if((i2c_rcv_buf[92] == 0) && (i2c_rcv_buf[93] == 0) && (i2c_rcv_buf[94] == 0) && (i2c_rcv_buf[95] == 0))
+										{
+											ptr = put_io_buf(IN,26);
+											ptr.pin->range = R10K_40_120DegC;
+											ptr.pin->value = -40000;
+											ptr = put_io_buf(IN,27);
+											ptr.pin->range = Humidty;
+											ptr.pin->value = 0;
+										}
+										else
+										{
+											ptr = put_io_buf(IN,26);
+											ptr.pin->range = R10K_40_120DegC;
+											ptr.pin->value = (i2c_rcv_buf[92] * 256 + i2c_rcv_buf[93]) * 100;
+											ptr = put_io_buf(IN,27);
+											ptr.pin->range = Humidty;
+											ptr.pin->value = (i2c_rcv_buf[94] * 256 + i2c_rcv_buf[95]) * 100;
+										}
+										// HSP COUNTER
+										ptr = put_io_buf(IN,28);
+										ptr.pin->range = Frequence;
+										ptr.pin->value = (((U32_T)i2c_rcv_buf[100] << 24) + ((U32_T)i2c_rcv_buf[101] << 16) + ((U16_T)i2c_rcv_buf[102] << 8) + i2c_rcv_buf[103]) * 1000;
+										ptr = put_io_buf(IN,29);
+										ptr.pin->range = Frequence;
+										ptr.pin->value = (((U32_T)i2c_rcv_buf[104] << 24) + ((U32_T)i2c_rcv_buf[105] << 16) + ((U16_T)i2c_rcv_buf[106] << 8) + i2c_rcv_buf[107]) * 1000;
+
+										// read 24AI
+										for(i = 0;i < 48 / 2;i++)	  // 88 == 24+64
+										{
+											temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+											if((temp >= 0) && (temp < 4200))
+											{
+												if(input_cal[0] != 0)
+													temp = temp * 4095 / input_cal[0];
+												temp = Filter(i,temp);
+												input_raw[i] = temp;
+											}
+										}
+									}
+
+								}
+								else
+								{ //VERY OLD NG2 have differnet format, 没有0x55 0xaa HW_REV SW_REV...
+									// Maybe should delete it
+									for(i = 0;i < 64 / 2;i++)	  // 88 == 24+64
+									{
+										temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+										if((temp >= 0) && (temp < 4200))
+										{
+											if(input_cal[0] != 0)
+												temp = temp * 4095 / input_cal[0];
+											temp = Filter(i,temp);
+											input_raw[i] = temp;
 
 										}
-										/*temp = i2c_rcv_buf[i * 4 + 88] + ((U16_T)i2c_rcv_buf[i * 4 + 89] * 256) \
-										 + ((U32_T)i2c_rcv_buf[i * 4 + 90] << 16) + ((U32_T)i2c_rcv_buf[i * 4 + 91] << 24);*/
+									}
+
+									for(i = 0;i < 12;i++)
+									{
+										ptr = put_io_buf(OUT,i);
+										if(top_firmware <= 12) // old NG2 dont have switch
+										{
+											ptr.pout->switch_status = 1;
+											flag_read_switch = 1;
+										}
+									}
+									if((i2c_rcv_buf[0] == 0) && (i2c_rcv_buf[1] == 0) && (i2c_rcv_buf[3] == 0) && (i2c_rcv_buf[3] == 0))
+									{// no used, 读不到的时候，显示-40和0%
+										ptr = put_io_buf(IN,16);
+										ptr.pin->value = -40000;
+										ptr = put_io_buf(IN,17);
+										ptr.pin->value = 0;
+									}
+									else
+									{// get temperature & humidity
+										ptr = put_io_buf(IN,16);
+										ptr.pin->value = (i2c_rcv_buf[0] * 256 + i2c_rcv_buf[1]) * 100;
+										ptr = put_io_buf(IN,17);
+										ptr.pin->value = (i2c_rcv_buf[2] * 256 + i2c_rcv_buf[3]) * 100;
 									}
 								}
+
 							}
 
 						}
@@ -3860,16 +4550,13 @@ void i2c_master_task(void *pvParameters)
 							{
 								if(i2c_rcv_buf[0] == 0x55 && i2c_rcv_buf[1] == 0xaa)
 								{   // hardware >= 6
-									uint8_t flag_SHT4X = 0;
-									uint8_t flag_SCD40 = 0;
+
 									uint16_t top_runtime = 0;
 									uint8_t flag_top_ready = 0;
-
 									top_hardware = i2c_rcv_buf[2];
 									top_firmware = i2c_rcv_buf[3];
 									chip_info[1] = i2c_rcv_buf[2]; // top hardware
 									chip_info[2] = i2c_rcv_buf[3]; // top firmware
-
 									flag_top_ready = 1;
 									if(top_firmware >= 7)
 									{
@@ -3881,7 +4568,7 @@ void i2c_master_task(void *pvParameters)
 											flag_top_ready = 0;
 										}
 									}
-									Test[2] = top_firmware;
+
 									Test[0] = i2c_rcv_buf[8];
 									Test[1] = i2c_rcv_buf[9];
 									// key
@@ -3893,7 +4580,7 @@ void i2c_master_task(void *pvParameters)
 										}
 									}
 
-									if(flag_top_ready == 1)
+									//if(flag_top_ready == 1)
 									{
 									temp_key = (i2c_rcv_buf[4] << 8) + i2c_rcv_buf[5];
 									if(temp_key != 0)
@@ -3917,10 +4604,9 @@ void i2c_master_task(void *pvParameters)
 
 									for(i = 0;i < 8;i++)	  // 88 == 24+64
 									{
-
 										temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
 
-										if((temp > 0) && (temp < 4200))
+										if((temp >= 0) && (temp < 4200))
 										{// rev42 of top is 12U8_T, older rev is 10U8_T
 
 											if(input_cal[i] != 0)
@@ -3942,8 +4628,12 @@ void i2c_master_task(void *pvParameters)
 
 
 									ptr = put_io_buf(IN,10);// humidity
-									//ptr.pin->value = (i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]);
-									sample/*ptr.pin->value*/  = (i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]);
+									if(top_firmware >= 9)
+									{
+										sample = 100L * (i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]);
+									}
+									else
+										sample/*ptr.pin->value*/  = (i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]);
 									if( !ptr.pin->calibration_sign )
 										sample += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 									else
@@ -3952,27 +4642,41 @@ void i2c_master_task(void *pvParameters)
 
 									//flag_internal_temperature = 1;
 
-									if((i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]) != 0)
+									if((i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]) != 0) // SHT
 									{
 										if((i2c_rcv_buf[44] * 256 + i2c_rcv_buf[45]) != 0)
-										{
+										{// temperauter is from SHT sensor, unit is C
 											ptr = put_io_buf(IN,8);
-
-											sample/*ptr.pin->value*/  = (i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]);
+											if(top_firmware >= 9)
+											{
+												sample = 100L * (i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]);
+											}
+											else
+												sample  = (i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]);
+											
+											if((ptr.pin->range == R10K_40_250DegF) || (ptr.pin->range == KM10K_40_250DegF))
+											{// the value form SHT, it is uint C, conver the value to F
+												Test[32] = sample;
+												sample = sample / 100 * 1.8 + 320;
+												sample *= 100;
+												Test[33] = sample;
+											}											
+												
 											if( !ptr.pin->calibration_sign )
 												sample += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 											else
 												sample += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+											
 											ptr.pin->value = sample;
-
+							
 											input_raw[8] = 0;
 											flag_internal_temperature = 0;
 										}
 										else
-										{
+										{Test[10]++;
 											flag_internal_temperature = 1;
 											temp = (i2c_rcv_buf[40] * 256 + i2c_rcv_buf[41]);
-											temp = Filter(i,temp);
+											temp = Filter(8,temp);
 											if(input_cal[8] != 0)
 												input_raw[8] = temp * 4095 / input_cal[8];
 											else
@@ -4040,15 +4744,8 @@ void i2c_master_task(void *pvParameters)
 									}
 									for(i = 0;i < 32;i++)	  // 88 == 24+64
 									{
-										//temp = Filter(i,(U16_T)(i2c_rcv_buf[i * 2 + 1 + 24] + i2c_rcv_buf[i * 2 + 24] * 256));
-										temp = i2c_rcv_buf[i * 2 + 1 + 26] + (U16_T)i2c_rcv_buf[i * 2 + 26] * 256;
-										//if(temp != 0xffff)
-										{// rev42 of top is 12U8_T, older rev is 10U8_T
-
-											input_raw[i] = temp;
-
-
-										}
+										temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
+										input_raw[i] = temp;
 									}
 								}
 
@@ -4064,12 +4761,7 @@ void i2c_master_task(void *pvParameters)
 									for(i = 0;i < 32 / 2;i++)	  // 88 == 24+64
 									{
 										temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
-
-										{// rev42 of top is 12U8_T, older rev is 10U8_T
-
-											input_raw[i] = temp;
-
-										}
+										input_raw[i] = temp;
 									}
 								}
 
@@ -4110,134 +4802,163 @@ void i2c_master_task(void *pvParameters)
 									uint8_t j;
 									char str[9];
 									// input
-									Test[8]++;
 									memcpy(&co2_data,&i2c_rcv_buf[2],sizeof(STR_CO2_Reg));
+
+									j = 0;
 									for(i = 0; i < 3;i++)
 									{
-										if(co2_data.i2c_sensor_type[i] == E_I2C_SHT4X || co2_data.i2c_sensor_type[i] == E_I2C_SCD4X )
-										{Test[9]++;
-											ptr = put_io_buf(IN,i * 3);
-											//检查 ptr.pin->label 是否为 NULL
+									    // 如果是 SHT4X 传感器，取出温度和湿度
+										if(co2_data.i2c_sensor_type[i] == E_I2C_SHT4X || co2_data.i2c_sensor_type[i] == E_I2C_SCD4X ) {
+									        // 处理温度
+									        ptr = put_io_buf(IN, j++);  // 按顺序放入 input 序列
+											if (ptr.pin->label[0] == '\0')
+											{
+									            sprintf(str, "%d_TEM", i + 1);  // 初始化为 "TEM<i>"
+									            memcpy(ptr.pin->label, str, 8);
+									        }
+									        if (co2_data.deg_c_or_f == 0)
+									            ptr.pin->range = R10K_40_120DegC;
+									        else
+									            ptr.pin->range = R10K_40_250DegF;
+									        ptr.pin->digital_analog = 1;
+									        ptr.pin->value = (co2_data.I2C_Sensor[i].tem_org + co2_data.I2C_Sensor[i].tem_offset) * 100;
+									        if (co2_data.I2C_Sensor[i].tem_offset < 0) {
+									            ptr.pin->calibration_sign = 1;  // negative
+									            ptr.pin->calibration_hi = (65536 - co2_data.I2C_Sensor[i].tem_offset) >> 8;
+									            ptr.pin->calibration_lo = (65536 - co2_data.I2C_Sensor[i].tem_offset);
+									        } else {
+									            ptr.pin->calibration_sign = 0;  // positive
+									            ptr.pin->calibration_hi = (co2_data.I2C_Sensor[i].tem_offset) >> 8;
+									            ptr.pin->calibration_lo = (co2_data.I2C_Sensor[i].tem_offset);
+									        }
+
+									        // 处理湿度
+									        ptr = put_io_buf(IN, j++);  // 按顺序放入 input 序列
+											if (ptr.pin->label[0] == '\0')
+											{
+									            sprintf(str, "%d_HUM", i + 1);  // 初始化为 "HUM<i>"
+									            memcpy(ptr.pin->label, str, 8);
+									        }
+									        ptr.pin->range = Humidty;
+									        ptr.pin->digital_analog = 1;
+									        ptr.pin->value = (co2_data.I2C_Sensor[i].hum_org + co2_data.I2C_Sensor[i].hum_offset) * 100;
+									        if (co2_data.I2C_Sensor[i].hum_offset < 0) {
+									            ptr.pin->calibration_sign = 1;
+									            ptr.pin->calibration_hi = (65536 - co2_data.I2C_Sensor[i].hum_offset) >> 8;
+									            ptr.pin->calibration_lo = (65536 - co2_data.I2C_Sensor[i].hum_offset);
+									        } else {
+									            ptr.pin->calibration_sign = 0;
+									            ptr.pin->calibration_hi = (co2_data.I2C_Sensor[i].hum_offset) >> 8;
+									            ptr.pin->calibration_lo = (co2_data.I2C_Sensor[i].hum_offset);
+									        }
+									    }
+
+									    // 如果是 SCD40 传感器，取出 CO2 值
+									    if (co2_data.i2c_sensor_type[i] == E_I2C_SCD4X) {
+									        ptr = put_io_buf(IN, j++);  // 按顺序放入 input 序列
 											if (ptr.pin->label[0] == '\0') {
-												sprintf(str, "TEM%d", i); // 初始化为 "TEMP<j>"
+												sprintf(str, "%d_CO2", i + 1);  // 初始化为 "CO2<i>"
 												memcpy(ptr.pin->label, str, 8);
 											}
-											if(co2_data.deg_c_or_f == 0)
-												ptr.pin->range = R10K_40_120DegC;
-											else
-												ptr.pin->range = R10K_40_250DegF;
-											ptr.pin->digital_analog = 1;
-											ptr.pin->value = (co2_data.I2C_Sensor[i].tem_org + co2_data.I2C_Sensor[i].tem_offset) * 100;
-											if(co2_data.I2C_Sensor[i].tem_offset < 0)
-											{
-												ptr.pin->calibration_sign = 1; // negtive
-												ptr.pin->calibration_hi = (65536 - co2_data.I2C_Sensor[i].tem_offset) >> 8;
-												ptr.pin->calibration_lo = (65536 - co2_data.I2C_Sensor[i].tem_offset) ;
-											}
-											else
-											{
-												ptr.pin->calibration_sign = 0; // postive
-												ptr.pin->calibration_hi = (co2_data.I2C_Sensor[i].tem_offset) >> 8;
-												ptr.pin->calibration_lo = (co2_data.I2C_Sensor[i].tem_offset) ;
-											}
+									        ptr.pin->range = CO2_PPM;
+									        ptr.pin->digital_analog = 1;
+									        ptr.pin->value = (co2_data.I2C_Sensor[i].co2_org) * 1000;
+									    }
 
-
-											ptr = put_io_buf(IN, i * 3 + 1);
-											// 检查 ptr.pin->label 是否为 NULL
-											if (ptr.pin->label[0] == '\0') {
-												sprintf(str, "HUM%d", i); // 初始化为 "HUMI<j>"
-												memcpy(ptr.pin->label, str, 8);
-											}
-											ptr.pin->range = Humidty;
-											ptr.pin->digital_analog = 1;
-											ptr.pin->value = (co2_data.I2C_Sensor[i].hum_org + co2_data.I2C_Sensor[i].hum_offset) * 100;
-											if(co2_data.I2C_Sensor[i].hum_offset < 0)
-											{
-												ptr.pin->calibration_sign = 1;
-												ptr.pin->calibration_hi = (65536 - co2_data.I2C_Sensor[i].hum_offset) >> 8;
-												ptr.pin->calibration_lo = (65536 - co2_data.I2C_Sensor[i].hum_offset) ;
-											}
-											else
-											{
-												ptr.pin->calibration_sign = 0;
-												ptr.pin->calibration_hi = (co2_data.I2C_Sensor[i].hum_offset) >> 8;
-												ptr.pin->calibration_lo = (co2_data.I2C_Sensor[i].hum_offset) ;
-											}
-
-										}
-										if( co2_data.i2c_sensor_type[i] == E_I2C_SCD4X )
-										{
-											ptr = put_io_buf(IN, i * 3 + 2);
-											// 检查 ptr.pin->label 是否为 NULL
-											if (ptr.pin->label[0] == '\0') {
-												sprintf(str, "CO2%d", i); // 初始化为 "HUMI<j>"
-												memcpy(ptr.pin->label, str, 8);
-								   			}
-
-											ptr.pin->range = CO2_PPM;
-											ptr.pin->digital_analog = 1;
-											ptr.pin->value = (co2_data.I2C_Sensor[i].co2_org) * 1000;
-										}
 									}
+
+									ptr = put_io_buf(IN,j++);  // IN10 internal tempertarue
+									//if (ptr.pin->label == NULL)
+									if (ptr.pin->label[0] == '\0')
+									{
+										//sprintf(str, "Int_T",5); // 初始化为 "TEMP<j>"
+										memcpy(ptr.pin->description, "Internal Temperature", sizeof("Internal Temperature"));
+										memcpy(ptr.pin->label, "Int_tmp", sizeof("Int_tmp"));
+									}
+									if(co2_data.deg_c_or_f == 0)
+									{
+										ptr.pin->range = R10K_40_120DegC;
+										ptr.pin->value = co2_data.internal_temperature_c * 100;
+									}
+									else
+									{
+										ptr.pin->range = R10K_40_250DegF;
+										ptr.pin->value = co2_data.internal_temperature_f * 100;
+									}
+									ptr.pin->digital_analog = 1;
+									base_in = j; // calcaute the number of inputs
+
+									ptr = put_io_buf(VAR,3);  // VAR4 output mode
+									//if (ptr.pin->label == NULL)
+									if (ptr.pvar->label[0] == '\0')
+									{
+										memcpy(ptr.pvar->description, "outout mode", sizeof("outout mode"));
+										memcpy(ptr.pvar->label, "OUT_MODE", sizeof("OUT_MODE"));
+									}
+									ptr.pvar->value = co2_data.output_mode * 1000;
+									ptr.pvar->digital_analog = 1;
+
 
 
 									// output
 
 									for(j = 0;j < 3;j++)
 									{
-									ptr = put_io_buf(OUT,j);
-									if(co2_data.output_mode == E_4_20MA)
-										ptr.pout->range = I_0_20ma;
-									else if(co2_data.output_mode == E_0_5V)
-										ptr.pout->range = V0_10;
-									else if(co2_data.output_mode == E_0_10V)
-										ptr.pout->range = V0_10;
-									else
-										ptr.pout->range = 0;
-									ptr.pout->digital_analog = 1;
-									Test[15 + j] = co2_data.analog_output[j];
-									//ptr.pout->value = co2_data.analog_output[j] * 10;
+										ptr = put_io_buf(OUT,j);
+
+										if(co2_data.output_mode == E_4_20MA)
+											ptr.pout->range = I_0_20ma;
+										else if(co2_data.output_mode == E_0_5V)
+											ptr.pout->range = V0_10;
+										else if(co2_data.output_mode == E_0_10V)
+											ptr.pout->range = V0_10;
+										else
+											ptr.pout->range = 0;
+										ptr.pout->digital_analog = 1;
+										ptr.pout->switch_status = 1;
 									}
 #if 1
-									if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
+									if(co2_data.write_basic_info == 1)
 									{
-										if(co2_data.protcal == 0/*MODBUS*/)
+										if(Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[0] == BACNET_MASTER)
 										{
-											Modbus.com_config[0] = MODBUS_SLAVE;
-											save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
-											com_config_back[0] = Modbus.com_config[0];
+											if(co2_data.protcal == 0/*MODBUS*/)
+											{
+												Modbus.com_config[0] = MODBUS_SLAVE;
+												save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+												com_config_back[0] = Modbus.com_config[0];
+												flag_change_uart0 = 1;
+												count_change_uart0 = 0;
+											}
+										}
+										if(Modbus.com_config[0] == MODBUS_MASTER || Modbus.com_config[0] == MODBUS_SLAVE)
+										{
+											if(co2_data.protcal == 1/*BAC_MSTP*/)
+											{
+												Modbus.com_config[0] = BACNET_SLAVE;
+												save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
+												Recievebuf_Initialize(0);
+												com_config_back[0] = Modbus.com_config[0];
+												flag_change_uart0 = 1;
+												count_change_uart0 = 0;
+											}
+										}
+										if((Modbus.address != co2_data.address) && (co2_data.address != 0))
+										{
+											Modbus.address = co2_data.address;
+											panel_number = co2_data.address;
+											change_panel_number_in_code(Setting_Info.reg.panel_number,panel_number);
+											Setting_Info.reg.panel_number = panel_number;
+											Station_NUM = panel_number;
+											save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
+										}
+										if((Modbus.baudrate[0] != co2_data.baud) && (co2_data.baud != 0))
+										{
+											Modbus.baudrate[0] = co2_data.baud;
+											save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
 											flag_change_uart0 = 1;
 											count_change_uart0 = 0;
 										}
-									}
-									if(Modbus.com_config[0] == MODBUS_MASTER || Modbus.com_config[0] == MODBUS_SLAVE)
-									{
-										if(co2_data.protcal == 1/*BAC_MSTP*/)
-										{
-											Modbus.com_config[0] = BACNET_SLAVE;
-											save_uint8_to_flash( FLASH_UART_CONFIG, Modbus.com_config[0]);
-											Recievebuf_Initialize(0);
-											com_config_back[0] = Modbus.com_config[0];
-											flag_change_uart0 = 1;
-											count_change_uart0 = 0;
-										}
-
-									}
-									if((Modbus.address != co2_data.address) && (co2_data.address != 0))
-									{
-										Modbus.address = co2_data.address;
-										panel_number = co2_data.address;
-										change_panel_number_in_code(Setting_Info.reg.panel_number,panel_number);
-										Setting_Info.reg.panel_number = panel_number;
-										Station_NUM = panel_number;
-										save_uint8_to_flash( FLASH_MODBUS_ID, Modbus.address);
-									}
-									if((Modbus.baudrate[0] != co2_data.baud) && (co2_data.baud != 0))
-									{
-										Modbus.baudrate[0] = co2_data.baud;
-										save_uint8_to_flash(FLASH_BAUD_RATE, Modbus.baudrate[0]);
-										flag_change_uart0 = 1;
-										count_change_uart0 = 0;
 									}
 									if(co2_data.write_ghost_system_wifi == 1)
 									{	//如果 co2_data 的 IP、Netmask、Gateway 不为 0 且与 ssid_info 不同，则更新 ssid_info
@@ -4342,14 +5063,88 @@ void smtp_client_task_nossl(char *);
 #endif
 
 void update_sntp(void);
+
+/* IN9-IN11: circuit maps -30~-65V to ~2.28~4.3V (open≈0.56V).
+ * Table: 2.28→-30, 2.85→-40, 3.43→-50, 4.01→-60. Value unit: mV (x1000). */
+static int32_t convert_neg_voltage_from_meas_mv(int32_t meas_mv)
+{
+	static const int32_t meas[] = {560, 2280, 2850, 3430, 4010};
+	static const int32_t actual[] = {0, -30000, -40000, -50000, -60000};
+	uint8_t i;
+
+	if(meas_mv <= meas[0])
+		return actual[0];
+	for(i = 0; i < 4; i++)
+	{
+		if(meas_mv <= meas[i + 1])
+			return actual[i] + (actual[i + 1] - actual[i]) * (meas_mv - meas[i])
+				/ (meas[i + 1] - meas[i]);
+	}
+	/* beyond -60V: extrapolate last segment toward -65V */
+	return actual[4] + (actual[4] - actual[3]) * (meas_mv - meas[4])
+		/ (meas[4] - meas[3]);
+}
+
+/* After control_input(): rewrite IN9-IN11 from intermediate V0_5 reading to actual V */
+static void convert_rmc1232_in9_in12(void)
+{
+	uint8_t i;
+	Str_points_ptr ptr;
+
+	for(i = 8; i <= 11; i++)
+	{
+		ptr = put_io_buf(IN, i);
+		if(ptr.pin->auto_manual != 0)
+			continue;
+		if(i < 11)
+			ptr.pin->value = convert_neg_voltage_from_meas_mv(ptr.pin->value);
+		if(i == 11)
+			ptr.pin->value = ptr.pin->value * 1000 / 141;
+	}
+		
+}
+
+/* conver sepcail range "AHKC_Hall" for PCL-RMC1232, 2.5±2V <-> ±200A*/
+static void convert_rmc1232_AHKC_Hall(void)
+{
+	uint8_t i;
+	Str_points_ptr ptr;
+	int32_t actual;
+	
+	for(i = 0; i < 32; i++)
+	{
+		if(i == 8 || i == 9 || i == 10 || i == 12)
+			continue;
+		
+		ptr = put_io_buf(IN, i);		
+		if(ptr.pin->range == AHKC_Hall)
+		{
+			if(ptr.pin->auto_manual == 0)
+			{
+			// 2.5±2V <-> ±200A...
+				if(ptr.pin->value < 500)  // 
+					actual = -200000;
+				else if(ptr.pin->value > 4500)  // 
+					actual = 200000;
+				else 
+					actual = 100 * ptr.pin->value - 250000;	
+						
+				ptr.pin->value = actual;
+			}
+		}
+	}
+}
+
 void Bacnet_Control(void *pvParameters)
 {
 	U16_T i,j;
 	U8_T decom;
+	Str_points_ptr ptr;
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	static U8_T count_wait_sample = 0;
 	static U8_T count_PID;
 	static U16_T count_schedule;
+	max_dos_2 = 0;
 	if(Setting_Info.reg.webview_json_flash != 2)
 	{
 		check_graphic_element();
@@ -4363,16 +5158,44 @@ void Bacnet_Control(void *pvParameters)
 		max_dos = 6; max_aos = 4;
 	}
 	else if(Modbus.mini_type == PROJECT_RMC1216) // RMC1216
-	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
+	{
 		max_dos = 7; max_aos = 0;
+	}
+	else if(Modbus.mini_type == PROJECT_RMC1232) // RMC1216_32I
+	{
+		max_dos = 4; max_aos = 0;
 	}
 	else if(Modbus.mini_type == MINI_TSTAT10)
 	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
 		max_dos = 5; max_aos = 2;
 	}
-	else if(Modbus.mini_type == PROJECT_NG2_NEW)
-	{	//max_dos = SMALL_MAX_DOS; max_aos = SMALL_MAX_AOS;
-		max_dos = 8; max_aos = 4;
+	else if(Modbus.mini_type == PROJECT_NG3)
+	{	// 6DO + 5AO + 2DO
+		max_dos = 6; max_aos = 5; max_dos_2 = 2;
+		// Force digital_analog to match fixed hardware layout
+		// (upgrade from old 8DO+5AO flash config may leave wrong types)
+		for(i = 0; i < max_dos; i++)
+		{
+			ptr = put_io_buf(OUT, i);
+			ptr.pout->digital_analog = 0;
+			if(ptr.pout->range == 0)
+				ptr.pout->range = 1; // OFF_ON
+		}
+		for(i = max_dos; i < max_dos + max_aos; i++)
+		{
+			ptr = put_io_buf(OUT, i);
+			ptr.pout->digital_analog = 1;
+			if(ptr.pout->range == 0)
+				ptr.pout->range = 4; // 0-100%
+		}
+		for(i = max_dos + max_aos; i < max_dos + max_aos + max_dos_2; i++)
+		{
+			ptr = put_io_buf(OUT, i);
+			ptr.pout->digital_analog = 0;
+			if(ptr.pout->range == 0 || ptr.pout->range >= 4)
+				ptr.pout->range = 1; // OFF_ON (was AO in old layout)
+		}
+		Count_OUT_Object_Number();
 	}
 	else if(Modbus.mini_type == MINI_NANO)
 	{
@@ -4415,7 +5238,7 @@ void Bacnet_Control(void *pvParameters)
 	for(;;)
 	{
 		task_test.count[14]++;
-#if 1//EMAIL
+#if EMAIL
 		{
 			if(flag_sendemail == 1)
 			{
@@ -4426,14 +5249,20 @@ void Bacnet_Control(void *pvParameters)
 		}
 #endif
 
-#if 1//DNS
+#if DNS
 		dns_tmr();
 		update_sntp();
 #endif
-		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
-				|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
+		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_TINY_11I))
+		|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == PROJECT_NG3))
 		{
 			control_input();
+			if(Modbus.mini_type == PROJECT_RMC1232)
+			{
+				convert_rmc1232_in9_in12();
+				calculate_plc_power();
+				convert_rmc1232_AHKC_Hall();
+			}
 		}
 
 		//if(check_whehter_running_code() == 1)
@@ -4460,7 +5289,7 @@ void Bacnet_Control(void *pvParameters)
 		}
 
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
-				|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
+				|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == PROJECT_NG3))
 			control_output();
 
 // check whether external IO are on line
@@ -4474,6 +5303,7 @@ void Bacnet_Control(void *pvParameters)
 			}
 			count_PID = 0;
 			Store_Pulse_Counter(0);
+			Store_PLC_Power(0);
 //			calculate_RPM();
 
 		}
@@ -4503,7 +5333,7 @@ void Bacnet_Control(void *pvParameters)
 		check_trendlog_1s(2);
 #endif
 
-#if 1//BAC_TRENDLOG
+#if BAC_TRENDLOG
 		//trend_log_timer(0); // for standard trend log
 #endif
 		Check_Net_Point_Table();
@@ -4522,9 +5352,8 @@ void Ethernet_Initial(void)
 #if 1
 	esp_err_t ret = 0;
 	uint8_t eth_init_count = 0;
-	Test[20]++;
 	do
-	{	Test[21]++;
+	{
 		ret = ethernet_init();
 		ets_delay_us(500000);
 	}while((ret != ESP_OK) && (eth_init_count++ < 3));
@@ -4578,37 +5407,38 @@ void app_main()
      * examples/protocols/README.md for more information about this function.
      */
 
+
+
 	SW_REV = SOFTREV;
 	count_reboot = 0;
 	Set_Device_Stage(DEVICE_STAGE_INIT);
-	Bacnet_Initial_Data();
-	read_default_from_flash();
 	initial_HSP();
+	read_default_from_flash();
+	Bacnet_Initial_Data();
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
-
 	uart_init(0);
 
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-    Modbus.mini_type = MINI_TSTAT10;
+    //Modbus.mini_type = MINI_TSTAT10;
 #endif
 
-    if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
+   // if(Modbus.mini_type != MINI_BIG_ARM)
+    	uart_init(2);
+
+	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
 	{
-		Test_Array();
-		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+		(void)lora_start();
 	}
 
-  	if (Modbus.mini_type != MINI_BIG_ARM)
-    	uart_init(2);
-    flag_ethernet_initial = ethernet_init();
-
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
+	flag_ethernet_initial = ethernet_init();
+    xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
 
     network_EventHandle = xEventGroupCreate();
     xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server
+
     // dealing with network modbus point
     xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 1, &main_task_handle[3]); // tcp client
     xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
@@ -4625,18 +5455,19 @@ void app_main()
 
     // Check the Modbus mini_type and call uart_init(2) if necessary
     // for T3-BB-ESP, uart(2)初始化放在wifi初始化之后，否则初始失败
-	if (Modbus.mini_type == MINI_BIG_ARM)
-		  uart_init(2);
-	// ok
+	//if (Modbus.mini_type == MINI_BIG_ARM)
+	//	  uart_init(2);
 
 	if(Modbus.mini_type == PROJECT_LSW_BTN)
 	{
 		lightswitch_adc_init();
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
+		// I2C button
+		key_task();
 	}
 
-    if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
-    		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
+    if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232
+    		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG3 || Modbus.mini_type == PROJECT_CO2)
     {
     	xTaskCreate(i2c_master_task,"i2c_master_task", 4096, NULL, 10, &main_task_handle[10]);
     }
@@ -4653,7 +5484,9 @@ void app_main()
     		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LSW_SENSOR))
        xTaskCreate(i2c_sensor_task,"i2c_task", 2048*2, NULL, 5, NULL);
 
-
+ //   if(Modbus.mini_type == PROJECT_LSW_SENSOR)
+ //      xTaskCreate(bmv080_task,"bmv080_task",20 * 1024, NULL, 13, &main_task_handle[14]);
+	
     if(Modbus.mini_type == PROJECT_AIRLAB)
     {
     	Airlab_init(); // 初始化数据和任务
@@ -4672,24 +5505,25 @@ void app_main()
     xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
 
     if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
-    	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW)
+    	|| (Modbus.mini_type == PROJECT_RMC1216) ||  (Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == PROJECT_NG3)
 		)
     {
 	   xTaskCreate(Master2_Node_task,"mstp2_task",4096, NULL, 4, &main_task_handle[11]);
 	   xTaskCreate(uart2_rx_task,"uart2_rx_task",4096, NULL, 8, &main_task_handle[12]);
     }// ok
+    
 
-    Set_Device_Stage(DEVICE_STAGE_RUNNING);
+    
+	if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
+	{
+		Test_Array();
+		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+	}
+	Set_Device_Stage(DEVICE_STAGE_RUNNING);
 
-
- #if 1
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
-#endif
 
- #if 1
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
-
-#endif
 
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
@@ -4699,12 +5533,11 @@ void app_main()
 // for bacnet lib
 void uart_send_string(U8_T *p, U16_T length,U8_T port)
 {
-	/*if((Modbus.com_config[port] == BACNET_SLAVE || Modbus.com_config[port] == BACNET_MASTER) && \
-			(flag_mstp_err[port] == 1))
+	if((Modbus.mini_type == PROJECT_LORA_GATEWAY) && (port == 2))
 	{
-	// mstp error, dont send out data
-	return;
-	}*/
+		return;
+	}
+
 	if(Modbus.mini_type == PROJECT_FAN_MODULE)
 		holding_reg_params.led_rx485_tx = 2;
 
@@ -4723,11 +5556,6 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 	com_tx[port]++;
 }
 
-/*char get_current_mstp_port(void)
-{
-
-		return -1;
-}*/
 
 U8_T RS485_Get_Baudrate(void)
 {
@@ -4745,6 +5573,10 @@ U8_T Get_Mini_Type(void)
 	return Modbus.mini_type;
 }
 
+void Set_icon_config(U8_T icon_config)
+{
+	Modbus.icon_config = icon_config;
+}
 
 void I2C_sensor_Init(void)
 {
@@ -4866,7 +5698,6 @@ void write_NP_Bacnet_to_nodes(uint8_t object_type,uint32_t number,uint8_t panel,
 {
 
 	uint8_t i;
-	Test[26]++;
 	 // Check if the same data already exists
     for (i = 0; i < NPB_node_write_count; i++)
     {
@@ -4898,8 +5729,6 @@ void write_NP_Bacnet_to_nodes(uint8_t object_type,uint32_t number,uint8_t panel,
 	NPB_node_write[NPB_node_write_count].flag = 1;
     // Increment the total entry count
     NPB_node_write_count++;
-//	Test[27]++;
-//	Test[28] = NPB_node_write_count;
 
 }
 
@@ -4936,6 +5765,7 @@ void Check_NPB_node_write_TTL(void)
 
 extern int WriteRemotePoint(uint8_t object_type,uint32_t object_instance,uint8_t panel,uint8_t sub,float value,uint8_t protocal);
 
+
 void check_NP_Bacnet_to_nodes(void)
 {
 
@@ -4957,7 +5787,7 @@ void check_NP_Bacnet_to_nodes(void)
 }
 #endif
 
-
+void Check_send_UserList_Broadcast(void);
 void Scan_network_bacnet_Task(void *pvParameters)
 {
 //	TickType_t xDelayPeriod = (TickType_t)1000 / portTICK_PERIOD_MS;
@@ -4993,6 +5823,8 @@ void Scan_network_bacnet_Task(void *pvParameters)
 			Modbus.network_master = 1;
 			Master_Scan_Network_Count = 0;
 		}
+
+		Check_send_UserList_Broadcast();
 
 #if 1
 		// 鑴﹂檵鑴曡劊鑴犺矾鍗ゆ嫝铏忕绂勮癌褰曠洸璧備箞鑴よ姦鎴剻
@@ -5039,7 +5871,6 @@ void Scan_network_bacnet_Task(void *pvParameters)
 				flag_send_udp_timesync = 0;
 				Send_TimeSync_Broadcast(BAC_IP_CLIENT);
 				udp_client_send(255);
-				Test[38]++;
 			}
 			else
 			{
@@ -5073,15 +5904,21 @@ void Scan_network_bacnet_Task(void *pvParameters)
 									{// instance is same, update panel
 										if(temcovar_panel != 0)
 										{
+											if(network_points_list[j].point.panel == network_points_list[j].point.sub_id)
+											{
+												network_points_list[j].point.sub_id = temcovar_panel;
+											}
 											network_points_list[j].point.panel = temcovar_panel;
-											network_points_list[j].point.sub_id = temcovar_panel;
 										}
 									}
 								}
 								if(temcovar_panel != 0)
 								{
+									if(remote_panel_db[i].panel == remote_panel_db[i].sub_id)
+									{
+										remote_panel_db[i].sub_id = temcovar_panel;
+									}
 									remote_panel_db[i].panel = temcovar_panel;
-									remote_panel_db[i].sub_id = temcovar_panel;
 								}
 								else
 								{
@@ -5105,7 +5942,10 @@ void Scan_network_bacnet_Task(void *pvParameters)
 
 				if(number_of_network_points_bacnet > 0)
 				{
-					for(network_point_index = 0;network_point_index < number_of_network_points_bacnet;network_point_index++)
+					// check whether write network bacnet points
+					check_NP_Bacnet_to_nodes();
+
+					for(network_point_index = 0;network_point_index < number_of_network_points_bacnet + number_of_network_points_modbus;/*network_point_index++*/)
 					{
 						if(network_points_list[network_point_index].lose_count > 5)
 						{
@@ -5158,6 +5998,7 @@ void Scan_network_bacnet_Task(void *pvParameters)
 						}
 						//vTaskDelay( 500 / portTICK_PERIOD_MS);
 						//scan_network_bacnet_count++;
+						network_point_index = find_next_network_bacnet_point(network_point_index);
 					}
 				}
 			}

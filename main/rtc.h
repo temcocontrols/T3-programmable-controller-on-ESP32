@@ -105,4 +105,8 @@ int PCF_hctosys();
 int PCF_systohc();
 extern void rtc_task(void *arg);
 
+void rtc_value_backup_save(void);
+void rtc_value_backup_flush(void);
+int rtc_value_backup_restore(void);
+
 #endif
