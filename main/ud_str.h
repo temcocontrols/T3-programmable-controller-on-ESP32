@@ -1458,8 +1458,8 @@ extern  U16_T  output_raw[MAX_OUTS];
 extern  U16_T  output_raw_back[MAX_OUTS];
 extern  U16_T  chip_info[6];
 extern  uint32_t  Instance;
-#endif
-
 
 #pragma pack(pop)   /* pop nested push from line 303 */
 #pragma pack(pop)   /* pop outer push from line 10   */
+
+#endif
