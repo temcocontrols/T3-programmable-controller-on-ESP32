@@ -1,4 +1,10 @@
 dependencies:
+  esp_wireguard:
+    dependencies: []
+    source:
+      path: C:\Users\Administrator\Documents\GitHub\MultiSensor\components\esp_wireguard
+      type: local
+    version: 0.9.0
   espressif/esp_modem:
     component_hash: 475c2185273ddedff2bb0d21a8ab196a9d0ef60595f73d634edf2d8be03a5f54
     dependencies:
@@ -49,6 +55,22 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 1.11.3
+  espressif/tinyusb:
+    component_hash: a72b7d67472914ab76309340fd50d578b31e310963d45ad0f81144bde3314752
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    targets:
+    - esp32s2
+    - esp32s3
+    - esp32p4
+    - esp32h4
+    - esp32s31
+    version: 0.21.0~1
   idf:
     source:
       type: idf
@@ -67,6 +89,7 @@ direct_dependencies:
 - espressif/mdns
 - idf
 - lvgl/lvgl
-manifest_hash: bf7b18134fe1f426e6b0c71230e562bd59183643deef5a4932fe124cff8575ae
+- trombik/esp_wireguard
+manifest_hash: 999518e45c3da1a3f15ab49ac30c07731345923696dd3d3dd2d3b3013db9ae5e
 target: esp32s3
 version: 2.0.0

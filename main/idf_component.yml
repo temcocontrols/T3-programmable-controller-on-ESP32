@@ -22,3 +22,5 @@ dependencies:
     version: "==9.5.0"
 
   espressif/mdns: "^1.8"
+
+  trombik/esp_wireguard: "^0.9.0"

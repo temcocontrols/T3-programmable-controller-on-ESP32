@@ -107,7 +107,11 @@ idf_component_register(		SRCS
 					 spi_flash
 					 temco_IO_control
 					 temco_bacnet
+					 esp_wireguard
 			PRIV_REQUIRES espressif__esp_modem
+					mqtt
+					json
+					esp_http_server
 							)
 
 # Auto-include all .c files from TemcoScreen subdirectory
