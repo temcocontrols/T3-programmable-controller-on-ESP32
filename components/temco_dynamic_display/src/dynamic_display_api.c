@@ -599,55 +599,72 @@ esp_err_t dynamic_display_reset_to_defaults(void)
     return screen_store_reset_to_defaults();
 }
 
+void dynamic_display_task(void *pvParameters)
+{
+    if (s_started)
+    {
+        ESP_LOGW(TAG, "Dynamic Display REST Server already started");
+    }
+    else
+    {
+        // Initialize SPIFFS screen storage and seed default screens if needed
+        esp_err_t ret = screen_store_init();
+        if (ret != ESP_OK)
+        {
+            ESP_LOGE(TAG, "Failed to initialize screen flash storage");
+        }
+        else
+        {
+            httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+            config.max_uri_handlers = 20;
+            config.lru_purge_enable = true;
+            config.stack_size = 10240; // Increase stack size for JSON processing
+            config.uri_match_fn = httpd_uri_match_wildcard;
+
+            ESP_LOGI(TAG, "Starting Dynamic Display REST Server on port %d", config.server_port);
+            if (httpd_start(&s_server, &config) != ESP_OK)
+            {
+                ESP_LOGE(TAG, "Failed to start HTTP server");
+            }
+            else
+            {
+                httpd_uri_t uris[] = {
+                    {.uri = "/api/eez-device/device/info", .method = HTTP_GET, .handler = info_handler},
+                    {.uri = "/api/eez-device/screens", .method = HTTP_GET, .handler = screens_get_all_handler},
+                    {.uri = "/api/eez-device/screens", .method = HTTP_PUT, .handler = screens_put_all_handler},
+                    {.uri = "/api/eez-device/screens/*", .method = HTTP_GET, .handler = screen_get_one_handler},
+                    {.uri = "/api/eez-device/screens/*", .method = HTTP_PUT, .handler = single_screen_put_handler},
+                    {.uri = "/api/eez-device/screens/*", .method = HTTP_PATCH, .handler = screen_patch_handler},
+                    {.uri = "/api/eez-device/images/push/*", .method = HTTP_POST, .handler = image_push_handler},
+                    {.uri = "/api/eez-device/images/push", .method = HTTP_POST, .handler = image_push_handler},
+                    {.uri = "/api/eez-device/images/pull/*", .method = HTTP_GET, .handler = image_pull_handler},
+                    {.uri = "/api/eez-device/images/*", .method = HTTP_DELETE, .handler = image_delete_handler},
+                    {.uri = "/api/eez-device/screens/push/*", .method = HTTP_POST, .handler = screens_put_all_handler},
+                    {.uri = "/api/eez-device/screens/push", .method = HTTP_POST, .handler = screens_put_all_handler},
+                    {.uri = "/api/eez-device/screens/pull/*", .method = HTTP_POST, .handler = screens_get_all_handler},
+                    {.uri = "/api/eez-device/screens/pull", .method = HTTP_POST, .handler = screens_get_all_handler},
+                    {.uri = "/api/eez-device/reset-defaults", .method = HTTP_POST, .handler = reset_defaults_handler},
+                    {.uri = "/api/eez-device/set-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
+                    {.uri = "/api/eez-device/load-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
+                    {.uri = "/api/eez-device/*", .method = HTTP_OPTIONS, .handler = options_handler},
+                };
+
+                for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); ++i) {
+                    httpd_register_uri_handler(s_server, &uris[i]);
+                }
+
+                s_started = true;
+                ESP_LOGI(TAG, "Dynamic Display REST Server initialized successfully");
+            }
+        }
+    }
+
+    vTaskDelete(NULL); // Delete this task as it's no longer needed
+}
+
 esp_err_t dynamic_display_api_start(void)
 {
-    if (s_started) return ESP_OK;
-
-    // Initialize SPIFFS screen storage and seed default screens if needed
-    esp_err_t ret = screen_store_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize screen flash storage");
-        return ret;
-    }
-
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 20;
-    config.lru_purge_enable = true;
-    config.stack_size = 10240; // Increase stack size for JSON processing
-
-    ESP_LOGI(TAG, "Starting Dynamic Display REST Server on port %d", config.server_port);
-    if (httpd_start(&s_server, &config) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to start HTTP server");
-        return ESP_FAIL;
-    }
-
-    httpd_uri_t uris[] = {
-        {.uri = "/api/eez-device/device/info", .method = HTTP_GET, .handler = info_handler},
-        {.uri = "/api/eez-device/screens", .method = HTTP_GET, .handler = screens_get_all_handler},
-        {.uri = "/api/eez-device/screens", .method = HTTP_PUT, .handler = screens_put_all_handler},
-        {.uri = "/api/eez-device/screens/*", .method = HTTP_GET, .handler = screen_get_one_handler},
-        {.uri = "/api/eez-device/screens/*", .method = HTTP_PUT, .handler = single_screen_put_handler},
-        {.uri = "/api/eez-device/screens/*", .method = HTTP_PATCH, .handler = screen_patch_handler},
-        {.uri = "/api/eez-device/images/push/*", .method = HTTP_POST, .handler = image_push_handler},
-        {.uri = "/api/eez-device/images/push", .method = HTTP_POST, .handler = image_push_handler},
-        {.uri = "/api/eez-device/images/pull/*", .method = HTTP_GET, .handler = image_pull_handler},
-        {.uri = "/api/eez-device/images/*", .method = HTTP_DELETE, .handler = image_delete_handler},
-        {.uri = "/api/eez-device/screens/push/*", .method = HTTP_POST, .handler = screens_put_all_handler},
-        {.uri = "/api/eez-device/screens/push", .method = HTTP_POST, .handler = screens_put_all_handler},
-        {.uri = "/api/eez-device/screens/pull/*", .method = HTTP_POST, .handler = screens_get_all_handler},
-        {.uri = "/api/eez-device/screens/pull", .method = HTTP_POST, .handler = screens_get_all_handler},
-        {.uri = "/api/eez-device/reset-defaults", .method = HTTP_POST, .handler = reset_defaults_handler},
-        {.uri = "/api/eez-device/set-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
-        {.uri = "/api/eez-device/load-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
-        {.uri = "/api/eez-device/*", .method = HTTP_OPTIONS, .handler = options_handler},
-    };
-
-    for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); ++i) {
-        httpd_register_uri_handler(s_server, &uris[i]);
-    }
-
-    s_started = true;
-    ESP_LOGI(TAG, "Dynamic Display REST Server initialized successfully");
+    xTaskCreate(dynamic_display_task, "dynamic_display_task", 4096, NULL, 5, NULL);
     return ESP_OK;
 }
 

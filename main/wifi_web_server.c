@@ -14,6 +14,7 @@
 #include "wifi.h"
 #include "flash.h"
 #include "wifi_web_server.h"
+#include "dynamic_display_api.h"
 
 static const char *TAG = "WIFI_WEB";
 static httpd_handle_t server = NULL;
@@ -223,6 +224,8 @@ esp_err_t wifi_web_server_start(void)
 {
     if (server) return ESP_OK;
 
+    dynamic_display_api_stop();
+
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 8;
     config.lru_purge_enable = true;
@@ -268,4 +271,5 @@ void wifi_web_server_stop(void)
         server = NULL;
         ESP_LOGE(TAG, "HTTP Web Server stopped.");
     }
+    dynamic_display_api_start();
 }

@@ -715,6 +715,54 @@ Use those files as reference for exact behavior and JSON keys.
 - Start with the minimal set (device/info, screens GET, screen GET) then implement PUT/PATCH and images.
 - If you want, I can generate a small skeleton server in your device language (Rust/Node/Python/C#) that implements all above endpoints and stores screens on disk — tell me which language and I'll scaffold it.
 
+## Test commnads
+
+IP=192.168.1.10   # replace with your device IP
+
+# GET device info
+curl -v http://192.168.1.10/api/eez-device/device/info
+
+# GET all screens
+curl -v http://192.168.1.10/api/eez-device/screens
+
+# PUT all screens
+curl -v -X PUT http://192.168.1.10/api/eez-device/screens \
+  -H "Content-Type: application/json" -d '{"screens":[]}'
+
+# GET one screen
+curl -v http://192.168.1.10/api/eez-device/screens/screen1
+
+# PUT one screen
+curl -v -X PUT http://192.168.1.10/api/eez-device/screens/screen1 \
+  -H "Content-Type: application/json" -d '{"name":"screen1"}'
+
+# PATCH one screen
+curl -v -X PATCH http://192.168.1.10/api/eez-device/screens/screen1 \
+  -H "Content-Type: application/json" -d '{"name":"updated"}'
+
+# Image push (with and without trailing id)
+curl -v -X POST http://192.168.1.10/api/eez-device/images/push/img1 --data-binary @test.png
+curl -v -X POST http://192.168.1.10/api/eez-device/images/push --data-binary @test.png
+
+# Image pull
+curl -v http://192.168.1.10/api/eez-device/images/pull/img1
+
+# Image delete
+curl -v -X DELETE http://192.168.1.10/api/eez-device/images/img1
+
+# Screens push/pull aliases
+curl -v -X POST http://192.168.1.10/api/eez-device/screens/push/foo
+curl -v -X POST http://192.168.1.10/api/eez-device/screens/push
+curl -v -X POST http://192.168.1.10/api/eez-device/screens/pull/foo
+curl -v -X POST http://192.168.1.10/api/eez-device/screens/pull
+
+# Reset/defaults endpoints
+curl -v -X POST http://192.168.1.10/api/eez-device/reset-defaults
+curl -v -X POST http://192.168.1.10/api/eez-device/set-default-screens
+curl -v -X POST http://192.168.1.10/api/eez-device/load-default-screens
+
+# OPTIONS (CORS preflight)
+curl -v -X OPTIONS http://192.168.1.10/api/eez-device/screens
 
 ---
 

@@ -66,7 +66,6 @@
 #include "lora.h"
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
-#include "dynamic_display_api.h"
 
 //#include "lowPower.h"
 
@@ -4652,7 +4651,6 @@ void app_main()
 #endif
 
 	Mqtt_Handler_Init();
-	//dynamic_display_api_start();
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
@@ -4671,7 +4669,6 @@ void app_main()
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
 	}
 
-	// TODO: Need to update i2c communication with display and other i2c sensor
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
     {
