@@ -121,4 +121,8 @@ target_sources(${COMPONENT_LIB} PRIVATE ${TEMCO_SCREEN_SOURCES})
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
 set(COMPONENT_ADD_INCLUDEDIRS "." "HUB_Module")
 
+if(HUB_FORCE_PROJECT_TYPE)
+	target_compile_definitions(${COMPONENT_LIB} PRIVATE HUB_FORCE_PROJECT_TYPE=1)
+endif()
+
 target_link_libraries(${COMPONENT_TARGET} "-u pro_info")

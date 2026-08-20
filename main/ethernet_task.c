@@ -85,13 +85,17 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         debug_info("Ethernet Link Up");
         //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
         //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        hub_network_manager_set_eth_status(true, false);
+        if (Modbus.mini_type == PROJECT_HUB) {
+            hub_network_manager_set_eth_status(true, false);
+        }
         Modbus.ethernet_status = ETHERNET_EVENT_CONNECTED;
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGW(TAG, "Ethernet Link Down");
     	debug_info("Ethernet Link Down");
-        hub_network_manager_set_eth_status(false, false);
+        if (Modbus.mini_type == PROJECT_HUB) {
+            hub_network_manager_set_eth_status(false, false);
+        }
         Modbus.ethernet_status = ETHERNET_EVENT_DISCONNECTED;
         break;
     case ETHERNET_EVENT_START:
@@ -147,7 +151,9 @@ static void got_ip_event_handler(void *arg,
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
 
     Modbus.ethernet_status = 4;  // GOT IP
-    hub_network_manager_set_eth_status(true, true);
+    if (Modbus.mini_type == PROJECT_HUB) {
+        hub_network_manager_set_eth_status(true, true);
+    }
 
 #if 1 // DNS
     if ((Modbus.getway[0] != 0) ||
@@ -610,6 +616,9 @@ esp_err_t ethernet_init(void)
         return ESP_FAIL;
     }
     ESP_LOGI(TAG, "eth_netif created: %p", eth_netif);
+    if (Modbus.mini_type == PROJECT_HUB) {
+        hub_network_manager_set_eth_netif(eth_netif);
+    }
 
     // check dhcp mode or static mode
     if(Modbus.tcp_type == 0)  // static mode

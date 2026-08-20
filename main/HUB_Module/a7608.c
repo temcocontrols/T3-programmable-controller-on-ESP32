@@ -12,7 +12,6 @@
 #include "esp_check.h"
 #include "esp_log.h"
 #include "hub_lte_pppos.h"
-#include "hub_network_manager.h"
 
 #define A7608_LOG(fmt, ...) do { printf("[A7608] " fmt "\n", ##__VA_ARGS__); fflush(stdout); } while (0)
 
@@ -808,10 +807,9 @@ static void a7608_sync_network_status(void)
         ESP_LOGI("A7608", "PPPoS manual test: ignore CGPADDR IP %s for Network Manager; waiting for PPP got IP", ip_addr);
     }
     (void)hub_lte_pppos_set_connected(false, NULL);
-    hub_network_manager_set_lte_status(false, NULL);
 #else
+    /* CGPADDR is the modem PDP address, not proof that the PPP netif is ready. */
     (void)hub_lte_pppos_set_connected(connected, ip_addr);
-    hub_network_manager_set_lte_status(connected, ip_addr);
 #endif
 }
 

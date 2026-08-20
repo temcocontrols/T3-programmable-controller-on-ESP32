@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "esp_err.h"
+#include "esp_netif.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +42,8 @@ hub_network_policy_t hub_network_manager_get_policy(void);
 const char *hub_network_manager_policy_name(hub_network_policy_t policy);
 bool hub_network_manager_is_ethernet_allowed(void);
 bool hub_network_manager_is_lte_allowed(void);
+void hub_network_manager_set_eth_netif(esp_netif_t *netif);
+void hub_network_manager_set_lte_netif(esp_netif_t *netif);
 void hub_network_manager_set_eth_status(bool link_up, bool has_ip);
 void hub_network_manager_set_lte_status(bool connected, const char *ip_addr);
 void hub_network_manager_select_active_interface(void);

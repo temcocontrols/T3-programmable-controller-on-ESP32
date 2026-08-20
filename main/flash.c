@@ -299,6 +299,11 @@ esp_err_t read_default_from_flash(void)
 		Modbus.mini_type = MINI_NANO;
 		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
 	}
+#if HUB_FORCE_PROJECT_TYPE
+	U8_T stored_mini_type = Modbus.mini_type;
+	Modbus.mini_type = PROJECT_HUB;
+	ESP_LOGW("HUB", "[HUB][PRODUCT] forced PROJECT_HUB for development (stored=%u)", stored_mini_type);
+#endif
 	err = nvs_get_u8(my_handle, FLASH_THEME_TYPE, &Modbus.LcdTheme);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
