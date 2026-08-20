@@ -1592,13 +1592,100 @@ esp_err_t save_point_info(uint8_t point_type)
 	STR_flag_flash ptr_flash;
 	uint8_t err=0xff;
 	uint16_t loop;
-	//  step 1: Ѱ���û�flash id
-//	return ESP_OK;
+	uint8_t need_write = 0;
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
+	(void)point_type;
 
-	err = esp_partition_erase_range(partition, POINT_INFO_ADDR, get_point_info_erase_len(partition->size));
+	/* Compare before write: only erase/program Flash when content changed */
+	for(loop = 0; loop < MAX_POINT_TYPE; loop++)
+	{
+		uint8_t *cur = NULL;
+		uint8_t *flash_buf;
+		uint32_t len;
+		uint8_t owned = 0;
+
+		if(Flash_Position[loop].valid != 1)
+			continue;
+
+		len = Flash_Position[loop].len;
+#if NEW_IO
+		if(loop == OUT && new_outputs != NULL)
+		{
+			cur = (uint8_t *)new_outputs;
+			len = max_outputs * sizeof(Str_out_point);
+			Flash_Position[loop].len = len;
+		}
+		else if(loop == IN && new_inputs != NULL)
+		{
+			cur = (uint8_t *)new_inputs;
+			len = max_inputs * sizeof(Str_in_point);
+			Flash_Position[loop].len = len;
+		}
+		else if(loop == VAR && new_vars != NULL)
+		{
+			cur = (uint8_t *)new_vars;
+			len = max_vars * sizeof(Str_variable_point);
+			Flash_Position[loop].len = len;
+		}
+#endif
+		if(cur == NULL)
+		{
+			cur = (uint8_t *)malloc(len);
+			if(cur == NULL) { need_write = 1; break; }
+			owned = 1;
+			switch(loop)
+			{
+#if !NEW_IO
+			case OUT: memcpy(cur, &outputs, sizeof(Str_out_point) * MAX_OUTS); break;
+			case IN:  memcpy(cur, &inputs, sizeof(Str_in_point) * MAX_INS); break;
+			case VAR: memcpy(cur, &vars, sizeof(Str_variable_point) * MAX_VARS); break;
+#endif
+			case CON: memcpy(cur, &controllers, sizeof(Str_controller_point) * MAX_CONS); break;
+			case WRT: memcpy(cur, &weekly_routines, sizeof(Str_weekly_routine_point) * MAX_WR); break;
+			case AR:  memcpy(cur, &annual_routines, sizeof(Str_annual_routine_point) * MAX_AR); break;
+			case PRG: memcpy(cur, &programs, sizeof(Str_program_point) * MAX_PRGS); break;
+			case TBL: memcpy(cur, &custom_tab, sizeof(Str_table_point) * MAX_TBLS); break;
+			case AMON: memcpy(cur, &monitors, sizeof(Str_monitor_point) * MAX_MONITORS); break;
+			case GRP: memcpy(cur, &control_groups, sizeof(Control_group_point) * MAX_GRPS); break;
+			case PRG_CODE: memcpy(cur, &prg_code, MAX_CODE * CODE_ELEMENT * MAX_PRGS); break;
+			case UNIT: memcpy(cur, &digi_units, sizeof(Units_element) * MAX_DIG_UNIT); break;
+			case USER_NAME: memcpy(cur, &passwords, sizeof(Password_point) * MAX_PASSW); break;
+			case WR_TIME: memcpy(cur, &wr_times, sizeof(Wr_one_day) * 9 * MAX_WR); break;
+			case AR_DATA: memcpy(cur, &ar_dates, 46 * sizeof(S8_T) * MAX_AR); break;
+			case GRP_POINT: memcpy(cur, &group_data_new, sizeof(Str_grp_element_new)); break;
+			case TEMCOVAR: memcpy(cur, &pvars, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS); break;
+			case SUB_DB: memcpy(cur, &scan_db, sizeof(SCAN_DB) * SUB_NO); break;
+			default:
+				free(cur); cur = NULL; owned = 0; break;
+			}
+		}
+		if(cur == NULL)
+			continue;
+
+		flash_buf = (uint8_t *)malloc(len);
+		if(flash_buf == NULL)
+		{
+			if(owned) free(cur);
+			need_write = 1;
+			break;
+		}
+		err = esp_partition_read(partition, Flash_Position[loop].addr, flash_buf, len);
+		if(err != ESP_OK || memcmp(cur, flash_buf, len) != 0)
+			need_write = 1;
+		free(flash_buf);
+		if(owned) free(cur);
+		if(need_write)
+			break;
+	}
+
+	if(!need_write)
+	{
+		rtc_value_backup_flush();
+		return ESP_OK;
+	}
+err = esp_partition_erase_range(partition, POINT_INFO_ADDR, get_point_info_erase_len(partition->size));
 	if(err!=0)
 	{
 		return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);

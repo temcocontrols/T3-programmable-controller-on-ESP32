@@ -11,6 +11,9 @@
 #define RTC_VALUE_NVS_SEC	600
 #endif
 
+/* RTC blob packs only max_inputs/max_outputs/max_vars entries (version 2).
+ * Flash/NVS writes must compare CRC/content before programming. */
+
 void rtc_value_backup_save(void);
 void rtc_value_backup_flush(void);
 int rtc_value_backup_restore(void);
