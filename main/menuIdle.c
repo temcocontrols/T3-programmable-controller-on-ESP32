@@ -9,6 +9,8 @@
 #include "driver/uart.h"
 #include "LcdTheme.h"
 #include "airlab.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #define	NODES_POLL_PERIOD	30
 
@@ -562,11 +564,15 @@ void MenuIdle_display(void)
 
 static void DisplayHeaderSymbol(void)
 {
-	static u8 count_tx = 0;
-	static u8 count_rx = 0;
 	static bool rxActive = 0;
 	static bool txActive = 0;
-	if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL || SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)//����Ļ���Ͻ���ʾwifi��״̬
+	static TickType_t tx_phase_start = 0;
+	static TickType_t rx_phase_start = 0;
+	/* Same timing for HomeScreen and menu: 400ms on / 400ms off */
+	const TickType_t blink_half = pdMS_TO_TICKS(600);
+	const TickType_t blink_full = blink_half * 2;
+	TickType_t now = xTaskGetTickCount();
+	if(SSID_Info.IP_Wifi_Status == WIFI_NORMAL || SSID_Info.IP_Wifi_Status == WIFI_CONNECTED)//在屏幕右上角显示wifi的状态
 	{
 		if(SSID_Info.rssi < -80)
 			disp_edge(26, 26, wifi_1, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
@@ -586,11 +592,12 @@ static void DisplayHeaderSymbol(void)
 	else //if((SSID_Info.IP_Wifi_Status == WIFI_NO_WIFI)
 		disp_edge(26, 26, wifi_none, 210,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 
-	// show TX,RX
-
+	// TX/RX side-by-side (x=0 send, x=13 rcv); time-based blink so Home/Menu stay in sync
 	if(flagLED_sub_tx > 0)
 	{
-		if(count_tx++ % 2 == 0)
+		if(tx_phase_start == 0)
+			tx_phase_start = now;
+		if(((now - tx_phase_start) % blink_full) < blink_half)
 		{
 			disp_edge(13, 26, cmnct_send, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 			txActive = true;
@@ -600,17 +607,19 @@ static void DisplayHeaderSymbol(void)
 	}
 	else
 	{
-		count_tx = 0;
+		tx_phase_start = 0;
 		if(txActive)
-			disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		{
+			disp_null_icon(13, 26, 0, 0,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			txActive = false;
+		}
 	}
 
 	if(flagLED_sub_rx > 0)
 	{
-		// if TX on, then RX off
-		if(count_tx % 2 == 1)
-			count_rx = 0;
-		if(count_rx++ % 2 == 1)
+		if(rx_phase_start == 0)
+			rx_phase_start = now;
+		if(((now - rx_phase_start) % blink_full) < blink_half)
 		{
 			rxActive = true;
 			disp_edge(13, 26, cmnct_rcv, 	13,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
@@ -620,9 +629,12 @@ static void DisplayHeaderSymbol(void)
 	}
 	else
 	{
-		count_rx = 0;
+		rx_phase_start = 0;
 		if(rxActive)
-			disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);//(26, 26, cmnct_icon, 	0,	0, TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+		{
+			disp_null_icon(13, 26, 0, 13,0,TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
+			rxActive = false;
+		}
 	}
 
 	if(flagLED_sub_tx > 0)
