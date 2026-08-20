@@ -987,7 +987,6 @@ void refresh_extio_by_database(uint8_t ai_start,uint8_t ai_end,uint8_t out_start
 	else if(Modbus.mini_type == PROJECT_RMC1216) {ptr->reg.input_end = 16;		ptr->reg.output_end = 7;}
 	else if(Modbus.mini_type == PROJECT_RMC1232) {ptr->reg.input_end = 32;		ptr->reg.output_end = 6;}
 	else if(Modbus.mini_type == PROJECT_NG3) {ptr->reg.input_end = 24;		ptr->reg.output_end = 13;}
-	else if(Modbus.mini_type == PROJECT_NG2_NEW) {ptr->reg.input_end = 24;		ptr->reg.output_end = 12;}
 	else if(Modbus.mini_type == PROJECT_LORA_GATEWAY) {ptr->reg.input_end = 32;		ptr->reg.output_end = 0;}
 
 

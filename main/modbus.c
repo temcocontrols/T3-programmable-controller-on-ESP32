@@ -1184,11 +1184,6 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0;
 			temp2 = Modbus.LCD_time_off_delay;
 		}
-		else if(address == MODBUS_DEAD_MASTER_FOR_PLC)
-		{
-			temp1 = 0;
-			temp2 = Modbus.dead_master_for_PLC;
-		}
 		else if(address == MODBUS_LED_TEST_FOR_PLC)
 		{
 			temp1 = 0;
