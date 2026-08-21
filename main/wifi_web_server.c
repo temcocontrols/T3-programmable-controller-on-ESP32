@@ -161,7 +161,6 @@ static esp_err_t scan_get_handler(httpd_req_t *req)
 
     char *buf = malloc(1024);
     if (!buf) {
-        free(ap_info);
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -271,5 +270,6 @@ void wifi_web_server_stop(void)
         server = NULL;
         ESP_LOGE(TAG, "HTTP Web Server stopped.");
     }
+    vTaskDelay(pdMS_TO_TICKS(100)); // Small delay to ensure server stops before starting dynamic display API
     dynamic_display_api_start();
 }

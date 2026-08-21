@@ -2179,7 +2179,7 @@ void Event_Cb_WifiEn(lv_event_t * e)
     }
 
     save_block(FLASH_BLOCK1_SSID);
-    connect_wifi();
+    connect_wifi_non_blocking();
 }
 
 /**
@@ -2319,7 +2319,7 @@ void Event_Cb_UpdateWifiConfig(lv_event_t * e)
         SSID_Info.password[sizeof(SSID_Info.password) - 1U] = '\0';
     }
     save_wifi_info();
-    connect_wifi();
+    connect_wifi_non_blocking();
 }
 
 /**

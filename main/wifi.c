@@ -313,7 +313,6 @@ void wifi_init_sta(void)
 
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
     }
 
     esp_wifi_stop();
@@ -514,6 +513,17 @@ void connect_wifi(void)
 	debug_info("Start Wifi init........");
 	wifi_init_sta();
 	debug_info("Finish Wifi init........");
+}
+
+void wifi_init_task(void *pvParameters)
+{
+    connect_wifi();
+    vTaskDelete(NULL); // Delete this task after initialization
+}
+
+void connect_wifi_non_blocking(void)
+{
+    xTaskCreate(wifi_init_task, "wifi_init_task", 6000, NULL, 6, NULL);
 }
 
 esp_err_t wifi_scan_networks(wifi_ap_record_t *ap_list, uint16_t *ap_count, uint16_t max_ap)

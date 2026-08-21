@@ -198,35 +198,60 @@ static esp_err_t screens_get_all_handler(httpd_req_t *req)
         size_t raw_len = 0;
 
         if (screen_store_get_screen(screen_names[i], &raw_json, &raw_len) == ESP_OK && raw_json) {
-            cJSON *parsed = cJSON_Parse(raw_json);
-            cJSON *inner_json = NULL;
-
-            if (parsed) {
-                // If wrapper {"start_up_screen": {...}} exists, extract inner
-                cJSON *wrapper = cJSON_GetObjectItem(parsed, screen_names[i]);
-                if (wrapper && (wrapper->type == cJSON_Object)) {
-                    inner_json = wrapper;
-                } else {
-                    inner_json = parsed;
-                }
-            }
-
-            char *inner_str = inner_json ? cJSON_PrintUnformatted(inner_json) : strdup(raw_json);
 
             char head[128];
             snprintf(head, sizeof(head), "%s{\"name\":\"%s\",\"json\":", (i > 0) ? "," : "", screen_names[i]);
-            httpd_resp_send_chunk(req, head, HTTPD_RESP_USE_STRLEN);
-            httpd_resp_send_chunk(req, inner_str ? inner_str : "{}", HTTPD_RESP_USE_STRLEN);
-            httpd_resp_send_chunk(req, "}", 1);
 
-            if (inner_str) free(inner_str);
-            if (parsed) cJSON_Delete(parsed);
+            esp_err_t ret = httpd_resp_send_chunk(req, head, HTTPD_RESP_USE_STRLEN);
+            if (ret != ESP_OK) {
+                ESP_LOGW(TAG, "Header send failed at screen %s: %s", screen_names[i], esp_err_to_name(ret));
+                free(raw_json);
+                return ret;
+            }
+
+            // --- FAST-PATH CHECK GOES HERE ---
+            char wrapper_prefix[80];
+            snprintf(wrapper_prefix, sizeof(wrapper_prefix), "{\"%s\":", screen_names[i]);
+
+            if (strncmp(raw_json, wrapper_prefix, strlen(wrapper_prefix)) == 0) {
+                // Slow path: only for the double-wrapped screen(s), e.g. schedule_screen
+                cJSON *parsed = cJSON_Parse(raw_json);
+                cJSON *inner_json = NULL;
+
+                if (parsed) {
+                    cJSON *wrapper = cJSON_GetObjectItem(parsed, screen_names[i]);
+                    inner_json = (wrapper && wrapper->type == cJSON_Object) ? wrapper : parsed;
+                }
+
+                char *inner_str = inner_json ? cJSON_PrintUnformatted(inner_json) : strdup(raw_json);
+
+                ret = httpd_resp_send_chunk(req, inner_str ? inner_str : "{}", HTTPD_RESP_USE_STRLEN);
+                if (inner_str) free(inner_str);
+                if (parsed) cJSON_Delete(parsed);
+            } else {
+                // Fast path: stream raw_json straight through, no cJSON overhead at all
+                ret = httpd_resp_send_chunk(req, raw_json, HTTPD_RESP_USE_STRLEN);
+            }
+
+            if (ret != ESP_OK) {
+                ESP_LOGW(TAG, "Body send failed at screen %s: %s", screen_names[i], esp_err_to_name(ret));
+                free(raw_json);
+                return ret;
+            }
+
+            ret = httpd_resp_send_chunk(req, "}", 1);
+            if (ret != ESP_OK) {
+                ESP_LOGW(TAG, "Closing brace send failed at screen %s: %s", screen_names[i], esp_err_to_name(ret));
+                free(raw_json);
+                return ret;
+            }
+
             free(raw_json);
         }
     }
 
     httpd_resp_send_chunk(req, "],\"meta\":{\"panel_name\":\"T3-ESP32\",\"serial_number\":0}}", HTTPD_RESP_USE_STRLEN);
-    return httpd_resp_send_chunk(req, NULL, 0); // End chunked response
+    return httpd_resp_send_chunk(req, NULL, 0);
 }
 
 static esp_err_t screen_get_one_handler(httpd_req_t *req)
@@ -603,62 +628,61 @@ void dynamic_display_task(void *pvParameters)
 {
     if (s_started)
     {
-        ESP_LOGW(TAG, "Dynamic Display REST Server already started");
+        ESP_LOGW(TAG, "Dynamic Display REST Server already started, skipping");
+        vTaskDelete(NULL);
+        return;
+    }
+    s_started = true;
+    // Initialize SPIFFS screen storage and seed default screens if needed
+    esp_err_t ret = screen_store_init();
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to initialize screen flash storage");
     }
     else
     {
-        // Initialize SPIFFS screen storage and seed default screens if needed
-        esp_err_t ret = screen_store_init();
-        if (ret != ESP_OK)
+        httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+        config.max_uri_handlers = 20;
+        config.lru_purge_enable = true;
+        config.stack_size = 20480; // Increase stack size for JSON processing
+        config.uri_match_fn = httpd_uri_match_wildcard;
+
+        ESP_LOGI(TAG, "Starting Dynamic Display REST Server on port %d", config.server_port);
+        if (httpd_start(&s_server, &config) != ESP_OK)
         {
-            ESP_LOGE(TAG, "Failed to initialize screen flash storage");
+            ESP_LOGE(TAG, "Failed to start HTTP server");
+            s_started = false;
         }
         else
         {
-            httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-            config.max_uri_handlers = 20;
-            config.lru_purge_enable = true;
-            config.stack_size = 10240; // Increase stack size for JSON processing
-            config.uri_match_fn = httpd_uri_match_wildcard;
+            httpd_uri_t uris[] = {
+                {.uri = "/api/eez-device/device/info", .method = HTTP_GET, .handler = info_handler},
+                {.uri = "/api/eez-device/screens", .method = HTTP_GET, .handler = screens_get_all_handler},
+                {.uri = "/api/eez-device/screens", .method = HTTP_PUT, .handler = screens_put_all_handler},
+                {.uri = "/api/eez-device/screens/*", .method = HTTP_GET, .handler = screen_get_one_handler},
+                {.uri = "/api/eez-device/screens/*", .method = HTTP_PUT, .handler = single_screen_put_handler},
+                {.uri = "/api/eez-device/screens/*", .method = HTTP_PATCH, .handler = screen_patch_handler},
+                {.uri = "/api/eez-device/images/push/*", .method = HTTP_POST, .handler = image_push_handler},
+                {.uri = "/api/eez-device/images/push", .method = HTTP_POST, .handler = image_push_handler},
+                {.uri = "/api/eez-device/images/pull/*", .method = HTTP_GET, .handler = image_pull_handler},
+                {.uri = "/api/eez-device/images/*", .method = HTTP_DELETE, .handler = image_delete_handler},
+                {.uri = "/api/eez-device/screens/push/*", .method = HTTP_POST, .handler = screens_put_all_handler},
+                {.uri = "/api/eez-device/screens/push", .method = HTTP_POST, .handler = screens_put_all_handler},
+                {.uri = "/api/eez-device/screens/pull/*", .method = HTTP_POST, .handler = screens_get_all_handler},
+                {.uri = "/api/eez-device/screens/pull", .method = HTTP_POST, .handler = screens_get_all_handler},
+                {.uri = "/api/eez-device/reset-defaults", .method = HTTP_POST, .handler = reset_defaults_handler},
+                {.uri = "/api/eez-device/set-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
+                {.uri = "/api/eez-device/load-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
+                {.uri = "/api/eez-device/*", .method = HTTP_OPTIONS, .handler = options_handler},
+            };
 
-            ESP_LOGI(TAG, "Starting Dynamic Display REST Server on port %d", config.server_port);
-            if (httpd_start(&s_server, &config) != ESP_OK)
-            {
-                ESP_LOGE(TAG, "Failed to start HTTP server");
+            for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); ++i) {
+                httpd_register_uri_handler(s_server, &uris[i]);
             }
-            else
-            {
-                httpd_uri_t uris[] = {
-                    {.uri = "/api/eez-device/device/info", .method = HTTP_GET, .handler = info_handler},
-                    {.uri = "/api/eez-device/screens", .method = HTTP_GET, .handler = screens_get_all_handler},
-                    {.uri = "/api/eez-device/screens", .method = HTTP_PUT, .handler = screens_put_all_handler},
-                    {.uri = "/api/eez-device/screens/*", .method = HTTP_GET, .handler = screen_get_one_handler},
-                    {.uri = "/api/eez-device/screens/*", .method = HTTP_PUT, .handler = single_screen_put_handler},
-                    {.uri = "/api/eez-device/screens/*", .method = HTTP_PATCH, .handler = screen_patch_handler},
-                    {.uri = "/api/eez-device/images/push/*", .method = HTTP_POST, .handler = image_push_handler},
-                    {.uri = "/api/eez-device/images/push", .method = HTTP_POST, .handler = image_push_handler},
-                    {.uri = "/api/eez-device/images/pull/*", .method = HTTP_GET, .handler = image_pull_handler},
-                    {.uri = "/api/eez-device/images/*", .method = HTTP_DELETE, .handler = image_delete_handler},
-                    {.uri = "/api/eez-device/screens/push/*", .method = HTTP_POST, .handler = screens_put_all_handler},
-                    {.uri = "/api/eez-device/screens/push", .method = HTTP_POST, .handler = screens_put_all_handler},
-                    {.uri = "/api/eez-device/screens/pull/*", .method = HTTP_POST, .handler = screens_get_all_handler},
-                    {.uri = "/api/eez-device/screens/pull", .method = HTTP_POST, .handler = screens_get_all_handler},
-                    {.uri = "/api/eez-device/reset-defaults", .method = HTTP_POST, .handler = reset_defaults_handler},
-                    {.uri = "/api/eez-device/set-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
-                    {.uri = "/api/eez-device/load-default-screens", .method = HTTP_POST, .handler = reset_defaults_handler},
-                    {.uri = "/api/eez-device/*", .method = HTTP_OPTIONS, .handler = options_handler},
-                };
 
-                for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); ++i) {
-                    httpd_register_uri_handler(s_server, &uris[i]);
-                }
-
-                s_started = true;
-                ESP_LOGI(TAG, "Dynamic Display REST Server initialized successfully");
-            }
+            ESP_LOGI(TAG, "Dynamic Display REST Server initialized successfully");
         }
     }
-
     vTaskDelete(NULL); // Delete this task as it's no longer needed
 }
 
@@ -671,8 +695,15 @@ esp_err_t dynamic_display_api_start(void)
 void dynamic_display_api_stop(void)
 {
     if (s_server) {
-        httpd_stop(s_server);
+        esp_err_t ret = httpd_stop(s_server);
+        if (ret == ESP_OK) {
+            ESP_LOGI(TAG, "Dynamic Display REST Server completely stopped");
+        } else {
+            ESP_LOGE(TAG, "Failed to stop HTTP server: %s",
+                     esp_err_to_name(ret));
+        }
         s_server = NULL;
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
     s_started = false;
 }

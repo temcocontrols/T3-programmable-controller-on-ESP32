@@ -366,6 +366,130 @@
                 "width": 220,
                 "x_pos": 0,
                 "y_pos": 90
+              },
+              "Button6": {
+                "align": "center",
+                "children": {
+                  "Label9": {
+                    "align": "center",
+                    "height": 0,
+                    "long_mode": "SCROLL",
+                    "obj_text": "WireGuard",
+                    "style": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "text_color": "#09007D",
+                          "text_font": "lv_font_montserrat_30",
+                          "text_letter_space": 2,
+                          "text_line_space": 0,
+                          "text_opa": 255
+                        }
+                      }
+                    },
+                    "sub_type": "label",
+                    "text_type": "literal",
+                    "type": "Widget",
+                    "width": 0,
+                    "x_pos": 0,
+                    "y_pos": 0
+                  }
+                },
+                "events": {
+                  "CLICKED": {
+                    "actions": [
+                      {
+                        "action": "screen_change",
+                        "anim": "MOVE_LEFT",
+                        "delay": 0,
+                        "screen": "wireguard_screen",
+                        "speed": 500
+                      }
+                    ]
+                  }
+                },
+                "height": 40,
+                "obj_text": "",
+                "style": {
+                  "MAIN": {
+                    "DEFAULT": {
+                      "bg_color": "#349EF9",
+                      "bg_grad_color": "#81BAEA",
+                      "bg_grad_dir": "ver",
+                      "bg_grad_stop": 255,
+                      "bg_main_stop": 0,
+                      "bg_opa": 255,
+                      "radius": 30
+                    }
+                  }
+                },
+                "sub_type": "button",
+                "text_type": "literal",
+                "type": "Widget",
+                "width": 220,
+                "x_pos": 0,
+                "y_pos": 140
+              },
+              "Button7": {
+                "align": "center",
+                "children": {
+                  "Label10": {
+                    "align": "center",
+                    "height": 0,
+                    "long_mode": "SCROLL",
+                    "obj_text": "DDNS",
+                    "style": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "text_color": "#09007D",
+                          "text_font": "lv_font_montserrat_30",
+                          "text_letter_space": 2,
+                          "text_line_space": 0,
+                          "text_opa": 255
+                        }
+                      }
+                    },
+                    "sub_type": "label",
+                    "text_type": "literal",
+                    "type": "Widget",
+                    "width": 0,
+                    "x_pos": 0,
+                    "y_pos": 0
+                  }
+                },
+                "events": {
+                  "CLICKED": {
+                    "actions": [
+                      {
+                        "action": "screen_change",
+                        "anim": "MOVE_LEFT",
+                        "delay": 0,
+                        "screen": "ddns_screen",
+                        "speed": 500
+                      }
+                    ]
+                  }
+                },
+                "height": 40,
+                "obj_text": "",
+                "style": {
+                  "MAIN": {
+                    "DEFAULT": {
+                      "bg_color": "#349EF9",
+                      "bg_grad_color": "#81BAEA",
+                      "bg_grad_dir": "ver",
+                      "bg_grad_stop": 255,
+                      "bg_main_stop": 0,
+                      "bg_opa": 255,
+                      "radius": 30
+                    }
+                  }
+                },
+                "sub_type": "button",
+                "text_type": "literal",
+                "type": "Widget",
+                "width": 220,
+                "x_pos": 0,
+                "y_pos": 190
               }
             },
             "height": 275,

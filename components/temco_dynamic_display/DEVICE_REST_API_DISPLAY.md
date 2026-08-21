@@ -717,52 +717,55 @@ Use those files as reference for exact behavior and JSON keys.
 
 ## Test commnads
 
-IP=192.168.1.10   # replace with your device IP
+IP=192.168.31.164   # replace with your device IP
 
 # GET device info
-curl -v http://192.168.1.10/api/eez-device/device/info
+curl -v http://192.168.31.164/api/eez-device/device/info
 
 # GET all screens
-curl -v http://192.168.1.10/api/eez-device/screens
+curl -v http://192.168.31.164/api/eez-device/screens
 
 # PUT all screens
-curl -v -X PUT http://192.168.1.10/api/eez-device/screens \
-  -H "Content-Type: application/json" -d '{"screens":[]}'
+
+curl -s http://192.168.31.164/api/eez-device/screens -o current_screens.json jq empty current_screens.json && echo "Valid JSON"
+
+curl -v -X PUT http://192.168.31.164/api/eez-device/screens \
+  -H "Content-Type: application/json" \
+  --data-binary @test_minimal.json
 
 # GET one screen
-curl -v http://192.168.1.10/api/eez-device/screens/screen1
+curl -v http://192.168.31.164/api/eez-device/screens/start_up_screen
+curl -v http://192.168.31.164/api/eez-device/screens/home_screen
+curl -v http://192.168.31.164/api/eez-device/screens/main_menu
+curl -v http://192.168.31.164/api/eez-device/screens/network_config
+curl -v http://192.168.31.164/api/eez-device/screens/parameters
+curl -v http://192.168.31.164/api/eez-device/screens/protocols
+curl -v http://192.168.31.164/api/eez-device/screens/schedule_edit_screen
+curl -v http://192.168.31.164/api/eez-device/screens/schedule_screen
+curl -v http://192.168.31.164/api/eez-device/screens/time
+curl -v http://192.168.31.164/api/eez-device/screens/wifi_config
+curl -v http://192.168.31.164/api/eez-device/screens/holiday_calender_screen
+curl -v http://192.168.31.164/api/eez-device/screens/ddns_screen
+curl -v http://192.168.31.164/api/eez-device/screens/wireguard_screen
 
 # PUT one screen
-curl -v -X PUT http://192.168.1.10/api/eez-device/screens/screen1 \
-  -H "Content-Type: application/json" -d '{"name":"screen1"}'
+curl -v -X PUT http://192.168.31.164/api/eez-device/screens/start_up_screen \
+  -H "Content-Type: application/json" -d '{"name":"start_up_screen"}'
 
 # PATCH one screen
-curl -v -X PATCH http://192.168.1.10/api/eez-device/screens/screen1 \
+curl -v -X PATCH http://192.168.31.164/api/eez-device/screens/start_up_screen \
   -H "Content-Type: application/json" -d '{"name":"updated"}'
 
-# Image push (with and without trailing id)
-curl -v -X POST http://192.168.1.10/api/eez-device/images/push/img1 --data-binary @test.png
-curl -v -X POST http://192.168.1.10/api/eez-device/images/push --data-binary @test.png
-
 # Image pull
-curl -v http://192.168.1.10/api/eez-device/images/pull/img1
-
-# Image delete
-curl -v -X DELETE http://192.168.1.10/api/eez-device/images/img1
-
-# Screens push/pull aliases
-curl -v -X POST http://192.168.1.10/api/eez-device/screens/push/foo
-curl -v -X POST http://192.168.1.10/api/eez-device/screens/push
-curl -v -X POST http://192.168.1.10/api/eez-device/screens/pull/foo
-curl -v -X POST http://192.168.1.10/api/eez-device/screens/pull
+curl -v http://192.168.31.164/api/eez-device/images/pull/444508050
 
 # Reset/defaults endpoints
-curl -v -X POST http://192.168.1.10/api/eez-device/reset-defaults
-curl -v -X POST http://192.168.1.10/api/eez-device/set-default-screens
-curl -v -X POST http://192.168.1.10/api/eez-device/load-default-screens
+curl -v -X POST http://192.168.31.164/api/eez-device/reset-defaults
+curl -v -X POST http://192.168.31.164/api/eez-device/set-default-screens
+curl -v -X POST http://192.168.31.164/api/eez-device/load-default-screens
 
 # OPTIONS (CORS preflight)
-curl -v -X OPTIONS http://192.168.1.10/api/eez-device/screens
+curl -v -X OPTIONS http://192.168.31.164/api/eez-device/screens
 
 ---
 
