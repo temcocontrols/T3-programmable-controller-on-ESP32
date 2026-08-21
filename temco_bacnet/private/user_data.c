@@ -423,7 +423,7 @@ static void init_default_input_point(Str_in_point *pin, uint16_t i)
 {
 	memset(pin, 0, sizeof(Str_in_point));
 	pin->value = 0;
-	snprintf((char *)pin->description, sizeof(pin->description), "newIN %d", (int)(i + 1));
+	snprintf((char *)pin->description, sizeof(pin->description), "IN %d", (int)(i + 1));
 	pin->filter = DEFAULT_FILTER;
 	pin->decom = 0;
 	pin->control = 1;
@@ -452,7 +452,7 @@ static void init_default_output_point(Str_out_point *pout, uint16_t i)
 		pout->range = 4;
 		pout->digital_analog = 1;
 	}
-	snprintf((char *)pout->description, sizeof(pout->description), "newOUT%d", (int)(i + 1));
+	snprintf((char *)pout->description, sizeof(pout->description), "OUT%d", (int)(i + 1));
 	snprintf((char *)pout->label, sizeof(pout->label), "OUT%d", (int)(i + 1));
 	pout->auto_manual = 0;
 }
@@ -465,7 +465,7 @@ static void init_default_var_point(Str_variable_point *pvar, uint16_t i)
 	pvar->digital_analog = 1;
 	pvar->unused = 2;
 	pvar->range = 0;
-	snprintf((char *)pvar->description, sizeof(pvar->description), "newVAR%d", (int)(i + 1));
+	snprintf((char *)pvar->description, sizeof(pvar->description), "VAR%d", (int)(i + 1));
 	snprintf((char *)pvar->label, sizeof(pvar->label), "VAR%d", (int)(i + 1));
 }
 

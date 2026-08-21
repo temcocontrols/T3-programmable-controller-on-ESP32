@@ -16,6 +16,7 @@
 #include "esp_partition.h"
 #include "esp_system.h"
 #include <string.h>
+#include <stdlib.h>
 #include "ud_str.h"
 #include "user_data.h"
 #include "driver/uart.h"
@@ -1093,7 +1094,10 @@ void Flash_Inital(void)
 			break;
 		case GRP_POINT:
 			baseAddr += len;
-			len = sizeof(Str_grp_element_new) * MAX_ELEMENTS_NEW;
+			/* Payload is one group_data_new. Layout spacing must stay the historical
+			 * U16-truncated value of sizeof(Str_grp_element_new)*MAX_ELEMENTS_NEW
+			 * (0x8200) so SUB_DB/TBL/TEMCOVAR addresses remain compatible. */
+			len = (U16_T)(sizeof(Str_grp_element_new) * MAX_ELEMENTS_NEW);
 			break;
 		/*case TEMCOVAR:
 			baseAddr += len;
@@ -1122,12 +1126,12 @@ void Flash_Inital(void)
 		//write_page_en[loop] = 0;
 	}
 
-	// 把后面添加的TEMCO_VAR，添加到后面，避免把之前的flash弄乱
+	/* TEMCOVAR is appended after the packed layout so older images stay compatible */
 	baseAddr += len;
 	len = sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS;
 	Flash_Position[TEMCOVAR].addr = baseAddr;
 	Flash_Position[TEMCOVAR].len = len;
-
+	Flash_Position[TEMCOVAR].valid = 1;
 
 	for(loop = 0;loop < MAX_PRGS;loop++)
 		programs[loop].real_byte = 0;
@@ -1590,242 +1594,156 @@ typedef struct
 esp_err_t save_point_info(uint8_t point_type)
 {
 	STR_flag_flash ptr_flash;
-	uint8_t err=0xff;
+	esp_err_t err = ESP_OK;
 	uint16_t loop;
-	uint8_t need_write = 0;
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
 	(void)point_type;
 
-	/* Compare before write: only erase/program Flash when content changed */
+#if NEW_IO
+	/* Never erase point-info if IO buffers are missing. */
+	if(new_outputs == NULL || new_inputs == NULL || new_vars == NULL)
+		return ESP_ERR_INVALID_STATE;
+#endif
+
+	/* Always erase then rewrite (same as previous stable firmware).
+	 * Compare-before-write was unsafe: erase + skipped write left 0xFF and wiped data. */
+	err = esp_partition_erase_range(partition, POINT_INFO_ADDR, get_point_info_erase_len(partition->size));
+	if(err != ESP_OK)
+		return err;
+
 	for(loop = 0; loop < MAX_POINT_TYPE; loop++)
 	{
-		uint8_t *cur = NULL;
-		uint8_t *flash_buf;
-		uint32_t len;
+		uint8_t *tempbuf = NULL;
+		uint32_t write_len;
 		uint8_t owned = 0;
 
 		if(Flash_Position[loop].valid != 1)
 			continue;
 
-		len = Flash_Position[loop].len;
+		ptr_flash.table = loop;
+		ptr_flash.len = Flash_Position[loop].len;
+		/* Keep Flash_Position[].len as Flash_Inital layout size; use local write_len only. */
+		write_len = Flash_Position[loop].len;
+
 #if NEW_IO
-		if(loop == OUT && new_outputs != NULL)
+		if(loop == OUT)
 		{
-			cur = (uint8_t *)new_outputs;
-			len = max_outputs * sizeof(Str_out_point);
-			Flash_Position[loop].len = len;
+			tempbuf = (uint8_t *)new_outputs;
+			write_len = (uint32_t)max_outputs * sizeof(Str_out_point);
 		}
-		else if(loop == IN && new_inputs != NULL)
+		else if(loop == IN)
 		{
-			cur = (uint8_t *)new_inputs;
-			len = max_inputs * sizeof(Str_in_point);
-			Flash_Position[loop].len = len;
+			tempbuf = (uint8_t *)new_inputs;
+			write_len = (uint32_t)max_inputs * sizeof(Str_in_point);
 		}
-		else if(loop == VAR && new_vars != NULL)
+		else if(loop == VAR)
 		{
-			cur = (uint8_t *)new_vars;
-			len = max_vars * sizeof(Str_variable_point);
-			Flash_Position[loop].len = len;
+			tempbuf = (uint8_t *)new_vars;
+			write_len = (uint32_t)max_vars * sizeof(Str_variable_point);
 		}
-#endif
-		if(cur == NULL)
+		else
 		{
-			cur = (uint8_t *)malloc(len);
-			if(cur == NULL) { need_write = 1; break; }
+			if(loop == GRP_POINT)
+				write_len = sizeof(Str_grp_element_new);
+			else if(loop == ALARMM)
+				write_len = sizeof(Alarm_point) * MAX_ALARMS;
+
+			tempbuf = (uint8_t *)calloc(1, write_len);
+			if(tempbuf == NULL)
+				return ESP_ERR_NO_MEM;
 			owned = 1;
-			switch(loop)
-			{
-#if !NEW_IO
-			case OUT: memcpy(cur, &outputs, sizeof(Str_out_point) * MAX_OUTS); break;
-			case IN:  memcpy(cur, &inputs, sizeof(Str_in_point) * MAX_INS); break;
-			case VAR: memcpy(cur, &vars, sizeof(Str_variable_point) * MAX_VARS); break;
-#endif
-			case CON: memcpy(cur, &controllers, sizeof(Str_controller_point) * MAX_CONS); break;
-			case WRT: memcpy(cur, &weekly_routines, sizeof(Str_weekly_routine_point) * MAX_WR); break;
-			case AR:  memcpy(cur, &annual_routines, sizeof(Str_annual_routine_point) * MAX_AR); break;
-			case PRG: memcpy(cur, &programs, sizeof(Str_program_point) * MAX_PRGS); break;
-			case TBL: memcpy(cur, &custom_tab, sizeof(Str_table_point) * MAX_TBLS); break;
-			case AMON: memcpy(cur, &monitors, sizeof(Str_monitor_point) * MAX_MONITORS); break;
-			case GRP: memcpy(cur, &control_groups, sizeof(Control_group_point) * MAX_GRPS); break;
-			case PRG_CODE: memcpy(cur, &prg_code, MAX_CODE * CODE_ELEMENT * MAX_PRGS); break;
-			case UNIT: memcpy(cur, &digi_units, sizeof(Units_element) * MAX_DIG_UNIT); break;
-			case USER_NAME: memcpy(cur, &passwords, sizeof(Password_point) * MAX_PASSW); break;
-			case WR_TIME: memcpy(cur, &wr_times, sizeof(Wr_one_day) * 9 * MAX_WR); break;
-			case AR_DATA: memcpy(cur, &ar_dates, 46 * sizeof(S8_T) * MAX_AR); break;
-			case GRP_POINT: memcpy(cur, &group_data_new, sizeof(Str_grp_element_new)); break;
-			case TEMCOVAR: memcpy(cur, &pvars, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS); break;
-			case SUB_DB: memcpy(cur, &scan_db, sizeof(SCAN_DB) * SUB_NO); break;
-			default:
-				free(cur); cur = NULL; owned = 0; break;
-			}
 		}
-		if(cur == NULL)
-			continue;
-
-		flash_buf = (uint8_t *)malloc(len);
-		if(flash_buf == NULL)
-		{
-			if(owned) free(cur);
-			need_write = 1;
-			break;
-		}
-		err = esp_partition_read(partition, Flash_Position[loop].addr, flash_buf, len);
-		if(err != ESP_OK || memcmp(cur, flash_buf, len) != 0)
-			need_write = 1;
-		free(flash_buf);
-		if(owned) free(cur);
-		if(need_write)
-			break;
-	}
-
-	if(!need_write)
-	{
-		rtc_value_backup_flush();
-		return ESP_OK;
-	}
-err = esp_partition_erase_range(partition, POINT_INFO_ADDR, get_point_info_erase_len(partition->size));
-	if(err!=0)
-	{
-		return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
-	}
-
-
-	//debug_info(" erase ok");
-	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
-	{
-		//if(loop == point_type)
-		{
-			uint8_t *tempbuf = NULL;
-			ptr_flash.table = loop;
-			ptr_flash.len = Flash_Position[loop].len;
-
-#if NEW_IO
-			if(loop == OUT)
-			{
-				if(new_outputs != NULL)
-				{
-					tempbuf = (uint8_t *)new_outputs;
-					Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
-				}
-			}
-			else if(loop == IN)
-			{
-				if(new_inputs != NULL)
-				{
-					tempbuf = (uint8_t *)new_inputs;
-					Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
-				}
-			}
-			else if(loop == VAR)
-			{
-				if(new_vars != NULL)
-				{
-					tempbuf = (uint8_t *)new_vars;
-					Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
-				}
-			}
-			else
-				tempbuf = (uint8_t*)malloc(ptr_flash.len);
 #else
-			tempbuf = (uint8_t*)malloc(ptr_flash.len);
-#endif
-			switch(loop)
-			{
-#if !NEW_IO
-			case OUT:
-				memcpy(tempbuf,&outputs,sizeof(Str_out_point) * MAX_OUTS);
-				break;
-			case IN:
-				memcpy(tempbuf,&inputs,sizeof(Str_in_point) * MAX_INS);
-				break;
-			case VAR:
-				memcpy(tempbuf,&vars,sizeof(Str_variable_point) * MAX_VARS);
-				break;
-#endif
-			case CON:
-				memcpy(tempbuf,&controllers,sizeof(Str_controller_point) * MAX_CONS);
-				break;
+		if(loop == GRP_POINT)
+			write_len = sizeof(Str_grp_element_new);
+		else if(loop == ALARMM)
+			write_len = sizeof(Alarm_point) * MAX_ALARMS;
 
-			case WRT:
-				memcpy(tempbuf,&weekly_routines,sizeof(Str_weekly_routine_point) * MAX_WR);
-				break;
-			case AR:
-				memcpy(tempbuf,&annual_routines,sizeof(Str_annual_routine_point) * MAX_AR);
-				break;
-			case PRG:
-				memcpy(tempbuf,&programs,sizeof(Str_program_point) * MAX_PRGS);
-				break;
-	#if 1
-			case TBL:
-				memcpy(tempbuf,&custom_tab,sizeof(Str_table_point) * MAX_TBLS);
-				break;
-		/*	case TZ:
-				memcpy(&tempbuf,&totalizers,sizeof(Str_totalizer_point) * MAX_TOTALIZERS);
-				break;	*/
-			case AMON:
-				memcpy(tempbuf,&monitors,sizeof(Str_monitor_point) * MAX_MONITORS);
-				break;
+		tempbuf = (uint8_t *)calloc(1, write_len);
+		if(tempbuf == NULL)
+			return ESP_ERR_NO_MEM;
+		owned = 1;
+#endif
+		switch(loop)
+		{
+#if !NEW_IO
+		case OUT:
+			memcpy(tempbuf,&outputs,sizeof(Str_out_point) * MAX_OUTS);
+			break;
+		case IN:
+			memcpy(tempbuf,&inputs,sizeof(Str_in_point) * MAX_INS);
+			break;
+		case VAR:
+			memcpy(tempbuf,&vars,sizeof(Str_variable_point) * MAX_VARS);
+			break;
+#endif
+		case CON:
+			memcpy(tempbuf,&controllers,sizeof(Str_controller_point) * MAX_CONS);
+			break;
+		case WRT:
+			memcpy(tempbuf,&weekly_routines,sizeof(Str_weekly_routine_point) * MAX_WR);
+			break;
+		case AR:
+			memcpy(tempbuf,&annual_routines,sizeof(Str_annual_routine_point) * MAX_AR);
+			break;
+		case PRG:
+			memcpy(tempbuf,&programs,sizeof(Str_program_point) * MAX_PRGS);
+			break;
+		case TBL:
+			memcpy(tempbuf,&custom_tab,sizeof(Str_table_point) * MAX_TBLS);
+			break;
+		case AMON:
+			memcpy(tempbuf,&monitors,sizeof(Str_monitor_point) * MAX_MONITORS);
+			break;
 		case GRP:
-				memcpy(tempbuf,&control_groups,sizeof(Control_group_point) * MAX_GRPS);
-				break;
-	/*			case ARRAY:
-				memcpy(&tempbuf,&arrays,sizeof(Str_array_point) * MAX_ARRAYS);
-				break;
-			case ALARMM:
-	//				memcpy(&tempbuf,&alarms,sizeof(Alarm_point) * MAX_ALARMS);
-				break;
-				case ALARM_SET:
-				memcpy(tempbuf,&alarms_set,sizeof(Alarm_set_point) * MAX_ALARMS_SET);
-				break;*/
-			case PRG_CODE: //prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
-				memcpy(tempbuf,&prg_code,MAX_CODE * CODE_ELEMENT * MAX_PRGS);
-				break;
-			case UNIT:
-				memcpy(tempbuf,&digi_units,sizeof(Units_element) * MAX_DIG_UNIT);
-				break;
-			case USER_NAME:
-				memcpy(tempbuf,&passwords,sizeof(Password_point) * MAX_PASSW);
-				break;
-			case WR_TIME:
-				memcpy(tempbuf,&wr_times,sizeof(Wr_one_day) * 9 * MAX_WR);
-				break;
-			case AR_DATA:
-				memcpy(tempbuf,&ar_dates,46 * sizeof(S8_T) * MAX_AR);
-				break;
-
-			case GRP_POINT:
-				memcpy(tempbuf,&group_data_new,sizeof(Str_grp_element_new));
-				break;
-			case TEMCOVAR:
-				memcpy(tempbuf,&pvars, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
-				break;
-			case SUB_DB:
-				memcpy(tempbuf,&scan_db,sizeof(SCAN_DB) * SUB_NO);
-				break;
-	#endif
-			default:
-				break;
-
-			}
-
-		// step 3�������Ҫ������û�����
-			if(Flash_Position[loop].valid == 1)
-			{
-				err = esp_partition_write(partition, Flash_Position[loop].addr,tempbuf,Flash_Position[loop].len);
-				//debug_info("write ...");
-
-			}
-#if NEW_IO
-		if((loop != OUT) && (loop != IN) && (loop != VAR))
-			free(tempbuf);
-#else
-		free(tempbuf);
-#endif
-
+			memcpy(tempbuf,&control_groups,sizeof(Control_group_point) * MAX_GRPS);
+			break;
+		case ALARMM:
+			memcpy(tempbuf,&alarms,sizeof(Alarm_point) * MAX_ALARMS);
+			break;
+		case PRG_CODE:
+			memcpy(tempbuf,&prg_code,MAX_CODE * CODE_ELEMENT * MAX_PRGS);
+			break;
+		case UNIT:
+			memcpy(tempbuf,&digi_units,sizeof(Units_element) * MAX_DIG_UNIT);
+			break;
+		case USER_NAME:
+			memcpy(tempbuf,&passwords,sizeof(Password_point) * MAX_PASSW);
+			break;
+		case WR_TIME:
+			memcpy(tempbuf,&wr_times,sizeof(Wr_one_day) * 9 * MAX_WR);
+			break;
+		case AR_DATA:
+			memcpy(tempbuf,&ar_dates,46 * sizeof(S8_T) * MAX_AR);
+			break;
+		case GRP_POINT:
+			memcpy(tempbuf,&group_data_new,sizeof(Str_grp_element_new));
+			break;
+		case TEMCOVAR:
+			memcpy(tempbuf,&pvars, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
+			break;
+		case SUB_DB:
+			memcpy(tempbuf,&scan_db,sizeof(SCAN_DB) * SUB_NO);
+			break;
+		default:
+			if(owned) { free(tempbuf); tempbuf = NULL; owned = 0; }
+			break;
 		}
-	   //debug_info("user  flash write success");
+
+		if(tempbuf != NULL)
+		{
+			err = esp_partition_write(partition, Flash_Position[loop].addr, tempbuf, write_len);
+			if(owned)
+				free(tempbuf);
+			if(err != ESP_OK)
+				return err;
+		}
+		else if(owned)
+		{
+			free(tempbuf);
+		}
 	}
 	rtc_value_backup_flush();
 	return ESP_OK;
@@ -2325,169 +2243,169 @@ void Initial_points(uint8_t point_type)
 	}
 }
 
+static int flash_payload_is_blank(const uint8_t *buf, uint32_t len)
+{
+	uint32_t i;
+	uint32_t n;
+
+	if(buf == NULL || len == 0)
+		return 1;
+
+	/* Legacy empty marker used by older images */
+	if(len >= 3 && buf[0] == 0x04 && buf[1] == 0x04 && buf[2] == 0x04)
+		return 1;
+
+	/* Erased NOR flash is 0xFF. Sample head — enough to reject wiped point tables. */
+	n = (len < 16) ? len : 16;
+	for(i = 0; i < n; i++)
+	{
+		if(buf[i] != 0xFF)
+			return 0;
+	}
+	return 1;
+}
+
 void read_point_info(void)
 {
-	// Find the partition map in the partition table
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
 	assert(partition != NULL);
-	//STR_flag_flash ptr_flash;
-	//U16_T base_addr;
-	U8_T loop,i;
-	U8_T page;
-	uint8_t  err = 0xff;
+	U8_T loop;
+	esp_err_t err;
 	uint8_t *tempbuf = NULL;
+	uint32_t read_len;
 
-	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
+	for(loop = 0; loop < MAX_POINT_TYPE; loop++)
 	{
-
 		if(Flash_Position[loop].valid == 0)
 			continue;
 
-#if NEW_IO
+		read_len = Flash_Position[loop].len;
 
+#if NEW_IO
 		if(loop == OUT)
 		{
-			if(new_outputs != NULL)
-			{
-				tempbuf = (uint8_t *)new_outputs;
-				Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
-			}
+			if(new_outputs == NULL)
+				continue;
+			/* Payload size only — do not shrink Flash_Position layout len. */
+			read_len = (uint32_t)max_outputs * sizeof(Str_out_point);
 		}
 		else if(loop == IN)
 		{
-			if(new_inputs != NULL)
-			{
-				tempbuf = (uint8_t *)new_inputs;
-				Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
-			}
+			if(new_inputs == NULL)
+				continue;
+			read_len = (uint32_t)max_inputs * sizeof(Str_in_point);
 		}
 		else if(loop == VAR)
 		{
-			if(new_vars != NULL)
-			{
-				tempbuf = (uint8_t *)new_vars;
-				Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
-			}
+			if(new_vars == NULL)
+				continue;
+			read_len = (uint32_t)max_vars * sizeof(Str_variable_point);
 		}
-		else
-		{
-			tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
-
-		}
+		else if(loop == GRP_POINT)
+			read_len = sizeof(Str_grp_element_new);
+		else if(loop == ALARMM)
+			read_len = sizeof(Alarm_point) * MAX_ALARMS;
 #else
-		tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
+		if(loop == GRP_POINT)
+			read_len = sizeof(Str_grp_element_new);
+		else if(loop == ALARMM)
+			read_len = sizeof(Alarm_point) * MAX_ALARMS;
 #endif
 
-		err = esp_partition_read(partition, Flash_Position[loop].addr, tempbuf, Flash_Position[loop].len);
+		tempbuf = (uint8_t *)malloc(read_len);
+		if(tempbuf == NULL)
+			continue;
+
+		err = esp_partition_read(partition, Flash_Position[loop].addr, tempbuf, read_len);
+		if(err != ESP_OK)
+		{
+			free(tempbuf);
+			continue;
+		}
+
+		/* Erased Flash is 0xFF. Do not clobber init_panel() defaults with 0xFF garbage. */
+		if(flash_payload_is_blank(tempbuf, read_len))
+		{
+			free(tempbuf);
+			continue;
+		}
 
 		switch(loop)
 		{
-
 		case OUT:
-#if !NEW_IO
-			memcpy(&outputs,tempbuf,sizeof(Str_out_point) * MAX_OUTS);
+#if NEW_IO
+			memcpy(new_outputs, tempbuf, read_len);
+#else
+			memcpy(&outputs, tempbuf, sizeof(Str_out_point) * MAX_OUTS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(OUT);
-			}
-
 			break;
 		case IN:
-#if !NEW_IO
-			memcpy(&inputs,tempbuf,sizeof(Str_in_point) * MAX_INS);
+#if NEW_IO
+			memcpy(new_inputs, tempbuf, read_len);
+#else
+			memcpy(&inputs, tempbuf, sizeof(Str_in_point) * MAX_INS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(IN);
-
-			}
-
 			break;
 		case VAR:
-#if !NEW_IO
-			memcpy(&vars,tempbuf,sizeof(Str_variable_point) * MAX_VARS);
+#if NEW_IO
+			memcpy(new_vars, tempbuf, read_len);
+#else
+			memcpy(&vars, tempbuf, sizeof(Str_variable_point) * MAX_VARS);
 #endif
-			// if initial status
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(VAR);
-			}
 			break;
-
 		case CON:
-			memcpy(&controllers,tempbuf,sizeof(Str_controller_point) * MAX_CONS);
+			memcpy(&controllers, tempbuf, sizeof(Str_controller_point) * MAX_CONS);
 			break;
 		case WRT:
-			memcpy(&weekly_routines,tempbuf,sizeof(Str_weekly_routine_point) * MAX_WR);
+			memcpy(&weekly_routines, tempbuf, sizeof(Str_weekly_routine_point) * MAX_WR);
 			break;
 		case AR:
-			memcpy(&annual_routines,tempbuf,sizeof(Str_annual_routine_point) * MAX_AR);
+			memcpy(&annual_routines, tempbuf, sizeof(Str_annual_routine_point) * MAX_AR);
 			break;
 		case PRG:
-			memcpy(&programs,tempbuf,sizeof(Str_program_point) * MAX_PRGS);
+			memcpy(&programs, tempbuf, sizeof(Str_program_point) * MAX_PRGS);
 			break;
 		case TBL:
-			memcpy(&custom_tab,tempbuf,sizeof(Str_table_point) * MAX_TBLS);
+			memcpy(&custom_tab, tempbuf, sizeof(Str_table_point) * MAX_TBLS);
 			break;
-	/*	case TZ:
-			memcpy(&totalizers,tempbuf,sizeof(Str_totalizer_point) * MAX_TOTALIZERS);
-			break;	*/
 		case AMON:
-			memcpy(&monitors,tempbuf,sizeof(Str_monitor_point) * MAX_MONITORS);
+			memcpy(&monitors, tempbuf, sizeof(Str_monitor_point) * MAX_MONITORS);
 			break;
 		case GRP:
-			memcpy(&control_groups,tempbuf,sizeof(Control_group_point) * MAX_GRPS);
+			memcpy(&control_groups, tempbuf, sizeof(Control_group_point) * MAX_GRPS);
 			break;
-/*			case ARRAY:
-			memcpy(&arrays,&tempbuf,sizeof(Str_array_point) * MAX_ARRAYS);
-			break; */
 		case ALARMM:
-			memcpy(&alarms,tempbuf,sizeof(Alarm_point) * MAX_ALARMS);
+			memcpy(&alarms, tempbuf, sizeof(Alarm_point) * MAX_ALARMS);
 			break;
-		/*case ALARM_SET:
-			memcpy(&alarms_set,tempbuf,sizeof(Alarm_set_point) * MAX_ALARMS_SET);
-			break;*/
 		case PRG_CODE:
-			memcpy(&prg_code,tempbuf,MAX_PRGS * MAX_CODE * CODE_ELEMENT);
+			memcpy(&prg_code, tempbuf, MAX_PRGS * MAX_CODE * CODE_ELEMENT);
 			break;
 		case UNIT:
-			memcpy(&digi_units,tempbuf,sizeof(Units_element) * MAX_DIG_UNIT);
+			memcpy(&digi_units, tempbuf, sizeof(Units_element) * MAX_DIG_UNIT);
 			break;
 		case USER_NAME:
-			memcpy(&passwords,tempbuf,sizeof(Password_point) * MAX_PASSW);
+			memcpy(&passwords, tempbuf, sizeof(Password_point) * MAX_PASSW);
 			break;
 		case WR_TIME:
-			memcpy(&wr_times,tempbuf,sizeof(Wr_one_day) * 9 * MAX_WR);
-
+			memcpy(&wr_times, tempbuf, sizeof(Wr_one_day) * 9 * MAX_WR);
 			break;
 		case AR_DATA:
-			memcpy(&ar_dates,tempbuf,46 * sizeof(S8_T) * MAX_AR);
+			memcpy(&ar_dates, tempbuf, 46 * sizeof(S8_T) * MAX_AR);
 			break;
 		case SUB_DB:
-			memcpy(&scan_db,tempbuf,sizeof(SCAN_DB) * SUB_NO);
+			memcpy(&scan_db, tempbuf, sizeof(SCAN_DB) * SUB_NO);
 			break;
 		case GRP_POINT:
-			memcpy(&group_data_new,tempbuf,sizeof(Str_grp_element_new));
+			memcpy(&group_data_new, tempbuf, sizeof(Str_grp_element_new));
 			break;
 		case TEMCOVAR:
-			memcpy(&pvars,tempbuf,sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
+			memcpy(&pvars, tempbuf, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
 			break;
 		default:
 			break;
-
-			}
-
-
-#if NEW_IO
-		if((loop != OUT) && (loop != IN) && (loop != VAR)){
-
-			free(tempbuf);
 		}
-#else
-		free(tempbuf);
-#endif
 
+		free(tempbuf);
 	}
 
 	update_all_pvars();

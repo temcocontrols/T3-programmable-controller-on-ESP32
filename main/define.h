@@ -31,6 +31,7 @@ typedef	struct
 	uint8_t battery[7];
 	uint16_t battery_sum;
 	uint8_t flag_bms_comm;
+	uint8_t flag_48V_exist;
 }STR_PLC;
 
 extern STR_PLC plc_power;

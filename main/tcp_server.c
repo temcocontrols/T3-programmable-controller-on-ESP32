@@ -259,8 +259,11 @@ void start_fw_update(void)
 
 void esp_retboot(void)
 {
-   rtc_value_backup_flush();
-   esp_restart();
+	/* RMC-1232: soft reset only when external 48V is present */
+	if((Modbus.mini_type == PROJECT_RMC1232) && (plc_power.flag_48V_exist != 1))
+		return;
+	rtc_value_backup_flush();
+	esp_restart();
 }
 
 void UdpData(unsigned char type)
@@ -2925,7 +2928,7 @@ void Timer_task(void *pvParameters)
 			uint32_t write_delay;
 			if(ChangeFlash == 1)// normal write
 			{
-				write_delay = 10;
+				write_delay = 5;
 			}
 			else if(ChangeFlash == 3) // write it now
 			{

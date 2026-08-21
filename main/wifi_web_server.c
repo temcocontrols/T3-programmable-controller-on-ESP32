@@ -14,6 +14,7 @@
 #include "wifi.h"
 #include "flash.h"
 #include "wifi_web_server.h"
+#include "define.h"
 
 static const char *TAG = "WIFI_WEB";
 static httpd_handle_t server = NULL;
@@ -133,7 +134,7 @@ void wifi_web_save_credentials(const char *ssid, const char *password)
 
     // Delay then reboot so flash write completes
     vTaskDelay(pdMS_TO_TICKS(2000));
-    esp_restart();
+    esp_retboot();
 }
 
 // GET /

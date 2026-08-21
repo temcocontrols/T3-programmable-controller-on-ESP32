@@ -133,6 +133,29 @@ void calculate_plc_power(void)
 	static uint32_t last_ms = 0;
 	uint32_t now = system_timer;
 	uint32_t dt_ms;
+	static uint8_t bms_neg_timing = 0;
+	static uint32_t t_bms_neg_start = 0;
+
+	/* IN39 BMS current: pin value is 1000x actual (A).
+	 * Stay negative for 10s → battery discharging, no external 48V. */
+	ptr = put_io_buf(IN, 38);
+	if(ptr.pin->value < 0)
+	{
+		if(bms_neg_timing == 0)
+		{
+			bms_neg_timing = 1;
+			t_bms_neg_start = now;
+		}
+		if((now - t_bms_neg_start) >= 10000)
+			plc_power.flag_48V_exist = 0;
+		else
+			plc_power.flag_48V_exist = 1;
+	}
+	else
+	{
+		bms_neg_timing = 0;
+		plc_power.flag_48V_exist = 1;
+	}
 
 	if(last_ms == 0)
 	{
@@ -1358,6 +1381,11 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0;
 			temp2 = plc_power.flag_bms_comm;
 		}
+		else if(address == MODBUS_48V_EXIST)
+		{
+			temp1 = 0;
+			temp2 = plc_power.flag_48V_exist;
+		}
 		else if(address == MODBUS_CUVT)
 		{
 			temp1 = rmc_cuv >> 8;
@@ -2547,7 +2575,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			if(*(bufadd + 5) == 111)	 // reboot
 			{
 				if(system_timer / 1000 > 10)
-					esp_restart();//flag_reboot = 1;//SoftReset();
+					esp_retboot();//flag_reboot = 1;//SoftReset();
 			}
 			if(*(bufadd + 5)== 150)	 // clear db
 			{
@@ -4179,7 +4207,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		if(ptr->reg.reset_default == 111)	 // reboot
 		{
 			if(system_timer / 1000 > 10)
-				esp_restart();//flag_reboot = 1;//SoftReset();
+				esp_retboot();//flag_reboot = 1;//SoftReset();
 			ptr->reg.reset_default = 0;
 		}
 		if(ptr->reg.reset_default == 150)	 // clear db
