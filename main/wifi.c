@@ -325,7 +325,7 @@ void wifi_init_sta(void)
         esp_wifi_stop();
     }
 
-    if(SSID_Info.MANUEL_EN != 1)
+    if(SSID_Info.MANUEL_EN != 1 || Modbus.mini_type == PROJECT_HUB)
     {
         wifi_start_softap();
         esp_wifi_start();

@@ -24,6 +24,7 @@
 #include <ping/ping_sock.h>
 #include "define.h"
 #include "flash.h"
+#include "hub_network_manager.h"
 #include "modbus.h"
 #include "sntp_app.h"
 #include "user_data.h"
@@ -461,15 +462,31 @@ void wireguard_gateway_task(void *pvParameters)
 
     ESP_LOGI("wireguard_gateway_task", "Starting WireGuard Gateway initialization...");
 
-    /* Wait for wifi to be connected before initializing WireGuard */
-    ESP_LOGI(TAG, "Waiting for WiFi connection...");
-    while (1)
+    if (Modbus.mini_type == PROJECT_HUB)
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        if (xEventGroupGetBits(s_wifi_event_group) & WIFI_CONNECTED_BIT)
+        ESP_LOGI(TAG, "Waiting for HUB network connection...");
+        while (1)
         {
-            ESP_LOGI(TAG, "WiFi is connected, proceeding with WireGuard setup.");
-            break;
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            if (hub_network_manager_has_usable_network())
+            {
+                ESP_LOGI(TAG, "HUB network is connected, proceeding with WireGuard setup.");
+                break;
+            }
+        }
+    }
+    else
+    {
+        /* Wait for wifi to be connected before initializing WireGuard */
+        ESP_LOGI(TAG, "Waiting for WiFi connection...");
+        while (1)
+        {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            if (xEventGroupGetBits(s_wifi_event_group) & WIFI_CONNECTED_BIT)
+            {
+                ESP_LOGI(TAG, "WiFi is connected, proceeding with WireGuard setup.");
+                break;
+            }
         }
     }
 

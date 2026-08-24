@@ -5020,8 +5020,8 @@ void app_main()
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
 #endif
 
-	/* WireGuard Gateway initialization: only requires WiFi, modbus, and flash */
-	if(Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
+	/* WireGuard initialization: requires an available network, modbus, and flash */
+	if(Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY || Modbus.mini_type == PROJECT_HUB)
 	{
 		ESP_LOGI("app_main", "Initializing WireGuard Gateway...");
 		xTaskCreate(wireguard_gateway_task, "wireguard_gw", 4096, NULL, tskIDLE_PRIORITY + 2, &main_task_handle[18]);
