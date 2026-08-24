@@ -4361,18 +4361,20 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 		if (current_page > get_max_trend_page()) {
 			start_seg = (current_page - get_max_trend_page()) * MAX_TREND_SEG;
 		}
-
-		if((PTRtable->seg_index - 1) < start_seg || (PTRtable->seg_index - 1) >= end_seg)
+		Test[12] = start_seg;
+		Test[13] = end_seg;
+		Test[14] = PTRtable->seg_index - 1;
+		if((PTRtable->seg_index - 1) < start_seg || (PTRtable->seg_index - 1) > end_seg)
 		{
 			// segment out of range, no data available
-
+			Test[11]++;
 		}
 		else
 		{			
 			if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG)
 			{// read last packet, not store into flash
 				PTRtable->special = 1;
-
+				Test[15]++;
 				temp_seg = (PTRtable->seg_index - 1 - current_page * MAX_TREND_SEG);
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read last packet seg = %ld, temp_set = %u",PTRtable->seg_index,temp_seg);
@@ -4385,10 +4387,11 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 
 			}
 			else			
-			{
+			{	Test[16]++;
 				PTRtable->special = 0;
 				if(read_trendlog((PTRtable->seg_index - 1) / MAX_TREND_SEG, (PTRtable->seg_index - 1) % MAX_TREND_SEG) == 0) // no error
-				{
+				{Test[17]++;
+				Test[18] = PTRtable->seg_index;
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read from flash = %ld",PTRtable->seg_index);
 		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
@@ -4396,7 +4399,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 					memcpy( PTRtable->asdu,&read_mon_point_buf_from_flash, MAX_MON_POINT_READ * sizeof(Str_mon_element));
 				}
 				else
-				{
+				{Test[19]++;
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read error");
 		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));

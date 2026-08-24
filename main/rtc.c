@@ -396,7 +396,8 @@ void update_timers( void )
 
 	time_since_1970 += timestart;
 	Get_Time_by_sec(get_current_time_with_timezone(),&Rtc,1);
-
+	system_timer = 0;
+	Test[39]++;
 }
 
 U32_T get_current_time(void)  // orignal data

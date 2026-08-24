@@ -2461,7 +2461,7 @@ esp_err_t read_trendlog(uint16_t page_total, uint8_t seg)
 	const esp_partition_t *partition = esp_partition_find_first(
 		ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
 	assert(partition != NULL);
-	Test[18]++;
+	//Test[18]++;
 
 	uint32_t trendlog_addr;
 	uint16_t trend_page_count;
@@ -2484,9 +2484,9 @@ esp_err_t read_trendlog(uint16_t page_total, uint8_t seg)
 			&read_mon_point_buf_from_flash, 96);
 	}
 
-	Test[16] = current_page;
-	Test[17] = max_trend_page;
-	Test[19] = (uint16_t)err;
+	//Test[16] = current_page;
+	//Test[17] = max_trend_page;
+	//Test[19] = (uint16_t)err;
 	return err;
 }
 

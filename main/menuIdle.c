@@ -1670,9 +1670,6 @@ void display_fan(void)
 
 void display_icon(void)
 {
-	Test[21] = last_icon_flag[6];
-	Test[22] = IsHomeScreen;
-	Test[23] = Modbus.icon_config;
 	if(last_icon_flag[6] != IsHomeScreen)
 	{
 		memset(last_icon_flag, -1, sizeof(last_icon_flag));
