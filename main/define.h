@@ -182,7 +182,7 @@ typedef	enum
 #define MINI_NANO   		8
 #define MINI_TSTAT10 		9
 #define MINI_T10P	 		11
-#define MINI_VAV	 		10   // no used
+#define MINI_BMS	 		10  
 #define MINI_TINY_11I		12
 #define	PROJECT_FAN_MODULE 	13
 #define	PROJECT_POWER_METER 14

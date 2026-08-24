@@ -58,6 +58,7 @@
 #include "freertos/event_groups.h"
 #include "airlab.h"
 #include "mppt_task.h"
+#include "mini_bms.h"
 #include "lwip/dns.h"
 #include "sntp_app.h"
 #include "multiMeter.h"
@@ -242,6 +243,9 @@ void start_fw_update(void)
 
    const esp_partition_t *factory = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_FACTORY, NULL);
 
+   if(Modbus.mini_type == MINI_BMS && plc_power.flag_48V_exist == 1)
+	   mini_bms_indicate_bootloader();
+
    if(factory == NULL)
    {
 	   sprintf(debug_array,"start_fw_update: no factory partition!\r\n");
@@ -259,9 +263,14 @@ void start_fw_update(void)
 
 void esp_retboot(void)
 {
-	/* RMC-1232: soft reset only when external 48V is present */
-	if((Modbus.mini_type == PROJECT_RMC1232) && (plc_power.flag_48V_exist != 1))
+	/* RMC-1232 / MINI_BMS: soft reset only when external power is present */
+	if(((Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == MINI_BMS))
+	   && (plc_power.flag_48V_exist != 1))
+	{
+		if(Modbus.mini_type == MINI_BMS)
+			mini_bms_clear_bootloader_indication();
 		return;
+	}
 	rtc_value_backup_flush();
 	esp_restart();
 }
@@ -5461,6 +5470,12 @@ void app_main()
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
 		// I2C button
 		key_task();
+	}
+
+	if(Modbus.mini_type == MINI_BMS)
+	{
+		/* BQ76907 (IO4 SDA / IO14 SCL / IO32 RST) + 6x WS2812 on IO15 */
+		mini_bms_start_tasks();
 	}
 
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232

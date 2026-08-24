@@ -1411,6 +1411,13 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = rmc_oc_dsg >> 8;
 			temp2 = rmc_oc_dsg;
 		}
+		else if(address == MODBUS_BMS_CURRENT)
+		{
+			extern int16_t mini_bms_current_ma;
+			uint16_t cur = (uint16_t)mini_bms_current_ma;
+			temp1 = cur >> 8;
+			temp2 = cur;
+		}
 		else if(address == MODBUS_TEMP1)
 		{
 			Str_points_ptr ptr;
@@ -2808,26 +2815,51 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
       {
 		 rmc_cuv = (*(bufadd + 5) + 256 * *(bufadd + 4));
 		 save_uint16_to_flash(FLASH_RMC_CUV, rmc_cuv);
+		 if(Modbus.mini_type == MINI_BMS)
+		 {
+			 extern volatile uint8_t mini_bms_prot_apply;
+			 mini_bms_prot_apply = 1;
+		 }
 	  }
 	  else if(address == MODBUS_COVT)
       {
 		  rmc_cov = (*(bufadd + 5) + 256 * *(bufadd + 4));
 		  save_uint16_to_flash(FLASH_RMC_COV, rmc_cov);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
 	  }
 	  else if(address == MODBUS_SHUTDOWN_CELL)
       {
 		  rmc_stack = (*(bufadd + 5) + 256 * *(bufadd + 4));
 		  save_uint16_to_flash(FLASH_RMC_SHUTDOWN, rmc_stack);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
 	  }
 	  else if(address == MODBUS_OC_CHG)
       {
 		  rmc_oc_chg = (*(bufadd + 5) + 256 * *(bufadd + 4));
 		  save_uint16_to_flash(FLASH_RMC_OC_CHG, rmc_oc_chg);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
 	  }
 	  else if(address == MODBUS_OC_DSG)
       {
 		  rmc_oc_dsg = (*(bufadd + 5) + 256 * *(bufadd + 4));
 		  save_uint16_to_flash(FLASH_RMC_OC_DSG, rmc_oc_dsg);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
 	  }
       else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)
       {
