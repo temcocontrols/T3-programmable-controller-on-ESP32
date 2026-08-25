@@ -195,7 +195,7 @@ extern uint16_t power_shutdown_cell_mv;
 #define POWER_AUTO_SHUTDOWN_MIN  5     /* re-SHUTDOWN if wake w/o comm/current */
 #define POWER_BOOT_RETRY         10
 #define POWER_BOOT_DELAY_MS      200
-#define POWER_BOOT_WAIT_SEC      10    /* wait after power-up before BMS HW reset + BootInit */
+#define POWER_BOOT_WAIT_SEC      10    /* wait after power-up / any charger plug before CHG */
 #define BMS_HW_RESET_PULSE_MS    20   /* GPIO32 high pulse width (active-high reset) */
 #define BMS_HW_RESET_SETTLE_MS   100   /* wait after release before I2C */
 

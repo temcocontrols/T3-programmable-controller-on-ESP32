@@ -128,10 +128,27 @@ static uint8_t  s_ext_quiet_cnt;
 static uint8_t  s_ext_probe_cd;
 static uint8_t  s_ext_chg_cnt;
 static uint8_t  s_ext_cdraw_low;
+/*
+ * Any charger plug-in: wait POWER_BOOT_WAIT_SEC before opening CHG.
+ * 0=unplugged/idle, 1=waiting after plug, 2=delay done (charge allowed).
+ */
+static uint8_t    s_plug_chg_hold;
+static TickType_t s_plug_chg_deadline;
+static uint8_t    s_adapter_latched;   /* sticky until clear unplug */
+static uint8_t    s_adapter_gone_cnt;
+static uint8_t    s_chg_low_i_cnt;     /* hold==2: debounce leave on low I */
+static TickType_t s_chg_probe_next;    /* periodic CHG pulse if no CDRAW */
 
 static int16_t BQ76907_Abs16(int16_t v);
 static uint8_t BQ76907_FetsDriverOn(uint16_t bat);
 static uint8_t BQ76907_WriteFetCtrl(uint8_t v);
+static uint8_t BQ76907_CuvDsgOffChgOn(void);
+static uint8_t BQ76907_CuvDsgOffChgOnGated(void);
+static void BQ76907_PlugChgHoldReset(void);
+static void BQ76907_PlugChgHoldAllowNow(void);
+static uint8_t BQ76907_PlugChgAllowed(void);
+static uint8_t BQ76907_HoldChgOffDsgOn(void);
+static uint8_t BQ76907_AdapterPresent(void);
 
 /* Instant CHG pin detector — not debounced CHGDETFLAG. */
 static uint8_t BQ76907_ReadChgDetRaw(uint8_t *det)
@@ -588,6 +605,43 @@ uint8_t BQ76907_IsExternalPowerPresent(void)
 
 	ma = BQ76907_ReadCurrentFiltered_mA();
 
+	/*
+	 * Solid charge current → external power present.
+	 * Below charge threshold (incl. idle ~0 / small discharge like -20 mA) →
+	 * not charging: clear sticky. Only CDRAW/CHGDET with CHG off can keep green
+	 * (adapter idle / float).
+	 */
+	if(ma >= (int16_t)BQ76907_CHARGE_LED_MIN_MA)
+	{
+		s_ext_quiet_cnt = 0;
+		s_ext_cdraw_low = 0;
+		s_ext_chg_cnt = BQ76907_CHARGE_ON_CYCLES;
+		s_ext_present = 1;
+		return 1;
+	}
+
+	if(ma < (int16_t)BQ76907_CHARGE_CURRENT_MIN_MA)
+	{
+		s_ext_chg_cnt = 0;
+		s_ext_quiet_cnt = 0;
+		s_ext_cdraw_low = 0;
+		/*
+		 * Not charging (0 / -20 mA idle, or small noise). Clear sticky.
+		 * With CHG off, only CDRAW counts — do not OR CHGDET (can stick high).
+		 */
+		if((bat & BQ76907_BAT_CHG) == 0)
+		{
+			if(BQ76907_ReadChgDetRaw(&cdraw) == 0)
+				s_ext_present = cdraw;
+			else
+				s_ext_present = 0;
+			return s_ext_present;
+		}
+		/* CHG still on but not charging → treat as no ext for flag */
+		s_ext_present = 0;
+		return 0;
+	}
+
 	/* CHG FET off: CDRAW decides (battery + load → red; adapter → green) */
 	if((bat & BQ76907_BAT_CHG) == 0)
 	{
@@ -595,81 +649,21 @@ uint8_t BQ76907_IsExternalPowerPresent(void)
 			s_ext_present = cdraw;
 		else
 			s_ext_present = (bat & BQ76907_BAT_CHGDET) ? 1 : 0;
+		if(bat & BQ76907_BAT_CHGDET)
+			s_ext_present = 1;
 		s_ext_quiet_cnt = 0;
 		s_ext_chg_cnt = 0;
 		s_ext_cdraw_low = 0;
 		return s_ext_present;
 	}
 
-	/* Any positive current: keep / refresh green (slow-charge ±I safe) */
-	if(ma > 0)
-	{
-		s_ext_quiet_cnt = 0;
-		s_ext_cdraw_low = 0;
-		if(ma >= (int16_t)BQ76907_CHARGE_CURRENT_MIN_MA)
-		{
-			if(s_ext_chg_cnt < 255)
-				s_ext_chg_cnt++;
-			if(s_ext_chg_cnt >= BQ76907_CHARGE_ON_CYCLES)
-				s_ext_present = 1;
-		}
-		else
-			s_ext_chg_cnt = 0;
-		return s_ext_present;
-	}
-	s_ext_chg_cnt = 0;
-
-	if(!s_ext_present)
-	{
-		s_ext_quiet_cnt = 0;
-		return 0;
-	}
-
-	/* Latched green, I<=0: probe CDRAW — works for -100 mA idle and heavy load */
-	if(s_ext_quiet_cnt < 255)
-		s_ext_quiet_cnt++;
-
-	if(s_ext_quiet_cnt < BQ76907_EXT_PWR_PROBE_CYCLES
-	   || s_ext_probe_cd != 0
-	   || !s_pwr_ready
-	   || s_cell_uv_active
-	   || s_oc_active
-	   || (bat & BQ76907_BAT_DSG) == 0)
-		return s_ext_present;
-
-	(void)BQ76907_WriteFetCtrl((uint8_t)(BQ76907_FET_CHG_OFF | BQ76907_FET_DSG_ON));
-	delay_ms(BQ76907_EXT_PWR_PROBE_SETTLE_MS);
-
-	if(BQ76907_ReadBatteryStatus(&bat) == 0
-	   && (bat & BQ76907_BAT_CHG) == 0
-	   && BQ76907_ReadChgDetRaw(&cdraw) == 0)
-	{
-		if(cdraw)
-		{
-			/* Adapter still connected (e.g. charge + heavy load) */
-			s_ext_cdraw_low = 0;
-			s_ext_present = 1;
-			(void)BQ76907_WriteFetCtrl(BQ76907_FET_CHG_DSG_ON);
-		}
-		else
-		{
-			/* No adapter — battery (with or without load) */
-			if(s_ext_cdraw_low < 255)
-				s_ext_cdraw_low++;
-			if(s_ext_cdraw_low >= BQ76907_EXT_PWR_CDRAW_LOW_NEED)
-			{
-				s_ext_present = 0;
-				/* leave CHG off */
-			}
-			else
-				(void)BQ76907_WriteFetCtrl(BQ76907_FET_CHG_DSG_ON);
-		}
-	}
-	else
-		(void)BQ76907_WriteFetCtrl(BQ76907_FET_CHG_DSG_ON);
-
+	/* Trickle 10..49 mA: debounce before latching green */
 	s_ext_quiet_cnt = 0;
-	s_ext_probe_cd = BQ76907_EXT_PWR_PROBE_COOLDOWN;
+	s_ext_cdraw_low = 0;
+	if(s_ext_chg_cnt < 255)
+		s_ext_chg_cnt++;
+	if(s_ext_chg_cnt >= BQ76907_CHARGE_ON_CYCLES)
+		s_ext_present = 1;
 	return s_ext_present;
 }
 
@@ -959,7 +953,7 @@ static uint8_t BQ76907_FetPathBlocked(void)
 	}
 	if(s_cell_uv_active)
 	{
-		(void)BQ76907_CuvDsgOffChgOn();
+		(void)BQ76907_CuvDsgOffChgOnGated();
 		return 1; /* not both-ON path */
 	}
 
@@ -976,7 +970,7 @@ static uint8_t BQ76907_FetPathBlocked(void)
 		{
 			BQ76907_LogFetOff(FET_OFF_CHIP_CUV, safety);
 			s_cell_uv_active = 1;
-			(void)BQ76907_CuvDsgOffChgOn();
+			(void)BQ76907_CuvDsgOffChgOnGated();
 			return 1;
 		}
 	}
@@ -994,7 +988,7 @@ static uint8_t BQ76907_FetPathBlocked(void)
 		{
 			BQ76907_LogFetOff(FET_OFF_SOFT_CUV, s_cell_mv[i]);
 			s_cell_uv_active = 1;
-			(void)BQ76907_CuvDsgOffChgOn();
+			(void)BQ76907_CuvDsgOffChgOnGated();
 			return 1;
 		}
 	}
@@ -1017,7 +1011,7 @@ static uint8_t BQ76907_ForceFetsOn(void)
 	if(s_cell_ov_active)
 		return BQ76907_CovChgOffDsgOn();
 	if(s_cell_uv_active)
-		return BQ76907_CuvDsgOffChgOn();
+		return BQ76907_CuvDsgOffChgOnGated();
 	if(!s_pwr_ready)
 		return 1;
 
@@ -1116,10 +1110,11 @@ uint8_t BQ76907_EnableDischarge(void)
 	if(s_cell_ov_active)
 		return BQ76907_CovApplyPolicy();
 	if(s_cell_uv_active)
-		return BQ76907_CuvDsgOffChgOn();
+		return BQ76907_CuvDsgOffChgOnGated();
 	if(BQ76907_FetPathBlocked())
 		return 1;
-	return BQ76907_ForceFetsOn();
+	/* Battery path: DSG on, CHG off — otherwise plug-in charges instantly */
+	return BQ76907_HoldChgOffDsgOn();
 }
 
 uint8_t BQ76907_EnableCharge(void)
@@ -1129,7 +1124,7 @@ uint8_t BQ76907_EnableCharge(void)
 	if(s_cell_ov_active)
 		return BQ76907_CovApplyPolicy(); /* CHG-off only if charge current present */
 	if(s_cell_uv_active)
-		return BQ76907_CuvDsgOffChgOn();
+		return BQ76907_CuvDsgOffChgOnGated();
 
 	/* Sticky soft-OC was holding host OFF and blocked reopen */
 	if(s_oc_active)
@@ -1149,19 +1144,56 @@ static uint8_t PowerMgmt_SelectPowerPath(void)
 	if(s_cell_ov_active)
 		return BQ76907_CovApplyPolicy();
 	if(s_cell_uv_active)
-		return BQ76907_CuvDsgOffChgOn();
+		return BQ76907_CuvDsgOffChgOnGated();
 	if(s_oc_active)
 	{
 		(void)BQ76907_DisableFets();
 		return 1;
 	}
-	/* FETs already both on — leave them (critical when unplugging charger) */
-	if(BQ76907_ReadBatteryStatus(&bat) == 0
-	   && (bat & BQ76907_BAT_DSG) != 0
-	   && (bat & BQ76907_BAT_CHG) != 0)
-		return 0;
-	if(BQ76907_IsExternalPowerPresent())
+
+	/*
+	 * Charge session (hold==2): keep charging until adapter clearly gone.
+	 * After CHG opens, filtered I may still be 0 for a few cycles — debounce
+	 * low current (~3 s) before leaving (CHGDET can stick while CHG is on).
+	 */
+	if(s_plug_chg_hold == 2)
+	{
+		int16_t ma;
+
+		ma = BQ76907_ReadCurrentFiltered_mA();
+		if(ma >= (int16_t)BQ76907_CHARGE_CURRENT_MIN_MA)
+			s_chg_low_i_cnt = 0;
+		else
+		{
+			if(s_chg_low_i_cnt < 255)
+				s_chg_low_i_cnt++;
+			if(s_chg_low_i_cnt >= 15) /* ~3 s at 200 ms */
+			{
+				BQ76907_PlugChgHoldReset();
+				return BQ76907_EnableDischarge();
+			}
+		}
+		if(BQ76907_ReadBatteryStatus(&bat) == 0
+		   && (bat & BQ76907_BAT_DSG) != 0
+		   && (bat & BQ76907_BAT_CHG) != 0)
+			return 0;
 		return BQ76907_EnableCharge();
+	}
+
+	if(BQ76907_AdapterPresent())
+	{
+		if(!BQ76907_PlugChgAllowed())
+			return BQ76907_HoldChgOffDsgOn();
+
+		if(BQ76907_ReadBatteryStatus(&bat) == 0
+		   && (bat & BQ76907_BAT_DSG) != 0
+		   && (bat & BQ76907_BAT_CHG) != 0)
+			return 0;
+		return BQ76907_EnableCharge();
+	}
+
+	BQ76907_PlugChgHoldReset();
+	/* No charger: keep CHG off so next plug cannot charge until delay */
 	return BQ76907_EnableDischarge();
 }
 
@@ -2469,12 +2501,187 @@ uint16_t BQ76907_GetCellMin_mV(void)
 	return s_cell_min_mv;
 }
 
-/* Soft/HW CUV: DSG off, CHG on (charge recovery). */
+/*
+ * Charger plug-in gate: wait POWER_BOOT_WAIT_SEC after adapter appears
+ * before opening CHG. BootInit may AllowNow (cold boot already waited).
+ */
+static void BQ76907_PlugChgHoldReset(void)
+{
+	s_plug_chg_hold = 0;
+	s_plug_chg_deadline = 0;
+	s_adapter_latched = 0;
+	s_adapter_gone_cnt = 0;
+	s_chg_low_i_cnt = 0;
+}
+
+static void BQ76907_PlugChgHoldAllowNow(void)
+{
+	s_plug_chg_hold = 2;
+	s_plug_chg_deadline = 0;
+	s_adapter_latched = 1;
+	s_adapter_gone_cnt = 0;
+	s_chg_low_i_cnt = 0;
+}
+
+/*
+ * Adapter sense while CHG is off: CDRAW | CHGDET, or a short CHG probe
+ * (some boards have weak/missing CDRAW — without probe we never open CHG).
+ * Once latched / in charge session, stay true until clear unplug debounce.
+ *
+ * Important: with CHG off the pack still discharges (often -20 mA or more).
+ * Do NOT treat negative current as "adapter gone" — that blocked re-plug
+ * detection and aborted the POWER_BOOT_WAIT_SEC gate.
+ */
+static uint8_t BQ76907_AdapterPresent(void)
+{
+	uint16_t bat;
+	uint8_t cdraw = 0;
+	uint8_t sense = 0;
+	int16_t ma;
+	TickType_t now;
+
+	if(BQ76907_ReadBatteryStatus(&bat) != 0)
+		return s_adapter_latched;
+
+	ma = BQ76907_ReadCurrentFiltered_mA();
+	if(ma >= (int16_t)BQ76907_CHARGE_LED_MIN_MA)
+	{
+		s_adapter_latched = 1;
+		s_adapter_gone_cnt = 0;
+		return 1;
+	}
+
+	/* Waiting for plug delay: keep true the whole POWER_BOOT_WAIT_SEC */
+	if(s_plug_chg_hold == 1)
+	{
+		s_adapter_latched = 1;
+		s_adapter_gone_cnt = 0;
+		return 1;
+	}
+
+	if((bat & BQ76907_BAT_CHG) == 0)
+	{
+		if(BQ76907_ReadChgDetRaw(&cdraw) == 0)
+			sense = cdraw;
+		if(bat & BQ76907_BAT_CHGDET)
+			sense = 1;
+
+		/* No CDRAW/CHGDET: brief CHG pulse to see if charger can push current */
+		now = xTaskGetTickCount();
+		if(!sense && s_pwr_ready && s_plug_chg_hold == 0
+		   && (s_chg_probe_next == 0 || (int32_t)(now - s_chg_probe_next) >= 0))
+		{
+			s_chg_probe_next = now + pdMS_TO_TICKS(2000);
+			BQ76907_EnsureFetEnable();
+			(void)BQ76907_WriteFetCtrl(BQ76907_FET_CHG_DSG_ON);
+			delay_ms(80);
+			ma = BQ76907_ReadCurrentFiltered_mA();
+			(void)BQ76907_WriteFetCtrl((uint8_t)(BQ76907_FET_CHG_OFF | BQ76907_FET_DSG_ON));
+			if(ma >= (int16_t)BQ76907_CHARGE_LED_MIN_MA)
+				sense = 1;
+		}
+	}
+	else
+	{
+		/*
+		 * CHG on: solid charge → present; else CDRAW/CHGDET.
+		 * Negative / idle current alone is not enough to clear — debounce below.
+		 */
+		if(ma >= (int16_t)BQ76907_CHARGE_CURRENT_MIN_MA)
+			sense = 1;
+		else if(BQ76907_ReadChgDetRaw(&cdraw) == 0 && cdraw)
+			sense = 1;
+		else if(bat & BQ76907_BAT_CHGDET)
+			sense = 1;
+	}
+
+	if(sense)
+	{
+		s_adapter_latched = 1;
+		s_adapter_gone_cnt = 0;
+		return 1;
+	}
+
+	/* Debounce clear — don't drop latch on one bad sample */
+	if(s_adapter_latched || s_plug_chg_hold == 2)
+	{
+		if(s_adapter_gone_cnt < 255)
+			s_adapter_gone_cnt++;
+		if(s_adapter_gone_cnt < 15) /* ~3 s at 200 ms */
+			return 1;
+		s_adapter_latched = 0;
+		s_adapter_gone_cnt = 0;
+		return 0;
+	}
+
+	return 0;
+}
+
+/* 1 = may open CHG; 0 = still in plug delay (or no adapter). */
+static uint8_t BQ76907_PlugChgAllowed(void)
+{
+	/* Active / waiting session: never Reset on sense flicker */
+	if(s_plug_chg_hold == 2)
+		return 1;
+
+	if(s_plug_chg_hold == 1)
+	{
+		if((int32_t)(xTaskGetTickCount() - s_plug_chg_deadline) < 0)
+			return 0;
+		s_plug_chg_hold = 2;
+		s_adapter_latched = 1;
+		s_chg_low_i_cnt = 0;
+		return 1;
+	}
+
+	/* hold == 0: need adapter to start delay */
+	if(!BQ76907_AdapterPresent())
+	{
+		BQ76907_PlugChgHoldReset();
+		return 0;
+	}
+
+	s_plug_chg_hold = 1;
+	s_plug_chg_deadline = xTaskGetTickCount()
+		+ pdMS_TO_TICKS((uint32_t)POWER_BOOT_WAIT_SEC * 1000U);
+	return 0;
+}
+
+/* Keep pack rail up (DSG on) but block charge while plug delay runs. */
+static uint8_t BQ76907_HoldChgOffDsgOn(void)
+{
+	if(!s_pwr_ready)
+		return 1;
+	BQ76907_EnsureFetEnable();
+	return BQ76907_WriteFetCtrl((uint8_t)(BQ76907_FET_CHG_OFF | BQ76907_FET_DSG_ON));
+}
+
+static uint8_t BQ76907_CuvDsgOffChgOnGated(void)
+{
+	if(!s_cell_uv_active)
+	{
+		BQ76907_PlugChgHoldReset();
+		return BQ76907_CuvDsgOffChgOn();
+	}
+
+	if(s_plug_chg_hold != 2 && !BQ76907_AdapterPresent())
+	{
+		BQ76907_PlugChgHoldReset();
+		return BQ76907_DisableFets();
+	}
+
+	if(!BQ76907_PlugChgAllowed())
+		return BQ76907_DisableFets();
+
+	return BQ76907_CuvDsgOffChgOn();
+}
+
+/* Soft/HW CUV: DSG off, CHG on (charge recovery) — gated by plug delay. */
 static void PowerMgmt_OnCuvFault(void)
 {
 	IWDG_ReloadCounter();
 	s_cuv_cov_reset_done = 1;
-	(void)BQ76907_CuvDsgOffChgOn();
+	(void)BQ76907_CuvDsgOffChgOnGated();
 }
 
 /* COV: CHG-off only if charging; else both ON so MCU stays on battery */
@@ -2541,9 +2748,9 @@ void PowerMgmt_TripCellUvFromCells(const uint16_t *cells_mv, uint8_t n)
 		}
 		else
 		{
-			/* Still below UV while charging up — keep CHG, no re-PROT_RECOVERY */
+			/* Still below UV — hold/open CHG only after plug delay */
 			s_cell_uv_active = 1;
-			(void)BQ76907_CuvDsgOffChgOn();
+			(void)BQ76907_CuvDsgOffChgOnGated();
 		}
 		return;
 	}
@@ -2564,7 +2771,7 @@ void PowerMgmt_TripCellUvFromCells(const uint16_t *cells_mv, uint8_t n)
 		if(!uv_recovered)
 		{
 			s_uv_recover_debounce = 0;
-			(void)BQ76907_CuvDsgOffChgOn();
+			(void)BQ76907_CuvDsgOffChgOnGated();
 		}
 		else
 		{
@@ -2574,9 +2781,10 @@ void PowerMgmt_TripCellUvFromCells(const uint16_t *cells_mv, uint8_t n)
 			{
 				s_cell_uv_active = 0;
 				s_uv_recover_debounce = 0;
+				BQ76907_PlugChgHoldReset();
 			}
 			else
-				(void)BQ76907_CuvDsgOffChgOn();
+				(void)BQ76907_CuvDsgOffChgOnGated();
 		}
 	}
 
@@ -2656,7 +2864,7 @@ static void PowerMgmt_CheckCellUv(void)
 
 	/* Keep recover paths (do not force both-OFF). Light if CHG already on. */
 	if(s_cell_uv_active)
-		(void)BQ76907_CuvDsgOffChgOn();
+		(void)BQ76907_CuvDsgOffChgOnGated();
 	if(s_cell_ov_active)
 		(void)BQ76907_CovApplyPolicy();
 }
@@ -2708,7 +2916,7 @@ uint8_t PowerMgmt_AutoControl(uint16_t *voltage_x10, uint8_t *bars)
 		else
 		{
 			s_cell_uv_active = 1;
-			(void)BQ76907_CuvDsgOffChgOn(); /* charging up: no re-PROT_RECOVERY */
+			(void)BQ76907_CuvDsgOffChgOnGated(); /* charging up: after plug delay */
 		}
 	}
 
@@ -2821,12 +3029,22 @@ uint8_t PowerMgmt_BootInit(void)
 			}
 		}
 
+		/*
+		 * Cold boot already waited POWER_BOOT_WAIT_SEC.
+		 * If adapter already present → allow CHG; else keep CHG off on battery.
+		 */
+		s_ext_cache_valid = 0;
+		if(BQ76907_AdapterPresent())
+			BQ76907_PlugChgHoldAllowNow();
+		else
+			BQ76907_PlugChgHoldReset();
+
 		for(i = 0; i < 5; i++)
 		{
 			IWDG_ReloadCounter();
 			if(s_cell_uv_active)
 			{
-				if(BQ76907_CuvDsgOffChgOn() == 0)
+				if(BQ76907_CuvDsgOffChgOnGated() == 0)
 					break;
 			}
 			else if(s_cell_ov_active)
@@ -2834,16 +3052,23 @@ uint8_t PowerMgmt_BootInit(void)
 				if(BQ76907_CovApplyPolicy() == 0)
 					break;
 			}
-			else if(BQ76907_ForceFetsOn() == 0)
+			else if(BQ76907_AdapterPresent())
+			{
+				if(BQ76907_ForceFetsOn() == 0)
+					break;
+			}
+			else if(BQ76907_HoldChgOffDsgOn() == 0)
 				break;
 			delay_ms(50);
 		}
 		if(PowerMgmt_SelectPowerPath() != 0)
 		{
 			if(s_cell_uv_active)
-				(void)BQ76907_CuvDsgOffChgOn();
-			else
+				(void)BQ76907_CuvDsgOffChgOnGated();
+			else if(BQ76907_AdapterPresent())
 				(void)BQ76907_ForceFetsOn();
+			else
+				(void)BQ76907_HoldChgOffDsgOn();
 		}
 	}
 

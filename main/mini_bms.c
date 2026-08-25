@@ -117,7 +117,35 @@ static void mini_bms_bq_task(void *pvParameters)
 
 			mini_bms_charging = BQ76907_IsCharging(&current_ma);
 			mini_bms_current_ma = current_ma;
-			mini_bms_ext_power = BQ76907_IsExternalPowerPresent();
+			/*
+			 * flag_48V_exist — same idea as RMC1232 calculate_plc_power():
+			 *  current >= 0 → 1
+			 *  current < 0 continuously for 10 s → 0
+			 *  (while still inside the 10 s negative window, keep 1)
+			 */
+			{
+				static uint8_t bms_neg_timing;
+				static TickType_t t_bms_neg_start;
+
+				if(mini_bms_current_ma < 0)
+				{
+					if(bms_neg_timing == 0)
+					{
+						bms_neg_timing = 1;
+						t_bms_neg_start = xTaskGetTickCount();
+					}
+					if((xTaskGetTickCount() - t_bms_neg_start)
+					   >= pdMS_TO_TICKS(5000))
+						mini_bms_ext_power = 0;
+					else
+						mini_bms_ext_power = 1;
+				}
+				else
+				{
+					bms_neg_timing = 0;
+					mini_bms_ext_power = 1;
+				}
+			}
 
 			plc_power.battery_sum = voltage_x10; /* REG1107 pack 0.1 V */
 			plc_power.flag_bms_comm = 1;           /* REG1113 */

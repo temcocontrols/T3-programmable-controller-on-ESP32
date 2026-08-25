@@ -578,7 +578,8 @@ void control_input(void)
 								}				
 								sample = get_input_value_by_range( ptr.pin->range, sample );
 								break;
-							case V0_5:			
+							case V0_5:
+							case AHKC_Hall:  /* RMC1232 Hall: first as mV, then convert_rmc1232_AHKC_Hall → ±A */
 								sample = conver_by_unit_5v(sample / shift);
 
 

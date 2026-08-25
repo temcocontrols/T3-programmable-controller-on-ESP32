@@ -928,7 +928,7 @@ void Save_PLC_Power(void)
 /* Persist accumulating energy periodically (same cadence idea as Store_Pulse_Counter) */
 void Store_PLC_Power(uint8_t flag)
 {
-	static uint32_t old_power[24];
+	static uint32_t old_energy[24];
 	static uint8_t inited;
 	uint8_t i;
 	uint8_t changed = 0;
@@ -936,7 +936,7 @@ void Store_PLC_Power(uint8_t flag)
 	if(!inited)
 	{
 		for(i = 0; i < 24; i++)
-			old_power[i] = plc_power.power[i];
+			old_energy[i] = plc_power.energy[i];
 		inited = 1;
 		if(flag == 0)
 			return;
@@ -944,9 +944,9 @@ void Store_PLC_Power(uint8_t flag)
 
 	for(i = 0; i < 24; i++)
 	{
-		if(old_power[i] != plc_power.power[i])
+		if(old_energy[i] != plc_power.energy[i])
 		{
-			old_power[i] = plc_power.power[i];
+			old_energy[i] = plc_power.energy[i];
 			changed = 1;
 		}
 	}

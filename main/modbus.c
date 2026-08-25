@@ -118,7 +118,7 @@ void plc_power_sync_acc(void)
 	uint8_t i;
 
 	for(i = 0; i < 24; i++)
-		plc_energy_acc[i] = (uint64_t)plc_power.power[i] * 3600000ULL;
+		plc_energy_acc[i] = (uint64_t)plc_power.energy[i] * 3600000ULL;
 }
 
 /* Accumulate energy: power[v*6+ct] in kWh*1000 (0.001 kWh resolution)
@@ -136,8 +136,7 @@ void calculate_plc_power(void)
 	static uint8_t bms_neg_timing = 0;
 	static uint32_t t_bms_neg_start = 0;
 
-	/* IN39 BMS current: pin value is 1000x actual (A).
-	 * Stay negative for 10s → battery discharging, no external 48V. */
+	/* RMC1232: IN39 BMS current (1000x A). */	
 	ptr = put_io_buf(IN, 38);
 	if(ptr.pin->value < 0)
 	{
@@ -156,6 +155,7 @@ void calculate_plc_power(void)
 		bms_neg_timing = 0;
 		plc_power.flag_48V_exist = 1;
 	}
+	
 
 	if(last_ms == 0)
 	{
@@ -173,8 +173,8 @@ void calculate_plc_power(void)
 	{
 		ptr = put_io_buf(IN, 8 + v);  // IN9..IN12
 		vol[v] = (ptr.pin->value);
-		if(vol[v] < 0)
-			vol[v] = -vol[v];
+		//if(vol[v] < 0)
+		//	vol[v] = -vol[v];
 	}
 
 	for(ct = 0; ct < 6; ct++)
@@ -185,9 +185,8 @@ void calculate_plc_power(void)
 		if(ch == 0 || ch > 24 || (ch >= 9 && ch <= 12))
 			continue;
 		ptr = put_io_buf(IN, ch - 1);
+		/* keep CT sign: positive/negative power follows current direction */
 		cur[ct] = (ptr.pin->value);
-		if(cur[ct] < 0)
-			cur[ct] = -cur[ct];
 	}
 
 	for(v = 0; v < 4; v++)
@@ -198,18 +197,37 @@ void calculate_plc_power(void)
 			if(plc_power.en_power[index] == 0)
 			{
 				plc_energy_acc[index] = 0;
+				plc_power.energy[index] = 0;
 				plc_power.power[index] = 0;
 			}
 			else
 			{
-				if(cur[ct] != 0)
+				/* signed instantaneous power (W); sign = CT current sign */
 				{
-					/* P(W*1000) = |V|*|I|/1000; integrate over dt */
-					uint32_t p_x1000 = (uint32_t)(((int64_t)vol[v] * cur[ct]) / 1000);
+					if(index == 0)
+					{
+						Test[41] = vol[v] / 1000;
+						Test[42] = cur[ct] / 1000;
+						
+					}
+					int32_t p_w = (vol[v] / 1000) * (cur[ct] / 1000);
+					if(p_w > 32767)
+						p_w = 32767;
+					else if(p_w < -32768)
+						p_w = -32768;
+					plc_power.power[index] = (int16_t)p_w;
+				}
+				int32_t cur_abs = (cur[ct] < 0) ? -cur[ct] : cur[ct];
+				int32_t vol_abs = (vol[v] < 0) ? -vol[v] : vol[v];
+				if(cur_abs != 0)
+				{
+					/* energy uses |P|: P(W*1000) = |V|*|I|/1000; integrate over dt */
+					uint32_t p_x1000 = (uint32_t)(((int64_t)vol_abs * cur_abs) / 1000);
 					plc_energy_acc[index] += (uint64_t)p_x1000 * dt_ms / 1000;
 				}
 				/* kWh*1000 = (W*1000 * s) / 3,600,000 */
-				plc_power.power[index] = (uint32_t)(plc_energy_acc[index] / 3600000ULL);				
+				plc_power.energy[index] = (uint32_t)(plc_energy_acc[index] / 3600000ULL);
+				
 			}
 		}
 	}
@@ -1352,19 +1370,25 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0;
 			temp2 = plc_power.en_power[address - MODBUS_POWER_EN1];
 		}
-		else if(address >= MODBUS_POWER1 && address <= MODBUS_POWER24)
+		else if(address >= MODBUS_ENERGY1 && address <= MODBUS_ENERGY24)
 		{
-			U16_T index = (address - MODBUS_POWER1) / 2;
-			if((address - MODBUS_POWER1) % 2 == 0)  // high word
+			U16_T index = (address - MODBUS_ENERGY1) / 2;
+			if((address - MODBUS_ENERGY1) % 2 == 0)  // high word
 			{
-				temp1 = (U8_T)(plc_power.power[index] >> 24);
-				temp2 = (U8_T)(plc_power.power[index] >> 16);
+				temp1 = (U8_T)(plc_power.energy[index] >> 24);
+				temp2 = (U8_T)(plc_power.energy[index] >> 16);
 			}
 			else  // low word
 			{
-				temp1 = (U8_T)(plc_power.power[index] >> 8);
-				temp2 = (U8_T)(plc_power.power[index]);
+				temp1 = (U8_T)(plc_power.energy[index] >> 8);
+				temp2 = (U8_T)(plc_power.energy[index]);
 			}
+		}
+		else if(address >= MODBUS_POWER1 && address <= MODBUS_POWER24)
+		{
+			U16_T index = address - MODBUS_POWER1;
+			temp1 = plc_power.power[index] >> 8;
+			temp2 = plc_power.power[index];
 		}
 		else if(address >= MODBUS_BATTERY1 && address <= MODBUS_BATTERY7)
 		{
@@ -1413,10 +1437,19 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		}
 		else if(address == MODBUS_BMS_CURRENT)
 		{
-			extern int16_t mini_bms_current_ma;
-			uint16_t cur = (uint16_t)mini_bms_current_ma;
-			temp1 = cur >> 8;
-			temp2 = cur;
+			if(Modbus.mini_type == MINI_BMS)
+			{extern uint16_t mini_bms_current_ma;
+				uint16_t cur = (uint16_t)mini_bms_current_ma;
+				temp1 = cur >> 8;
+				temp2 = cur;
+			}
+			else if(Modbus.mini_type == PROJECT_RMC1232)
+			{
+				Str_points_ptr ptr;
+				ptr = put_io_buf(IN,38);
+				temp1 = (ptr.pin->value / 100) >> 8;
+				temp2 = (ptr.pin->value / 100);
+			}
 		}
 		else if(address == MODBUS_TEMP1)
 		{
@@ -2788,15 +2821,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
     	  if(plc_power.en_power[index] == 0)
     	  {
     		  plc_energy_acc[index] = 0;
-    		  plc_power.power[index] = 0;
+    		  plc_power.energy[index] = 0;
     	  }
     	  Save_PLC_Power();
       }
-      else if(address >= MODBUS_POWER1 && address <= MODBUS_POWER24)
+      else if(address >= MODBUS_ENERGY1 && address <= MODBUS_ENERGY24)
       {
-    	  U16_T index = (address - MODBUS_POWER1) / 2;
-    	  uint32_t tempval = plc_power.power[index];
-    	  if((address - MODBUS_POWER1) % 2 == 0)  // high word
+    	  U16_T index = (address - MODBUS_ENERGY1) / 2;
+    	  uint32_t tempval = plc_power.energy[index];
+    	  if((address - MODBUS_ENERGY1) % 2 == 0)  // high word
     	  {
     		  tempval &= 0x0000ffff;
     		  tempval += 65536L * (*(bufadd + 5) + 256 * *(bufadd + 4));
@@ -2806,7 +2839,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
     		  tempval &= 0xffff0000;
     		  tempval += (*(bufadd + 5) + 256 * *(bufadd + 4));
     	  }
-    	  plc_power.power[index] = tempval;
+    	  plc_power.energy[index] = tempval;
     	  /* sync accumulator: kWh*1000 -> (W*1000)*s */
     	  plc_energy_acc[index] = (uint64_t)tempval * 3600000ULL;
     	  Save_PLC_Power();

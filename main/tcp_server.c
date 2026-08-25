@@ -264,7 +264,7 @@ void start_fw_update(void)
 void esp_retboot(void)
 {
 	/* RMC-1232 / MINI_BMS: soft reset only when external power is present */
-	if(((Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == MINI_BMS))
+	if(((Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == MINI_BMS && Test[48] == 0))
 	   && (plc_power.flag_48V_exist != 1))
 	{
 		if(Modbus.mini_type == MINI_BMS)
@@ -4345,6 +4345,7 @@ void i2c_master_task(void *pvParameters)
 										
 										ptr = put_io_buf(IN,38); // IN39 Current (signed userA)
 										ptr.pin->value = ((S16_T)((i2c_rcv_buf[107] << 8) | i2c_rcv_buf[108])) * 1000;
+																				
 										ptr = put_io_buf(IN,39); // CUVT
 										ptr.pin->value = (i2c_rcv_buf[109] * 256 + i2c_rcv_buf[110]);
 										ptr = put_io_buf(IN,40); // COVT
@@ -5265,8 +5266,10 @@ void Bacnet_Control(void *pvParameters)
 			if(Modbus.mini_type == PROJECT_RMC1232)
 			{
 				convert_rmc1232_in9_in12();
-				calculate_plc_power();
+				/* AHKC must run first: Hall raw is 0~5V (always +);
+				 * after convert it becomes ±A so power can be signed */
 				convert_rmc1232_AHKC_Hall();
+				calculate_plc_power();
 			}
 		}
 
