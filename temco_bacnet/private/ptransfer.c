@@ -65,7 +65,7 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port);
 extern U8_T send_mstp_index;
 extern EXT_RAM_ATTR STR_SEND_BUF mstp_bac_buf[10];*/
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len);
-//U32_T 	flash_trendlog_num[MAX_MONITORS * 2];
+extern uint32_t flash_trendlog_num[MAX_MONITORS * 2];
 extern uint16_t flash_trendlog_seg;
 extern uint16_t current_page;
 extern U8_T Send_bip_address[6];
@@ -81,6 +81,7 @@ void CO2_check_calibration(uint8_t i);
 uint8_t invokeid_mstp = 0;
 void check_SD_PnP(void);
 void clear_currnet_page(void);
+void save_flash_trendlog_num(void);
 void Save_Email_Setting(void);
 void Save_MSV(void);
 
@@ -1425,36 +1426,7 @@ void handler_private_transfer(
 				ChangeFlash = 1;
 				count_write_Flash = 0;			
 			}
-		// TBD: add more write command
-			//save_point_info(command - WRITEOUTPUT_T3000);
-#if 0//(ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-			if(command - WRITEOUTPUT_T3000 < MAX_POINT_TYPE)
-			{
-				write_page_en[command - WRITEOUTPUT_T3000] = 1;	
 
-			}
-			if(command == WRITE_ZONE_T3000)
-			{
-				write_page_en[ID_ROUTION] = 1;
-			}
-			else if(command == WRITEPROGRAMCODE_T3000)  // if CODE changed, enable monitor write
-			{
-				write_page_en[WRITEPROGRAM_T3000 - WRITEOUTPUT_T3000] = 1;	
-			}
-			if(command == WRITETABLE_T3000)  // store customer table
-			{
-				write_page_en[TBL] = 1;
-			}
-			if(command == WRITEGROUPELEMENTS_T3000)  // store group elmemts
-			{
-				write_page_en[GRP_POINT] = 1;	
-			}
-			if(command == WRITE_SCHEDULE_FLAG) 
-			{
-				write_page_en[24] = 1; // store schedule flag
-			}
-			
-#endif	
 			switch(command)
 			{
 				case WRITE_BACNET_TO_MDOBUS:
@@ -1566,28 +1538,7 @@ void handler_private_transfer(
 					ptr = (uint8_t *)(extio_points);	
 				// update database
 					break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-				case WRITE_ZONE_T3000:
-					ptr = (uint8_t *)(&ID_Config[private_header.point_start_instance]);
-					break;
-#endif
-#if 0
-#if STORE_TO_SD
-				case WRITEPIC_T3000:
-					ptr = (uint8_t *)(Graphi_data->asdu);
-					memcpy(ptr,&Temp_CS.value[header_len],400);
-				 	//Write_Picture(Graphi_data->index,Graphi_data->asdu,Graphi_data->seg_index);
-					flag_write_pic = store_PIC_to_buffer(Graphi_data->asdu,Graphi_data->index,Graphi_data->seg_index);
-					break;
-#endif
-#if USB_HOST
- 				case WRITE_AT_CMD:
-					ptr = (uint8_t *)gsm_str;
-					break;
-#endif
-#endif				
-
-
+			
 				case CLEAR_MONITOR:
 					// check whether clear moniotr
 					{
@@ -1596,39 +1547,22 @@ void handler_private_transfer(
 						{
 							if(Temp_CS.value[header_len + i] == 1) // clear current monitor
 							{ // clear current monitor
-#if STORE_TO_SD
-								SD_block_num[i] = 0;	
-#else
+
 								flash_trendlog_seg = 0;
 								clear_currnet_page();
-#endif
-								if(i % 2 == 0)
-								{// analog data
-								/*	E2prom_Write_Byte(EEP_SD_BLOCK_A1 + i,(SD_block_num[i] >> 8));
-									E2prom_Write_Byte(EEP_SD_BLOCK_A1 + i + 1,(U8_T)(SD_block_num[i]));	
-									E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + i / 2,0);	*/
-								}
-								else // digital data
-								{
-								/*	E2prom_Write_Byte(EEP_SD_BLOCK_D1 + i - 1,(SD_block_num[i] >> 8));
-									E2prom_Write_Byte(EEP_SD_BLOCK_D1 + i,(U8_T)(SD_block_num[i]));	
-									E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + i / 2,0);*/	
-								}
-								
-								//clear_sd_file(i);
+								flash_trendlog_num[i] = 0;
+								save_flash_trendlog_num();
 							}
 							
 						}
 					}
 					break;
 
-				case WRITE_MSV_COMMAND:			
-					//write_page_en[25] = 1;					
+				case WRITE_MSV_COMMAND:					
 					ptr = (uint8_t *)&msv_data[private_header.point_start_instance];
 					break;	
 
 				case WRITE_EMAIL_ALARM:
-					//write_page_en[4] = 1;
 					ptr = (uint8_t *)&Email_Setting;	
 				break;
 				case WRITE_PVAR:
@@ -2068,28 +2002,6 @@ void handler_private_transfer(
 				ptr = (uint8_t *)(Graphi_data->asdu);	
 				
 				break;
-#if 0//STORE_TO_SD
-		 case READPIC_T3000:			 
-				ReadPicture(Graphi_data);
-				transfer_len = 400;
-				temp[22] = (U8_T)(Graphi_data->total_seg);
-				temp[23] = (Graphi_data->total_seg >> 8);
-				temp[24] = (Graphi_data->total_seg) >> 16;
-				temp[25] = (Graphi_data->total_seg) >> 24;
-			
-				temp[18] = (U8_T)(Graphi_data->seg_index);
-				temp[19] = (Graphi_data->seg_index >> 8);
-				temp[20] = Graphi_data->seg_index >> 16;
-				temp[21] = Graphi_data->seg_index >> 24;
-			
-				temp[17] = Graphi_data->special;
-				ptr = (uint8_t *)(Graphi_data->asdu);	
-				break;
-#endif			
-//			case UPDATEMEMMONITOR_T3000:
-//				UpdateMonitor(Graphi_data);
-//				ptr = (char *)(Graphi_data->asdu);UPDATEMEMMONITOR_T3000
-//				break;
 
 			case GET_PANEL_INFO:   // other commad
 				Sync_Panel_Info();	
@@ -2107,12 +2019,6 @@ void handler_private_transfer(
 			case READEXT_IO_T3000:					
 				ptr = (uint8_t *)(extio_points);
 				break;
-#if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
-			case READ_ZONE_T3000:		
-					refresh_zone();
-					ptr = (uint8_t *)(ID_Config);	
-					break;
-#endif
 			case READALARM_T3000:   // 13
 				if(private_header.point_end_instance <= MAX_ALARMS)
 				ptr = (uint8_t *)(&alarms[private_header.point_start_instance]);
@@ -2128,29 +2034,13 @@ void handler_private_transfer(
 				if(private_header.point_end_instance <= MAX_PASSW)
 				ptr = (uint8_t *)(&passwords[private_header.point_start_instance]);
 				break;
-//			case READTSTAT_T3000:
-//				ptr = (char *)(&scan_db[private_header.point_start_instance]);
-//				break;
-#if 0//ASIX
-#if USB_HOST
-			case READ_AT_CMD:
-				ptr = (uint8_t *)usb_buf;
-				break;
-#endif
-#endif
-//			case READWEATHER_T3000:
-//					ptr = (char *)(&weather);
-//					break;
 			
 			case READ_MISC:
 				{
 					uint8 i;
 					for( i = 0; i < 24;i++)
 					{
-#if STORE_TO_SD
-						MISC_Info.reg.monitor_block_num[i] = (SD_block_num[i]);
-#endif
-						MISC_Info.reg.monitor_block_num[i] = (current_page/*flash_trendlog_num[i]*/ * MAX_MON_POINT_FLASH + flash_trendlog_seg);
+						MISC_Info.reg.monitor_block_num[i] = flash_trendlog_num[i];
 					}
 						
 					MISC_Info.reg.flag = (0xff55);

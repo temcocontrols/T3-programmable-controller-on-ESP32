@@ -132,6 +132,7 @@ typedef enum
 
 
 #define FLASH_CURRENT_TLG_PAGE	"TLG_PAGE"
+#define FLASH_TRENDLOG_NUM	"TLG_NUM"
 
 
 
@@ -190,6 +191,7 @@ extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t leng
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_int16_to_flash(const char* key, int16_t value);
 extern void clear_count_reboot(void);
+void save_flash_trendlog_num(void);
 
 void Save_SPD_CNT(void);
 void Save_PLC_Power(void);

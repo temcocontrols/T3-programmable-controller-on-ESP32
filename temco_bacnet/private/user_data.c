@@ -21,7 +21,6 @@
 #include "driver/uart.h"
 extern char debug_array[100];
 void debug_info(char *string);
-#define STORE_TO_SD 0
 
 #define DEBUG_TRENDLOG 0
 
@@ -29,7 +28,7 @@ extern uint16_t current_page;
 extern char sntp_server[30];
 extern U8_T current_online[32];
 
-uint16_t 	flash_trendlog_num[MAX_MONITORS * 2];
+uint32_t 	flash_trendlog_num[MAX_MONITORS * 2];
 
 uint32 get_current_time(void);
 
@@ -4047,6 +4046,7 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 						+ ((uint32_t)temp[1] << 16) + ((uint32_t)temp[0] << 24);
 
 			flash_trendlog_seg++;
+			flash_trendlog_num[i * 2]++;
 		}
 	}
 	if(flash_trendlog_seg +  mon_block[i * 2].no_points > MAX_MON_POINT_FLASH/*256*/)
@@ -4057,10 +4057,7 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		{
 			memset(&write_mon_point_buf_to_flash[k],0,sizeof(Str_mon_element));
 		}
-		if(save_trendlog() == ESP_OK)
-		{
-			flash_trendlog_num[i * 2]++;
-		}	
+		save_trendlog();
 		flash_trendlog_seg = 0;
 #if DEBUG_TRENDLOG
     sprintf(debug_array,"new block %u, \r\n",flash_trendlog_num[i * 2]);
@@ -4172,6 +4169,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf_to_flash[flash_trendlog_seg].point.network_number = ptr.pnet->network_number;
 								write_mon_point_buf_to_flash[flash_trendlog_seg].value = 0;//get_input_sample( ptr.pnet->number );
 								flash_trendlog_seg++;
+								flash_trendlog_num[i * 2 + 1]++;
 							}
 							else
 							{
@@ -4198,6 +4196,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
 									flash_trendlog_seg++;
+									flash_trendlog_num[i * 2 + 1]++;
 								}
 
 							}
@@ -4227,6 +4226,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
 								flash_trendlog_seg++;
+								flash_trendlog_num[i * 2 + 1]++;
 							}
 							else
 							{
@@ -4256,6 +4256,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
 									flash_trendlog_seg++;
+									flash_trendlog_num[i * 2 + 1]++;
 								}
 							}
 
@@ -4278,10 +4279,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 			memset(&write_mon_point_buf_to_flash[k],0,sizeof(Str_mon_element));
 		}
 		//if(Write_SD(HIGH_BYTE(SD_block_num[i * 2 + 1]) + ((SD_block_num[i * 2 + 1] >> 24) << 16),i,0,(uint32_t)LOW_BYTE(SD_block_num[i * 2 + 1]) * MAX_MON_POINT * sizeof(Str_mon_element))==1)
-		if(save_trendlog() == ESP_OK)
-		{
-			flash_trendlog_num[i * 2 + 1]++;
-		}
+		save_trendlog();		
 
 		flash_trendlog_seg = 0;
 //			if(mon_block[i * 2 + 1].index + mon_block[i * 2 + 1].no_points > MAX_MON_POINT)
@@ -4361,20 +4359,20 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 		if (current_page > get_max_trend_page()) {
 			start_seg = (current_page - get_max_trend_page()) * MAX_TREND_SEG;
 		}
-		Test[12] = start_seg;
-		Test[13] = end_seg;
-		Test[14] = PTRtable->seg_index - 1;
+		//Test[12] = start_seg;
+		//Test[13] = end_seg;
+		//Test[14] = PTRtable->seg_index - 1;
 		if((PTRtable->seg_index - 1) < start_seg || (PTRtable->seg_index - 1) > end_seg)
 		{
 			// segment out of range, no data available
-			Test[11]++;
+			//Test[11]++;
 		}
 		else
 		{			
 			if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG)
 			{// read last packet, not store into flash
 				PTRtable->special = 1;
-				Test[15]++;
+				//Test[15]++;
 				temp_seg = (PTRtable->seg_index - 1 - current_page * MAX_TREND_SEG);
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read last packet seg = %ld, temp_set = %u",PTRtable->seg_index,temp_seg);
@@ -4387,11 +4385,11 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 
 			}
 			else			
-			{	Test[16]++;
+			{	//Test[16]++;
 				PTRtable->special = 0;
 				if(read_trendlog((PTRtable->seg_index - 1) / MAX_TREND_SEG, (PTRtable->seg_index - 1) % MAX_TREND_SEG) == 0) // no error
-				{Test[17]++;
-				Test[18] = PTRtable->seg_index;
+				{//Test[17]++;
+				//Test[18] = PTRtable->seg_index;
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read from flash = %ld",PTRtable->seg_index);
 		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
@@ -4399,7 +4397,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 					memcpy( PTRtable->asdu,&read_mon_point_buf_from_flash, MAX_MON_POINT_READ * sizeof(Str_mon_element));
 				}
 				else
-				{Test[19]++;
+				{//Test[19]++;
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read error");
 		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
@@ -4618,7 +4616,7 @@ void dealwithMonitor(uint8_t bank)
 	//for( bank = 0; bank < MAX_MONITORS; bank++, ptr.pmon++, ptr2.pmon++ )
 	{
 		flag = 0;
-
+		Test[31]++;
 		//if(ptr2.pmon->status == 1)
 		{
 	// check whether change monitor setting, if changed, change next_sample_time
@@ -4687,72 +4685,13 @@ void dealwithMonitor(uint8_t bank)
 	//	no_points = ( ptr.pmon - monitors );/* / sizeof(Str_monitor_point);*/
 			if( flag & 0x01 ) /* get a new analog block */
 			{
-#if  STORE_TO_SD
-				if(Write_SD((SD_block_num[bank * 2] >> 8) & 0xfff,bank,1,(uint32_t)LOW_BYTE(SD_block_num[bank * 2]) * sizeof(Str_mon_element)) == 1)
-#endif
-				{
-					/*if(SD_exist == 2)
-					{
-						U8_T temp;
-						//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + bank,&temp);
-						if((temp & 0x0f) != (SD_block_num[bank * 2] >> 16 & 0x0f))
-						{
-							temp &= 0xf0;
-							temp |= (SD_block_num[bank * 2] >> 16 & 0x0f);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp);
-
-						}
-
-						//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2,HIGH_BYTE(SD_block_num[bank * 2]));
-						//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2 + 1,LOW_BYTE(SD_block_num[bank * 2]));
-						if(SD_block_num[bank * 2] < 0xfffff)
-							SD_block_num[bank * 2]++;
-						else
-						{
-							//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2 + 1,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp & 0xf0);
-							SD_block_num[bank * 2] = 0;
-						}
-					}*/
-
-					init_new_analog_block( bank, ptr2.pmon);
-				}
+				init_new_analog_block( bank, ptr2.pmon);
 
 			}
 			if( flag & 0x02 ) /* get a new digital block */
 			{
-#if  STORE_TO_SD
 
-				if(Write_SD(HIGH_BYTE(SD_block_num[bank * 2 + 1]) + ((SD_block_num[bank * 2 + 1] >> 24) << 16),bank,0,(uint32_t)LOW_BYTE(SD_block_num[bank * 2 + 1]) * sizeof(Str_mon_element)) == 1)
-#endif
-				{
-/*					if(SD_exist == 2)
-					{
-						U8_T temp;
-						//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + bank,&temp);  // high 4 bits
-						if((temp & 0xf0) != (SD_block_num[bank * 2] >> 16 & 0xf0))
-						{
-							temp &= 0x0f;
-							temp |= (SD_block_num[bank * 2] >> 16 & 0xf0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp);
-
-						}
-
-						//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2,HIGH_BYTE(SD_block_num[bank * 2 + 1]));
-						//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2 + 1,LOW_BYTE(SD_block_num[bank * 2 + 1]));
-						if(SD_block_num[bank * 2 + 1] < 0xfffff)
-							SD_block_num[bank * 2 + 1] ++;
-						else
-						{
-							//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2 + 1,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp & 0x0f);
-							SD_block_num[bank * 2 + 1] = 0;
-						}
-					}*/
-					init_new_digital_block( bank, ptr2.pmon);
-				}
+				init_new_digital_block( bank, ptr2.pmon);				
 
 			}
 
