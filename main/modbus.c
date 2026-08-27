@@ -1392,8 +1392,17 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		}
 		else if(address >= MODBUS_BATTERY1 && address <= MODBUS_BATTERY7)
 		{
-			temp1 = 0;
-			temp2 = plc_power.battery[address - MODBUS_BATTERY1];
+			if(Modbus.mini_type == PROJECT_RMC1232)
+			{
+				temp1 = 0;
+				temp2 = plc_power.battery[address - MODBUS_BATTERY1];
+			}
+			else
+			{
+				extern uint16 mini_bms_cell_mv[7];
+				temp1 = mini_bms_cell_mv[address - MODBUS_BATTERY1] >> 8;
+				temp2 = mini_bms_cell_mv[address - MODBUS_BATTERY1];
+			}
 		}
 		else if(address == MODBUS_BATTERY_SUM)
 		{

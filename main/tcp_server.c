@@ -5119,7 +5119,7 @@ static void convert_rmc1232_AHKC_Hall(void)
 	
 	for(i = 0; i < 32; i++)
 	{
-		if(i == 8 || i == 9 || i == 10 || i == 12)
+		if(i == 8 || i == 9 || i == 10 || i == 11)
 			continue;
 		
 		ptr = put_io_buf(IN, i);		
