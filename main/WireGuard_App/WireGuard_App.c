@@ -374,6 +374,7 @@ esp_err_t wireguard_app_setup(wireguard_ctx_t *ctx)
     /* Load configuration from flash and wait until it's valid */
     wireguard_app_load_config();
 
+    ESP_LOGI(TAG, "Calling esp_wireguard_init...");
     err = esp_wireguard_init(&wg_config, ctx);
     if (err != ESP_OK)
     {

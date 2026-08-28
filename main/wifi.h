@@ -5,6 +5,10 @@
 
 #define DEBUG_INFO_UART0	0//1
 
+#ifndef TSTAT11_WIFI_MINIMAL_DIAG
+#define TSTAT11_WIFI_MINIMAL_DIAG 1
+#endif
+
 typedef enum
 {
 	WIFI_NONE,
@@ -42,6 +46,9 @@ extern char debug_array[100];
 
 extern STR_SSID	SSID_Info;
 extern void wifi_init_sta();
+esp_err_t wifi_driver_init_barrier_prepare(void);
+esp_err_t wifi_driver_init_barrier_wait(void);
+bool wifi_driver_init_barrier_is_done(void);
 extern void debug_info(char *string);
 extern void debug_print(char *string,char task_index);
 extern void wifi_task(void *pvParameters);

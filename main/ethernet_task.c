@@ -546,6 +546,16 @@ esp_err_t ethernet_init(void)
     ESP_LOGI(TAG, "ethernet_init begin: mini_type=%u tcp_type=%u", Modbus.mini_type, Modbus.tcp_type);
 
 #if CONFIG_IDF_TARGET_ESP32S3
+    if (Modbus.mini_type != PROJECT_HUB)
+    {
+        ESP_LOGI(TAG, "Skip PROJECT_HUB W5500 Ethernet for non-HUB ESP32-S3 product, mini_type=%u",
+                 Modbus.mini_type);
+        eth_handle = NULL;
+        return ESP_OK;
+    }
+#endif
+
+#if CONFIG_IDF_TARGET_ESP32S3
 #if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
     if (Modbus.mini_type == PROJECT_HUB)
     {

@@ -1,4 +1,5 @@
 #include "string.h"
+#include <stddef.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -10,9 +11,12 @@
 #include "nvs_flash.h"
 #include "flash.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 //#include "modbus.h"
 #include "lwip/sockets.h"
+#pragma pack(push)
 #include "define.h"
+#pragma pack(pop)
 #include "esp_event.h"
 #include "esp_wifi.h"
 #include "esp_netif.h"
@@ -20,14 +24,19 @@
 #include "wifi_web_server.h"
 
 static const char *TAG = "WIFI";
+static const char *WIFI_DIAG_TAG = "WIFI_DIAG";
 extern SemaphoreHandle_t CountHandle;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
+#define WIFI_DRIVER_INIT_DONE   BIT0
+#define WIFI_DRIVER_INIT_FAILED BIT1
 #define EXAMPLE_ESP_MAXIMUM_RETRY	10
 
 void disable_wifi();
 /* FreeRTOS event group to signal when we are connected*/
 EventGroupHandle_t s_wifi_event_group;
+static EventGroupHandle_t s_wifi_driver_init_event_group;
+static esp_err_t s_wifi_driver_init_result = ESP_FAIL;
 extern EventGroupHandle_t network_EventHandle;
 //STR_SCAN_CMD Scan_Infor;
 STR_SSID	SSID_Info;
@@ -172,7 +181,10 @@ static void wifi_event_handler(
                 wifi_mode_t mode;
                 esp_wifi_get_mode(&mode);
                 if (mode == WIFI_MODE_APSTA) {
-                    esp_wifi_set_mode(WIFI_MODE_STA);
+                    ESP_LOGI(WIFI_DIAG_TAG, "before esp_wifi_set_mode mode=WIFI_MODE_STA source=got_ip");
+                    esp_err_t mode_ret = esp_wifi_set_mode(WIFI_MODE_STA);
+                    ESP_LOGI(WIFI_DIAG_TAG, "after esp_wifi_set_mode ret=%s mode=WIFI_MODE_STA source=got_ip",
+                             esp_err_to_name(mode_ret));
                 }
 
                 break;
@@ -283,6 +295,153 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
 static bool wifi_initialized = false;
 static esp_netif_t *wifi_netif = NULL;
 
+esp_err_t wifi_driver_init_barrier_prepare(void)
+{
+    if (s_wifi_driver_init_event_group == NULL) {
+        s_wifi_driver_init_event_group = xEventGroupCreate();
+        if (s_wifi_driver_init_event_group == NULL) {
+            return ESP_ERR_NO_MEM;
+        }
+    }
+
+    s_wifi_driver_init_result = ESP_FAIL;
+    xEventGroupClearBits(s_wifi_driver_init_event_group,
+                         WIFI_DRIVER_INIT_DONE | WIFI_DRIVER_INIT_FAILED);
+    return ESP_OK;
+}
+
+esp_err_t wifi_driver_init_barrier_wait(void)
+{
+    if (s_wifi_driver_init_event_group == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    xEventGroupWaitBits(s_wifi_driver_init_event_group,
+                        WIFI_DRIVER_INIT_DONE | WIFI_DRIVER_INIT_FAILED,
+                        pdFALSE,
+                        pdFALSE,
+                        portMAX_DELAY);
+    return s_wifi_driver_init_result;
+}
+
+bool wifi_driver_init_barrier_is_done(void)
+{
+#if !CONFIG_IDF_TARGET_ESP32S3
+    return true;
+#else
+    if (s_wifi_driver_init_event_group == NULL) {
+        return false;
+    }
+
+    return (xEventGroupGetBits(s_wifi_driver_init_event_group) & WIFI_DRIVER_INIT_DONE) != 0;
+#endif
+}
+
+static void wifi_driver_init_barrier_signal(esp_err_t result)
+{
+    if (s_wifi_driver_init_event_group == NULL) {
+        return;
+    }
+
+    s_wifi_driver_init_result = result;
+    xEventGroupSetBits(s_wifi_driver_init_event_group,
+                       result == ESP_OK ? WIFI_DRIVER_INIT_DONE : WIFI_DRIVER_INIT_FAILED);
+}
+
+static void wifi_log_init_config(const wifi_init_config_t *cfg)
+{
+    ESP_LOGI(WIFI_DIAG_TAG,
+             "cfg layout: sizeof=%u feature_caps_offset=%u magic_offset=%u",
+             (unsigned int)sizeof(*cfg),
+             (unsigned int)offsetof(wifi_init_config_t, feature_caps),
+             (unsigned int)offsetof(wifi_init_config_t, magic));
+    ESP_LOGI(WIFI_DIAG_TAG,
+             "cfg identity: magic=0x%08x expected=0x%08x match=%d osi=%p expected_osi=%p match=%d",
+             (unsigned int)cfg->magic,
+             (unsigned int)WIFI_INIT_CONFIG_MAGIC,
+             cfg->magic == WIFI_INIT_CONFIG_MAGIC,
+             (void *)cfg->osi_funcs,
+             (void *)&g_wifi_osi_funcs,
+             cfg->osi_funcs == &g_wifi_osi_funcs);
+    ESP_LOGI(WIFI_DIAG_TAG,
+             "cfg wpa: size=%u version=0x%08x default_match=%d",
+             (unsigned int)cfg->wpa_crypto_funcs.size,
+             (unsigned int)cfg->wpa_crypto_funcs.version,
+             memcmp(&cfg->wpa_crypto_funcs,
+                    &g_wifi_default_wpa_crypto_funcs,
+                    sizeof(cfg->wpa_crypto_funcs)) == 0);
+    ESP_LOGI(WIFI_DIAG_TAG,
+             "cfg buffers: static_rx=%d dynamic_rx=%d tx_type=%d static_tx=%d dynamic_tx=%d rx_mgmt_type=%d rx_mgmt_num=%d cache_tx=%d",
+             cfg->static_rx_buf_num,
+             cfg->dynamic_rx_buf_num,
+             cfg->tx_buf_type,
+             cfg->static_tx_buf_num,
+             cfg->dynamic_tx_buf_num,
+             cfg->rx_mgmt_buf_type,
+             cfg->rx_mgmt_buf_num,
+             cfg->cache_tx_buf_num);
+    ESP_LOGI(WIFI_DIAG_TAG,
+             "cfg features: csi=%d ampdu_rx=%d ampdu_tx=%d amsdu_tx=%d nvs=%d nano=%d feature_caps=0x%llx",
+             cfg->csi_enable,
+             cfg->ampdu_rx_enable,
+             cfg->ampdu_tx_enable,
+             cfg->amsdu_tx_enable,
+             cfg->nvs_enable,
+             cfg->nano_enable,
+             (unsigned long long)cfg->feature_caps);
+    ESP_LOGI(WIFI_DIAG_TAG,
+             "cfg runtime: rx_ba_win=%d core=%d beacon_max_len=%d mgmt_sbuf_num=%d espnow_max_encrypt_num=%d tx_hetb_queue_num=%d",
+             cfg->rx_ba_win,
+             cfg->wifi_task_core_id,
+             cfg->beacon_max_len,
+             cfg->mgmt_sbuf_num,
+             cfg->espnow_max_encrypt_num,
+             cfg->tx_hetb_queue_num);
+}
+
+#if CONFIG_IDF_TARGET_ESP32S3 && TSTAT11_WIFI_MINIMAL_DIAG
+static esp_err_t wifi_minimal_init_diag(void)
+{
+    ESP_LOGW(WIFI_DIAG_TAG,
+             "minimal init enabled: no STA/AP netif, event handler, mode, start, mDNS, web, or IP services");
+
+    ESP_LOGI(WIFI_DIAG_TAG, "minimal: before esp_netif_init");
+    esp_err_t ret = esp_netif_init();
+    ESP_LOGI(WIFI_DIAG_TAG, "minimal: after esp_netif_init ret=%s", esp_err_to_name(ret));
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        wifi_driver_init_barrier_signal(ret);
+        return ret;
+    }
+
+    ESP_LOGI(WIFI_DIAG_TAG, "minimal: before esp_event_loop_create_default");
+    ret = esp_event_loop_create_default();
+    ESP_LOGI(WIFI_DIAG_TAG, "minimal: after esp_event_loop_create_default ret=%s", esp_err_to_name(ret));
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        wifi_driver_init_barrier_signal(ret);
+        return ret;
+    }
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
+    ESP_LOGI(WIFI_DIAG_TAG,
+             "task=%s core=%d free_internal=%u free_psram=%u sizeof(wifi_init_config_t)=%u",
+             pcTaskGetName(current_task),
+             xPortGetCoreID(),
+             (unsigned int)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+             (unsigned int)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+             (unsigned int)sizeof(wifi_init_config_t));
+    wifi_log_init_config(&cfg);
+
+    ESP_LOGI(WIFI_DIAG_TAG, "minimal: before esp_wifi_init");
+    ret = esp_wifi_init(&cfg);
+    ESP_LOGI(WIFI_DIAG_TAG, "minimal: after esp_wifi_init ret=%s", esp_err_to_name(ret));
+    if (ret != ESP_OK) {
+        wifi_driver_init_barrier_signal(ret);
+    }
+    return ret;
+}
+#endif
+
 void wifi_init_sta(void)
 {
     esp_err_t ret;
@@ -292,12 +451,16 @@ void wifi_init_sta(void)
         s_wifi_event_group = xEventGroupCreate();
         CountHandle = xSemaphoreCreateCounting(7,7);
 
+        ESP_LOGI(WIFI_DIAG_TAG, "before esp_netif_init");
         ret = esp_netif_init();
+        ESP_LOGI(WIFI_DIAG_TAG, "after esp_netif_init ret=%s", esp_err_to_name(ret));
         if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
             debug_info("esp_netif_init failed");
         }
 
+        ESP_LOGI(WIFI_DIAG_TAG, "before esp_event_loop_create_default");
         ret = esp_event_loop_create_default();
+        ESP_LOGI(WIFI_DIAG_TAG, "after esp_event_loop_create_default ret=%s", esp_err_to_name(ret));
         if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
             debug_info("event loop create failed");
         }
@@ -309,6 +472,7 @@ void wifi_init_sta(void)
             if (wifi_netif == NULL)
             {
                 debug_info("Failed to create STA netif");
+                wifi_driver_init_barrier_signal(ESP_ERR_NO_MEM);
                 return;
             }
         }
@@ -317,7 +481,20 @@ void wifi_init_sta(void)
         esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL);
 
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-        ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+        TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
+        ESP_LOGI(WIFI_DIAG_TAG,
+                 "task=%s core=%d free_internal=%u free_psram=%u sizeof(wifi_init_config_t)=%u",
+                 pcTaskGetName(current_task),
+                 xPortGetCoreID(),
+                 (unsigned int)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                 (unsigned int)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                 (unsigned int)sizeof(wifi_init_config_t));
+            wifi_log_init_config(&cfg);
+        ESP_LOGI(WIFI_DIAG_TAG, "before esp_wifi_init");
+        ret = esp_wifi_init(&cfg);
+        ESP_LOGI(WIFI_DIAG_TAG, "after esp_wifi_init ret=%s", esp_err_to_name(ret));
+        wifi_driver_init_barrier_signal(ret);
+        ESP_ERROR_CHECK(ret);
 
     }
     else
@@ -328,7 +505,9 @@ void wifi_init_sta(void)
     if(SSID_Info.MANUEL_EN != 1 || Modbus.mini_type == PROJECT_HUB)
     {
         wifi_start_softap();
-        esp_wifi_start();
+        ESP_LOGI(WIFI_DIAG_TAG, "before esp_wifi_start mode=SoftAP");
+        ret = esp_wifi_start();
+        ESP_LOGI(WIFI_DIAG_TAG, "after esp_wifi_start ret=%s mode=SoftAP", esp_err_to_name(ret));
         init_mdns_service();
         wifi_web_server_start();
         return;
@@ -400,9 +579,13 @@ void wifi_init_sta(void)
         init_ssid_info();
     }
 
-    esp_wifi_set_mode(WIFI_MODE_STA);
+    ESP_LOGI(WIFI_DIAG_TAG, "before esp_wifi_set_mode mode=WIFI_MODE_STA");
+    ret = esp_wifi_set_mode(WIFI_MODE_STA);
+    ESP_LOGI(WIFI_DIAG_TAG, "after esp_wifi_set_mode ret=%s mode=WIFI_MODE_STA", esp_err_to_name(ret));
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
-    esp_wifi_start();
+    ESP_LOGI(WIFI_DIAG_TAG, "before esp_wifi_start mode=WIFI_MODE_STA");
+    ret = esp_wifi_start();
+    ESP_LOGI(WIFI_DIAG_TAG, "after esp_wifi_start ret=%s mode=WIFI_MODE_STA", esp_err_to_name(ret));
     init_mdns_service();
 
     if (!wifi_initialized)
@@ -504,6 +687,16 @@ void wifi_task(void *pvParameters)
 {
 	uint8_t temp_rssi = 0;
     esp_log_level_set("wifi", ESP_LOG_ERROR);
+
+#if CONFIG_IDF_TARGET_ESP32S3 && TSTAT11_WIFI_MINIMAL_DIAG
+    if (Modbus.mini_type != PROJECT_HUB)
+    {
+        esp_err_t ret = wifi_minimal_init_diag();
+        ESP_LOGW(WIFI_DIAG_TAG, "minimal init finished: %s; deleting wifi_task", esp_err_to_name(ret));
+        vTaskDelete(NULL);
+        return;
+    }
+#endif
 
     wifi_init_sta();
 

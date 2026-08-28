@@ -2703,7 +2703,8 @@ void Timer_task(void *pvParameters)
 
 #if PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH
 #if COV
-		handler_cov_task(BAC_IP_CLIENT);
+		if (Modbus.mini_type == PROJECT_HUB || wifi_driver_init_barrier_is_done())
+			handler_cov_task(BAC_IP_CLIENT);
 #endif
 		if(Eth_IP_Change == 1)
 		{
@@ -4487,8 +4488,11 @@ void Bacnet_Control(void *pvParameters)
 #endif
 
 #if 1//DNS
-		dns_tmr();
-		update_sntp();
+		if (Modbus.mini_type == PROJECT_HUB || wifi_driver_init_barrier_is_done())
+		{
+			dns_tmr();
+			update_sntp();
+		}
 #endif
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <=MINI_TINY_11I))
 				|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW))
@@ -4634,6 +4638,38 @@ void hub_usb_serial_init(void);
 int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
 
 void phy_reset(void);
+
+#if CONFIG_IDF_TARGET_ESP32S3
+static void non_hub_ip_network_start_task(void *pvParameters)
+{
+	(void)pvParameters;
+#if TSTAT11_WIFI_MINIMAL_DIAG
+	ESP_LOGW(TCP_TASK_TAG, "WIFI_DIAG: minimal init enabled; network services intentionally disabled");
+	vTaskDelete(NULL);
+	return;
+#endif
+	ESP_LOGI(TCP_TASK_TAG, "WIFI_DIAG: network services waiting for WiFi driver init");
+	esp_err_t wifi_init_ret = wifi_driver_init_barrier_wait();
+	if (wifi_init_ret != ESP_OK) {
+		ESP_LOGE(TCP_TASK_TAG,
+				 "WIFI_DIAG: WiFi driver init failed; network services not started: %s",
+				 esp_err_to_name(wifi_init_ret));
+		vTaskDelete(NULL);
+		return;
+	}
+
+	ESP_LOGI(TCP_TASK_TAG, "WIFI_DIAG: WiFi driver init done; starting network services");
+	network_EventHandle = xEventGroupCreate();
+	xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]);
+	xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 1, &main_task_handle[3]);
+	xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]);
+	xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]);
+	xTaskCreate(Scan_network_bacnet_Task, "Scan_network_bacnet_Task", 4096, NULL,
+				tskIDLE_PRIORITY + 1, &main_task_handle[16]);
+	Mqtt_Handler_Init();
+	vTaskDelete(NULL);
+}
+#endif
 
 #if HUB_LTE_PPPOS_MANUAL_TEST
 static void hub_pppos_manual_process_task(void *pvParameters)
@@ -4866,16 +4902,33 @@ void app_main()
 	else
 #endif
 	{
+		#if CONFIG_IDF_TARGET_ESP32S3
+		if (Modbus.mini_type != PROJECT_HUB) {
+			esp_err_t barrier_ret = wifi_driver_init_barrier_prepare();
+			if (barrier_ret != ESP_OK) {
+				ESP_LOGE(TCP_TASK_TAG, "WIFI_DIAG: WiFi driver init barrier create failed: %s",
+						 esp_err_to_name(barrier_ret));
+			}
+		}
+		#endif
 		xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
 	}
 
-    network_EventHandle = xEventGroupCreate();
-    xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server
-    // dealing with network modbus point
-    xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 1, &main_task_handle[3]); // tcp client
-    xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
-    xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
-    xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
+#if CONFIG_IDF_TARGET_ESP32S3
+	bool defer_non_hub_ip_network = (Modbus.mini_type != PROJECT_HUB);
+	if (defer_non_hub_ip_network) {
+		xTaskCreate(non_hub_ip_network_start_task, "ip_net_start", 3072, NULL, 5, NULL);
+	} else
+#endif
+	{
+		network_EventHandle = xEventGroupCreate();
+		xTaskCreate(tcp_server_task, "tcp_server", 6000, NULL, 5, &main_task_handle[2]); // tcp server
+		// dealing with network modbus point
+		xTaskCreate(tcp_client_task, "tcp_client", 6000, NULL, 1, &main_task_handle[3]); // tcp client
+		xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
+		xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
+		xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
+	}
 #if 0//DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
@@ -4919,7 +4972,12 @@ void app_main()
 	}
 #endif
 
-	Mqtt_Handler_Init();
+#if CONFIG_IDF_TARGET_ESP32S3
+	if (!defer_non_hub_ip_network)
+#endif
+	{
+		Mqtt_Handler_Init();
+	}
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();

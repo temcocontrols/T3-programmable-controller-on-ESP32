@@ -16,6 +16,7 @@
 #include "wifi_web_server.h"
 
 static const char *TAG = "WIFI_WEB";
+static const char *WIFI_DIAG_TAG = "WIFI_DIAG";
 static httpd_handle_t server = NULL;
 static bool mdns_initialized = false;
 
@@ -108,7 +109,9 @@ esp_err_t wifi_start_softap(void)
         },
     };
 
-    esp_wifi_set_mode(WIFI_MODE_APSTA);
+    ESP_LOGI(WIFI_DIAG_TAG, "before esp_wifi_set_mode mode=WIFI_MODE_APSTA");
+    esp_err_t ret = esp_wifi_set_mode(WIFI_MODE_APSTA);
+    ESP_LOGI(WIFI_DIAG_TAG, "after esp_wifi_set_mode ret=%s mode=WIFI_MODE_APSTA", esp_err_to_name(ret));
     esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config);
     ESP_LOGI(TAG, "SoftAP started. SSID: T3_Admin, Password: T3_Admin");
     return ESP_OK;
