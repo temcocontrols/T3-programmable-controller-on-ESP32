@@ -542,7 +542,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_x(ui_Label16, 0);
     lv_obj_set_y(ui_Label16, -17);
     lv_obj_set_align(ui_Label16, LV_ALIGN_TOP_MID);
-    lv_label_set_text(ui_Label16, "            Fan Mode          ");
+    lv_label_set_text(ui_Label16, "Fan Mode");
     lv_obj_set_style_text_font(ui_Label16, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_Label16, lv_color_hex(0x3E6AE3), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_Label16, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -844,7 +844,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_Label35, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Image7 = lv_image_create(ui_HeatModeBtn);
-    lv_image_set_src(ui_Image7, &ui_img_1679221590);
+    lv_image_set_src(ui_Image7, &ui_img_day_30_png);
     lv_obj_set_width(ui_Image7, LV_SIZE_CONTENT);   /// 35
     lv_obj_set_height(ui_Image7, LV_SIZE_CONTENT);    /// 35
     lv_obj_set_align(ui_Image7, LV_ALIGN_LEFT_MID);
@@ -953,7 +953,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_Label32, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Image5 = lv_image_create(ui_OffModeBtn);
-    lv_image_set_src(ui_Image5, &ui_img_1020677502);
+    lv_image_set_src(ui_Image5, &ui_img_power_symbol_30_png);
     lv_obj_set_width(ui_Image5, LV_SIZE_CONTENT);   /// 35
     lv_obj_set_height(ui_Image5, LV_SIZE_CONTENT);    /// 35
     lv_obj_set_align(ui_Image5, LV_ALIGN_LEFT_MID);
@@ -999,7 +999,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_Label36, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Image8 = lv_image_create(ui_CoolModeBtn);
-    lv_image_set_src(ui_Image8, &ui_img_1869774352);
+    lv_image_set_src(ui_Image8, &ui_img_snowflake_30_png);
     lv_obj_set_width(ui_Image8, LV_SIZE_CONTENT);   /// 35
     lv_obj_set_height(ui_Image8, LV_SIZE_CONTENT);    /// 35
     lv_obj_set_align(ui_Image8, LV_ALIGN_LEFT_MID);

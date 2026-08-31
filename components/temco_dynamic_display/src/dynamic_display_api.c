@@ -230,12 +230,24 @@ static esp_err_t screens_get_all_handler(httpd_req_t *req)
             }
 
             // --- FAST-PATH CHECK GOES HERE ---
-            char wrapper_prefix[80];
-            snprintf(wrapper_prefix, sizeof(wrapper_prefix), "{\"%s\":", screen_names[i]);
-
-            if (strncmp(raw_json, wrapper_prefix, strlen(wrapper_prefix)) == 0)
+            const char *p = raw_json;
+            while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+            bool is_wrapped = false;
+            if (*p == '{')
             {
-                // Slow path: only for the double-wrapped screen(s), e.g. schedule_screen
+                p++;
+                while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+                char name_check[70];
+                snprintf(name_check, sizeof(name_check), "\"%s\"", screen_names[i]);
+                if (strncmp(p, name_check, strlen(name_check)) == 0)
+                {
+                    is_wrapped = true;
+                }
+            }
+
+            if (is_wrapped)
+            {
+                // Slow path: unwrap if outer object matches screen name
                 cJSON *parsed = cJSON_Parse(raw_json);
                 cJSON *inner_json = NULL;
 

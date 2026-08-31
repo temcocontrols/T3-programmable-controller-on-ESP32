@@ -1,925 +1,924 @@
 {
-  "network_config": {
-    "bitmaps": [
-      "backsmallarrow"
+  "bg_color": "#000000",
+  "bitmaps": [
+    "backsmallarrow"
+  ],
+  "fonts": [
+    [
+      "lv_font_montserrat_18",
+      18
     ],
-    "fonts": [
-      [
-        "lv_font_montserrat_18",
-        18
-      ],
-      [
-        "lv_font_montserrat_16",
-        16
-      ]
-    ],
-    "widgets": {
-      "NetworkConfig": {
-        "children": {
-          "ChangeConfigTitle1": {
-            "align": "top_mid",
-            "children": {
-              "GotoMenuButton2": {
-                "align": "left_mid",
-                "events": {
-                  "CLICKED": {
-                    "actions": [
-                      {
-                        "action": "screen_change",
-                        "anim": "MOVE_RIGHT",
-                        "delay": 100,
-                        "screen": "main_menu",
-                        "speed": 500
-                      }
-                    ]
-                  }
-                },
-                "height": 35,
-                "img_pressed": "backsmallarrow",
-                "img_released": "backsmallarrow",
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#3C3C3C",
-                      "bg_opa": 255,
-                      "radius": 100
+    [
+      "lv_font_montserrat_16",
+      16
+    ]
+  ],
+  "widgets": {
+    "NetworkConfig": {
+      "children": {
+        "ChangeConfigTitle1": {
+          "align": "top_mid",
+          "children": {
+            "GotoMenuButton2": {
+              "align": "left_mid",
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_RIGHT",
+                      "delay": 100,
+                      "screen": "main_menu",
+                      "speed": 500
                     }
-                  }
-                },
-                "sub_type": "imagebutton",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 35,
-                "x_pos": 0,
-                "y_pos": 0
-              },
-              "NetworkSetupConfig": {
-                "align": "center",
-                "height": 0,
-                "obj_text": "Network Setup",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "text_font": "lv_font_montserrat_18"
-                    }
-                  }
-                },
-                "sub_type": "label",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 0,
-                "x_pos": -80,
-                "y_pos": 0
-              }
-            },
-            "height": 40,
-            "obj_text": "",
-            "style": {
-              "MAIN": {
-                "DEFAULT": {
-                  "bg_color": "#2D70A0",
-                  "bg_opa": 0,
-                  "border_side": "bottom"
+                  ]
                 }
-              }
+              },
+              "height": 35,
+              "img_pressed": "backsmallarrow",
+              "img_released": "backsmallarrow",
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#3C3C3C",
+                    "bg_opa": 255,
+                    "radius": 100
+                  }
+                }
+              },
+              "sub_type": "imagebutton",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 35,
+              "x_pos": 0,
+              "y_pos": 0
             },
-            "sub_type": "panel",
-            "text_type": "literal",
-            "type": "Widget",
-            "width": 450,
-            "x_pos": 0,
-            "y_pos": 0
+            "NetworkSetupConfig": {
+              "align": "center",
+              "height": 0,
+              "obj_text": "Network Setup",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_font": "lv_font_montserrat_18"
+                  }
+                }
+              },
+              "sub_type": "label",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 0,
+              "x_pos": -80,
+              "y_pos": 0
+            }
           },
-          "NetworkContainer1": {
-            "align": "bottom_mid",
-            "children": {
-              "GatewayPanel": {
-                "align": "center",
-                "children": {
-                  "GateWayStr": {
-                    "align": "left_mid",
-                    "height": 0,
-                    "obj_text": "Gateway              :",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "opa": 150,
-                          "text_font": "lv_font_montserrat_16"
-                        }
-                      }
-                    },
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": -10,
-                    "y_pos": 0
-                  },
-                  "IPoct10": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "192",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": -40,
-                    "y_pos": 0
-                  },
-                  "IPoct11": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "168",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 30,
-                    "y_pos": 0
-                  },
-                  "IPoct12": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "1",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 100,
-                    "y_pos": 0
-                  },
-                  "IPoct13": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "0",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 170,
-                    "y_pos": 0
-                  },
-                  "Label38": {
-                    "align": "center",
-                    "height": 0,
-                    "obj_text": "               .                 .                 . ",
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": 36,
-                    "y_pos": 2
-                  }
-                },
-                "height": 35,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#FFFFFF",
-                      "bg_opa": 0,
-                      "border_side": "none"
-                    }
-                  }
-                },
-                "sub_type": "panel",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 445,
-                "x_pos": 0,
-                "y_pos": 20
-              },
-              "IpPanel1": {
-                "align": "center",
-                "children": {
-                  "BacNetPortStr4": {
-                    "align": "left_mid",
-                    "height": 0,
-                    "obj_text": "Assignment    :",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "text_font": "lv_font_montserrat_18"
-                        }
-                      }
-                    },
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": -10,
-                    "y_pos": 0
-                  },
-                  "Checkbox2": {
-                    "align": "right_mid",
-                    "height": 0,
-                    "obj_text": "",
-                    "style": {
-                      "INDICATOR": {
-                        "DEFAULT": {
-                          "radius": 20
-                        }
-                      },
-                      "MAIN": {
-                        "DEFAULT": {
-                          "text_font": "lv_font_montserrat_16"
-                        }
-                      }
-                    },
-                    "sub_type": "checkbox",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": -30,
-                    "y_pos": 0
-                  },
-                  "Checkbox3": {
-                    "align": "center",
-                    "height": 0,
-                    "obj_text": "",
-                    "style": {
-                      "INDICATOR": {
-                        "DEFAULT": {
-                          "radius": 20
-                        }
-                      },
-                      "MAIN": {
-                        "DEFAULT": {
-                          "text_font": "lv_font_montserrat_16"
-                        }
-                      }
-                    },
-                    "sub_type": "checkbox",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": 0,
-                    "y_pos": 0
-                  }
-                },
-                "height": 30,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#FFFFFF",
-                      "bg_opa": 0,
-                      "border_side": "none"
-                    }
-                  }
-                },
-                "sub_type": "panel",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 445,
-                "x_pos": 0,
-                "y_pos": -100
-              },
-              "IpPanel2": {
-                "align": "center",
-                "children": {
-                  "IPoct1": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "192",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": -40,
-                    "y_pos": 0
-                  },
-                  "IPoct2": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "168",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 30,
-                    "y_pos": 0
-                  },
-                  "IPoct3": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "1",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 100,
-                    "y_pos": 0
-                  },
-                  "IPoct4": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "1",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 170,
-                    "y_pos": 0
-                  },
-                  "IpAddressStr": {
-                    "align": "left_mid",
-                    "height": 0,
-                    "obj_text": "IP Address          :",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "opa": 150,
-                          "text_font": "lv_font_montserrat_16"
-                        }
-                      }
-                    },
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": -10,
-                    "y_pos": 0
-                  },
-                  "Label34": {
-                    "align": "center",
-                    "height": 0,
-                    "obj_text": "               .                 .                 . ",
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": 36,
-                    "y_pos": 2
-                  }
-                },
-                "height": 35,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#FFFFFF",
-                      "bg_opa": 0,
-                      "border_side": "none"
-                    }
-                  }
-                },
-                "sub_type": "panel",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 445,
-                "x_pos": 0,
-                "y_pos": -60
-              },
-              "NumKeyboard": {
-                "align": "bottom_mid",
-                "events": {
-                  "READY": {
-                    "actions": [
-                      {
-                        "action": "flag_modify",
-                        "flag": "hidden",
-                        "mode": "add",
-                        "target": "NumKeyboard"
-                      }
-                    ]
-                  }
-                },
-                "height": 120,
-                "hidden": true,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "radius": 10
-                    }
-                  }
-                },
-                "sub_type": "keyboard",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 300,
-                "x_pos": 0,
-                "y_pos": 0
-              },
-              "SubnetPanel": {
-                "align": "center",
-                "children": {
-                  "IPoct6": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "255",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": -40,
-                    "y_pos": 0
-                  },
-                  "IPoct7": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "255",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 30,
-                    "y_pos": 0
-                  },
-                  "IPoct8": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "1",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 100,
-                    "y_pos": 0
-                  },
-                  "IPoct9": {
-                    "align": "center",
-                    "events": {
-                      "CLICKED": {
-                        "actions": [
-                          {
-                            "action": "flag_modify",
-                            "flag": "hidden",
-                            "mode": "remove",
-                            "target": "NumKeyboard"
-                          }
-                        ]
-                      }
-                    },
-                    "height": 30,
-                    "obj_text": "",
-                    "placeholder": "0",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "pad_bottom": 0,
-                          "pad_left": -1,
-                          "pad_right": 0,
-                          "pad_top": 5,
-                          "radius": 6,
-                          "text_align": "center",
-                          "text_font": "lv_font_montserrat_16",
-                          "text_letter_space": 3,
-                          "text_line_space": 0
-                        }
-                      }
-                    },
-                    "sub_type": "textarea",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 60,
-                    "x_pos": 170,
-                    "y_pos": 0
-                  },
-                  "Label37": {
-                    "align": "center",
-                    "height": 0,
-                    "obj_text": "               .                 .                 . ",
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": 36,
-                    "y_pos": 2
-                  },
-                  "SubNetStr": {
-                    "align": "left_mid",
-                    "height": 0,
-                    "obj_text": "Subnet                 :",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "opa": 150,
-                          "text_font": "lv_font_montserrat_16"
-                        }
-                      }
-                    },
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": -10,
-                    "y_pos": 0
-                  }
-                },
-                "height": 35,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#FFFFFF",
-                      "bg_opa": 0,
-                      "border_side": "none"
-                    }
-                  }
-                },
-                "sub_type": "panel",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 445,
-                "x_pos": 0,
-                "y_pos": -20
-              },
-              "WifiUpdateButton2": {
-                "align": "center",
-                "children": {
-                  "Label13": {
-                    "align": "center",
-                    "height": 0,
-                    "obj_text": "Update",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "text_font": "lv_font_montserrat_18"
-                        }
-                      }
-                    },
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": 0,
-                    "y_pos": 0
-                  }
-                },
-                "events": {
-                  "CLICKED": {
-                    "actions": [
-                      {
-                        "action": "screen_change",
-                        "anim": "MOVE_RIGHT",
-                        "delay": 100,
-                        "screen": "main_menu",
-                        "speed": 1000
-                      }
-                    ]
-                  }
-                },
-                "height": 30,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#2971A4",
-                      "bg_opa": 255
-                    }
-                  }
-                },
-                "sub_type": "button",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 100,
-                "x_pos": 180,
-                "y_pos": 120
+          "height": 40,
+          "obj_text": "",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "bg_color": "#2D70A0",
+                "bg_opa": 0,
+                "border_side": "bottom"
               }
+            }
+          },
+          "sub_type": "panel",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 450,
+          "x_pos": 0,
+          "y_pos": 0
+        },
+        "NetworkContainer1": {
+          "align": "bottom_mid",
+          "children": {
+            "GatewayPanel": {
+              "align": "center",
+              "children": {
+                "GateWayStr": {
+                  "align": "left_mid",
+                  "height": 0,
+                  "obj_text": "Gateway              :",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "opa": 150,
+                        "text_font": "lv_font_montserrat_16"
+                      }
+                    }
+                  },
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": -10,
+                  "y_pos": 0
+                },
+                "IPoct10": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "192",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": -40,
+                  "y_pos": 0
+                },
+                "IPoct11": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "168",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 30,
+                  "y_pos": 0
+                },
+                "IPoct12": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "1",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 100,
+                  "y_pos": 0
+                },
+                "IPoct13": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "0",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 170,
+                  "y_pos": 0
+                },
+                "Label38": {
+                  "align": "center",
+                  "height": 0,
+                  "obj_text": "               .                 .                 . ",
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": 36,
+                  "y_pos": 2
+                }
+              },
+              "height": 35,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#FFFFFF",
+                    "bg_opa": 0,
+                    "border_side": "none"
+                  }
+                }
+              },
+              "sub_type": "panel",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 445,
+              "x_pos": 0,
+              "y_pos": 20
             },
-            "height": 290,
-            "no_default_style": true,
-            "obj_text": "",
-            "sub_type": "panel",
-            "text_type": "literal",
-            "type": "Widget",
-            "width": 480,
-            "x_pos": 0,
-            "y_pos": 0
-          }
-        },
-        "events": {
-          "CLICKED": {
-            "actions": [
-              {
-                "action": "flag_modify",
-                "flag": "hidden",
-                "mode": "add",
-                "target": "NumKeyboard"
-              }
-            ]
-          }
-        },
-        "height": 0,
-        "obj_text": "",
-        "sub_type": "screen",
-        "text_type": "literal",
-        "type": "Widget",
-        "width": 0,
-        "x_pos": 0,
-        "y_pos": 0
-      }
+            "IpPanel1": {
+              "align": "center",
+              "children": {
+                "BacNetPortStr4": {
+                  "align": "left_mid",
+                  "height": 0,
+                  "obj_text": "Assignment    :",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18"
+                      }
+                    }
+                  },
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": -10,
+                  "y_pos": 0
+                },
+                "Checkbox2": {
+                  "align": "right_mid",
+                  "height": 0,
+                  "obj_text": "",
+                  "style": {
+                    "INDICATOR": {
+                      "DEFAULT": {
+                        "radius": 20
+                      }
+                    },
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_16"
+                      }
+                    }
+                  },
+                  "sub_type": "checkbox",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": -30,
+                  "y_pos": 0
+                },
+                "Checkbox3": {
+                  "align": "center",
+                  "height": 0,
+                  "obj_text": "",
+                  "style": {
+                    "INDICATOR": {
+                      "DEFAULT": {
+                        "radius": 20
+                      }
+                    },
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_16"
+                      }
+                    }
+                  },
+                  "sub_type": "checkbox",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": 0,
+                  "y_pos": 0
+                }
+              },
+              "height": 30,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#FFFFFF",
+                    "bg_opa": 0,
+                    "border_side": "none"
+                  }
+                }
+              },
+              "sub_type": "panel",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 445,
+              "x_pos": 0,
+              "y_pos": -100
+            },
+            "IpPanel2": {
+              "align": "center",
+              "children": {
+                "IPoct1": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "192",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": -40,
+                  "y_pos": 0
+                },
+                "IPoct2": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "168",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 30,
+                  "y_pos": 0
+                },
+                "IPoct3": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "1",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 100,
+                  "y_pos": 0
+                },
+                "IPoct4": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "1",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 170,
+                  "y_pos": 0
+                },
+                "IpAddressStr": {
+                  "align": "left_mid",
+                  "height": 0,
+                  "obj_text": "IP Address          :",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "opa": 150,
+                        "text_font": "lv_font_montserrat_16"
+                      }
+                    }
+                  },
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": -10,
+                  "y_pos": 0
+                },
+                "Label34": {
+                  "align": "center",
+                  "height": 0,
+                  "obj_text": "               .                 .                 . ",
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": 36,
+                  "y_pos": 2
+                }
+              },
+              "height": 35,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#FFFFFF",
+                    "bg_opa": 0,
+                    "border_side": "none"
+                  }
+                }
+              },
+              "sub_type": "panel",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 445,
+              "x_pos": 0,
+              "y_pos": -60
+            },
+            "NumKeyboard": {
+              "align": "bottom_mid",
+              "events": {
+                "READY": {
+                  "actions": [
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "add",
+                      "target": "NumKeyboard"
+                    }
+                  ]
+                }
+              },
+              "height": 120,
+              "hidden": true,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 10
+                  }
+                }
+              },
+              "sub_type": "keyboard",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 300,
+              "x_pos": 0,
+              "y_pos": 0
+            },
+            "SubnetPanel": {
+              "align": "center",
+              "children": {
+                "IPoct6": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "255",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": -40,
+                  "y_pos": 0
+                },
+                "IPoct7": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "255",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 30,
+                  "y_pos": 0
+                },
+                "IPoct8": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "1",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 100,
+                  "y_pos": 0
+                },
+                "IPoct9": {
+                  "align": "center",
+                  "events": {
+                    "CLICKED": {
+                      "actions": [
+                        {
+                          "action": "flag_modify",
+                          "flag": "hidden",
+                          "mode": "remove",
+                          "target": "NumKeyboard"
+                        }
+                      ]
+                    }
+                  },
+                  "height": 30,
+                  "obj_text": "",
+                  "placeholder": "0",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "pad_bottom": 0,
+                        "pad_left": -1,
+                        "pad_right": 0,
+                        "pad_top": 5,
+                        "radius": 6,
+                        "text_align": "center",
+                        "text_font": "lv_font_montserrat_16",
+                        "text_letter_space": 3,
+                        "text_line_space": 0
+                      }
+                    }
+                  },
+                  "sub_type": "textarea",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 60,
+                  "x_pos": 170,
+                  "y_pos": 0
+                },
+                "Label37": {
+                  "align": "center",
+                  "height": 0,
+                  "obj_text": "               .                 .                 . ",
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": 36,
+                  "y_pos": 2
+                },
+                "SubNetStr": {
+                  "align": "left_mid",
+                  "height": 0,
+                  "obj_text": "Subnet                 :",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "opa": 150,
+                        "text_font": "lv_font_montserrat_16"
+                      }
+                    }
+                  },
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": -10,
+                  "y_pos": 0
+                }
+              },
+              "height": 35,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#FFFFFF",
+                    "bg_opa": 0,
+                    "border_side": "none"
+                  }
+                }
+              },
+              "sub_type": "panel",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 445,
+              "x_pos": 0,
+              "y_pos": -20
+            },
+            "WifiUpdateButton2": {
+              "align": "center",
+              "children": {
+                "Label13": {
+                  "align": "center",
+                  "height": 0,
+                  "obj_text": "Update",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18"
+                      }
+                    }
+                  },
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": 0,
+                  "y_pos": 0
+                }
+              },
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_RIGHT",
+                      "delay": 100,
+                      "screen": "main_menu",
+                      "speed": 1000
+                    }
+                  ]
+                }
+              },
+              "height": 30,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#2971A4",
+                    "bg_opa": 255
+                  }
+                }
+              },
+              "sub_type": "button",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 100,
+              "x_pos": 180,
+              "y_pos": 120
+            }
+          },
+          "height": 290,
+          "no_default_style": true,
+          "obj_text": "",
+          "sub_type": "panel",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 480,
+          "x_pos": 0,
+          "y_pos": 0
+        }
+      },
+      "events": {
+        "CLICKED": {
+          "actions": [
+            {
+              "action": "flag_modify",
+              "flag": "hidden",
+              "mode": "add",
+              "target": "NumKeyboard"
+            }
+          ]
+        }
+      },
+      "height": 0,
+      "obj_text": "",
+      "sub_type": "screen",
+      "text_type": "literal",
+      "type": "Widget",
+      "width": 0,
+      "x_pos": 0,
+      "y_pos": 0
     }
   }
 }

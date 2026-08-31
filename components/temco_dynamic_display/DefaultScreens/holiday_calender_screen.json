@@ -1,151 +1,150 @@
 {
-  "holiday_calender_screen": {
-    "bitmaps": [
-      "backsmallarrow"
-    ],
-    "fonts": [
-      [
-        "lv_font_montserrat_18",
-        18
-      ]
-    ],
-    "widgets": {
-      "HolidayCalenderScreen": {
-        "children": {
-          "ChangeConfigTitle9": {
-            "align": "top_mid",
-            "children": {
-              "CalanderStr": {
-                "align": "center",
-                "height": 0,
-                "obj_text": "   Holiday Calender",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "text_font": "lv_font_montserrat_18"
-                    }
+  "bg_color": "#000000",
+  "bitmaps": [
+    "backsmallarrow"
+  ],
+  "fonts": [
+    [
+      "lv_font_montserrat_18",
+      18
+    ]
+  ],
+  "widgets": {
+    "HolidayCalenderScreen": {
+      "children": {
+        "ChangeConfigTitle9": {
+          "align": "top_mid",
+          "children": {
+            "CalanderStr": {
+              "align": "center",
+              "height": 0,
+              "obj_text": "   Holiday Calender",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_font": "lv_font_montserrat_18"
                   }
-                },
-                "sub_type": "label",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 0,
-                "x_pos": -80,
-                "y_pos": 0
-              },
-              "GotoMenuButton4": {
-                "align": "left_mid",
-                "events": {
-                  "CLICKED": {
-                    "actions": [
-                      {
-                        "action": "screen_change",
-                        "anim": "MOVE_RIGHT",
-                        "delay": 100,
-                        "screen": "main_menu",
-                        "speed": 500
-                      }
-                    ]
-                  }
-                },
-                "height": 35,
-                "img_pressed": "backsmallarrow",
-                "img_released": "backsmallarrow",
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#3C3C3C",
-                      "bg_opa": 255,
-                      "radius": 100
-                    }
-                  }
-                },
-                "sub_type": "imagebutton",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 35,
-                "x_pos": 0,
-                "y_pos": 0
-              }
-            },
-            "height": 40,
-            "obj_text": "",
-            "style": {
-              "MAIN": {
-                "DEFAULT": {
-                  "bg_color": "#2D70A0",
-                  "bg_opa": 0,
-                  "border_side": "bottom"
                 }
-              }
+              },
+              "sub_type": "label",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 0,
+              "x_pos": -80,
+              "y_pos": 0
             },
-            "sub_type": "panel",
-            "text_type": "literal",
-            "type": "Widget",
-            "width": 450,
-            "x_pos": 0,
-            "y_pos": 0
-          },
-          "Container4": {
-            "align": "center",
-            "children": {
-              "Calendar1": {
-                "align": "center",
-                "header": "Arrow",
-                "height": 260,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#2095F6",
-                      "bg_grad_color": "#7FC0F7",
-                      "bg_grad_dir": "ver",
-                      "bg_grad_stop": 255,
-                      "bg_main_stop": 0,
-                      "bg_opa": 100,
-                      "border_color": "#7FC0F7",
-                      "border_opa": 100,
-                      "border_width": 2,
-                      "radius": 10,
-                      "shadow_color": "#2095F6",
-                      "shadow_opa": 100,
-                      "shadow_spread": 5,
-                      "shadow_width": 100
+            "GotoMenuButton4": {
+              "align": "left_mid",
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_RIGHT",
+                      "delay": 100,
+                      "screen": "main_menu",
+                      "speed": 500
                     }
+                  ]
+                }
+              },
+              "height": 35,
+              "img_pressed": "backsmallarrow",
+              "img_released": "backsmallarrow",
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#3C3C3C",
+                    "bg_opa": 255,
+                    "radius": 100
                   }
-                },
-                "sub_type": "calendar",
-                "text_type": "literal",
-                "today_day": 10,
-                "today_month": 2,
-                "today_year": 2026,
-                "type": "Widget",
-                "width": 400,
-                "x_pos": 0,
-                "y_pos": 0
+                }
+              },
+              "sub_type": "imagebutton",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 35,
+              "x_pos": 0,
+              "y_pos": 0
+            }
+          },
+          "height": 40,
+          "obj_text": "",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "bg_color": "#2D70A0",
+                "bg_opa": 0,
+                "border_side": "bottom"
               }
-            },
-            "height": 280,
-            "no_default_style": true,
-            "obj_text": "",
-            "sub_type": "panel",
-            "text_type": "literal",
-            "type": "Widget",
-            "width": 480,
-            "x_pos": 0,
-            "y_pos": 20
-          }
+            }
+          },
+          "sub_type": "panel",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 450,
+          "x_pos": 0,
+          "y_pos": 0
         },
-        "height": 0,
-        "obj_text": "",
-        "sub_type": "screen",
-        "text_type": "literal",
-        "type": "Widget",
-        "width": 0,
-        "x_pos": 0,
-        "y_pos": 0
-      }
+        "Container4": {
+          "align": "center",
+          "children": {
+            "Calendar1": {
+              "align": "center",
+              "header": "Arrow",
+              "height": 260,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#2095F6",
+                    "bg_grad_color": "#7FC0F7",
+                    "bg_grad_dir": "ver",
+                    "bg_grad_stop": 255,
+                    "bg_main_stop": 0,
+                    "bg_opa": 100,
+                    "border_color": "#7FC0F7",
+                    "border_opa": 100,
+                    "border_width": 2,
+                    "radius": 10,
+                    "shadow_color": "#2095F6",
+                    "shadow_opa": 100,
+                    "shadow_spread": 5,
+                    "shadow_width": 100
+                  }
+                }
+              },
+              "sub_type": "calendar",
+              "text_type": "literal",
+              "today_day": 10,
+              "today_month": 2,
+              "today_year": 2026,
+              "type": "Widget",
+              "width": 400,
+              "x_pos": 0,
+              "y_pos": 0
+            }
+          },
+          "height": 280,
+          "no_default_style": true,
+          "obj_text": "",
+          "sub_type": "panel",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 480,
+          "x_pos": 0,
+          "y_pos": 20
+        }
+      },
+      "height": 0,
+      "obj_text": "",
+      "sub_type": "screen",
+      "text_type": "literal",
+      "type": "Widget",
+      "width": 0,
+      "x_pos": 0,
+      "y_pos": 0
     }
   }
 }

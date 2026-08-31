@@ -1,191 +1,190 @@
 {
-  "parameters": {
-    "bitmaps": [
-      "backsmallarrow"
-    ],
-    "fonts": [
-      [
-        "lv_font_montserrat_18",
-        18
-      ]
-    ],
-    "widgets": {
-      "Parameters": {
-        "children": {
-          "ChangeConfigTitle2": {
-            "align": "top_mid",
-            "children": {
-              "GotoMenuButton8": {
-                "align": "left_mid",
-                "events": {
-                  "ALL": {
-                    "actions": [
-                      {
-                        "action": "screen_change",
-                        "anim": "MOVE_RIGHT",
-                        "delay": 100,
-                        "screen": "main_menu",
-                        "speed": 500
-                      }
-                    ]
-                  }
-                },
-                "height": 35,
-                "img_pressed": "backsmallarrow",
-                "img_released": "backsmallarrow",
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#3C3C3C",
-                      "bg_opa": 255,
-                      "radius": 100
+  "bg_color": "#000000",
+  "bitmaps": [
+    "backsmallarrow"
+  ],
+  "fonts": [
+    [
+      "lv_font_montserrat_18",
+      18
+    ]
+  ],
+  "widgets": {
+    "Parameters": {
+      "children": {
+        "ChangeConfigTitle2": {
+          "align": "top_mid",
+          "children": {
+            "GotoMenuButton8": {
+              "align": "left_mid",
+              "events": {
+                "ALL": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_RIGHT",
+                      "delay": 100,
+                      "screen": "main_menu",
+                      "speed": 500
                     }
-                  }
-                },
-                "sub_type": "imagebutton",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 35,
-                "x_pos": 0,
-                "y_pos": 0
-              },
-              "NetworkSetupConfig4": {
-                "align": "center",
-                "height": 0,
-                "obj_text": "   Parameter Setup",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "text_font": "lv_font_montserrat_18"
-                    }
-                  }
-                },
-                "sub_type": "label",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 0,
-                "x_pos": -80,
-                "y_pos": 0
-              }
-            },
-            "height": 40,
-            "obj_text": "",
-            "style": {
-              "MAIN": {
-                "DEFAULT": {
-                  "bg_color": "#2D70A0",
-                  "bg_opa": 0,
-                  "border_side": "bottom"
+                  ]
                 }
-              }
-            },
-            "sub_type": "panel",
-            "text_type": "literal",
-            "type": "Widget",
-            "width": 450,
-            "x_pos": 0,
-            "y_pos": 0
-          },
-          "Container1": {
-            "align": "center",
-            "children": {
-              "Panel4": {
-                "align": "center",
-                "height": 230,
-                "obj_text": "",
-                "scroll_dir": "BOTH",
-                "scrollable": true,
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#FFFFFF",
-                      "bg_opa": 0,
-                      "border_side": "none",
-                      "pad_all": 0
-                    }
-                  }
-                },
-                "sub_type": "panel",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 480,
-                "x_pos": 0,
-                "y_pos": -20
               },
-              "ParameterUpdateBtn": {
-                "align": "center",
-                "children": {
-                  "Label15": {
-                    "align": "center",
-                    "height": 0,
-                    "obj_text": "Update",
-                    "style": {
-                      "MAIN": {
-                        "DEFAULT": {
-                          "text_font": "lv_font_montserrat_18"
-                        }
-                      }
-                    },
-                    "sub_type": "label",
-                    "text_type": "literal",
-                    "type": "Widget",
-                    "width": 0,
-                    "x_pos": 0,
-                    "y_pos": 0
+              "height": 35,
+              "img_pressed": "backsmallarrow",
+              "img_released": "backsmallarrow",
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#3C3C3C",
+                    "bg_opa": 255,
+                    "radius": 100
                   }
-                },
-                "events": {
-                  "ALL": {
-                    "actions": [
-                      {
-                        "action": "screen_change",
-                        "anim": "MOVE_RIGHT",
-                        "delay": 100,
-                        "screen": "main_menu",
-                        "speed": 1000
-                      }
-                    ]
-                  }
-                },
-                "height": 30,
-                "obj_text": "",
-                "style": {
-                  "MAIN": {
-                    "DEFAULT": {
-                      "bg_color": "#2971A4",
-                      "bg_opa": 255
-                    }
-                  }
-                },
-                "sub_type": "button",
-                "text_type": "literal",
-                "type": "Widget",
-                "width": 100,
-                "x_pos": 180,
-                "y_pos": 110
-              }
+                }
+              },
+              "sub_type": "imagebutton",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 35,
+              "x_pos": 0,
+              "y_pos": 0
             },
-            "height": 280,
-            "no_default_style": true,
-            "obj_text": "",
-            "sub_type": "panel",
-            "text_type": "literal",
-            "type": "Widget",
-            "width": 480,
-            "x_pos": 0,
-            "y_pos": 20
-          }
+            "NetworkSetupConfig4": {
+              "align": "center",
+              "height": 0,
+              "obj_text": "   Parameter Setup",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_font": "lv_font_montserrat_18"
+                  }
+                }
+              },
+              "sub_type": "label",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 0,
+              "x_pos": -80,
+              "y_pos": 0
+            }
+          },
+          "height": 40,
+          "obj_text": "",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "bg_color": "#2D70A0",
+                "bg_opa": 0,
+                "border_side": "bottom"
+              }
+            }
+          },
+          "sub_type": "panel",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 450,
+          "x_pos": 0,
+          "y_pos": 0
         },
-        "height": 0,
-        "obj_text": "",
-        "sub_type": "screen",
-        "text_type": "literal",
-        "type": "Widget",
-        "width": 0,
-        "x_pos": 0,
-        "y_pos": 0
-      }
+        "Container1": {
+          "align": "center",
+          "children": {
+            "Panel4": {
+              "align": "center",
+              "height": 230,
+              "obj_text": "",
+              "scroll_dir": "BOTH",
+              "scrollable": true,
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#FFFFFF",
+                    "bg_opa": 0,
+                    "border_side": "none",
+                    "pad_all": 0
+                  }
+                }
+              },
+              "sub_type": "panel",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 480,
+              "x_pos": 0,
+              "y_pos": -20
+            },
+            "ParameterUpdateBtn": {
+              "align": "center",
+              "children": {
+                "Label15": {
+                  "align": "center",
+                  "height": 0,
+                  "obj_text": "Update",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18"
+                      }
+                    }
+                  },
+                  "sub_type": "label",
+                  "text_type": "literal",
+                  "type": "Widget",
+                  "width": 0,
+                  "x_pos": 0,
+                  "y_pos": 0
+                }
+              },
+              "events": {
+                "ALL": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_RIGHT",
+                      "delay": 100,
+                      "screen": "main_menu",
+                      "speed": 1000
+                    }
+                  ]
+                }
+              },
+              "height": 30,
+              "obj_text": "",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#2971A4",
+                    "bg_opa": 255
+                  }
+                }
+              },
+              "sub_type": "button",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 100,
+              "x_pos": 180,
+              "y_pos": 110
+            }
+          },
+          "height": 280,
+          "no_default_style": true,
+          "obj_text": "",
+          "sub_type": "panel",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 480,
+          "x_pos": 0,
+          "y_pos": 20
+        }
+      },
+      "height": 0,
+      "obj_text": "",
+      "sub_type": "screen",
+      "text_type": "literal",
+      "type": "Widget",
+      "width": 0,
+      "x_pos": 0,
+      "y_pos": 0
     }
   }
 }

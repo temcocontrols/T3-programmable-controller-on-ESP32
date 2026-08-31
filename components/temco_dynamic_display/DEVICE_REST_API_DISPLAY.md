@@ -757,7 +757,7 @@ curl -v -X PATCH http://192.168.31.164/api/eez-device/screens/start_up_screen \
   -H "Content-Type: application/json" -d '{"name":"updated"}'
 
 # Image pull
-curl -v http://192.168.31.164/api/eez-device/images/pull/444508050
+curl -v http://192.168.31.164/api/eez-device/images/pull/output_40
 
 # Reset/defaults endpoints
 curl -v -X POST http://192.168.31.164/api/eez-device/reset-defaults

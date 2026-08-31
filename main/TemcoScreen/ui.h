@@ -65,15 +65,15 @@ LV_IMG_DECLARE(ui_img_displayhomescreendot_png);    // assets/DisplayHomeScreenD
 LV_IMG_DECLARE(ui_img_fan_auto_new_png);    // assets/fan_Auto_New.png
 LV_IMG_DECLARE(ui_img_fan_small_png);    // assets/fan_small.png
 LV_IMG_DECLARE(ui_img_fan_withtime_png);    // assets/fan_withTime.png
-LV_IMG_DECLARE(ui_img_1679221590);    // assets/icons8-day-30.png
-LV_IMG_DECLARE(ui_img_1020677502);    // assets/icons8-power-symbol-30.png
-LV_IMG_DECLARE(ui_img_1869774352);    // assets/icons8-snowflake-30.png
+LV_IMG_DECLARE(ui_img_day_30_png);    // assets/icons8-day-30.png
+LV_IMG_DECLARE(ui_img_power_symbol_30_png);    // assets/icons8-power-symbol-30.png
+LV_IMG_DECLARE(ui_img_snowflake_30_png);    // assets/icons8-snowflake-30.png
 LV_IMG_DECLARE(ui_img_leftarrow_png);    // assets/LeftArrow.png
 LV_IMG_DECLARE(ui_img_displayscreendotformenuscreen_gray_png);    // assets/DisplayScreenDotForMenuScreen_Gray.png
-LV_IMG_DECLARE(ui_img_1984394067);    // assets/icons8-input-40.png
-LV_IMG_DECLARE(ui_img_444508050);    // assets/icons8-output-40.png
-LV_IMG_DECLARE(ui_img_1589547977);    // assets/icons8-control-panel-40.png
-LV_IMG_DECLARE(ui_img_1207302323);    // assets/icons8-event-accepted-tentatively-40 (1).png
+LV_IMG_DECLARE(ui_img_input_40_png);    // assets/icons8-input-40.png
+LV_IMG_DECLARE(ui_img_output_40_png);    // assets/icons8-output-40.png
+LV_IMG_DECLARE(ui_img_control_panel_40_png);    // assets/icons8-control-panel-40.png
+LV_IMG_DECLARE(ui_img_calendar_40_png);    // assets/icons8-event-accepted-tentatively-40 (1).png
 LV_IMG_DECLARE(ui_img_backsmallarrow_png);    // assets/BackSmallArrow.png
 
 // FONTS

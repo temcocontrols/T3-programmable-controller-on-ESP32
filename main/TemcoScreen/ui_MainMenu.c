@@ -414,8 +414,8 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_bg_grad_dir(ui_Panel2, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ImgButton1 = lv_imagebutton_create(ui_Panel2);
-    lv_imagebutton_set_src(ui_ImgButton1, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_1984394067, NULL);
-    lv_imagebutton_set_src(ui_ImgButton1, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_1984394067, NULL);
+    lv_imagebutton_set_src(ui_ImgButton1, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_input_40_png, NULL);
+    lv_imagebutton_set_src(ui_ImgButton1, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_input_40_png, NULL);
     lv_obj_set_width(ui_ImgButton1, 40);
     lv_obj_set_height(ui_ImgButton1, 40);
     lv_obj_set_x(ui_ImgButton1, 0);
@@ -437,8 +437,8 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_text_decor(ui_Label39, LV_TEXT_DECOR_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ImgButton2 = lv_imagebutton_create(ui_Panel2);
-    lv_imagebutton_set_src(ui_ImgButton2, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_444508050, NULL);
-    lv_imagebutton_set_src(ui_ImgButton2, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_444508050, NULL);
+    lv_imagebutton_set_src(ui_ImgButton2, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_output_40_png, NULL);
+    lv_imagebutton_set_src(ui_ImgButton2, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_output_40_png, NULL);
     lv_obj_set_width(ui_ImgButton2, 40);
     lv_obj_set_height(ui_ImgButton2, 40);
     lv_obj_set_x(ui_ImgButton2, 0);
@@ -460,8 +460,8 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_text_decor(ui_Label40, LV_TEXT_DECOR_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ImgButton3 = lv_imagebutton_create(ui_Panel2);
-    lv_imagebutton_set_src(ui_ImgButton3, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_1589547977, NULL);
-    lv_imagebutton_set_src(ui_ImgButton3, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_1589547977, NULL);
+    lv_imagebutton_set_src(ui_ImgButton3, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_control_panel_40_png, NULL);
+    lv_imagebutton_set_src(ui_ImgButton3, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_control_panel_40_png, NULL);
     lv_obj_set_width(ui_ImgButton3, 40);
     lv_obj_set_height(ui_ImgButton3, 40);
     lv_obj_set_x(ui_ImgButton3, 0);
@@ -483,8 +483,8 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_text_decor(ui_Label41, LV_TEXT_DECOR_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_CalenderBtn = lv_imagebutton_create(ui_MainMenu);
-    lv_imagebutton_set_src(ui_CalenderBtn, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_1207302323, NULL);
-    lv_imagebutton_set_src(ui_CalenderBtn, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_1207302323, NULL);
+    lv_imagebutton_set_src(ui_CalenderBtn, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_calendar_40_png, NULL);
+    lv_imagebutton_set_src(ui_CalenderBtn, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_calendar_40_png, NULL);
     lv_obj_set_width(ui_CalenderBtn, 40);
     lv_obj_set_height(ui_CalenderBtn, 40);
     lv_obj_set_x(ui_CalenderBtn, 20);
