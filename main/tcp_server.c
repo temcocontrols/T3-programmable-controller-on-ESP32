@@ -38,6 +38,7 @@
 #include "flash.h"
 #include "rtc.h"
 #include "i2c_task.h"
+#include "driver/i2c.h"
 //#include "microphone.h"
 //#include "pyq1548.h"
 #include "led_pwm.h"
@@ -3425,10 +3426,21 @@ void i2c_master_task(void *pvParameters)
 	//if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM)
 	{
 		i2c_master_init();
+		/* CO2 only: STM32F1 slave stretches; default ESP stretch TOUT is ~100us
+		 * and causes 263 after ~20 frames. Max legal TOUT is 0xFFFFF (~13ms).
+		 * Do not put this in shared i2c_task.c (used by other products). */
+		if(Modbus.mini_type == PROJECT_CO2)
+			(void)i2c_set_timeout(I2C_MASTER_NUM, 0xFFFFF);
 		STM_RST_Init();
 		gpio_set_level(GPIO_NUM_32, 0);
-		usleep(100000); // 500ms
+		usleep(100000); // 100ms reset pulse
 		gpio_set_level(GPIO_NUM_32, 1);
+		/* STM FreeRTOS + I2C slave needs time after reset; talking too early
+		 * causes a storm of timeouts. Old recover path then hung the I2C driver. */
+		if(Modbus.mini_type == PROJECT_CO2)
+			vTaskDelay(2000 / portTICK_PERIOD_MS);
+		else
+			vTaskDelay(200 / portTICK_PERIOD_MS);
 	}
 
 	if(Modbus.mini_type == PROJECT_CO2)
@@ -4101,7 +4113,12 @@ void i2c_master_task(void *pvParameters)
 					{
 						esp_err_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,79);
 						Test[6]++;
-						if(ret != ESP_OK)	Test[7]++;
+						Test[7] = ret;
+						/* Extra settle so STM STOPF/ACK re-arm before read half-cycle */
+						if(ret == ESP_OK)
+							vTaskDelay(20 / portTICK_PERIOD_MS);
+						else if(ret == ESP_ERR_TIMEOUT || ret == ESP_FAIL)
+							vTaskDelay(50 / portTICK_PERIOD_MS);
 
 					}
 					else if(Modbus.mini_type == PROJECT_NG3 || Modbus.mini_type == PROJECT_RMC1232)
@@ -4786,16 +4803,21 @@ void i2c_master_task(void *pvParameters)
 
 							memset(i2c_rcv_buf,0,114);
 							ret = stm_i2c_read(G_ALL_NEW,i2c_rcv_buf,114);
-
+							Test[8]++;
+							Test[9] = ret;
 							if(ret == 0)
 								err = 0;
 							else
 							{
-								if(err++ >= 5)
+								/* Give STM Poll/Recover time to clear stuck BUSY before retry */
+								vTaskDelay(200 / portTICK_PERIOD_MS);
+								if(err++ >= 10)
 								{
 									err = 0;
 									Test[5]++;
+									/* Reset STM only — do not delete ESP I2C driver */
 									reboot_sub_chip();
+									vTaskDelay(2000 / portTICK_PERIOD_MS);
 								}
 							}
 							crc_check = crc16(i2c_rcv_buf, 114 - 2);
@@ -4807,8 +4829,12 @@ void i2c_master_task(void *pvParameters)
 									uint8 i = 0;
 									uint8_t j;
 									char str[9];
-									// input
-									memcpy(&co2_data,&i2c_rcv_buf[2],sizeof(STR_CO2_Reg));
+									/* [0][1]=magic [2]=TOP_HARDWARE [3]=TOP_FIRMWARE(SOFTREV) [4..]=STR_CO2_Reg */
+									top_hardware = i2c_rcv_buf[2];
+									top_firmware = i2c_rcv_buf[3];
+									chip_info[1] = top_hardware;
+									chip_info[2] = top_firmware;
+									memcpy(&co2_data,&i2c_rcv_buf[4],sizeof(STR_CO2_Reg));
 
 									j = 0;
 									for(i = 0; i < 3;i++)

@@ -4424,7 +4424,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 		{
 			PTRtable->seg_index = 1;
 			PTRtable->total_seg = end_seg;
-		};
+		}
 #if DEBUG_TRENDLOG
 	sprintf(debug_array," start read, seg = %lu, total = %lu",PTRtable->seg_index,PTRtable->total_seg);
 	uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
