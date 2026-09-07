@@ -227,7 +227,9 @@ esp_err_t wifi_web_server_start(void)
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 8;
+    config.max_open_sockets = 4;
     config.lru_purge_enable = true;
+    config.backlog_conn = 2;
 
     ESP_LOGE(TAG, "Starting HTTP Web Server on port %d", config.server_port);
     if (httpd_start(&server, &config) == ESP_OK) {

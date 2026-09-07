@@ -727,11 +727,9 @@ curl -v http://192.168.31.164/api/eez-device/screens
 
 # PUT all screens
 
-curl -s http://192.168.31.164/api/eez-device/screens -o current_screens.json jq empty current_screens.json && echo "Valid JSON"
+curl -s http://192.168.31.164/api/eez-device/screens -o current_screens.json
 
-curl -v -X PUT http://192.168.31.164/api/eez-device/screens \
-  -H "Content-Type: application/json" \
-  --data-binary @test_minimal.json
+curl -v -X PUT http://192.168.31.164/api/eez-device/screens -H "Content-Type: application/json" --data-binary "@current_screens.json"
 
 # GET one screen
 curl -v http://192.168.31.164/api/eez-device/screens/start_up_screen

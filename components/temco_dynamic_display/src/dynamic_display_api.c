@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -25,6 +27,7 @@ static void set_cors_headers(httpd_req_t *req)
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    httpd_resp_set_hdr(req, "Connection", "close");
 }
 
 static esp_err_t send_json_str(httpd_req_t *req, const char *body)
@@ -137,15 +140,135 @@ static void clean_name(char *dst, const char *src, size_t max_len)
     dst[i] = '\0';
 }
 
+typedef struct {
+    const char *canonical;
+    const char *widget;
+} screen_slot_t;
+
+static const screen_slot_t k_screen_slots[] = {
+    {"start_up_screen", "StartUpScreen"},
+    {"home_screen", "HomeScreen"},
+    {"main_menu", "MainMenu"},
+    {"network_config", "NetworkConfig"},
+    {"parameters", "Parameters"},
+    {"protocols", "Protocols"},
+    {"schedule_edit_screen", "ScheduleEditScreen"},
+    {"schedule_screen", "ScheduleScreen"},
+    {"time", "Time"},
+    {"wifi_config", "WifiConfig"},
+    {"holiday_calender_screen", "HolidayCalenderScreen"},
+    {"wireguard_screen", "WireGuardScreen"},
+    {"ddns_screen", "DdnsScreen"},
+};
+
+static const size_t k_screen_slot_count = sizeof(k_screen_slots) / sizeof(k_screen_slots[0]);
+
+static void strip_json_suffix(char *name)
+{
+    size_t n = strlen(name);
+    if (n > 5 && strcasecmp(name + n - 5, ".json") == 0) {
+        name[n - 5] = '\0';
+    }
+}
+
+static void resolve_screen_name(char *dst, size_t dst_len, const char *src)
+{
+    char tmp[64];
+    clean_name(tmp, src, sizeof(tmp));
+    strip_json_suffix(tmp);
+
+    for (size_t i = 0; i < k_screen_slot_count; i++) {
+        if (strcasecmp(tmp, k_screen_slots[i].canonical) == 0 ||
+            strcasecmp(tmp, k_screen_slots[i].widget) == 0) {
+            strncpy(dst, k_screen_slots[i].canonical, dst_len - 1);
+            dst[dst_len - 1] = '\0';
+            return;
+        }
+    }
+
+    strncpy(dst, tmp, dst_len - 1);
+    dst[dst_len - 1] = '\0';
+}
+
+static int screen_slot_index(const char *canonical)
+{
+    for (size_t i = 0; i < k_screen_slot_count; i++) {
+        if (strcmp(canonical, k_screen_slots[i].canonical) == 0) {
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
+static void remove_alias_screen_files(const char *canonical)
+{
+    char listed[MAX_SCREENS_LIST][64];
+    size_t count = 0;
+    if (screen_store_list_screens(listed, MAX_SCREENS_LIST, &count) != ESP_OK) {
+        return;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        char resolved[64];
+        resolve_screen_name(resolved, sizeof(resolved), listed[i]);
+        if (strcmp(resolved, canonical) == 0 && strcmp(listed[i], canonical) != 0) {
+            ESP_LOGI(TAG, "Removing alias screen file '%s' (canonical '%s')", listed[i], canonical);
+            screen_store_delete_screen(listed[i]);
+        }
+    }
+}
+
+static void cleanup_all_alias_screen_files(void)
+{
+    for (size_t i = 0; i < k_screen_slot_count; i++) {
+        remove_alias_screen_files(k_screen_slots[i].canonical);
+    }
+}
+
+static size_t collect_ordered_screen_names(char names[][64], size_t max_count)
+{
+    char listed[MAX_SCREENS_LIST][64];
+    size_t listed_count = 0;
+    screen_store_list_screens(listed, MAX_SCREENS_LIST, &listed_count);
+
+    size_t out = 0;
+    for (size_t i = 0; i < k_screen_slot_count && out < max_count; i++) {
+        strncpy(names[out], k_screen_slots[i].canonical, 63);
+        names[out][63] = '\0';
+        out++;
+    }
+
+    for (size_t i = 0; i < listed_count && out < max_count; i++) {
+        char resolved[64];
+        resolve_screen_name(resolved, sizeof(resolved), listed[i]);
+        if (screen_slot_index(resolved) >= 0) {
+            continue;
+        }
+        bool dup = false;
+        for (size_t j = 0; j < out; j++) {
+            if (strcmp(names[j], resolved) == 0) {
+                dup = true;
+                break;
+            }
+        }
+        if (dup) continue;
+        strncpy(names[out], resolved, 63);
+        names[out][63] = '\0';
+        out++;
+    }
+    return out;
+}
+
 // --------------------------------------------------------------------------
 // REST Handlers
 // --------------------------------------------------------------------------
 
 static esp_err_t info_handler(httpd_req_t *req)
 {
+    cleanup_all_alias_screen_files();
+
     char screen_names[MAX_SCREENS_LIST][64];
-    size_t screen_count = 0;
-    screen_store_list_screens(screen_names, MAX_SCREENS_LIST, &screen_count);
+    size_t screen_count = collect_ordered_screen_names(screen_names, MAX_SCREENS_LIST);
 
     char image_names[MAX_IMAGES_LIST][64];
     size_t image_count = 0;
@@ -160,14 +283,15 @@ static esp_err_t info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(sz, "height", 320);
     cJSON_AddItemToObject(root, "screen_size", sz);
 
-    cJSON_AddNumberToObject(root, "screen_count", screen_count);
-
-    cJSON *scr_arr = cJSON_CreateArray();
-    for (size_t i = 0; i < screen_count; i++)
-    {
-        cJSON_AddItemToArray(scr_arr, cJSON_CreateString(screen_names[i]));
+    cJSON *scr_obj = cJSON_CreateObject();
+    for (size_t i = 0; i < screen_count; i++) {
+        char key[24];
+        snprintf(key, sizeof(key), "screen%u", (unsigned)(i + 1));
+        cJSON_AddStringToObject(scr_obj, key, screen_names[i]);
     }
-    cJSON_AddItemToObject(root, "screens", scr_arr);
+
+    cJSON_AddNumberToObject(root, "screen_count", (double)screen_count);
+    cJSON_AddItemToObject(root, "screens", scr_obj);
 
     cJSON_AddNumberToObject(root, "image_count", image_count);
     cJSON *img_arr = cJSON_CreateArray();
@@ -203,9 +327,10 @@ static esp_err_t info_handler(httpd_req_t *req)
 
 static esp_err_t screens_get_all_handler(httpd_req_t *req)
 {
+    cleanup_all_alias_screen_files();
+
     char screen_names[MAX_SCREENS_LIST][64];
-    size_t count = 0;
-    screen_store_list_screens(screen_names, MAX_SCREENS_LIST, &count);
+    size_t count = collect_ordered_screen_names(screen_names, MAX_SCREENS_LIST);
 
     set_cors_headers(req);
     httpd_resp_send_chunk(req, "{\"screens\":[", HTTPD_RESP_USE_STRLEN);
@@ -296,7 +421,7 @@ static esp_err_t screen_get_one_handler(httpd_req_t *req)
 {
     char name[64];
     const char *raw_name = extract_last_path_component(req->uri, "/api/eez-device/screens/");
-    clean_name(name, raw_name, sizeof(name));
+    resolve_screen_name(name, sizeof(name), raw_name);
 
     if (name[0] == '\0')
     {
@@ -308,6 +433,10 @@ static esp_err_t screen_get_one_handler(httpd_req_t *req)
     esp_err_t err = screen_store_get_screen(name, &raw_json, &raw_len);
     if (err != ESP_OK || !raw_json)
     {
+        if (err == ESP_ERR_INVALID_SIZE)
+        {
+            return send_error(req, 404, "Screen file is empty (previous flash write failed)");
+        }
         return send_error(req, 404, "Screen not found");
     }
 
@@ -375,11 +504,14 @@ static esp_err_t screens_put_all_handler(httpd_req_t *req)
 
             if (name_obj && name_obj->valuestring && json_obj)
             {
+                char canonical[64];
+                resolve_screen_name(canonical, sizeof(canonical), name_obj->valuestring);
                 char *json_str = cJSON_PrintUnformatted(json_obj);
                 if (json_str)
                 {
-                    if (screen_store_save_screen(name_obj->valuestring, json_str, strlen(json_str)) == ESP_OK)
+                    if (screen_store_save_screen(canonical, json_str, strlen(json_str)) == ESP_OK)
                     {
+                        remove_alias_screen_files(canonical);
                         deployed++;
                     }
                     else
@@ -420,7 +552,7 @@ static esp_err_t single_screen_put_handler(httpd_req_t *req)
 {
     char name[64];
     const char *raw_name = extract_last_path_component(req->uri, "/api/eez-device/screens/");
-    clean_name(name, raw_name, sizeof(name));
+    resolve_screen_name(name, sizeof(name), raw_name);
 
     if (name[0] == '\0')
     {
@@ -459,6 +591,9 @@ static esp_err_t single_screen_put_handler(httpd_req_t *req)
     if (save_data)
     {
         err = screen_store_save_screen(name, save_data, strlen(save_data));
+        if (err == ESP_OK) {
+            remove_alias_screen_files(name);
+        }
     }
 
     if (allocated_save_data) free(allocated_save_data);
@@ -478,7 +613,7 @@ static esp_err_t screen_patch_handler(httpd_req_t *req)
 {
     char name[64];
     const char *raw_name = extract_last_path_component(req->uri, "/api/eez-device/screens/");
-    clean_name(name, raw_name, sizeof(name));
+    resolve_screen_name(name, sizeof(name), raw_name);
 
     if (name[0] == '\0')
     {
@@ -605,6 +740,7 @@ static esp_err_t screen_patch_handler(httpd_req_t *req)
     if (updated_str)
     {
         screen_store_save_screen(name, updated_str, strlen(updated_str));
+        remove_alias_screen_files(name);
         free(updated_str);
     }
 
@@ -724,7 +860,13 @@ static esp_err_t reset_defaults_handler(httpd_req_t *req)
         return send_error(req, 500, "Failed to reset display storage");
     }
 
-    return send_json_str(req, "{\"status\":\"ok\",\"screens_restored\":11}");
+    char screen_names[MAX_SCREENS_LIST][64];
+    size_t screen_count = 0;
+    screen_store_list_screens(screen_names, MAX_SCREENS_LIST, &screen_count);
+
+    char resp[96];
+    snprintf(resp, sizeof(resp), "{\"status\":\"ok\",\"screens_restored\":%u}", (unsigned)screen_count);
+    return send_json_str(req, resp);
 }
 
 static esp_err_t options_handler(httpd_req_t *req)
@@ -762,7 +904,14 @@ void dynamic_display_task(void *pvParameters)
     {
         httpd_config_t config = HTTPD_DEFAULT_CONFIG();
         config.max_uri_handlers = 20;
+        /* LWIP_MAX_SOCKETS is shared with MQTT/BACnet/Modbus TCP. Default
+         * httpd uses 7 clients + listen + ctrl and then accept() fails with
+         * errno 23 (ENFILE). Keep a small pool and drop idle sessions. */
+        config.max_open_sockets = 4;
         config.lru_purge_enable = true;
+        config.backlog_conn = 2;
+        config.recv_wait_timeout = 10;
+        config.send_wait_timeout = 10;
         config.stack_size = 20480; // Increase stack size for JSON processing
         config.uri_match_fn = httpd_uri_match_wildcard;
 
