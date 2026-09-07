@@ -103,7 +103,7 @@ uint8_t count_change_uart2 = 0;
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
 
-STR_PLC plc_power;
+STR_PLC plc_power = { .flag_48V_exist = 1 };
 /* internal accumulator: (W * 1000) * seconds; power[] = kWh * 1000 = acc / 3600000 */
 static uint64_t plc_energy_acc[24];
 uint16 rmc_cuv = 2550;		/* POWER_CELL_UV_MV default */
@@ -136,24 +136,33 @@ void calculate_plc_power(void)
 	static uint8_t bms_neg_timing = 0;
 	static uint32_t t_bms_neg_start = 0;
 
-	/* RMC1232: IN39 BMS current (1000x A). */	
-	ptr = put_io_buf(IN, 38);
-	if(ptr.pin->value < 0)
-	{
-		if(bms_neg_timing == 0)
-		{
-			bms_neg_timing = 1;
-			t_bms_neg_start = now;
-		}
-		if((now - t_bms_neg_start) >= 10000)
-			plc_power.flag_48V_exist = 0;
-		else
-			plc_power.flag_48V_exist = 1;
-	}
-	else
+	/* RMC1232: IN39 BMS current (1000x A).
+	 * No BMS comm → assume 48V present (cannot judge from current). */
+	if(plc_power.flag_bms_comm == 0)
 	{
 		bms_neg_timing = 0;
 		plc_power.flag_48V_exist = 1;
+	}
+	else
+	{
+		ptr = put_io_buf(IN, 38);
+		if(ptr.pin->value < 0)
+		{
+			if(bms_neg_timing == 0)
+			{
+				bms_neg_timing = 1;
+				t_bms_neg_start = now;
+			}
+			if((now - t_bms_neg_start) >= 10000)
+				plc_power.flag_48V_exist = 0;
+			else
+				plc_power.flag_48V_exist = 1;
+		}
+		else
+		{
+			bms_neg_timing = 0;
+			plc_power.flag_48V_exist = 1;
+		}
 	}
 	
 

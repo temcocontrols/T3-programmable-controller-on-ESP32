@@ -2928,7 +2928,7 @@ void Timer_task(void *pvParameters)
 		}
 
 		if((run_time > 15) && (flag_clear_count_reboot == 0))
-		{ // 20s clear reboot count
+		{ // 10s clear reboot count
 			flag_clear_count_reboot = 1;
 			save_uint8_to_flash(FLASH_COUNT_REBOOT,0); // clear reboot count
 		}
@@ -4324,6 +4324,9 @@ void i2c_master_task(void *pvParameters)
 										ptr = put_io_buf(IN,48); // BMS ON/OFF
 										ptr.pin->control = i2c_rcv_buf[115];
 										plc_power.flag_bms_comm = i2c_rcv_buf[115];
+										/* No BMS comm → assume 48V present */
+										if(plc_power.flag_bms_comm == 0)
+											plc_power.flag_48V_exist = 1;
 										
 										// 两路I2C sensor // IN34 35
 										if((i2c_rcv_buf[88] == 0) && (i2c_rcv_buf[89] == 0) && (i2c_rcv_buf[90] == 0) && (i2c_rcv_buf[91] == 0))
@@ -5378,45 +5381,7 @@ void Bacnet_Control(void *pvParameters)
 
 }
 
-#if 0
-// check whehtehr ethenet initial ok, if not , reboot and try 3 timer
-// continue if failed after try 3 timers
-void Ethernet_Initial(void)
-{
-#if 1
-	esp_err_t ret = 0;
-	uint8_t eth_init_count = 0;
-	do
-	{
-		ret = ethernet_init();
-		ets_delay_us(500000);
-	}while((ret != ESP_OK) && (eth_init_count++ < 3));
 
-#if 1
-	if(Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == MINI_BIG_ARM || Modbus.mini_type == PROJECT_CO2 || Modbus.mini_type == PROJECT_LSW_SENSOR)
-	{
-		sprintf(debug_array,"ethernet initial, ret = %u, eth_init_count %u, count_reboot = %u",ret,eth_init_count,count_reboot);
-		uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
-		//Modbus.mini_type = MINI_TSTAT10;
-
-		if(eth_init_count >= 3 && count_reboot < 10)
-		{
-			esp_retboot();
-		}
-	}
-	else
-	{
-		if(eth_init_count >= 3 && count_reboot < 3)
-		{
-			esp_retboot();
-		}
-
-	}
-#endif
-
-#endif
-}
-#endif
 
 #define FAN 0
 void TEST_FLASH(void);
@@ -5454,7 +5419,17 @@ void app_main()
 	uart_init(0);
 
 #if 1
-    sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
+	/* UART0 is RS485/MSTP after uart_init(0); IDF console on UART0 would garble. */
+	esp_log_level_set("*", ESP_LOG_NONE);
+    sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u\r\n",SOFTREV,Modbus.mini_type,count_reboot);
+    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+    sprintf(debug_array,"E2 ETH %s: %u.%u.%u.%u\r\n",
+    		(Modbus.tcp_type == 0) ? "STATIC IP" : "DHCP ip",
+    		Modbus.ip_addr[0], Modbus.ip_addr[1], Modbus.ip_addr[2], Modbus.ip_addr[3]);
+    uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
+    sprintf(debug_array,"E2 WIFI %s: %u.%u.%u.%u\r\n",
+    		(SSID_Info.IP_Auto_Manual == 1) ? "STATIC IP" : "DHCP ip",
+    		SSID_Info.ip_addr[0], SSID_Info.ip_addr[1], SSID_Info.ip_addr[2], SSID_Info.ip_addr[3]);
     uart_write_bytes(UART_NUM_0, (const char *)debug_array, strlen(debug_array));
     //Modbus.mini_type = MINI_TSTAT10;
 #endif

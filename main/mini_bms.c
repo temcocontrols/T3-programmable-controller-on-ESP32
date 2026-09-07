@@ -26,7 +26,7 @@ uint16_t mini_bms_voltage_x10;
 uint8_t  mini_bms_bars;
 uint8_t  mini_bms_charging;
 uint8_t  mini_bms_comm_ok;
-uint8_t  mini_bms_ext_power;
+uint8_t  mini_bms_ext_power = 1; /* assume 48V present until BMS current says otherwise */
 int16_t  mini_bms_current_ma;
 uint16_t mini_bms_cell_mv[BQ76907_CELL_COUNT];
 volatile uint8_t mini_bms_prot_apply;
@@ -153,6 +153,9 @@ static void mini_bms_bq_task(void *pvParameters)
 		} else {
 			mini_bms_comm_ok = 0;
 			plc_power.flag_bms_comm = 0;
+			/* No BMS comm → assume 48V present (cannot judge from current) */
+			plc_power.flag_48V_exist = 1;
+			mini_bms_ext_power = 1;
 			mini_bms_charging = 0;
 		}
 
