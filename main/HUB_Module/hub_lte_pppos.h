@@ -100,7 +100,7 @@ typedef struct {
     gpio_num_t rx_io_num;
     gpio_num_t rts_io_num;
     gpio_num_t cts_io_num;
-    char apn[HUB_LTE_PPPOS_APN_LEN];
+    char apn[HUB_LTE_PPPOS_APN_LEN]; /* empty = auto-select from SIM/network */
 } hub_lte_pppos_config_t;
 
 typedef struct {

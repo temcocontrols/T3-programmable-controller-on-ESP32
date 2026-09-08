@@ -25,6 +25,8 @@ extern "C" {
 #define A7608_DEFAULT_DTR_PIN              GPIO_NUM_7
 
 #define A7608_OPERATOR_LEN                 32
+#define A7608_APN_LEN                      64
+#define A7608_IMSI_LEN                     20
 #define A7608_IP_ADDR_LEN                  40
 #define A7608_LAST_ERROR_LEN               64
 #define A7608_GNSS_UTC_LEN                 24
@@ -89,6 +91,7 @@ typedef struct {
     uint32_t status_age_ms;
     esp_err_t last_refresh_result;
     char operator_name[A7608_OPERATOR_LEN];
+    char apn[A7608_APN_LEN];
     char ip_addr[A7608_IP_ADDR_LEN];
     bool gnss_powered;
     bool gnss_fix;
@@ -119,6 +122,8 @@ esp_err_t a7608_probe(void);
 esp_err_t a7608_check_sim_ready(bool *sim_ready);
 esp_err_t a7608_refresh_status(void);
 esp_err_t a7608_refresh_status_ex(bool include_operator);
+esp_err_t a7608_read_pdp_apn(char *apn, size_t apn_len);
+esp_err_t a7608_read_imsi(char *imsi, size_t imsi_len);
 uint32_t a7608_status_age_ms(void);
 bool a7608_status_is_fresh(uint32_t max_age_ms);
 bool a7608_status_is_registered(void);

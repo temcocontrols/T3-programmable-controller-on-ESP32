@@ -38,7 +38,7 @@ static const char *TAG = "hub_lte_pppos";
 #define HUB_LTE_PPPOS_MODEM_STATUS_FRESH_MS 15000U
 #define HUB_LTE_PPPOS_MODEM_AT_PROBE_MS 5000U
 #define HUB_LTE_PPPOS_REFRESH_DEFER_LOG_MS 10000U
-#define HUB_LTE_PPPOS_CELL_NORMAL_WAIT_MS 30000U
+#define HUB_LTE_PPPOS_CELL_NORMAL_WAIT_MS 90000U
 #define HUB_LTE_PPPOS_CELL_CFUN_WAIT_MS 30000U
 #define HUB_LTE_PPPOS_CELL_COPS_WAIT_MS 60000U
 #define HUB_LTE_PPPOS_CELL_RADIO_OFF_WAIT_MS 3000U
@@ -89,6 +89,7 @@ typedef struct {
 
 static hub_lte_pppos_config_t s_lte_config;
 static bool s_lte_config_saved;
+static bool s_lte_apn_auto = true;
 static hub_lte_pppos_status_t s_lte_status = {
     .state = HUB_PPP_STATE_IDLE,
     .uart_owner = HUB_LTE_PPPOS_UART_OWNER_AT_STATUS,
@@ -100,6 +101,7 @@ static hub_lte_pppos_lifecycle_t s_lte_lifecycle = {
 };
 static hub_lte_pppos_runtime_t s_lte_runtime;
 static char s_lte_preflight_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN] = "Preflight not run";
+static char s_lte_last_preflight_log_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN];
 static char s_lte_last_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN] = "No PPPoS lifecycle error";
 
 typedef enum {
@@ -392,15 +394,27 @@ static void hub_lte_pppos_terminal_error_handler(esp_modem_terminal_error_t erro
         }
     }
 
+    hub_ppp_state_t ppp_state = hub_lte_pppos_get_state();
+    bool ppp_data_session = (ppp_state == HUB_PPP_STATE_STARTING) ||
+                            (ppp_state == HUB_PPP_STATE_RUNNING);
+
     ESP_LOGW(TAG,
              "esp_modem terminal error: code=%d name=%s ppp_state=%s dtr_level=%d after_data=%d first3s=%d unexpected_count=%lu",
              error,
              hub_lte_pppos_terminal_error_name(error),
-             hub_lte_pppos_state_name(hub_lte_pppos_get_state()),
+             hub_lte_pppos_state_name(ppp_state),
              a7608_get_dtr_level(),
              after_data_mode,
              in_first_three_seconds,
              (unsigned long)s_lte_terminal_unexpected_flow_count);
+
+    /* A7608 often reports UART break during PPP data. Do not tear down a live session. */
+    if ((error == ESP_MODEM_TERMINAL_UNEXPECTED_CONTROL_FLOW) && ppp_data_session) {
+        ESP_LOGW(TAG, "Ignoring UART break/unexpected_control_flow while PPP is %s",
+                 hub_lte_pppos_state_name(ppp_state));
+        return;
+    }
+
     if (after_data_mode && hub_lte_pppos_request_async_cleanup("esp_modem terminal error")) {
         hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "esp_modem terminal error after data mode");
         if (hub_lte_pppos_get_state() != HUB_PPP_STATE_STOPPING) {
@@ -1146,6 +1160,545 @@ static void hub_lte_pppos_copy_string(char *dest, size_t dest_len, const char *s
 static bool hub_lte_pppos_apn_is_valid(const char *apn)
 {
     return (apn != NULL) && (apn[0] != '\0');
+}
+
+typedef struct {
+    const char *plmn;
+    const char *apn;
+} hub_lte_plmn_apn_t;
+
+static const hub_lte_plmn_apn_t s_lte_plmn_apn[] = {
+    /* India - Jio */
+    {"40584", "jionet"},
+    {"40585", "jionet"},
+    {"40586", "jionet"},
+    {"40587", "jionet"},
+    /* India - Airtel */
+    {"40402", "airtelgprs.com"},
+    {"40403", "airtelgprs.com"},
+    {"40406", "airtelgprs.com"},
+    {"40410", "airtelgprs.com"},
+    {"40416", "airtelgprs.com"},
+    {"40431", "airtelgprs.com"},
+    {"40440", "airtelgprs.com"},
+    {"40445", "airtelgprs.com"},
+    {"40449", "airtelgprs.com"},
+    {"40470", "airtelgprs.com"},
+    {"40490", "airtelgprs.com"},
+    {"40492", "airtelgprs.com"},
+    {"40493", "airtelgprs.com"},
+    {"40494", "airtelgprs.com"},
+    {"40495", "airtelgprs.com"},
+    {"40496", "airtelgprs.com"},
+    {"40497", "airtelgprs.com"},
+    {"40498", "airtelgprs.com"},
+    {"40551", "airtelgprs.com"},
+    {"40552", "airtelgprs.com"},
+    {"40553", "airtelgprs.com"},
+    {"40554", "airtelgprs.com"},
+    {"40555", "airtelgprs.com"},
+    {"40556", "airtelgprs.com"},
+    /* India - Vi (Vodafone Idea) */
+    {"40401", "www"},
+    {"40405", "www"},
+    {"40411", "www"},
+    {"40413", "www"},
+    {"40415", "www"},
+    {"40420", "www"},
+    {"40427", "www"},
+    {"40430", "www"},
+    {"40443", "www"},
+    {"40446", "www"},
+    {"40460", "www"},
+    {"40484", "www"},
+    {"40486", "www"},
+    {"40488", "www"},
+    {"40567", "www"},
+    {"40570", "www"},
+    {"405750", "www"},
+    {"405751", "www"},
+    {"405752", "www"},
+    {"405753", "www"},
+    {"405754", "www"},
+    {"405755", "www"},
+    {"405756", "www"},
+    /* India - BSNL / MTNL */
+    {"40434", "bsnlnet"},
+    {"40438", "bsnlnet"},
+    {"40451", "bsnlnet"},
+    {"40453", "bsnlnet"},
+    {"40454", "bsnlnet"},
+    {"40455", "bsnlnet"},
+    {"40457", "bsnlnet"},
+    {"40458", "bsnlnet"},
+    {"40459", "bsnlnet"},
+    {"40462", "bsnlnet"},
+    {"40464", "bsnlnet"},
+    {"40466", "bsnlnet"},
+    {"40471", "bsnlnet"},
+    {"40472", "bsnlnet"},
+    {"40473", "bsnlnet"},
+    {"40474", "bsnlnet"},
+    {"40475", "bsnlnet"},
+    {"40476", "bsnlnet"},
+    {"40477", "bsnlnet"},
+    {"40480", "bsnlnet"},
+    {"40481", "bsnlnet"},
+    {"40468", "mtnl.net"},
+    {"40469", "mtnl.net"},
+    /* China */
+    {"46000", "CMNET"},
+    {"46002", "CMNET"},
+    {"46004", "CMNET"},
+    {"46007", "CMNET"},
+    {"46008", "CMNET"},
+    {"46013", "CMNET"},
+    {"46001", "3GNET"},
+    {"46006", "3GNET"},
+    {"46009", "3GNET"},
+    {"46003", "CTNET"},
+    {"46005", "CTNET"},
+    {"46011", "CTNET"},
+    {"46012", "CTNET"},
+    /* Pakistan */
+    {"41001", "jazzconnect.mobilinkworld.com"},
+    {"41003", "ufone.internet"},
+    {"41004", "zonginternet"},
+    {"41006", "internet"},
+    {"41007", "jazzconnect.mobilinkworld.com"},
+    /* Bangladesh */
+    {"47001", "gpinternet"},
+    {"47002", "internet"},
+    {"47003", "blweb"},
+    {"47004", "internet"},
+    /* Sri Lanka / Nepal / Myanmar */
+    {"41301", "mobitel"},
+    {"41302", "dialogbb"},
+    {"41305", "airtel"},
+    {"42901", "ntcnet"},
+    {"42902", "internet"},
+    {"41401", "internet"},
+    {"41405", "internet"},
+    {"41406", "internet"},
+    /* Indonesia */
+    {"51010", "internet"},
+    {"51011", "indosatgprs"},
+    {"51008", "3gprs"},
+    {"51001", "indosatgprs"},
+    {"51009", "smartfren"},
+    {"51021", "internet"},
+    {"51089", "3gprs"},
+    /* Malaysia / Singapore / Thailand / Vietnam / Philippines */
+    {"50212", "unet"},
+    {"50213", "celcom.net.my"},
+    {"50216", "diginet"},
+    {"50218", "my3g"},
+    {"50219", "celcom.net.my"},
+    {"52501", "internet"},
+    {"52503", "internet"},
+    {"52505", "shinternet"},
+    {"52000", "internet"},
+    {"52001", "internet"},
+    {"52003", "internet"},
+    {"52004", "internet"},
+    {"52005", "www.dtac.co.th"},
+    {"52015", "internet"},
+    {"52018", "internet"},
+    {"52099", "internet"},
+    {"45201", "m-wap"},
+    {"45202", "m-wap"},
+    {"45204", "v-internet"},
+    {"45205", "internet"},
+    {"45207", "internet"},
+    {"51502", "internet.globe.com.ph"},
+    {"51503", "internet"},
+    {"51505", "minternet"},
+    {"51566", "internet.dito.ph"},
+    /* Hong Kong / Macau / Taiwan / Japan / Korea */
+    {"45400", "internet"},
+    {"45402", "internet"},
+    {"45403", "mobile.three.com.hk"},
+    {"45404", "internet"},
+    {"45406", "internet"},
+    {"45412", "internet"},
+    {"45416", "internet"},
+    {"45419", "internet"},
+    {"45500", "internet"},
+    {"45501", "ctm-mobile"},
+    {"45503", "internet"},
+    {"45504", "ctm-mobile"},
+    {"45507", "internet"},
+    {"46601", "internet"},
+    {"46605", "internet"},
+    {"46688", "internet"},
+    {"46689", "internet"},
+    {"46692", "internet"},
+    {"46693", "internet"},
+    {"46697", "internet"},
+    {"46699", "internet"},
+    {"44010", "spmode.ne.jp"},
+    {"44020", "plus.4g"},
+    {"44050", "plus.4g"},
+    {"44051", "plus.4g"},
+    {"44000", "au.au-net.ne.jp"},
+    {"44011", "rakuten.jp"},
+    {"45005", "lte.sktelecom.com"},
+    {"45008", "lte.ktfwing.com"},
+    {"45006", "internet.lguplus.co.kr"},
+    /* Australia / New Zealand */
+    {"50501", "telstra.internet"},
+    {"50502", "internet"},
+    {"50503", "telstra.internet"},
+    {"50506", "live.vodafone.com"},
+    {"50571", "telstra.internet"},
+    {"50572", "telstra.internet"},
+    {"53001", "internet"},
+    {"53005", "internet"},
+    {"53024", "internet"},
+    /* Middle East */
+    {"42001", "jawalnet.com.sa"},
+    {"42003", "web1"},
+    {"42004", "zain"},
+    {"42402", "etisalat.ae"},
+    {"42403", "du"},
+    {"42202", "internet"},
+    {"42203", "internet"},
+    {"42701", "web.vodafone.com.qa"},
+    {"42702", "web.vodafone.com.qa"},
+    {"41902", "internet"},
+    {"41903", "action.wataniya.com"},
+    {"41904", "internet.stc.com.kw"},
+    {"42601", "internet"},
+    {"42602", "internet"},
+    {"42604", "internet"},
+    {"42501", "internet"},
+    {"42502", "sphone"},
+    {"42503", "internet"},
+    {"42507", "internet"},
+    {"42508", "internet"},
+    {"28601", "internet"},
+    {"28602", "internet"},
+    {"28603", "internet"},
+    {"60201", "internet.vodafone.net"},
+    {"60202", "internet"},
+    {"60203", "internet"},
+    {"41601", "internet"},
+    {"41603", "internet"},
+    {"41677", "internet"},
+    {"41805", "internet"},
+    {"41820", "internet"},
+    {"41830", "internet"},
+    {"41840", "internet"},
+    {"43211", "mcinet"},
+    {"43235", "mtnirancell"},
+    /* Africa */
+    {"65501", "internet"},
+    {"65502", "internet"},
+    {"65507", "internet"},
+    {"65510", "internet"},
+    {"62120", "web.gprs.mtnnigeria.net"},
+    {"62130", "gloflat"},
+    {"62140", "etisalat"},
+    {"62150", "internet.ng.airtel.com"},
+    {"62160", "internet.ng.airtel.com"},
+    {"63902", "safaricom"},
+    {"63903", "internet"},
+    {"63907", "internet"},
+    {"64002", "internet"},
+    {"64004", "internet"},
+    {"64005", "internet"},
+    {"64101", "internet"},
+    {"64110", "internet"},
+    {"64114", "internet"},
+    {"62001", "internet"},
+    {"62002", "internet"},
+    {"62003", "internet"},
+    {"62006", "internet"},
+    {"64601", "internet"},
+    {"64602", "internet"},
+    {"64604", "internet"},
+    {"65001", "internet"},
+    {"65010", "internet"},
+    {"63401", "internet"},
+    {"63402", "internet"},
+    /* USA */
+    {"310260", "fast.t-mobile.com"},
+    {"310240", "fast.t-mobile.com"},
+    {"310250", "fast.t-mobile.com"},
+    {"310310", "fast.t-mobile.com"},
+    {"310660", "fast.t-mobile.com"},
+    {"310800", "fast.t-mobile.com"},
+    {"310200", "fast.t-mobile.com"},
+    {"311490", "fast.t-mobile.com"},
+    {"311870", "fast.t-mobile.com"},
+    {"311882", "fast.t-mobile.com"},
+    {"310410", "broadband"},
+    {"310150", "broadband"},
+    {"310170", "broadband"},
+    {"310380", "broadband"},
+    {"310560", "broadband"},
+    {"310680", "broadband"},
+    {"310070", "broadband"},
+    {"310090", "broadband"},
+    {"311480", "vzwinternet"},
+    {"310012", "vzwinternet"},
+    {"310004", "vzwinternet"},
+    {"311270", "vzwinternet"},
+    {"311271", "vzwinternet"},
+    {"311272", "vzwinternet"},
+    {"311273", "vzwinternet"},
+    {"311274", "vzwinternet"},
+    {"311275", "vzwinternet"},
+    {"311276", "vzwinternet"},
+    {"311277", "vzwinternet"},
+    {"311278", "vzwinternet"},
+    {"311279", "vzwinternet"},
+    {"311280", "vzwinternet"},
+    {"311281", "vzwinternet"},
+    {"311282", "vzwinternet"},
+    {"311283", "vzwinternet"},
+    {"311284", "vzwinternet"},
+    {"311285", "vzwinternet"},
+    {"311286", "vzwinternet"},
+    {"311287", "vzwinternet"},
+    {"311288", "vzwinternet"},
+    {"311289", "vzwinternet"},
+    {"311390", "vzwinternet"},
+    {"311110", "vzwinternet"},
+    {"311580", "usccinternet"},
+    /* Canada */
+    {"302720", "ltemobile.apn"},
+    {"302370", "ltemobile.apn"},
+    {"302320", "ltemobile.apn"},
+    {"302490", "internet.freedommobile.ca"},
+    {"302500", "vlmobile.com"},
+    {"302510", "vlmobile.com"},
+    {"302610", "pda.bell.ca"},
+    {"302640", "pda.bell.ca"},
+    {"302220", "isp.telus.com"},
+    {"302270", "isp.telus.com"},
+    {"302360", "isp.telus.com"},
+    {"302760", "isp.telus.com"},
+    /* Mexico / Brazil / LatAm */
+    {"334020", "internet.itelcel.com"},
+    {"33403", "internet.movistar.mx"},
+    {"334050", "internet.attmex.mx"},
+    {"334090", "internet.attmex.mx"},
+    {"72406", "zap.vivo.com.br"},
+    {"72410", "zap.vivo.com.br"},
+    {"72411", "zap.vivo.com.br"},
+    {"72423", "zap.vivo.com.br"},
+    {"72405", "claro.com.br"},
+    {"72432", "timbrasil.br"},
+    {"72433", "timbrasil.br"},
+    {"72434", "timbrasil.br"},
+    {"732101", "internet.comcel.com.co"},
+    {"732123", "internet.movistar.com.co"},
+    {"732103", "internet.tigo.com.co"},
+    {"71606", "movistar.pe"},
+    {"71610", "claro.pe"},
+    {"71617", "entel.pe"},
+    {"73001", "bam.entelpcs.cl"},
+    {"73002", "wap.tmovil.cl"},
+    {"73003", "bam.clarochile.cl"},
+    {"72207", "internet.movistar.com.ar"},
+    {"722310", "igprs.claro.com.ar"},
+    {"72234", "internet.personal.com"},
+    /* UK / Ireland */
+    {"23410", "mobile.o2.co.uk"},
+    {"23411", "mobile.o2.co.uk"},
+    {"23402", "mobile.o2.co.uk"},
+    {"23415", "vodafone"},
+    {"23420", "eeinternet"},
+    {"23430", "eeinternet"},
+    {"23433", "eeinternet"},
+    {"23486", "eeinternet"},
+    {"23408", "internet"},
+    {"23426", "three.co.uk"},
+    {"27201", "live.vodafone.com"},
+    {"27202", "internet"},
+    {"27203", "3ireland.ie"},
+    {"27205", "3ireland.ie"},
+    /* Germany / France / Italy / Spain / Netherlands / Belgium */
+    {"26201", "internet.telekom"},
+    {"26202", "web.vodafone.de"},
+    {"26203", "internet"},
+    {"26207", "internet.telekom"},
+    {"26208", "internet"},
+    {"26209", "web.vodafone.de"},
+    {"20801", "orange"},
+    {"20802", "orange"},
+    {"20809", "orange"},
+    {"20810", "sl2sfr"},
+    {"20811", "sl2sfr"},
+    {"20813", "sl2sfr"},
+    {"20815", "internet"},
+    {"20816", "internet"},
+    {"20820", "ebouyges"},
+    {"20826", "ebouyges"},
+    {"22201", "ibox.tim.it"},
+    {"22210", "mobile.vodafone.it"},
+    {"22288", "internet.wind"},
+    {"22299", "internet.wind"},
+    {"21401", "telefonica.es"},
+    {"21403", "orangeworld"},
+    {"21404", "internet"},
+    {"21405", "orangeworld"},
+    {"21406", "internet"},
+    {"21407", "movistar.es"},
+    {"20404", "internet"},
+    {"20408", "portalmmm.nl"},
+    {"20412", "internet"},
+    {"20416", "internet"},
+    {"20601", "internet.proximus.be"},
+    {"20605", "internet"},
+    {"20610", "internet.be"},
+    {"20620", "internet.be"},
+    /* Nordics / DACH / CEE */
+    {"24001", "online.telia.se"},
+    {"24002", "4g.tele2.se"},
+    {"24004", "data.tre.se"},
+    {"24007", "internet.tele2.se"},
+    {"24008", "internet.telenor.se"},
+    {"24201", "telenor"},
+    {"24202", "internet.public"},
+    {"24205", "internet"},
+    {"24405", "internet"},
+    {"24412", "internet"},
+    {"24491", "internet"},
+    {"23801", "internet"},
+    {"23802", "internet"},
+    {"23806", "data.tre.dk"},
+    {"23820", "internet"},
+    {"23201", "a1.net"},
+    {"23203", "internet"},
+    {"23205", "drei.at"},
+    {"22801", "gprs.swisscom.ch"},
+    {"22802", "internet"},
+    {"22803", "internet"},
+    {"26001", "plus"},
+    {"26002", "internet"},
+    {"26003", "internet"},
+    {"26006", "internet"},
+    {"23101", "internet"},
+    {"23102", "internet"},
+    {"23106", "o2internet"},
+    {"23001", "internet"},
+    {"23002", "internet"},
+    {"23003", "internet"},
+    {"21601", "internet"},
+    {"21630", "internet"},
+    {"21670", "internet"},
+    {"22601", "internet"},
+    {"22603", "vodafone"},
+    {"22605", "internet"},
+    {"22610", "internet"},
+    {"21901", "web.htgprs"},
+    {"21902", "internet"},
+    {"21910", "internet.tele2.hr"},
+    {"22001", "internet"},
+    {"22003", "internet"},
+    {"22005", "internet"},
+    {"20201", "internet"},
+    {"20205", "internet"},
+    {"20209", "gint.b-online.gr"},
+    {"20210", "internet"},
+    /* Russia / Ukraine / CIS */
+    {"25001", "internet.mts.ru"},
+    {"25002", "internet.beeline.ru"},
+    {"25020", "internet"},
+    {"25035", "internet.tele2.ru"},
+    {"25099", "internet"},
+    {"25501", "www.kyivstar.net"},
+    {"25502", "internet"},
+    {"25503", "internet"},
+    {"25506", "internet"},
+    {"25507", "internet"},
+    {"40101", "internet"},
+    {"40102", "internet.beeline.kz"},
+    {"40177", "internet"},
+    {"43404", "internet.beeline.uz"},
+    {"43405", "internet"},
+    {"43407", "net.ucell.uz"},
+};
+
+static const char *hub_lte_pppos_apn_for_plmn(const char *plmn)
+{
+    const char *best_apn = NULL;
+    size_t best_len = 0;
+
+    if ((plmn == NULL) || (plmn[0] == '\0')) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < sizeof(s_lte_plmn_apn) / sizeof(s_lte_plmn_apn[0]); i++) {
+        size_t plmn_len = strlen(s_lte_plmn_apn[i].plmn);
+        if ((plmn_len > best_len) && (strncmp(plmn, s_lte_plmn_apn[i].plmn, plmn_len) == 0)) {
+            best_apn = s_lte_plmn_apn[i].apn;
+            best_len = plmn_len;
+        }
+    }
+    return best_apn;
+}
+
+static bool hub_lte_pppos_copy_apn_if_valid(const char *src, const char *source)
+{
+    if (!hub_lte_pppos_apn_is_valid(src)) {
+        return false;
+    }
+
+    bool changed = (strcmp(s_lte_config.apn, src) != 0);
+    hub_lte_pppos_copy_string(s_lte_config.apn, sizeof(s_lte_config.apn), src);
+    if (changed) {
+        ESP_LOGI(TAG, "APN selected from %s: %s", source != NULL ? source : "unknown", s_lte_config.apn);
+    }
+    return true;
+}
+
+static esp_err_t hub_lte_pppos_resolve_apn(void)
+{
+    char imsi[A7608_IMSI_LEN] = {0};
+    const a7608_status_t *status = a7608_get_status();
+    const char *lookup_apn;
+
+    if (hub_lte_pppos_apn_is_valid(s_lte_config.apn)) {
+        return ESP_OK;
+    }
+    if (!a7608_startup_probe_complete()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if ((status != NULL) && hub_lte_pppos_copy_apn_if_valid(status->apn, "modem CGDCONT")) {
+        return ESP_OK;
+    }
+
+    if (!a7608_status_is_registered()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (a7608_read_pdp_apn(s_lte_config.apn, sizeof(s_lte_config.apn)) == ESP_OK) {
+        ESP_LOGI(TAG, "APN selected from modem CGDCONT query: %s", s_lte_config.apn);
+        return ESP_OK;
+    }
+    s_lte_config.apn[0] = '\0';
+
+    if (a7608_read_imsi(imsi, sizeof(imsi)) == ESP_OK) {
+        lookup_apn = hub_lte_pppos_apn_for_plmn(imsi);
+        if (hub_lte_pppos_copy_apn_if_valid(lookup_apn, "IMSI PLMN")) {
+            return ESP_OK;
+        }
+        ESP_LOGW(TAG, "No APN mapping for IMSI PLMN prefix %s", imsi);
+    }
+
+    if ((status != NULL) && (status->operator_name[0] != '\0')) {
+        lookup_apn = hub_lte_pppos_apn_for_plmn(status->operator_name);
+        if (hub_lte_pppos_copy_apn_if_valid(lookup_apn, "COPS PLMN")) {
+            return ESP_OK;
+        }
+    }
+
+    ESP_LOGW(TAG, "APN auto-select waiting: SIM/network has not provided an APN yet");
+    return ESP_ERR_NOT_FOUND;
 }
 
 static const char *hub_lte_cell_recovery_stage_name(hub_lte_cell_recovery_stage_t stage)
@@ -2366,9 +2919,6 @@ esp_err_t hub_lte_pppos_validate_config(const hub_lte_pppos_config_t *config)
     if ((config->cts_io_num != GPIO_NUM_NC) && !GPIO_IS_VALID_GPIO(config->cts_io_num)) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (!hub_lte_pppos_apn_is_valid(config->apn)) {
-        return ESP_ERR_INVALID_ARG;
-    }
 
     return ESP_OK;
 }
@@ -2388,7 +2938,7 @@ void hub_lte_pppos_get_default_config(hub_lte_pppos_config_t *config)
     config->rx_io_num = A7608_DEFAULT_MODEM_RX_PIN;
     config->rts_io_num = GPIO_NUM_NC;
     config->cts_io_num = GPIO_NUM_NC;
-    hub_lte_pppos_copy_string(config->apn, sizeof(config->apn), "3GNET");
+    config->apn[0] = '\0';
 }
 
 esp_err_t hub_lte_pppos_init(void)
@@ -2412,6 +2962,7 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config)
 
     s_lte_config = *config;
     s_lte_config_saved = true;
+    s_lte_apn_auto = !hub_lte_pppos_apn_is_valid(config->apn);
     memset(&s_lte_status, 0, sizeof(s_lte_status));
     s_lte_status.initialized = true;
     s_lte_status.uart_owner = HUB_LTE_PPPOS_UART_OWNER_AT_STATUS;
@@ -2427,7 +2978,7 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config)
     (void)hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
 
     ESP_LOGI(TAG,
-             "LTE PPPoS framework ready: HUB_LTE_PPPOS_ENABLE=%d HUB_LTE_PPPOS_TEST_MODE=%d HUB_LTE_PPPOS_REAL_RUNTIME=%d HUB_LTE_PPPOS_MANUAL_TEST=%d uart=%d owner=%s baud=%d tx=%d rx=%d apn=%s",
+             "LTE PPPoS framework ready: HUB_LTE_PPPOS_ENABLE=%d HUB_LTE_PPPOS_TEST_MODE=%d HUB_LTE_PPPOS_REAL_RUNTIME=%d HUB_LTE_PPPOS_MANUAL_TEST=%d uart=%d owner=%s baud=%d tx=%d rx=%d apn=%s auto=%d",
              HUB_LTE_PPPOS_ENABLE,
              HUB_LTE_PPPOS_TEST_MODE,
              HUB_LTE_PPPOS_REAL_RUNTIME,
@@ -2437,7 +2988,8 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config)
              s_lte_config.baud_rate,
              s_lte_config.tx_io_num,
              s_lte_config.rx_io_num,
-             s_lte_config.apn);
+             s_lte_config.apn[0] != '\0' ? s_lte_config.apn : "(from SIM)",
+             s_lte_apn_auto);
 
     return ESP_OK;
 }
@@ -2473,6 +3025,7 @@ esp_err_t hub_lte_pppos_set_config(const hub_lte_pppos_config_t *config)
 
     s_lte_config = *config;
     s_lte_config_saved = true;
+    s_lte_apn_auto = !hub_lte_pppos_apn_is_valid(config->apn);
     return ESP_OK;
 }
 
@@ -2952,53 +3505,6 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     }
 
     memset(preflight, 0, sizeof(*preflight));
-    ESP_LOGI(TAG,
-             "PREFLIGHT ABI sizeof=%u config_valid=%u test_mode_enabled=%u pppos_enabled=%u uart_available=%u uart_owner=%u",
-             (unsigned int)sizeof(hub_lte_pppos_preflight_t),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, config_valid),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, test_mode_enabled),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, pppos_enabled),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_available),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, uart_owner));
-    ESP_LOGI(TAG,
-             "PREFLIGHT ABI modem_status_known=%u sim_ready=%u registered=%u has_signal=%u status_fresh=%u attached=%u",
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, modem_status_known),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, sim_ready),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, registered_to_network),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_signal),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_fresh),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, attached));
-    ESP_LOGI(TAG,
-             "PREFLIGHT ABI rssi=%u csq=%u creg=%u cereg=%u cfun=%u status_age_ms=%u",
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, rssi),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, csq),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, creg_stat),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, cereg_stat),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, cfun),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, status_age_ms));
-    ESP_LOGI(TAG,
-             "PREFLIGHT ABI has_apn=%u apn=%u ready=%u reason=%u apn_len=%u reason_len=%u",
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, has_apn),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, apn),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, ready_to_start),
-             (unsigned int)offsetof(hub_lte_pppos_preflight_t, reason),
-             (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_APN_LEN,
-             (unsigned int)HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN);
-    ESP_LOGI(TAG,
-             "PREFLIGHT ABI field_size bool=%u int=%u uint32=%u ready=%u apn=%u reason=%u",
-             (unsigned int)sizeof(bool),
-             (unsigned int)sizeof(int),
-             (unsigned int)sizeof(uint32_t),
-             (unsigned int)sizeof(preflight->ready_to_start),
-             (unsigned int)sizeof(preflight->apn),
-             (unsigned int)sizeof(preflight->reason));
-    ESP_LOGI(TAG,
-             "PREFLIGHT TRACE enter ptr=%p ready=%d",
-             (void *)preflight,
-             preflight->ready_to_start);
-    ESP_LOGI(TAG,
-             "PREFLIGHT TRACE sizeof=%u",
-             (unsigned int)sizeof(hub_lte_pppos_preflight_t));
     hub_lte_pppos_set_preflight_reason(preflight, "Preflight check started");
 
     hub_lte_pppos_config_t config;
@@ -3022,7 +3528,8 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     if (!hard_reset_in_progress &&
         hub_lte_pppos_can_use_at_status_uart() &&
         a7608_startup_probe_complete() &&
-        (s_lte_cell_recovery.stage != CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART)) {
+        (s_lte_cell_recovery.stage != CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART) &&
+        (s_lte_cell_recovery.stage != CELL_RECOVERY_WAIT_REGISTRATION)) {
         (void)hub_lte_pppos_request_status_refresh("preflight");
     }
 
@@ -3042,6 +3549,16 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         preflight->cfun = modem_status->cfun;
     }
 
+    if ((config_ret == ESP_OK) && preflight->sim_ready && a7608_startup_probe_complete()) {
+        if (hub_lte_pppos_resolve_apn() == ESP_OK) {
+            preflight->has_apn = true;
+            hub_lte_pppos_copy_string(preflight->apn, sizeof(preflight->apn), s_lte_config.apn);
+        } else if (s_lte_apn_auto) {
+            preflight->has_apn = false;
+            preflight->apn[0] = '\0';
+        }
+    }
+
     if (s_lte_cell_recovery.stage == CELL_RECOVERY_HARD_RESET) {
         hub_lte_pppos_set_preflight_reason(preflight, "Cellular recovery in progress");
     } else if (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_AFTER_HARD_RESET) {
@@ -3056,8 +3573,6 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS manual test disabled");
     } else if (config_ret != ESP_OK) {
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS config unavailable");
-    } else if (!preflight->has_apn) {
-        hub_lte_pppos_set_preflight_reason(preflight, "APN is empty");
     } else if (!preflight->config_valid) {
         hub_lte_pppos_set_preflight_reason(preflight, "Invalid PPPoS config");
     } else if (!s_lte_status.initialized) {
@@ -3075,43 +3590,43 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     } else if ((s_lte_cell_recovery.stage != CELL_RECOVERY_IDLE) &&
                (s_lte_cell_recovery.stage != CELL_RECOVERY_WAIT_REGISTRATION)) {
         hub_lte_pppos_set_preflight_reason(preflight, "Cellular recovery in progress");
-    } else if ((modem_status != NULL) && !modem_status->at_ready && (modem_status->last_refresh_result != ESP_OK)) {
+    } else if ((modem_status != NULL) && !modem_status->at_ready &&
+               (modem_status->last_refresh_result != ESP_OK) && !preflight->sim_ready) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 AT interface unavailable");
-    } else if ((modem_status != NULL) && !modem_status->status_valid && (modem_status->last_refresh_result != ESP_OK)) {
+    } else if ((modem_status != NULL) && !modem_status->status_valid &&
+               (modem_status->last_refresh_result != ESP_OK) && !preflight->sim_ready) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status refresh incomplete");
-    } else if (!preflight->status_fresh) {
+    } else if (!preflight->status_fresh && !preflight->sim_ready) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status stale");
-    } else if (!preflight->modem_status_known) {
+    } else if (!preflight->modem_status_known && !preflight->sim_ready) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status unavailable");
     } else if (!preflight->sim_ready) {
         hub_lte_pppos_set_preflight_reason(preflight, "SIM not ready");
     } else if (!preflight->registered_to_network) {
         hub_lte_pppos_set_preflight_reason(preflight, "Modem not registered to network");
+    } else if (!preflight->has_apn) {
+        hub_lte_pppos_set_preflight_reason(preflight, "APN not provided by SIM");
     } else if (preflight->cfun != 1) {
         hub_lte_pppos_set_preflight_reason(preflight, "Modem radio not ready");
     } else {
-        ESP_LOGI(TAG,
-                 "PREFLIGHT TRACE success before ptr=%p ready=%d",
-                 (void *)preflight,
-                 preflight->ready_to_start);
         preflight->ready_to_start = true;
         hub_lte_pppos_set_preflight_reason(preflight, "Ready to start PPPoS lifecycle");
-        ESP_LOGI(TAG,
-                 "PREFLIGHT TRACE success after ptr=%p ready=%d reason=%s",
-                 (void *)preflight,
-                 preflight->ready_to_start,
-                 preflight->reason);
     }
 
     if (!preflight->ready_to_start && (preflight->reason[0] == '\0')) {
         hub_lte_pppos_set_preflight_reason(preflight, "A7608 status unavailable");
     }
 
-    ESP_LOGI(TAG,
-             "PREFLIGHT TRACE return ptr=%p ready=%d reason=%s",
-             (void *)preflight,
-             preflight->ready_to_start,
-             preflight->reason);
+    if (strcmp(s_lte_last_preflight_log_reason, preflight->reason) != 0) {
+        hub_lte_pppos_copy_string(s_lte_last_preflight_log_reason,
+                                  sizeof(s_lte_last_preflight_log_reason),
+                                  preflight->reason);
+        ESP_LOGI(TAG, "PPPoS preflight: ready=%d sim=%d apn=%s reason=%s",
+                 preflight->ready_to_start,
+                 preflight->sim_ready,
+                 preflight->apn[0] != '\0' ? preflight->apn : "-",
+                 preflight->reason);
+    }
     return ESP_OK;
 }
 
