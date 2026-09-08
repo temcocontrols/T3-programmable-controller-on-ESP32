@@ -326,7 +326,7 @@
                 "Checkbox2": {
                   "align": "right_mid",
                   "height": 0,
-                  "obj_text": "",
+                  "obj_text": "Static IP",
                   "style": {
                     "INDICATOR": {
                       "DEFAULT": {
@@ -349,7 +349,7 @@
                 "Checkbox3": {
                   "align": "center",
                   "height": 0,
-                  "obj_text": "",
+                  "obj_text": "Auto(DHCP)",
                   "style": {
                     "INDICATOR": {
                       "DEFAULT": {

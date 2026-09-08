@@ -554,7 +554,7 @@
         "SyncLocalPcCheckbox": {
           "align": "center",
           "height": 0,
-          "obj_text": "",
+          "obj_text": "Synchronize with Local PC",
           "style": {
             "INDICATOR": {
               "DEFAULT": {
@@ -572,7 +572,7 @@
         "SyncLocalPcCheckbox2": {
           "align": "center",
           "height": 0,
-          "obj_text": "",
+          "obj_text": "Synchronize with time server",
           "style": {
             "INDICATOR": {
               "DEFAULT": {
