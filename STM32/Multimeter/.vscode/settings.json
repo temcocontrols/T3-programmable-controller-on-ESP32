@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "es51932_driver.h": "c",
+        "stm32f10x_usart.h": "c",
+        "SPI_3131_Read.C": "cpp"
+    }
+}

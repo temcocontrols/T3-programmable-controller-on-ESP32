@@ -1,0 +1,33 @@
+# Keil build output
+OBJ/
+Objects/
+Listings/
+
+# Compiler/linker generated files
+*.o
+*.obj
+*.d
+*.crf
+*.dep
+*.lnp
+*.map
+*.axf
+*.elf
+*.hex
+*.bin
+*.lst
+
+# Keil user-specific files
+*.uvguix.*
+*.uvgui.*
+*.bak
+*.tmp
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Crash/runtime logs
+*.log
+hs_err_pid*
+replay_pid*
