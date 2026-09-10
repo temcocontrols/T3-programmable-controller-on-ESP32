@@ -42,11 +42,14 @@ static const char *TAG = "hub_lte_pppos";
 #define HUB_LTE_PPPOS_CELL_CFUN_WAIT_MS 30000U
 #define HUB_LTE_PPPOS_CELL_COPS_WAIT_MS 60000U
 #define HUB_LTE_PPPOS_CELL_RADIO_OFF_WAIT_MS 3000U
-#define HUB_LTE_PPPOS_CELL_RADIO_ON_MIN_WAIT_MS 20000U
+#define HUB_LTE_PPPOS_CELL_RADIO_ON_MIN_WAIT_MS 8000U
 #define HUB_LTE_PPPOS_CELL_RADIO_ON_WAIT_MS 30000U
-#define HUB_LTE_PPPOS_CELL_HARD_RESET_QUIET_MS 5000U
+#define HUB_LTE_PPPOS_CELL_HARD_RESET_QUIET_MS 8000U
 #define HUB_LTE_PPPOS_CELL_HARD_RESET_WAIT_MS 30000U
+#define HUB_LTE_PPPOS_CELL_AT_DEAD_WAIT_MS 15000U
+#define HUB_LTE_PPPOS_CELL_SIM_MISSING_WAIT_MS 3000U
 #define HUB_LTE_PPPOS_CELL_BACKOFF_MS 60000U
+#define HUB_LTE_PPPOS_BOTH_SIM_NETWORK_FAIL_MS 300000U
 #define HUB_LTE_PPPOS_RECONNECT_STABLE_MS 60000U
 #define HUB_LTE_PPPOS_RECONNECT_DELAY_1_MS 5000U
 #define HUB_LTE_PPPOS_RECONNECT_DELAY_2_MS 10000U
@@ -151,6 +154,8 @@ typedef struct {
     bool radio_restart_sim_ready;
     bool hard_reset_at_ready;
     bool hard_reset_sim_ready;
+    bool sim_mismatch_tried;
+    TickType_t slot_connect_start_tick;
     char last_status_defer_requester[24];
     char cleanup_reason[HUB_LTE_PPPOS_PREFLIGHT_REASON_LEN];
 } hub_lte_cell_recovery_t;
@@ -190,6 +195,9 @@ static esp_err_t hub_lte_pppos_probe_at_if_due(const char *requester, bool *prob
 static esp_err_t hub_lte_pppos_request_status_refresh(const char *requester);
 static bool hub_lte_pppos_modem_registered_fresh(void);
 static void hub_lte_pppos_process_radio_restart_wait(void);
+static bool hub_lte_pppos_switch_sim_slot_on_missing(const char *reason);
+static bool hub_lte_pppos_switch_sim_on_network_fail(const char *reason);
+static void hub_lte_pppos_both_sim_network_failover_process(void);
 static void hub_lte_pppos_cell_recovery_process(void);
 static bool hub_lte_pppos_request_async_cleanup(const char *reason);
 static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason);
@@ -1748,6 +1756,10 @@ static void hub_lte_pppos_cell_recovery_set_stage(hub_lte_cell_recovery_stage_t 
     s_lte_cell_recovery.command_sent = false;
     s_lte_cell_recovery.last_wait_log_tick = 0;
 
+    if (stage == CELL_RECOVERY_IDLE) {
+        s_lte_cell_recovery.sim_mismatch_tried = false;
+    }
+
     if (stage == CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART) {
         s_lte_cell_recovery.radio_restart_context = true;
         s_lte_cell_recovery.radio_restart_at_ready = false;
@@ -1922,7 +1934,7 @@ static esp_err_t hub_lte_pppos_request_status_refresh(const char *requester)
     char age_text[16];
     hub_lte_pppos_format_status_age(status, age_text, sizeof(age_text));
     ESP_LOGI(TAG,
-             "A7608 preflight status: valid=%d age_ms=%s refresh=%s at=%d sim=%d csq=%d rssi_valid=%d creg=%d cereg=%d attached=%d cfun=%d registered=%d requester=%s",
+             "A7608 preflight status: valid=%d age_ms=%s refresh=%s at=%d sim=%d csq=%d rssi_valid=%d creg=%d cereg=%d attached=%d cfun=%d registered=%d slot=%s sim1=%d sim2=%d requester=%s",
              status != NULL ? status->status_valid : 0,
              age_text,
              esp_err_to_name(ret),
@@ -1935,6 +1947,9 @@ static esp_err_t hub_lte_pppos_request_status_refresh(const char *requester)
              status != NULL ? status->attached : 0,
              status != NULL ? status->cfun : -1,
              a7608_status_is_registered(),
+             a7608_sim_slot_name(status != NULL ? status->active_sim_slot : A7608_SIM_SLOT_NONE),
+             status != NULL ? status->sim1_present : 0,
+             status != NULL ? status->sim2_present : 0,
              requester != NULL ? requester : "-");
     return ret;
 }
@@ -1993,6 +2008,14 @@ static void hub_lte_pppos_process_radio_restart_wait(void)
     }
 
     if (elapsed_ticks >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_RADIO_ON_WAIT_MS)) {
+        if (s_lte_cell_recovery.radio_restart_at_ready &&
+            !s_lte_cell_recovery.radio_restart_sim_ready) {
+            if (!hub_lte_pppos_switch_sim_slot_on_missing("sim_missing_after_radio_on")) {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION,
+                                                      "sim_missing_other_empty");
+            }
+            return;
+        }
         hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_HARD_RESET,
                                               s_lte_cell_recovery.radio_restart_at_ready ? "sim_recovery_timeout" : "at_recovery_timeout");
     }
@@ -2005,7 +2028,7 @@ static void hub_lte_pppos_process_hard_reset(void)
     ESP_LOGE(TAG,
              "Cell recovery: hardware reset attempt=%lu",
              (unsigned long)s_lte_cell_recovery.hardware_reset_count);
-    esp_err_t ret = a7608_hard_reset(100, 0);
+    esp_err_t ret = a7608_hard_reset(A7608_HARD_RESET_PULSE_MS, 0);
     ESP_LOGE(TAG,
              "Cell recovery: hardware reset result=%s",
              esp_err_to_name(ret));
@@ -2053,6 +2076,14 @@ static void hub_lte_pppos_process_hard_reset_wait(void)
     }
 
     if (elapsed_ticks >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_HARD_RESET_WAIT_MS)) {
+        if (s_lte_cell_recovery.hard_reset_at_ready &&
+            !s_lte_cell_recovery.hard_reset_sim_ready) {
+            if (!hub_lte_pppos_switch_sim_slot_on_missing("sim_missing_after_hard_reset")) {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION,
+                                                      "sim_missing_other_empty");
+            }
+            return;
+        }
         s_lte_cell_recovery.next_retry_tick = now + pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_BACKOFF_MS);
         hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_BACKOFF,
                                               "hard_reset_recovery_timeout");
@@ -2151,6 +2182,16 @@ static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason)
         ESP_LOGW(TAG, "PPPoS cleanup A7608 resume request failed: %s", esp_err_to_name(resume_ret));
     }
 
+    a7608_clear_stale_ready();
+    if (a7608_try_exit_data_mode() != ESP_OK) {
+        ESP_LOGW(TAG, "PPPoS cleanup PPP escape did not restore AT; issuing hardware reset");
+        esp_err_t reset_ret = a7608_hard_reset(A7608_HARD_RESET_PULSE_MS, A7608_HARD_RESET_QUIET_MS);
+        ESP_LOGW(TAG, "PPPoS cleanup hardware reset: %s", esp_err_to_name(reset_ret));
+        (void)a7608_probe();
+    } else {
+        ESP_LOGI(TAG, "PPPoS cleanup PPP escape restored AT");
+    }
+
     s_lte_cell_recovery.last_at_probe_tick = 0;
     s_lte_cell_recovery.last_full_refresh_tick = 0;
     s_lte_cell_recovery.last_status_defer_log_tick = 0;
@@ -2234,6 +2275,123 @@ static void hub_lte_pppos_reconnect_process(void)
     s_lte_cell_recovery.cleanup_done = false;
     portEXIT_CRITICAL(&s_lte_cleanup_lock);
     s_lte_status.start_requested = true;
+}
+
+static bool hub_lte_pppos_switch_sim_slot_on_missing(const char *reason)
+{
+    a7608_sim_slot_t current = a7608_get_active_sim_slot();
+    a7608_sim_slot_t next = a7608_alternate_sim_slot();
+    const char *why = (reason != NULL) ? reason : "sim_not_inserted";
+    bool current_present = a7608_sim_slot_detected(current);
+    bool other_present = a7608_other_sim_slot_detected();
+    bool physical_other = other_present && !current_present;
+    bool both_present = other_present && current_present;
+    bool gpio_cpin_mismatch = current_present && !other_present;
+
+    if (physical_other || both_present) {
+        ESP_LOGW(TAG,
+                 "SIM missing on %s; switching to %s detect other=%d current=%d (%s)",
+                 a7608_sim_slot_name(current),
+                 a7608_sim_slot_name(next),
+                 other_present,
+                 current_present,
+                 why);
+    } else if (gpio_cpin_mismatch && !s_lte_cell_recovery.sim_mismatch_tried) {
+        s_lte_cell_recovery.sim_mismatch_tried = true;
+        ESP_LOGW(TAG,
+                 "GPIO/CPIN mismatch on %s (gpio present, modem not inserted); trying %s (%s)",
+                 a7608_sim_slot_name(current),
+                 a7608_sim_slot_name(next),
+                 why);
+    } else {
+        TickType_t now = xTaskGetTickCount();
+        if ((s_lte_cell_recovery.last_wait_log_tick == 0) ||
+            ((now - s_lte_cell_recovery.last_wait_log_tick) >= pdMS_TO_TICKS(HUB_LTE_PPPOS_MODEM_AT_PROBE_MS))) {
+            ESP_LOGW(TAG,
+                     "SIM missing on %s; %s empty, staying (%s)",
+                     a7608_sim_slot_name(current),
+                     a7608_sim_slot_name(next),
+                     why);
+            s_lte_cell_recovery.last_wait_log_tick = now;
+        }
+        return false;
+    }
+
+    if (a7608_switch_sim_slot(next) != ESP_OK) {
+        ESP_LOGE(TAG, "SIM slot switch to %s failed", a7608_sim_slot_name(next));
+        return false;
+    }
+    s_lte_cell_recovery.slot_connect_start_tick = xTaskGetTickCount();
+    hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_RADIO_OFF, why);
+    return true;
+}
+
+static bool hub_lte_pppos_switch_sim_on_network_fail(const char *reason)
+{
+    a7608_sim_slot_t current = a7608_get_active_sim_slot();
+    a7608_sim_slot_t next = a7608_alternate_sim_slot();
+    const char *why = (reason != NULL) ? reason : "network_fail_both_sims";
+
+    if (!a7608_sim_slot_detected(A7608_SIM_SLOT_1) ||
+        !a7608_sim_slot_detected(A7608_SIM_SLOT_2)) {
+        return false;
+    }
+
+    ESP_LOGW(TAG,
+             "Both SIMs present; no network on %s for %u ms; switching to %s (%s)",
+             a7608_sim_slot_name(current),
+             HUB_LTE_PPPOS_BOTH_SIM_NETWORK_FAIL_MS,
+             a7608_sim_slot_name(next),
+             why);
+    if (a7608_switch_sim_slot(next) != ESP_OK) {
+        ESP_LOGE(TAG, "SIM slot switch to %s failed", a7608_sim_slot_name(next));
+        return false;
+    }
+    s_lte_cell_recovery.slot_connect_start_tick = xTaskGetTickCount();
+    hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_RADIO_OFF, why);
+    return true;
+}
+
+static void hub_lte_pppos_both_sim_network_failover_process(void)
+{
+    TickType_t now = xTaskGetTickCount();
+    hub_ppp_state_t state = hub_lte_pppos_get_state();
+
+    if (state == HUB_PPP_STATE_RUNNING) {
+        s_lte_cell_recovery.slot_connect_start_tick = 0;
+        return;
+    }
+    if ((state != HUB_PPP_STATE_IDLE) && (state != HUB_PPP_STATE_ERROR)) {
+        return;
+    }
+    if (!a7608_startup_probe_complete()) {
+        return;
+    }
+    if (!a7608_sim_slot_detected(A7608_SIM_SLOT_1) ||
+        !a7608_sim_slot_detected(A7608_SIM_SLOT_2)) {
+        return;
+    }
+
+    switch (s_lte_cell_recovery.stage) {
+    case CELL_RECOVERY_RADIO_OFF:
+    case CELL_RECOVERY_RADIO_ON:
+    case CELL_RECOVERY_WAIT_AFTER_RADIO_RESTART:
+    case CELL_RECOVERY_HARD_RESET:
+    case CELL_RECOVERY_WAIT_AFTER_HARD_RESET:
+        return;
+    default:
+        break;
+    }
+
+    if (s_lte_cell_recovery.slot_connect_start_tick == 0) {
+        s_lte_cell_recovery.slot_connect_start_tick = now;
+        return;
+    }
+
+    TickType_t elapsed = now - s_lte_cell_recovery.slot_connect_start_tick;
+    if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_BOTH_SIM_NETWORK_FAIL_MS)) {
+        (void)hub_lte_pppos_switch_sim_on_network_fail("both_sim_no_network_timeout");
+    }
 }
 
 static void hub_lte_pppos_cell_recovery_process(void)
@@ -2325,9 +2483,30 @@ static void hub_lte_pppos_cell_recovery_process(void)
             return;
         }
         if (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_REGISTRATION) {
-            if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_NORMAL_WAIT_MS)) {
-                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_CHECK_CFUN,
+            if (!status->at_ready &&
+                (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_AT_DEAD_WAIT_MS))) {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_HARD_RESET, "AT dead after PPP cleanup");
+                return;
+            }
+            if (status->at_ready &&
+                (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_SIM_MISSING_WAIT_MS))) {
+                bool current_present = a7608_sim_slot_detected(a7608_get_active_sim_slot());
+                if (!status->sim_ready || !current_present) {
+                    (void)hub_lte_pppos_switch_sim_slot_on_missing("sim_not_inserted_switch_slot");
+                    return;
+                }
+            }
+            if (!status->at_ready &&
+                (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_NORMAL_WAIT_MS))) {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_HARD_RESET,
                                                       "AT/SIM status timeout");
+            }
+            return;
+        }
+        if (status->at_ready && !status->sim_ready) {
+            if (!hub_lte_pppos_switch_sim_slot_on_missing("sim_not_inserted_abort_cops")) {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_WAIT_REGISTRATION,
+                                                      "sim_missing_other_empty");
             }
             return;
         }
@@ -2343,6 +2522,14 @@ static void hub_lte_pppos_cell_recovery_process(void)
         }
     }
 
+    if ((s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_REGISTRATION) &&
+        (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_SIM_MISSING_WAIT_MS)) &&
+        !a7608_sim_slot_detected(a7608_get_active_sim_slot())) {
+        if (hub_lte_pppos_switch_sim_slot_on_missing("gpio_active_slot_empty")) {
+            return;
+        }
+    }
+
     char response[128];
 
     if (s_lte_cell_recovery.stage == CELL_RECOVERY_IDLE) {
@@ -2353,12 +2540,22 @@ static void hub_lte_pppos_cell_recovery_process(void)
     switch (s_lte_cell_recovery.stage) {
     case CELL_RECOVERY_WAIT_REGISTRATION:
         if (elapsed >= pdMS_TO_TICKS(HUB_LTE_PPPOS_CELL_NORMAL_WAIT_MS)) {
-            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_CHECK_CFUN, "registration_timeout");
+            if ((status == NULL) || !status->at_ready) {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_HARD_RESET, "registration_timeout_at_dead");
+            } else if (!status->sim_ready) {
+                (void)hub_lte_pppos_switch_sim_slot_on_missing("registration_timeout_sim_missing");
+            } else {
+                hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_CHECK_CFUN, "registration_timeout");
+            }
         }
         break;
 
     case CELL_RECOVERY_CHECK_CFUN:
-        if (status->cfun != 1) {
+        if ((status == NULL) || !status->at_ready) {
+            hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_HARD_RESET, "cfun_check_at_dead");
+        } else if (!status->sim_ready) {
+            (void)hub_lte_pppos_switch_sim_slot_on_missing("cfun_check_sim_missing");
+        } else if (status->cfun != 1) {
             hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_SET_CFUN_1, "cfun_not_1");
         } else {
             hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_REQUEST_AUTO_OPERATOR, "cfun_ok_unregistered");
@@ -2878,7 +3075,7 @@ static esp_err_t hub_lte_pppos_handle_starting_timeout(void)
     }
 
 #if HUB_LTE_PPPOS_RESET_A7608_ON_TIMEOUT
-    esp_err_t reset_ret = a7608_hard_reset(100, 3000);
+    esp_err_t reset_ret = a7608_hard_reset(A7608_HARD_RESET_PULSE_MS, A7608_HARD_RESET_QUIET_MS);
     ESP_LOGW(TAG, "A7608 hard reset after PPP timeout: %s", esp_err_to_name(reset_ret));
 #endif
 
@@ -3277,6 +3474,7 @@ esp_err_t hub_lte_pppos_process(void)
 
     if ((hub_lte_pppos_get_state() == HUB_PPP_STATE_IDLE) ||
         (hub_lte_pppos_get_state() == HUB_PPP_STATE_ERROR)) {
+        hub_lte_pppos_both_sim_network_failover_process();
         hub_lte_pppos_cell_recovery_process();
         hub_lte_pppos_reconnect_process();
     }

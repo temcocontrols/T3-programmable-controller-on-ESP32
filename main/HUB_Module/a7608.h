@@ -23,6 +23,21 @@ extern "C" {
 #define A7608_DEFAULT_RESET_PIN            GPIO_NUM_16
 #define A7608_DEFAULT_RING_PIN             GPIO_NUM_6
 #define A7608_DEFAULT_DTR_PIN              GPIO_NUM_7
+#define A7608_DEFAULT_SIM_SEL_PIN          GPIO_NUM_8
+#define A7608_DEFAULT_SIM1_DET_PIN         GPIO_NUM_5
+#define A7608_DEFAULT_SIM2_DET_PIN         GPIO_NUM_21
+
+#define A7608_HARD_RESET_PULSE_MS          2600U
+#define A7608_HARD_RESET_QUIET_MS          8000U
+#define A7608_SIM1_SELECT_LEVEL            0
+#define A7608_SIM2_SELECT_LEVEL            1
+#define A7608_SIM_DET_INSERTED_LEVEL       1
+
+typedef enum {
+    A7608_SIM_SLOT_NONE = 0,
+    A7608_SIM_SLOT_1,
+    A7608_SIM_SLOT_2,
+} a7608_sim_slot_t;
 
 #define A7608_OPERATOR_LEN                 32
 #define A7608_APN_LEN                      64
@@ -63,6 +78,9 @@ typedef struct {
     gpio_num_t reset_pin;
     gpio_num_t ring_pin;
     gpio_num_t dtr_pin;
+    gpio_num_t sim_sel_pin;
+    gpio_num_t sim1_det_pin;
+    gpio_num_t sim2_det_pin;
 
     int pwrkey_active_level;
     int reset_active_level;
@@ -76,6 +94,9 @@ typedef struct {
     a7608_state_t state;
     bool at_ready;
     bool sim_ready;
+    bool sim1_present;
+    bool sim2_present;
+    a7608_sim_slot_t active_sim_slot;
     bool registered_home;
     bool registered_roaming;
     bool attached;
@@ -109,6 +130,14 @@ esp_err_t a7608_deinit(void);
 
 esp_err_t a7608_power_on(uint32_t pulse_ms, uint32_t boot_wait_ms);
 esp_err_t a7608_hard_reset(uint32_t pulse_ms, uint32_t boot_wait_ms);
+esp_err_t a7608_try_exit_data_mode(void);
+void a7608_clear_stale_ready(void);
+a7608_sim_slot_t a7608_get_active_sim_slot(void);
+bool a7608_sim_slot_detected(a7608_sim_slot_t slot);
+bool a7608_other_sim_slot_detected(void);
+const char *a7608_sim_slot_name(a7608_sim_slot_t slot);
+a7608_sim_slot_t a7608_alternate_sim_slot(void);
+esp_err_t a7608_switch_sim_slot(a7608_sim_slot_t slot);
 esp_err_t a7608_set_dtr(bool active);
 esp_err_t a7608_set_dtr_level(int level);
 int a7608_get_dtr_level(void);

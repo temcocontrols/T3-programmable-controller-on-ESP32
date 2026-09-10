@@ -33,7 +33,7 @@ static bool a7608_cpin_success_raw_logged;
 #define A7608_STATUS_INVALID_STAT       (-1)
 #define A7608_STATUS_INVALID_CFUN       (-1)
 #define A7608_UART_LOCK_WAIT_MS         5000U
-#define A7608_STARTUP_INITIAL_PROBES    1U
+#define A7608_STARTUP_INITIAL_PROBES    3U
 #define A7608_STARTUP_AT_STABLE_COUNT   3U
 #define A7608_STARTUP_AT_TIMEOUT_MS     60000U
 #define A7608_STARTUP_SIM_TIMEOUT_MS    60000U
@@ -42,11 +42,17 @@ static bool a7608_cpin_success_raw_logged;
 #define A7608_STARTUP_SIM_INTERVAL_MS   3000U
 #define A7608_STARTUP_PWRKEY_PULSE_MS   1000U
 #define A7608_STARTUP_BOOT_QUIET_MS     8000U
-#define A7608_STARTUP_RESET_PULSE_MS    2600U
-#define A7608_STARTUP_RESET_QUIET_MS    3000U
+#define A7608_STARTUP_RESET_PULSE_MS    A7608_HARD_RESET_PULSE_MS
+#define A7608_STARTUP_RESET_QUIET_MS    A7608_HARD_RESET_QUIET_MS
+#define A7608_STARTUP_RESET_AT_TIMEOUT_MS 15000U
+#define A7608_STARTUP_REG_TIMEOUT_MS    45000U
+#define A7608_STARTUP_BOTH_SIM_REG_TIMEOUT_MS 300000U
 #define A7608_STARTUP_RADIO_OFF_WAIT_MS 3000U
 #define A7608_STARTUP_RADIO_ON_WAIT_MS  3000U
+#define A7608_STARTUP_SIM_NOT_INSERTED_GRACE_MS 10000U
+#define A7608_PPP_ESCAPE_GUARD_MS       1000U
 #define A7608_CONTROL_IDLE_SETTLE_MS    100U
+#define A7608_SIM_SWITCH_SETTLE_MS      500U
 
 extern int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms);
 extern int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms);
@@ -61,9 +67,14 @@ static void a7608_startup_probe_mark_started(void);
 static void a7608_startup_probe_mark_complete(esp_err_t ret);
 static void a7608_startup_log_phase(const char *phase, bool cold_boot);
 static bool a7608_startup_detect_running_modem(void);
+static bool a7608_startup_try_exit_data_mode(bool *uart_silent);
+static void a7608_refresh_sim_detect(void);
+static esp_err_t a7608_select_sim_slot(a7608_sim_slot_t slot);
+static a7608_sim_slot_t a7608_preferred_sim_slot(void);
 static bool a7608_startup_wait_at_stable(bool cold_boot,
                                          bool first_response_seen,
-                                         const char *action);
+                                         const char *action,
+                                         uint32_t timeout_ms);
 typedef enum {
     A7608_CPIN_READY = 0,
     A7608_CPIN_NOT_READY,
@@ -89,6 +100,8 @@ static const char *a7608_cpin_type_name(a7608_cpin_type_t type);
 static a7608_cpin_result_t a7608_query_cpin(bool *sim_ready);
 static a7608_startup_sim_result_t a7608_startup_wait_sim_ready(bool cold_boot,
                                                                bool after_radio_restart);
+static bool a7608_startup_wait_network_registered(bool cold_boot);
+static a7608_startup_sim_result_t a7608_startup_try_sim_with_fallback(bool cold_boot);
 static bool a7608_startup_finish_ready(bool cold_boot,
                                        const char *action,
                                        esp_err_t *status_ret);
@@ -97,7 +110,8 @@ static bool a7608_startup_confirm_ready(bool cold_boot,
                                         const char *action,
                                         bool *at_stable,
                                         a7608_startup_sim_result_t *sim_result,
-                                        esp_err_t *status_ret);
+                                        esp_err_t *status_ret,
+                                        uint32_t at_timeout_ms);
 static bool a7608_startup_radio_restart(void);
 static bool a7608_debug_run_status_snapshot(void);
 static esp_err_t a7608_debug_print_parsed_status(void);
@@ -238,9 +252,77 @@ static bool a7608_startup_detect_running_modem(void)
     return false;
 }
 
+static bool a7608_startup_try_exit_data_mode(bool *uart_silent)
+{
+    uint8_t buf[64];
+    char response[96];
+    size_t used = 0;
+
+    if (uart_silent != NULL) {
+        *uart_silent = true;
+    }
+
+    ESP_LOGW("A7608", "A7608 recovery stage=PPP_ESCAPE");
+    if (!a7608_take_uart_lock(A7608_UART_LOCK_WAIT_MS)) {
+        ESP_LOGW("A7608", "A7608 PPP escape skipped: UART busy");
+        return false;
+    }
+
+    (void)uart_flush_input(a7608_cfg.uart_num);
+    vTaskDelay(pdMS_TO_TICKS(A7608_PPP_ESCAPE_GUARD_MS));
+    int wrote = uart_write_bytes(a7608_cfg.uart_num, "+++", 3);
+    if (wrote < 3) {
+        ESP_LOGW("A7608", "A7608 PPP escape write failed");
+        a7608_give_uart_lock();
+        return false;
+    }
+
+    response[0] = '\0';
+    TickType_t start = xTaskGetTickCount();
+    while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(A7608_PPP_ESCAPE_GUARD_MS + 1500U)) {
+        int len = uart_read_bytes(a7608_cfg.uart_num, buf, sizeof(buf) - 1, pdMS_TO_TICKS(50));
+        if (len <= 0) {
+            continue;
+        }
+        if (uart_silent != NULL) {
+            *uart_silent = false;
+        }
+        size_t copy_len = (size_t)len;
+        if (copy_len > (sizeof(response) - used - 1)) {
+            copy_len = sizeof(response) - used - 1;
+        }
+        if (copy_len > 0) {
+            memcpy(response + used, buf, copy_len);
+            used += copy_len;
+            response[used] = '\0';
+        }
+        if (strstr(response, "OK") != NULL) {
+            break;
+        }
+    }
+    a7608_give_uart_lock();
+
+    ESP_LOGI("A7608",
+             "A7608 PPP escape response=\"%s\" uart_silent=%d",
+             response[0] != '\0' ? response : "-",
+             (uart_silent != NULL) && *uart_silent);
+
+    vTaskDelay(pdMS_TO_TICKS(200));
+    esp_err_t ret = a7608_probe();
+    ESP_LOGI("A7608", "A7608 startup AT probe after PPP escape: ret=%s", esp_err_to_name(ret));
+    if (ret == ESP_OK) {
+        if (uart_silent != NULL) {
+            *uart_silent = false;
+        }
+        return true;
+    }
+    return false;
+}
+
 static bool a7608_startup_wait_at_stable(bool cold_boot,
                                          bool first_response_seen,
-                                         const char *action)
+                                         const char *action,
+                                         uint32_t timeout_ms)
 {
     TickType_t start = xTaskGetTickCount();
     uint32_t attempt = 0;
@@ -248,7 +330,7 @@ static bool a7608_startup_wait_at_stable(bool cold_boot,
     bool unstable_logged = false;
 
     a7608_startup_log_phase("WAIT_AT_STABLE", cold_boot);
-    while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(A7608_STARTUP_AT_TIMEOUT_MS)) {
+    while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(timeout_ms)) {
         esp_err_t ret = a7608_probe();
         attempt++;
         ESP_LOGI("A7608",
@@ -336,6 +418,13 @@ static a7608_startup_sim_result_t a7608_startup_wait_sim_ready(bool cold_boot,
         }
 
         if (cpin_result.type == A7608_CPIN_SIM_NOT_INSERTED) {
+            if (elapsed_ms < A7608_STARTUP_SIM_NOT_INSERTED_GRACE_MS) {
+                ESP_LOGW("A7608",
+                         "A7608 SIM not inserted (CME=10); retrying until grace_ms=%u",
+                         A7608_STARTUP_SIM_NOT_INSERTED_GRACE_MS);
+                vTaskDelay(pdMS_TO_TICKS(A7608_STARTUP_SIM_INTERVAL_MS));
+                continue;
+            }
             ESP_LOGE("A7608", "A7608 SIM not inserted reported: CME=10");
             return A7608_STARTUP_SIM_NOT_INSERTED;
         }
@@ -394,6 +483,99 @@ static a7608_startup_sim_result_t a7608_startup_wait_sim_ready(bool cold_boot,
     return A7608_STARTUP_SIM_TIMEOUT;
 }
 
+static bool a7608_startup_wait_network_registered(bool cold_boot)
+{
+    TickType_t start = xTaskGetTickCount();
+    uint32_t attempt = 0;
+    a7608_refresh_sim_detect();
+    uint32_t timeout_ms = (a7608_status.sim1_present && a7608_status.sim2_present) ?
+                          A7608_STARTUP_BOTH_SIM_REG_TIMEOUT_MS :
+                          A7608_STARTUP_REG_TIMEOUT_MS;
+
+    a7608_startup_log_phase("WAIT_REGISTRATION", cold_boot);
+    ESP_LOGI("A7608",
+             "A7608 registration wait: timeout_ms=%lu both_sims=%d slot=%s",
+             (unsigned long)timeout_ms,
+             a7608_status.sim1_present && a7608_status.sim2_present,
+             a7608_sim_slot_name(a7608_status.active_sim_slot));
+    while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(timeout_ms)) {
+        attempt++;
+        (void)a7608_refresh_status_ex(false);
+        bool registered = a7608_status_is_registered();
+        ESP_LOGI("A7608",
+                 "A7608 registration wait: attempt=%lu slot=%s creg=%d cereg=%d registered=%d",
+                 (unsigned long)attempt,
+                 a7608_sim_slot_name(a7608_status.active_sim_slot),
+                 a7608_status.creg_stat,
+                 a7608_status.cereg_stat,
+                 registered);
+        if (registered) {
+            ESP_LOGI("A7608",
+                     "A7608 startup registered on %s",
+                     a7608_sim_slot_name(a7608_status.active_sim_slot));
+            return true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(A7608_STARTUP_SIM_INTERVAL_MS));
+    }
+    ESP_LOGW("A7608",
+             "A7608 startup registration timeout on %s",
+             a7608_sim_slot_name(a7608_status.active_sim_slot));
+    return false;
+}
+
+static a7608_startup_sim_result_t a7608_startup_try_sim_with_fallback(bool cold_boot)
+{
+    a7608_sim_slot_t first = a7608_preferred_sim_slot();
+    (void)a7608_select_sim_slot(first);
+    ESP_LOGI("A7608",
+             "A7608 SIM startup: first_slot=%s priority=SIM1 sim1_present=%d sim2_present=%d",
+             a7608_sim_slot_name(first),
+             a7608_status.sim1_present,
+             a7608_status.sim2_present);
+
+    a7608_startup_sim_result_t result = a7608_startup_wait_sim_ready(cold_boot, false);
+    bool registered = false;
+    if (result == A7608_STARTUP_SIM_READY) {
+        registered = a7608_startup_wait_network_registered(cold_boot);
+        if (registered || (first != A7608_SIM_SLOT_1)) {
+            return A7608_STARTUP_SIM_READY;
+        }
+        ESP_LOGW("A7608", "A7608 SIM1 CPIN ready but not registered; falling back to SIM2");
+    }
+
+    if (result == A7608_STARTUP_SIM_AT_LOST) {
+        return result;
+    }
+
+    a7608_sim_slot_t next = a7608_alternate_sim_slot();
+    a7608_refresh_sim_detect();
+    ESP_LOGW("A7608",
+             "A7608 SIM fallback: %s -> %s reason=%d sim1_present=%d sim2_present=%d",
+             a7608_sim_slot_name(first),
+             a7608_sim_slot_name(next),
+             (int)result,
+             a7608_status.sim1_present,
+             a7608_status.sim2_present);
+    if (a7608_select_sim_slot(next) != ESP_OK) {
+        return result;
+    }
+    (void)a7608_startup_radio_restart();
+    result = a7608_startup_wait_sim_ready(cold_boot, true);
+    if (result == A7608_STARTUP_SIM_READY) {
+        (void)a7608_startup_wait_network_registered(cold_boot);
+        ESP_LOGI("A7608",
+                 "A7608 SIM fallback complete: active=%s cpin_ready=1",
+                 a7608_sim_slot_name(a7608_status.active_sim_slot));
+        return A7608_STARTUP_SIM_READY;
+    }
+    ESP_LOGE("A7608",
+             "A7608 SIM fallback to %s failed; restoring %s",
+             a7608_sim_slot_name(next),
+             a7608_sim_slot_name(first));
+    (void)a7608_select_sim_slot(first);
+    return result;
+}
+
 static bool a7608_startup_finish_ready(bool cold_boot,
                                        const char *action,
                                        esp_err_t *status_ret)
@@ -424,11 +606,13 @@ static bool a7608_startup_confirm_ready(bool cold_boot,
                                         const char *action,
                                         bool *at_stable,
                                         a7608_startup_sim_result_t *sim_result,
-                                        esp_err_t *status_ret)
+                                        esp_err_t *status_ret,
+                                        uint32_t at_timeout_ms)
 {
     bool stable = a7608_startup_wait_at_stable(cold_boot,
                                                first_response_seen,
-                                               action);
+                                               action,
+                                               at_timeout_ms);
     if (at_stable != NULL) {
         *at_stable = stable;
     }
@@ -436,7 +620,7 @@ static bool a7608_startup_confirm_ready(bool cold_boot,
         return false;
     }
 
-    a7608_startup_sim_result_t result = a7608_startup_wait_sim_ready(cold_boot, false);
+    a7608_startup_sim_result_t result = a7608_startup_try_sim_with_fallback(cold_boot);
     if (sim_result != NULL) {
         *sim_result = result;
     }
@@ -588,9 +772,8 @@ static bool a7608_debug_run_status_snapshot(void)
     a7608_give_uart_lock();
 
     bool snapshot_ok = (first_error == ESP_OK) && a7608_status.at_ready && a7608_status.sim_ready;
-    if (!snapshot_ok && prev_at_ready && prev_sim_ready) {
-        ESP_LOGW("A7608", "A7608 status snapshot failed; keeping prior AT/SIM ready state");
-        a7608_status.at_ready = true;
+    if (!snapshot_ok && prev_at_ready && prev_sim_ready && a7608_status.at_ready) {
+        ESP_LOGW("A7608", "A7608 status snapshot failed; keeping prior SIM ready state");
         a7608_status.sim_ready = true;
         if ((a7608_status.apn[0] == '\0') && (prev_apn[0] != '\0')) {
             snprintf(a7608_status.apn, sizeof(a7608_status.apn), "%s", prev_apn);
@@ -636,8 +819,8 @@ static esp_err_t configure_output_pin(gpio_num_t pin, int inactive)
     gpio_config_t io_conf = {
         .pin_bit_mask = 1ULL << pin,
         .mode = GPIO_MODE_INPUT_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en = (inactive != 0) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
+        .pull_down_en = (inactive == 0) ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
     esp_err_t ret = gpio_config(&io_conf);
@@ -661,6 +844,120 @@ static esp_err_t configure_input_pin(gpio_num_t pin)
         .intr_type = GPIO_INTR_DISABLE,
     };
     return gpio_config(&io_conf);
+}
+
+const char *a7608_sim_slot_name(a7608_sim_slot_t slot)
+{
+    switch (slot) {
+    case A7608_SIM_SLOT_1:
+        return "SIM1";
+    case A7608_SIM_SLOT_2:
+        return "SIM2";
+    default:
+        return "NONE";
+    }
+}
+
+bool a7608_sim_slot_detected(a7608_sim_slot_t slot)
+{
+    gpio_num_t pin = GPIO_NUM_NC;
+    if (slot == A7608_SIM_SLOT_1) {
+        pin = a7608_cfg.sim1_det_pin;
+    } else if (slot == A7608_SIM_SLOT_2) {
+        pin = a7608_cfg.sim2_det_pin;
+    }
+    if (!pin_is_valid(pin)) {
+        return false;
+    }
+    return gpio_get_level(pin) == A7608_SIM_DET_INSERTED_LEVEL;
+}
+
+a7608_sim_slot_t a7608_get_active_sim_slot(void)
+{
+    return a7608_status.active_sim_slot;
+}
+
+a7608_sim_slot_t a7608_alternate_sim_slot(void)
+{
+    return (a7608_status.active_sim_slot == A7608_SIM_SLOT_2) ?
+           A7608_SIM_SLOT_1 : A7608_SIM_SLOT_2;
+}
+
+bool a7608_other_sim_slot_detected(void)
+{
+    a7608_refresh_sim_detect();
+    return a7608_sim_slot_detected(a7608_alternate_sim_slot());
+}
+
+esp_err_t a7608_switch_sim_slot(a7608_sim_slot_t slot)
+{
+    a7608_sim_slot_t current = a7608_status.active_sim_slot;
+    if (slot == current) {
+        return ESP_OK;
+    }
+    ESP_LOGW("A7608",
+             "A7608 SIM switch: %s -> %s",
+             a7608_sim_slot_name(current),
+             a7608_sim_slot_name(slot));
+    return a7608_select_sim_slot(slot);
+}
+
+static void a7608_refresh_sim_detect(void)
+{
+    bool sim1 = a7608_sim_slot_detected(A7608_SIM_SLOT_1);
+    bool sim2 = a7608_sim_slot_detected(A7608_SIM_SLOT_2);
+    int gpio1 = pin_is_valid(a7608_cfg.sim1_det_pin) ? gpio_get_level(a7608_cfg.sim1_det_pin) : -1;
+    int gpio2 = pin_is_valid(a7608_cfg.sim2_det_pin) ? gpio_get_level(a7608_cfg.sim2_det_pin) : -1;
+
+    if ((sim1 != a7608_status.sim1_present) || (sim2 != a7608_status.sim2_present)) {
+        ESP_LOGI("A7608",
+                 "A7608 SIM detect: sim1=%d sim2=%d gpio1=%d gpio2=%d active=%s",
+                 sim1,
+                 sim2,
+                 gpio1,
+                 gpio2,
+                 a7608_sim_slot_name(a7608_status.active_sim_slot));
+    }
+    a7608_status.sim1_present = sim1;
+    a7608_status.sim2_present = sim2;
+}
+
+static esp_err_t a7608_select_sim_slot(a7608_sim_slot_t slot)
+{
+    if (!a7608_initialized || !pin_is_valid(a7608_cfg.sim_sel_pin)) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if ((slot != A7608_SIM_SLOT_1) && (slot != A7608_SIM_SLOT_2)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    int level = (slot == A7608_SIM_SLOT_2) ? A7608_SIM2_SELECT_LEVEL : A7608_SIM1_SELECT_LEVEL;
+    ESP_LOGI("A7608",
+             "A7608 SIM select: slot=%s gpio=%d level=%d",
+             a7608_sim_slot_name(slot),
+             a7608_cfg.sim_sel_pin,
+             level);
+    esp_err_t ret = gpio_set_level(a7608_cfg.sim_sel_pin, level);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    a7608_status.active_sim_slot = slot;
+    a7608_status.sim_ready = false;
+    vTaskDelay(pdMS_TO_TICKS(A7608_SIM_SWITCH_SETTLE_MS));
+    a7608_refresh_sim_detect();
+    return ESP_OK;
+}
+
+static a7608_sim_slot_t a7608_preferred_sim_slot(void)
+{
+    a7608_refresh_sim_detect();
+    if (a7608_status.sim1_present) {
+        return A7608_SIM_SLOT_1;
+    }
+    if (a7608_status.sim2_present) {
+        return A7608_SIM_SLOT_2;
+    }
+    return A7608_SIM_SLOT_1;
 }
 
 static bool response_has_registered(const char *response)
@@ -1255,6 +1552,9 @@ void a7608_get_default_config(a7608_config_t *config)
     config->reset_pin = A7608_DEFAULT_RESET_PIN;
     config->ring_pin = A7608_DEFAULT_RING_PIN;
     config->dtr_pin = A7608_DEFAULT_DTR_PIN;
+    config->sim_sel_pin = A7608_DEFAULT_SIM_SEL_PIN;
+    config->sim1_det_pin = A7608_DEFAULT_SIM1_DET_PIN;
+    config->sim2_det_pin = A7608_DEFAULT_SIM2_DET_PIN;
     config->pwrkey_active_level = 1;
     config->reset_active_level = 0;
     config->dtr_active_level = 0;
@@ -1344,13 +1644,40 @@ esp_err_t a7608_init(const a7608_config_t *config)
         if (ret != ESP_OK) {
             return ret;
         }
+        ret = configure_output_pin(a7608_cfg.sim_sel_pin, A7608_SIM1_SELECT_LEVEL);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        ret = configure_input_pin(a7608_cfg.sim1_det_pin);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        ret = configure_input_pin(a7608_cfg.sim2_det_pin);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        a7608_status.active_sim_slot = A7608_SIM_SLOT_1;
+        a7608_refresh_sim_detect();
         ESP_LOGI("A7608",
-                 "A7608 control GPIO modes: PWRKEY gpio_mode=INPUT_OUTPUT RESET gpio_mode=INPUT_OUTPUT DTR gpio_mode=INPUT_OUTPUT");
+                 "A7608 SIM DET init: sim1=%d sim2=%d gpio1=%d gpio2=%d pullup=off inserted_level=%d",
+                 a7608_status.sim1_present,
+                 a7608_status.sim2_present,
+                 pin_is_valid(a7608_cfg.sim1_det_pin) ? gpio_get_level(a7608_cfg.sim1_det_pin) : -1,
+                 pin_is_valid(a7608_cfg.sim2_det_pin) ? gpio_get_level(a7608_cfg.sim2_det_pin) : -1,
+                 A7608_SIM_DET_INSERTED_LEVEL);
+        ESP_LOGI("A7608",
+                 "A7608 control GPIO modes: PWRKEY gpio_mode=INPUT_OUTPUT RESET gpio_mode=INPUT_OUTPUT DTR gpio_mode=INPUT_OUTPUT SIM_SEL gpio=%d SIM1_DET gpio=%d SIM2_DET gpio=%d",
+                 a7608_cfg.sim_sel_pin,
+                 a7608_cfg.sim1_det_pin,
+                 a7608_cfg.sim2_det_pin);
     }
 
     a7608_cpin_failure_raw_logged = false;
     a7608_cpin_success_raw_logged = false;
     a7608_initialized = true;
+    if (a7608_cfg.configure_control_pins) {
+        (void)a7608_select_sim_slot(a7608_preferred_sim_slot());
+    }
     A7608_LOG("UART%d ready modem_tx=%d modem_rx=%d baud=%d",
               a7608_cfg.uart_num,
               a7608_cfg.modem_tx_pin,
@@ -1473,6 +1800,27 @@ esp_err_t a7608_hard_reset(uint32_t pulse_ms, uint32_t boot_wait_ms)
     return ESP_OK;
 }
 
+esp_err_t a7608_try_exit_data_mode(void)
+{
+    return a7608_startup_try_exit_data_mode(NULL) ? ESP_OK : ESP_FAIL;
+}
+
+void a7608_clear_stale_ready(void)
+{
+    a7608_status.at_ready = false;
+    a7608_status.sim_ready = false;
+    a7608_status.status_valid = false;
+    a7608_status.registered_home = false;
+    a7608_status.registered_roaming = false;
+    a7608_status.attached = false;
+    a7608_status.connected = false;
+    a7608_status.creg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cereg_stat = A7608_STATUS_INVALID_STAT;
+    a7608_status.cfun = A7608_STATUS_INVALID_CFUN;
+    a7608_status.last_refresh_result = ESP_ERR_INVALID_STATE;
+    ESP_LOGW("A7608", "A7608 stale AT/SIM ready flags cleared");
+}
+
 esp_err_t a7608_set_dtr(bool active)
 {
     if (!a7608_initialized || !pin_is_valid(a7608_cfg.dtr_pin)) {
@@ -1579,9 +1927,11 @@ esp_err_t a7608_probe(void)
     if (ret == ESP_OK) {
         a7608_status.at_ready = true;
         a7608_status.state = A7608_STATE_AT_READY;
-    } else if (!a7608_status.sim_ready) {
+    } else {
         a7608_status.at_ready = false;
-        a7608_status.state = A7608_STATE_ERROR;
+        if (!a7608_status.sim_ready) {
+            a7608_status.state = A7608_STATE_ERROR;
+        }
     }
     return ret;
 }
@@ -1703,6 +2053,7 @@ esp_err_t a7608_refresh_status_ex(bool include_operator)
     esp_err_t cgatt_ret = ESP_ERR_INVALID_STATE;
     esp_err_t cgpaddr_ret = ESP_ERR_INVALID_STATE;
 
+    a7608_refresh_sim_detect();
     a7608_status.status_valid = false;
     a7608_status.status_age_ms = UINT32_MAX;
 
@@ -2115,11 +2466,14 @@ static esp_err_t a7608_debug_print_parsed_status(void)
     const a7608_status_t *status = a7608_get_status();
 
     a7608_debug_write("\r\n[A7608 PARSED STATUS]\r\n");
-    a7608_debug_printf("refresh=%s state=%s at=%d sim=%d reg_home=%d reg_roam=%d attached=%d connected=%d\r\n",
+    a7608_debug_printf("refresh=%s state=%s at=%d sim=%d slot=%s sim1=%d sim2=%d reg_home=%d reg_roam=%d attached=%d connected=%d\r\n",
                        esp_err_to_name(ret),
                        a7608_state_name(status->state),
                        status->at_ready,
                        status->sim_ready,
+                       a7608_sim_slot_name(status->active_sim_slot),
+                       status->sim1_present,
+                       status->sim2_present,
                        status->registered_home,
                        status->registered_roaming,
                        status->attached,
@@ -2295,12 +2649,46 @@ void a7608_at_debug_task(void *pvParameters)
                                                     "INITIAL_PROBE",
                                                     &at_stable,
                                                     &startup_sim_result,
-                                                    &startup_ret);
+                                                    &startup_ret,
+                                                    A7608_STARTUP_AT_TIMEOUT_MS);
+    }
+
+    if (!startup_ready && !at_stable) {
+        bool uart_silent = true;
+        if (a7608_startup_try_exit_data_mode(&uart_silent)) {
+            startup_ready = a7608_startup_confirm_ready(false,
+                                                        true,
+                                                        "PPP_ESCAPE",
+                                                        &at_stable,
+                                                        &startup_sim_result,
+                                                        &startup_ret,
+                                                        A7608_STARTUP_AT_TIMEOUT_MS);
+        } else if (uart_silent) {
+            ESP_LOGW("A7608", "A7608 startup UART silent after PPP escape; skip RESET and use PWRKEY");
+        }
+
+        if (!startup_ready && !at_stable && !uart_silent) {
+            ESP_LOGW("A7608", "A7608 startup recovery stage=RESET");
+            ret = a7608_hard_reset(A7608_STARTUP_RESET_PULSE_MS,
+                                   A7608_STARTUP_RESET_QUIET_MS);
+            if (ret == ESP_OK) {
+                startup_ready = a7608_startup_confirm_ready(true,
+                                                            false,
+                                                            "RESET",
+                                                            &at_stable,
+                                                            &startup_sim_result,
+                                                            &startup_ret,
+                                                            A7608_STARTUP_RESET_AT_TIMEOUT_MS);
+            } else {
+                ESP_LOGE("A7608", "A7608 startup RESET recovery failed: %s", esp_err_to_name(ret));
+            }
+        }
     }
 
     if (!startup_ready && !at_stable) {
         cold_boot = true;
         at_stable = false;
+        ESP_LOGW("A7608", "A7608 startup AT still down; recovery stage=PWRKEY");
         ESP_LOGW("A7608", "A7608 startup recovery stage=PWRKEY");
         ret = a7608_power_on(A7608_STARTUP_PWRKEY_PULSE_MS,
                              A7608_STARTUP_BOOT_QUIET_MS);
@@ -2310,7 +2698,8 @@ void a7608_at_debug_task(void *pvParameters)
                                                         "PWRKEY",
                                                         &at_stable,
                                                         &startup_sim_result,
-                                                        &startup_ret);
+                                                        &startup_ret,
+                                                        A7608_STARTUP_AT_TIMEOUT_MS);
         } else {
             ESP_LOGE("A7608", "A7608 startup PWRKEY recovery failed: %s", esp_err_to_name(ret));
         }
@@ -2342,7 +2731,8 @@ void a7608_at_debug_task(void *pvParameters)
                                                             "SIM_HARD_RESET",
                                                             &at_stable,
                                                             &startup_sim_result,
-                                                            &startup_ret);
+                                                            &startup_ret,
+                                                            A7608_STARTUP_AT_TIMEOUT_MS);
             } else {
                 ESP_LOGE("A7608", "A7608 SIM recovery HARD_RESET failed: %s", esp_err_to_name(ret));
             }
@@ -2351,23 +2741,29 @@ void a7608_at_debug_task(void *pvParameters)
 
     if (!startup_ready && !at_stable) {
         ESP_LOGW("A7608", "A7608 startup PWRKEY did not restore stable AT");
-        ESP_LOGW("A7608", "A7608 startup recovery stage=RESET");
+        ESP_LOGW("A7608", "A7608 startup recovery stage=RESET_RETRY");
         ret = a7608_hard_reset(A7608_STARTUP_RESET_PULSE_MS,
                                A7608_STARTUP_RESET_QUIET_MS);
         if (ret == ESP_OK) {
             startup_ready = a7608_startup_confirm_ready(true,
                                                         false,
-                                                        "RESET",
+                                                        "RESET_RETRY",
                                                         &at_stable,
                                                         &startup_sim_result,
-                                                        &startup_ret);
+                                                        &startup_ret,
+                                                        A7608_STARTUP_AT_TIMEOUT_MS);
         } else {
-            ESP_LOGE("A7608", "A7608 startup RESET recovery failed: %s", esp_err_to_name(ret));
+            ESP_LOGE("A7608", "A7608 startup RESET retry failed: %s", esp_err_to_name(ret));
         }
     }
 
     if (startup_ready) {
         a7608_startup_log_phase("STARTUP_COMPLETE", cold_boot);
+        ESP_LOGI("A7608",
+                 "A7608 startup complete: slot=%s sim1_present=%d sim2_present=%d",
+                 a7608_sim_slot_name(a7608_get_active_sim_slot()),
+                 a7608_get_status()->sim1_present,
+                 a7608_get_status()->sim2_present);
         a7608_startup_probe_mark_complete(startup_ret);
         a7608_debug_write("\r\nTransparent AT bridge ready. Type AT commands with CR/LF.\r\n");
 #if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
