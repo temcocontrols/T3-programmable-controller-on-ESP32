@@ -1,5 +1,5 @@
 idf_component_register(			SRCS
-							"tcp_server.c"
+							"app_main.c"
 							"modbus.c"
 #							"deviceparams.c"
 							"i2c_task.c"
