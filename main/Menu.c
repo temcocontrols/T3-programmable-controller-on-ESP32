@@ -1,5 +1,5 @@
 #include "define.h"
-#include "menu.h"
+#include "Menu.h"
 #include <string.h>
 #include "lcd.h"
 #include "airlab.h"

@@ -923,11 +923,11 @@ S16_T exec_program(S16_T current_prg, U8_T *prog_code)
 	return 0;
 }
 
-void get_ay_elem(long *value, U8_T *local)
+void get_ay_elem(S32_T *value, U8_T *local)
 {
 	S32_T num = 0;
 	Byte point_type,num_point;
-	long *p;
+	S32_T *p;
 
 	point_type = (((Point *)(prog))->point_type)-1;
 	num_point = ((Point *)(prog))->number;
@@ -1391,7 +1391,7 @@ S32_T veval_exp(U8_T *local)
 				len = m - 2;
 				//if(len == m - 2)
 				{
-					put_net_point_value(&point,(long *)&val[2],len*2,1,1);
+					put_net_point_value(&point,(S32_T *)&val[2],len*2,1,1);
 				}
 				push(1000);
 			}
@@ -1693,7 +1693,7 @@ S32_T operand(U8_T **buf,U8_T *local)
 		}
 		else
 		{
-			get_point_value( ( (Point *)(++prog) ), &value );
+			get_point_value( ( (Point *)(++prog) ), (int32_t *)&value );
 			prog += sizeof(Point);
 
 		}

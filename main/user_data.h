@@ -253,6 +253,24 @@ typedef union
     }reg;
 }Str_Email_point;
 
+typedef union
+{
+    uint8_t all[400];
+    struct
+    {
+		/* WireGuard configuration */
+		U8_T wireguard_enable;
+		U8_T wireguard_private_key[64];
+		U8_T wireguard_peer_public_key[64];
+		U8_T wireguard_preshared_key[64];
+		U8_T wireguard_local_ip[4];
+		/* Netmask is fixed to 255.255.255.0 */
+		U16_T wireguard_port;  /* Both local and peer use same port */
+		U8_T wireguard_peer_ip[4];
+		/* Keepalive is fixed to 25 seconds */
+		/* Ping address is fixed to 10.0.0.1 */
+    }reg;
+}Str_Wireguard_point;
 
 typedef	union
 {
@@ -423,6 +441,8 @@ extern U8_T 					 		ind_passwords;
 extern EXT_RAM_BSS_ATTR Password_point			 			passwords[ MAX_PASSW ];
 
 extern Str_Email_point Email_Setting;
+
+extern EXT_RAM_BSS_ATTR Str_Wireguard_point wireguard_point;
 
 extern EXT_RAM_BSS_ATTR Str_variable_point		 		 vars[MAX_VARS + 12];
 extern EXT_RAM_BSS_ATTR Str_controller_point 	 			 controllers[MAX_CONS];

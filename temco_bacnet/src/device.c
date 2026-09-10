@@ -81,6 +81,16 @@ bool Analog_Output_Object_Name(
         uint32_t object_instance,
         BACNET_CHARACTER_STRING * object_name);
 
+extern bool Analog_Output_Encode_Value_List(
+    uint32_t object_instance,
+    BACNET_PROPERTY_VALUE * value_list);
+extern bool Binary_Output_Encode_Value_List(
+    uint32_t object_instance,
+    BACNET_PROPERTY_VALUE * value_list);
+extern bool Binary_Value_Encode_Value_List(
+    uint32_t object_instance,
+    BACNET_PROPERTY_VALUE * value_list);
+
 /* note: you really only need to define variables for
    properties that are writable or that may change.
    The properties that are constant can be hard coded
@@ -152,7 +162,7 @@ static struct my_object_functions {
 				Analog_Output_Object_Name, Analog_Output_Encode_Property_APDU,
 				NULL/*Binary_Output_Write_Property*/,
 				Analog_Output_Property_Lists,NULL,
-				NULL,
+				Analog_Output_Encode_Value_List,
 				NULL,
 				NULL,
 				NULL	},
@@ -172,14 +182,22 @@ static struct my_object_functions {
 				Binary_Value_Index_To_Instance, Binary_Value_Valid_Instance,
 				Binary_Value_Object_Name, Binary_Value_Encode_Property_APDU,
 				Binary_Value_Write_Property/*Binary_Output_Write_Property*/,
-				Binary_Value_Property_Lists,NULL},
+				Binary_Value_Property_Lists,NULL,
+				Binary_Value_Encode_Value_List,
+				NULL,
+				NULL,
+				NULL},
 #endif
 		{  // BO
 				OBJECT_BINARY_OUTPUT, NULL,/*Binary_Output_Init,*/ Binary_Output_Count,
 				Binary_Output_Index_To_Instance, Binary_Output_Valid_Instance,
 				Binary_Output_Object_Name, Binary_Output_Encode_Property_APDU,
 				NULL/*Binary_Output_Write_Property*/,
-				Binary_Output_Property_Lists,NULL},
+				Binary_Output_Property_Lists,NULL,
+				Binary_Output_Encode_Value_List,
+				NULL,
+				NULL,
+				NULL},
 #if BAC_CALENDAR
 		{  // CALENDAR
 				OBJECT_CALENDAR, NULL, Calendar_Count,

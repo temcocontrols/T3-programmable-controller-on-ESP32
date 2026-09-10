@@ -28,7 +28,7 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 #include <store.h>
-
+#include <errno.h>
 
 #include "define.h"
 #include "modbus.h"
@@ -70,6 +70,8 @@
 #include "lora.h"
 #include "a7608.h"
 #include "hub_module.h"
+#include "WireGuard_App.h"
+#include "Mqtt_Handler.h"
 
 //#include "lowPower.h"
 
@@ -204,10 +206,8 @@ void start_fw_update(void)
    esp_retboot();
 }
 
-
 void esp_retboot(void)
 {
-
    esp_restart();
 }
 
@@ -320,7 +320,6 @@ void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len)
 		sendto(bip_sock, (uint8_t *)buf, len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
 		len = 0;
 	}
-
 }
 #if 0
 char udp_debug_str[100] = "udp test";
@@ -2428,92 +2427,99 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, S32_T value)
 		// if current panel is network master
 		if(flag_start_scan_network == 1)
 		{
-			put_net_point_value(&point,&value,0,1,cov->timeRemaining);
+			S32_T net_value = (S32_T)value;
+			put_net_point_value(&point, &net_value, 0, 1, cov->timeRemaining);
 		}
 
+		Mqtt_Handler_Send_COV(cov);
 }
 
 // update the value subscribed object
 // send out UCOV_Notify
-void Update_Value_List(uint8_t type, uint32_t instance)
+void Update_Value_List(BACNET_COV_DATA *cov)
 {
-	char text[10];
-	cov_data_value_list_link(&cov_data, &value_list, 1);
-	value_list.propertyIdentifier = PROP_PRESENT_VALUE;
-	value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
-	if(instance > 0)
-		instance = instance - 1;
-	switch(type)
-	{
-		case OBJECT_ANALOG_INPUT:
-			if(inputs[instance].range == 0)
-				break;
-			if(inputs[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)inputs[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_ANALOG_OUTPUT:
-			if(outputs[instance].range == 0)
-				break;
-			if(outputs[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)outputs[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_ANALOG_VALUE:
-			if(vars[instance].range == 0)
-				break;
-			if(vars[instance].digital_analog == 1)
-			{
-				sprintf(text, "%f",(float)vars[instance].value / 1000);
-				bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, text,
-					&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_INPUT:
-			if(inputs[instance].range == 0)
-				break;
-			if(inputs[instance].digital_analog == 0)
-			{
-				if(inputs[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_OUTPUT:
-			if(outputs[instance].range == 0)
-				break;
-			if(outputs[instance].digital_analog == 0)
-			{
-				if(outputs[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		case OBJECT_BINARY_VALUE:
-			if(vars[instance].range == 0)
-				break;
-			if(vars[instance].digital_analog == 0)
-			{
-				if(vars[instance].control == 1)
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "1",	&value_list.value);
-				else
-					bacapp_parse_application_data(BACNET_APPLICATION_TAG_BOOLEAN, "0",	&value_list.value);
-			}
-		break;
-		default:
-			bacapp_parse_application_data(BACNET_APPLICATION_TAG_NULL, NULL ,	&value_list.value);
-			break;
+    char text[32];
+    bool is_valid_value = false;
+    BACNET_APPLICATION_TAG tag = BACNET_APPLICATION_TAG_NULL;
+    const char *value_str = NULL;
 
-	}
+    uint8_t type = cov->monitoredObjectIdentifier.type;
+    uint32_t instance = cov->monitoredObjectIdentifier.instance;
 
+    cov_data_value_list_link(&cov_data, &value_list, 1);
+    value_list.propertyIdentifier = PROP_PRESENT_VALUE;
+    value_list.propertyArrayIndex = BACNET_ARRAY_ALL;
+
+    if (instance > 0)
+        instance--;
+
+    switch (type)
+    {
+        case OBJECT_ANALOG_INPUT:
+            if ((inputs[instance].range != 0) && (inputs[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)inputs[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_ANALOG_OUTPUT:
+            if ((outputs[instance].range != 0) &&
+                (outputs[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)outputs[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_ANALOG_VALUE:
+            if ((vars[instance].range != 0) && (vars[instance].digital_analog == 1))
+            {
+                snprintf(text, sizeof(text), "%f",(float)vars[instance].value / 1000);
+                tag = BACNET_APPLICATION_TAG_REAL;
+                value_str = text;
+            }
+            break;
+
+        case OBJECT_BINARY_INPUT:
+            if ((inputs[instance].range != 0) && (inputs[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = inputs[instance].control ? "1" : "0";
+            }
+            break;
+
+        case OBJECT_BINARY_OUTPUT:
+            if ((outputs[instance].range != 0) && (outputs[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = outputs[instance].control ? "1" : "0";
+            }
+            break;
+
+        case OBJECT_BINARY_VALUE:
+            if ((vars[instance].range != 0) && (vars[instance].digital_analog == 0))
+            {
+                tag = BACNET_APPLICATION_TAG_BOOLEAN;
+                value_str = vars[instance].control ? "1" : "0";
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    if (value_str || tag == BACNET_APPLICATION_TAG_NULL)
+    {
+        is_valid_value = bacapp_parse_application_data(tag,value_str,&value_list.value);
+    }
+
+    if (is_valid_value)
+    {
+        Mqtt_Handler_Send_COV(cov);
+    }
 }
 
 int send_cov_demo(void) {
@@ -2727,6 +2733,22 @@ void Timer_task(void *pvParameters)
 		miliseclast = miliseclast + TIMER_INTERVAL;
 		system_timer = system_timer + TIMER_INTERVAL;
 		//Check_Pulse_Counter();
+
+		// Real-time clock tracking for COV subscription lifetimes
+		static TickType_t last_cov_tick = 0;
+		if (last_cov_tick == 0) {
+			last_cov_tick = xTaskGetTickCount();
+		}
+		TickType_t current_tick = xTaskGetTickCount();
+		uint32_t elapsed_ms = (current_tick - last_cov_tick) * portTICK_PERIOD_MS;
+		if (elapsed_ms >= 1000) {
+			uint32_t elapsed_seconds = elapsed_ms / 1000;
+			last_cov_tick += (elapsed_seconds * 1000) / portTICK_PERIOD_MS;
+#if COV
+			handler_cov_timer_seconds(elapsed_seconds);
+#endif
+		}
+
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
 		{
 			run_time = run_time + 1;
@@ -2748,9 +2770,6 @@ void Timer_task(void *pvParameters)
 			}
 #endif
 			Test[0] = flag_ethernet_initial + 10;
-#if COV
-			handler_cov_timer_seconds(1);
-#endif
 			if(Modbus.ethernet_status == 4 || SSID_Info.IP_Wifi_Status == 2/*WIFI_NORMAL*/) // got ip
 			{
 				if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE || Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE)
@@ -4671,44 +4690,6 @@ static void hub_pppos_manual_process_task(void *pvParameters)
 }
 #endif
 
-#if CONFIG_IDF_TARGET_ESP32S3
-static void hub_uart0_console_driver_init(void)
-{
-	if (uart_is_driver_installed(UART_NUM_0)) {
-		return;
-	}
-
-	const uart_config_t uart_cfg = {
-		.baud_rate = 115200,
-		.data_bits = UART_DATA_8_BITS,
-		.parity = UART_PARITY_DISABLE,
-		.stop_bits = UART_STOP_BITS_1,
-		.flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-		.source_clk = UART_SCLK_DEFAULT,
-	};
-
-	esp_err_t ret = uart_param_config(UART_NUM_0, &uart_cfg);
-	if (ret != ESP_OK) {
-		ESP_LOGW(TCP_TASK_TAG, "UART0 param config failed: %s", esp_err_to_name(ret));
-		return;
-	}
-
-	ret = uart_set_pin(UART_NUM_0, GPIO_NUM_43, GPIO_NUM_44, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-	if (ret != ESP_OK) {
-		ESP_LOGW(TCP_TASK_TAG, "UART0 pin set failed: %s", esp_err_to_name(ret));
-		return;
-	}
-
-	ret = uart_driver_install(UART_NUM_0, 2048, 0, 0, NULL, 0);
-	if (ret != ESP_OK) {
-		ESP_LOGW(TCP_TASK_TAG, "UART0 driver install failed: %s", esp_err_to_name(ret));
-		return;
-	}
-
-	(void)uart_set_mode(UART_NUM_0, UART_MODE_UART);
-}
-#endif
-
 void app_main()
 {
 
@@ -4732,23 +4713,23 @@ void app_main()
 	{
 		/* PROJECT_HUB uses GPIO13 as W5500 SCLK, so skip UART0 RS485 init (uses GPIO13 as SUB_EN). */
 		hub_usb_serial_init();
-		#if CONFIG_IDF_TARGET_ESP32S3
-		hub_uart0_console_driver_init();
-		#endif
 
 		esp_err_t hub_ret = hub_module_init();
 		if (hub_ret != ESP_OK) {
 			ESP_LOGW(TCP_TASK_TAG, "hub_module_init failed: %s", esp_err_to_name(hub_ret));
 		}
 	}
-	else
-	{
-		uart_init(0);
-	}
 
 #ifdef USE_USB_CDC_MAIN
 	usb_cdc_init();
 #endif
+	if(Modbus.mini_type == MINI_SMALL_ARM)
+	{
+		Modbus.mini_type = MINI_TSTAT11;
+		save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
+	}
+
+	uart_init(0);
 
 #if 1
     sprintf(debug_array,"app %u, mini_type %u, count_reboot = %u",SOFTREV,Modbus.mini_type,count_reboot);
@@ -4792,7 +4773,7 @@ void app_main()
 	else
 #endif
 	{
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, &main_task_handle[1]);
+    	xTaskCreate(wifi_task, "wifi_task", 6000, NULL, 5, &main_task_handle[1]);
 	}
 
     network_EventHandle = xEventGroupCreate();
@@ -4844,6 +4825,7 @@ void app_main()
 		return;
 	}
 #endif
+	Mqtt_Handler_Init();
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
@@ -4936,7 +4918,6 @@ void app_main()
 
     Set_Device_Stage(DEVICE_STAGE_RUNNING);
 
-
  #if 1
 	xTaskCreate(Bacnet_Control,"BAC_Control_task",6000, NULL, 3, &main_task_handle[14]);
 #endif
@@ -4945,6 +4926,12 @@ void app_main()
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
 #endif
 
+	/* WireGuard Gateway initialization: only requires WiFi, modbus, and flash */
+	if(Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
+	{
+		ESP_LOGI("app_main", "Initializing WireGuard Gateway...");
+		xTaskCreate(wireguard_gateway_task, "wireguard_gw", 4096, NULL, tskIDLE_PRIORITY + 2, &main_task_handle[18]);
+	}
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);
 

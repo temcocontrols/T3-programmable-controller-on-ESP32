@@ -255,7 +255,7 @@ void vStartMenuTask(unsigned char uxPriority);
 #define MAX_SCOROLL      20
 #define SCROLL_WINDOW    14     // visible window (characters shown)
 
-extern uint8 *scroll;
+extern uint8 *scroll_dis;
 extern uint8 scroll_ram[5][MAX_SCOROLL];
 extern uint8 fan_flag;
 extern uint8 display_flag;

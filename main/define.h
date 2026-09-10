@@ -97,12 +97,12 @@ typedef struct
 	U8_T led_rx485_rx;
 
 	U8_T enable_debug;
+	U8_T enable_mqtt;
 	U16_T mstp_network;
 
 	U8_T icon_config;
 	U8_T mstp_master;
 	U16_T write_flash;
-
 
 }STR_MODBUS;
 
@@ -189,8 +189,11 @@ typedef	enum
 #define PROJECT_CO2 		26
 #define PROJECT_LSW_SENSOR	27
 #define PROJECT_LORA_GATEWAY	28
-#define MINI_TSTAT11 		29
-#define PROJECT_HUB		30
+#define MINI_TSTAT11 		    29
+#define PROJECT_HUB		        30
+#define PROJECT_WIREGUARD_GATEWAY PROJECT_HUB
+#define MAX_MINI_TYPE 		    30
+
 
 #define PROJECT_HUB_AT_DEBUG	1
 #define PROJECT_HUB_W5500_DRIVER_ISOLATION_TEST 0
@@ -206,8 +209,6 @@ typedef	enum
 #define PROJECT_HUB_W5500_TIMER_RESTORE_UART_CHECK 1
 #define PROJECT_HUB_W5500_TIMER_RESTORE_NETWORK_HEALTH 1
 #define PROJECT_HUB_W5500_TIMER_RESTORE_GLOBAL_REFRESH 1
-
-#define MAX_MINI_TYPE 		30
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;

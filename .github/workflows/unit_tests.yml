@@ -1,0 +1,212 @@
+name: Firmware Unit Tests
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+# ------------------------------------------------------------------ #
+# Cancel in-progress runs on the same branch to save runner minutes
+# ------------------------------------------------------------------ #
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ================================================================ #
+  # JOB 1 — Ubuntu (GCC + AddressSanitizer + UBSan)
+  #   Primary job: catches real bugs via sanitizers.
+  # ================================================================ #
+  run-tests-ubuntu:
+    name: "Tests · Ubuntu GCC (ASan + UBSan)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ------------------------------------------------------------ #
+      # 1. Checkout
+      # ------------------------------------------------------------ #
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------ #
+      # 2. Toolchain
+      # ------------------------------------------------------------ #
+      - name: Install Build Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            gcc \
+            make \
+            python3
+
+      - name: Show Compiler Version
+        run: gcc --version
+
+      # ------------------------------------------------------------ #
+      # 3. Clean
+      # ------------------------------------------------------------ #
+      - name: Clean Previous Build
+        working-directory: Unit_Test
+        run: make clean || true
+
+      # ------------------------------------------------------------ #
+      # 4. Build — sanitizers injected via EXTRA_CFLAGS / EXTRA_LDFLAGS
+      #    Your Makefile should honour these vars, e.g.:
+      #      CFLAGS  += $(EXTRA_CFLAGS)
+      #      LDFLAGS += $(EXTRA_LDFLAGS)
+      # ------------------------------------------------------------ #
+      - name: Build Unit Tests (with ASan + UBSan)
+        working-directory: Unit_Test
+        run: |
+          make run_tests -j$(nproc) \
+            EXTRA_CFLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1" \
+            EXTRA_LDFLAGS="-fsanitize=address,undefined"
+
+      # ------------------------------------------------------------ #
+      # 5. Run
+      # ------------------------------------------------------------ #
+      - name: Run Unit Tests
+        working-directory: Unit_Test
+        env:
+          # detect_odr_violation=0 — mocks intentionally shadow globals from
+          # app_main.c (e.g. flag_internal_temperature). This is expected and
+          # safe; suppressing ODR lets ASan catch real bugs without noise.
+          ASAN_OPTIONS: "halt_on_error=1:print_stats=1:detect_stack_use_after_return=1:detect_odr_violation=0"
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+        run: |
+          ./run_tests > test_output.txt 2>&1 || true   # capture both stdout+stderr
+          cat test_output.txt                           # show everything in CI log
+          grep -E "sizeof|offsetof" test_output.txt || true
+          grep -E "runtime error|PASS|FAIL|Tests" test_output.txt || true
+          # now check exit properly
+          ./run_tests >> test_output.txt 2>&1
+          EXIT_CODE=$?
+          exit $EXIT_CODE
+
+      # ------------------------------------------------------------ #
+      # 6. Upload log
+      # ------------------------------------------------------------ #
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-ubuntu
+          path: Unit_Test/test_output.txt
+          retention-days: 30
+
+
+  # ================================================================ #
+  # JOB 2 — Windows (MinGW-w64)
+  #   Verifies the code compiles and runs under a Windows toolchain.
+  #   ASan is not supported by MinGW, so no sanitizer flags here.
+  # ================================================================ #
+  run-tests-windows:
+    name: "Tests · Windows MinGW-w64"
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      # ------------------------------------------------------------ #
+      # 1. Checkout
+      # ------------------------------------------------------------ #
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------ #
+      # 2. Toolchain — MinGW-w64 via Chocolatey (pre-installed on
+      #    windows-latest; choco install ensures it is up to date)
+      # ------------------------------------------------------------ #
+      - name: Install MinGW-w64
+        run: choco install mingw --yes --no-progress
+
+      - name: Add MinGW to PATH
+        run: |
+          echo "C:\ProgramData\mingw64\mingw64\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+
+      - name: Show Compiler Version
+        run: gcc --version
+
+      # ------------------------------------------------------------ #
+      # 3. Clean
+      # ------------------------------------------------------------ #
+      - name: Clean Previous Build
+        working-directory: Unit_Test
+        # mingw32-make is the GNU make shipped with MinGW
+        run: mingw32-make clean
+        continue-on-error: true
+
+      # ------------------------------------------------------------ #
+      # 4. Build
+      #    No EXTRA_CFLAGS here — ASan is unavailable on MinGW.
+      #    -g is still useful for any post-mortem crash analysis.
+      # ------------------------------------------------------------ #
+      - name: Build Unit Tests
+        working-directory: Unit_Test
+        env:
+          CC: gcc
+        # Target must be run_tests.exe — on Windows the Makefile sets
+        # TARGET = run_tests.exe, so "run_tests" has no rule.
+        run: mingw32-make run_tests.exe -j4
+
+      # ------------------------------------------------------------ #
+      # 5. Run (.exe extension required on Windows)
+      # ------------------------------------------------------------ #
+      - name: Run Unit Tests
+        working-directory: Unit_Test
+        shell: pwsh
+        run: |
+          $proc = Start-Process `
+            -FilePath ".\run_tests.exe" `
+            -Wait `
+            -PassThru `
+            -NoNewWindow `
+            -RedirectStandardOutput test_output.txt
+          Get-Content test_output.txt |
+            Select-String -Pattern "^-+|PASS|FAIL|IGNORE|Tests|Failures|Ignored" |
+            ForEach-Object { $_.Line }
+          exit $proc.ExitCode
+
+      # ------------------------------------------------------------ #
+      # 6. Upload log
+      # ------------------------------------------------------------ #
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-windows
+          path: Unit_Test/test_output.txt
+          retention-days: 30
+
+
+  # ================================================================ #
+  # JOB 3 — Summary gate
+  #   Both jobs must pass before this one succeeds.
+  #   Useful as the single required status check in branch protection.
+  # ================================================================ #
+  all-tests-passed:
+    name: "All Tests Passed"
+    runs-on: ubuntu-latest
+    needs:
+      - run-tests-ubuntu
+      - run-tests-windows
+    if: always()
+
+    steps:
+      - name: Check Results
+        run: |
+          UBUNTU="${{ needs.run-tests-ubuntu.result }}"
+          WINDOWS="${{ needs.run-tests-windows.result }}"
+
+          echo "Ubuntu  : $UBUNTU"
+          echo "Windows : $WINDOWS"
+
+          if [[ "$UBUNTU" != "success" || "$WINDOWS" != "success" ]]; then
+            echo "One or more jobs failed."
+            exit 1
+          fi
+          echo "All jobs passed."

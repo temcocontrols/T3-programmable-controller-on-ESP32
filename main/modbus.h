@@ -80,7 +80,7 @@ enum {
 	MODBUS_COM2_TYPE = 21,
 	MODBUS_ETHERNET_STATUS	= 22,
 	MODBUS_ENABLE_DEBUG = 23,
-
+	MODBUS_ENABLE_MQTT = 24,
 	MODBUS_DSL = 25,
 	MODBUS_TIME_ZONE = 26,
 	MODBUS_SNTP_EN,		//  27
@@ -231,6 +231,30 @@ enum {
 
 	MODBUS_WIFI_END = 2100,
 /******** WIFI END ************************/
+
+/******** WIREGUARD START ************************/
+	MODBUS_WIREGUARD_ENABLE = 2100,  // Enable/Disable WireGuard
+	MODBUS_WIREGUARD_PRIVATE_KEY_START = 2101,  // 2101 ~ 2133 (64 bytes = 32 registers)
+	MODBUS_WIREGUARD_PRIVATE_KEY_END = 2133,
+	MODBUS_WIREGUARD_PEER_PUBLIC_KEY_START = 2134,  // 2134 ~ 2166 (64 bytes = 32 registers)
+	MODBUS_WIREGUARD_PEER_PUBLIC_KEY_END = 2166,
+	MODBUS_WIREGUARD_PRESHARED_KEY_START = 2167,  // 2167 ~ 2199 (64 bytes = 32 registers)
+	MODBUS_WIREGUARD_PRESHARED_KEY_END = 2199,
+	MODBUS_WIREGUARD_LOCAL_IP1 = 2200,
+	MODBUS_WIREGUARD_LOCAL_IP2,
+	MODBUS_WIREGUARD_LOCAL_IP3,
+	MODBUS_WIREGUARD_LOCAL_IP4,
+	/* Netmask is fixed to 255.255.255.0 - not configurable */
+	MODBUS_WIREGUARD_PORT = 2204,  /* Both local and peer listen/send on same port */
+	MODBUS_WIREGUARD_PEER_IP1,
+	MODBUS_WIREGUARD_PEER_IP2,
+	MODBUS_WIREGUARD_PEER_IP3,
+	MODBUS_WIREGUARD_PEER_IP4,
+	/* Keepalive is fixed to 25 seconds - not configurable */
+	/* Ping address is fixed to 10.0.0.1 - not configurable */
+
+	MODBUS_WIREGUARD_END = 2250,
+/******** WIREGUARD END ************************/
 	MODBUS_TASK_TEST = 4000,
 
     MODBUS_TEST_1 = 7000,

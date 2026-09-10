@@ -82,6 +82,7 @@ extern uint8_t invokeid_mstp;
 void check_SD_PnP(void);
 void clear_currnet_page(void);
 void Save_Email_Setting(void);
+esp_err_t save_wireguard_config_to_flash(void);
 void Save_MSV(void);
 
 #if ARM_TSTAT_WIFI
@@ -1611,7 +1612,6 @@ void handler_private_transfer(
 					}
 					break;
 
-
 				case WRITE_MSV_COMMAND:
 					//write_page_en[25] = 1;
 					Test[11]++;
@@ -1622,6 +1622,10 @@ void handler_private_transfer(
 					//write_page_en[4] = 1;
 
 					ptr = (uint8_t *)&Email_Setting;
+				break;
+
+				case WRITE_WIREGUARD_CFG:
+					ptr = (uint8_t *)&wireguard_point;
 				break;
 
 				default:
@@ -1894,11 +1898,14 @@ void handler_private_transfer(
 					{
 					    Save_Email_Setting();
 					}
+					else if(command == WRITE_WIREGUARD_CFG)
+					{
+						save_wireguard_config_to_flash();
+					}
 					else if(command == WRITE_MSV_COMMAND)
 					{
 						Save_MSV();
 					}
-
 				}
 			}
 		}
@@ -2162,6 +2169,10 @@ void handler_private_transfer(
 
 			case READ_EMAIL_ALARM:
 				ptr = (uint8_t *)&Email_Setting;
+				break;
+
+			case READ_WIREGUARD_CFG:
+				ptr = (uint8_t *)&wireguard_point;
 				break;
 
 			default:
