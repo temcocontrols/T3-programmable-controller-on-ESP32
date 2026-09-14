@@ -15,7 +15,6 @@
 #include "freertos/task.h"
 #include "hub_network_manager.h"
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 #include "esp_event.h"
 #include "esp_modem_api.h"
 #include "esp_modem_c_api_types.h"
@@ -26,8 +25,6 @@
 #include "lwip/ip_addr.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
-#include "ping/ping_sock.h"
-#endif
 
 static const char *TAG = "hub_lte_pppos";
 
@@ -54,34 +51,6 @@ static const char *TAG = "hub_lte_pppos";
 #define HUB_LTE_PPPOS_RECONNECT_DELAY_1_MS 5000U
 #define HUB_LTE_PPPOS_RECONNECT_DELAY_2_MS 10000U
 #define HUB_LTE_PPPOS_RECONNECT_DELAY_N_MS 30000U
-
-#ifndef HUB_LTE_PPPOS_NET_TEST_ENABLE
-#define HUB_LTE_PPPOS_NET_TEST_ENABLE 1
-#endif
-
-#ifndef HUB_LTE_PPPOS_NET_TEST_PUBLIC_IP
-#define HUB_LTE_PPPOS_NET_TEST_PUBLIC_IP "114.114.114.114"
-#endif
-
-#ifndef HUB_LTE_PPPOS_NET_TEST_DNS_NAME
-#define HUB_LTE_PPPOS_NET_TEST_DNS_NAME "example.com"
-#endif
-
-#ifndef HUB_LTE_PPPOS_NET_TEST_UDP_ENABLE
-#define HUB_LTE_PPPOS_NET_TEST_UDP_ENABLE 1
-#endif
-
-#define HUB_LTE_PPPOS_NET_TEST_PING_TIMEOUT_MS 3000U
-#define HUB_LTE_PPPOS_NET_TEST_SETTLE_MS 1000U
-#define HUB_LTE_PPPOS_NET_TEST_SOCKET_TIMEOUT_MS 5000U
-#define HUB_LTE_PPPOS_NET_TEST_TASK_STACK 4096U
-#define HUB_LTE_PPPOS_NET_TEST_TASK_PRIO 4U
-#define HUB_LTE_PPPOS_NET_TEST_TCP_HTTP_PORT 80U
-#define HUB_LTE_PPPOS_NET_TEST_DNS_PORT 53U
-#define HUB_LTE_PPPOS_NET_TEST_DNS_QUERY_MAX_LEN 96U
-#define HUB_LTE_PPPOS_NET_TEST_DNS_RESPONSE_MAX_LEN 256U
-#define HUB_LTE_PPPOS_NET_TEST_HTTP_RESPONSE_MAX_LEN 96U
-#define HUB_LTE_PPPOS_PING_DONE_BIT BIT0
 
 typedef struct {
     hub_ppp_state_t current_state;
@@ -163,7 +132,6 @@ typedef struct {
 static hub_lte_cell_recovery_t s_lte_cell_recovery;
 static portMUX_TYPE s_lte_cleanup_lock = portMUX_INITIALIZER_UNLOCKED;
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 static esp_modem_dte_config_t s_lte_dte_config;
 static esp_modem_dce_t *s_lte_dce;
 static esp_netif_t *s_lte_ppp_netif;
@@ -173,10 +141,6 @@ static TickType_t s_lte_data_mode_enter_tick;
 static uint32_t s_lte_terminal_unexpected_flow_count;
 static bool s_lte_terminal_break_after_data;
 static bool s_lte_timeout_cleanup_active;
-static TaskHandle_t s_lte_net_test_task;
-static bool s_lte_net_test_running;
-static portMUX_TYPE s_lte_net_test_lock = portMUX_INITIALIZER_UNLOCKED;
-#endif
 
 static esp_err_t hub_lte_pppos_create_netif(void);
 static esp_err_t hub_lte_pppos_create_modem(void);
@@ -206,13 +170,9 @@ static void hub_lte_pppos_reconnect_process(void);
 
 static bool hub_lte_pppos_real_runtime_allowed(void)
 {
-    return (HUB_LTE_PPPOS_ENABLE != 0) &&
-           (HUB_LTE_PPPOS_TEST_MODE != 0) &&
-           (HUB_LTE_PPPOS_REAL_RUNTIME != 0) &&
-           (HUB_LTE_PPPOS_MANUAL_TEST != 0);
+    return s_lte_status.initialized;
 }
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 static void hub_lte_pppos_ppp_event_handler(void *handler_arg,
                                             esp_event_base_t event_base,
                                             int32_t event_id,
@@ -221,33 +181,7 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
                                            esp_event_base_t event_base,
                                            int32_t event_id,
                                            void *event_data);
-#endif
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_NET_TEST_ENABLE
-typedef struct {
-    esp_ip4_addr_t ip;
-    esp_ip4_addr_t gateway;
-    char ip_text[HUB_LTE_PPPOS_IP_ADDR_LEN];
-    char gateway_text[HUB_LTE_PPPOS_IP_ADDR_LEN];
-} hub_lte_pppos_net_test_args_t;
-
-typedef struct {
-    EventGroupHandle_t event_group;
-    bool success;
-    uint32_t elapsed_ms;
-    uint32_t recv_size;
-    uint8_t ttl;
-} hub_lte_pppos_ping_result_t;
-
-static void hub_lte_pppos_start_net_tests(const ip_event_got_ip_t *event);
-static void hub_lte_pppos_net_test_task(void *arg);
-static const char *hub_lte_pppos_ping_ipv4(const char *label, const ip_addr_t *target_addr);
-static bool hub_lte_pppos_resolve_dns_name(const char *name, struct sockaddr_in *resolved_addr, char *addr_text, size_t addr_text_len);
-static bool hub_lte_pppos_tcp_http_roundtrip(const char *name, const struct sockaddr_in *remote_addr, const char *remote_ip);
-static const char *hub_lte_pppos_udp_dns_roundtrip(const char *name);
-#endif
-
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 static const char *hub_lte_pppos_ip_event_name(int32_t event_id)
 {
     switch (event_id) {
@@ -445,7 +379,6 @@ static esp_err_t hub_lte_pppos_pre_data_at_check_one(const char *cmd)
 
 static esp_err_t hub_lte_pppos_pre_data_at_check(void)
 {
-#if HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_MANUAL_TEST
     esp_err_t first_error = ESP_OK;
     esp_err_t ret = hub_lte_pppos_pre_data_at_check_one("AT");
     if (ret != ESP_OK) {
@@ -460,9 +393,6 @@ static esp_err_t hub_lte_pppos_pre_data_at_check(void)
         first_error = ret;
     }
     return first_error;
-#else
-    return ESP_OK;
-#endif
 }
 
 static void hub_lte_pppos_log_dns_info(int dns_type, const char *name)
@@ -481,661 +411,6 @@ static void hub_lte_pppos_log_dns_info(int dns_type, const char *name)
     }
 }
 
-#if HUB_LTE_PPPOS_NET_TEST_ENABLE
-static const char *hub_lte_pppos_test_result(bool pass)
-{
-    return pass ? "PASS" : "FAIL";
-}
-
-static bool hub_lte_pppos_ipv4_valid(const esp_ip4_addr_t *addr)
-{
-    return (addr != NULL) && (addr->addr != 0);
-}
-
-static bool hub_lte_pppos_net_test_ppp_up(const hub_lte_pppos_net_test_args_t *test_args)
-{
-    return (test_args != NULL) &&
-           hub_lte_pppos_ipv4_valid(&test_args->ip) &&
-           s_lte_status.connected &&
-           (hub_lte_pppos_get_state() == HUB_PPP_STATE_RUNNING);
-}
-
-static bool hub_lte_pppos_net_test_try_mark_running(void)
-{
-    bool marked = false;
-
-    taskENTER_CRITICAL(&s_lte_net_test_lock);
-    if (!s_lte_net_test_running) {
-        s_lte_net_test_running = true;
-        marked = true;
-    }
-    taskEXIT_CRITICAL(&s_lte_net_test_lock);
-
-    return marked;
-}
-
-static void hub_lte_pppos_net_test_clear_running(void)
-{
-    taskENTER_CRITICAL(&s_lte_net_test_lock);
-    s_lte_net_test_running = false;
-    s_lte_net_test_task = NULL;
-    taskEXIT_CRITICAL(&s_lte_net_test_lock);
-}
-
-static void hub_lte_pppos_ping_success(esp_ping_handle_t handle, void *args)
-{
-    hub_lte_pppos_ping_result_t *result = (hub_lte_pppos_ping_result_t *)args;
-    if (result == NULL) {
-        return;
-    }
-
-    result->success = true;
-    (void)esp_ping_get_profile(handle, ESP_PING_PROF_TIMEGAP, &result->elapsed_ms, sizeof(result->elapsed_ms));
-    (void)esp_ping_get_profile(handle, ESP_PING_PROF_SIZE, &result->recv_size, sizeof(result->recv_size));
-    (void)esp_ping_get_profile(handle, ESP_PING_PROF_TTL, &result->ttl, sizeof(result->ttl));
-}
-
-static void hub_lte_pppos_ping_timeout(esp_ping_handle_t handle, void *args)
-{
-    (void)handle;
-    hub_lte_pppos_ping_result_t *result = (hub_lte_pppos_ping_result_t *)args;
-    if (result != NULL) {
-        result->success = false;
-    }
-}
-
-static void hub_lte_pppos_ping_end(esp_ping_handle_t handle, void *args)
-{
-    (void)handle;
-    hub_lte_pppos_ping_result_t *result = (hub_lte_pppos_ping_result_t *)args;
-    if ((result != NULL) && (result->event_group != NULL)) {
-        xEventGroupSetBits(result->event_group, HUB_LTE_PPPOS_PING_DONE_BIT);
-    }
-}
-
-static const char *hub_lte_pppos_ping_ipv4(const char *label, const ip_addr_t *target_addr)
-{
-    char target_text[IPADDR_STRLEN_MAX] = {0};
-    ipaddr_ntoa_r(target_addr, target_text, sizeof(target_text));
-
-    hub_lte_pppos_ping_result_t result = {0};
-    result.event_group = xEventGroupCreate();
-    if (result.event_group == NULL) {
-        ESP_LOGE(TAG, "PPP traffic test ping %s: INFO result=ERROR reason=event_group_alloc", label);
-        return "ERROR";
-    }
-
-    int ppp_if_index = esp_netif_get_netif_impl_index(s_lte_ppp_netif);
-    esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
-    ping_config.target_addr = *target_addr;
-    ping_config.count = 1;
-    ping_config.timeout_ms = HUB_LTE_PPPOS_NET_TEST_PING_TIMEOUT_MS;
-    ping_config.interface = (ppp_if_index > 0) ? (uint32_t)ppp_if_index : 0U;
-
-    esp_ping_callbacks_t callbacks = {
-        .on_ping_success = hub_lte_pppos_ping_success,
-        .on_ping_timeout = hub_lte_pppos_ping_timeout,
-        .on_ping_end = hub_lte_pppos_ping_end,
-        .cb_args = &result,
-    };
-
-    esp_ping_handle_t ping = NULL;
-    esp_err_t ret = esp_ping_new_session(&ping_config, &callbacks, &ping);
-    if (ret != ESP_OK) {
-        ESP_LOGI(TAG,
-                 "PPP traffic test ping %s: INFO result=ERROR target=%s create_ret=%s ppp_if_index=%ld route_unchanged=1",
-                 label,
-                 target_text,
-                 esp_err_to_name(ret),
-                 (long)ppp_if_index);
-        vEventGroupDelete(result.event_group);
-        return "ERROR";
-    }
-
-    ret = esp_ping_start(ping);
-    if (ret != ESP_OK) {
-        ESP_LOGI(TAG,
-                 "PPP traffic test ping %s: INFO result=ERROR target=%s start_ret=%s ppp_if_index=%ld route_unchanged=1",
-                 label,
-                 target_text,
-                 esp_err_to_name(ret),
-                 (long)ppp_if_index);
-        (void)esp_ping_delete_session(ping);
-        vEventGroupDelete(result.event_group);
-        return "ERROR";
-    }
-
-    EventBits_t bits = xEventGroupWaitBits(result.event_group,
-                                           HUB_LTE_PPPOS_PING_DONE_BIT,
-                                           pdTRUE,
-                                           pdFALSE,
-                                           pdMS_TO_TICKS(HUB_LTE_PPPOS_NET_TEST_PING_TIMEOUT_MS + 2000U));
-    bool done = (bits & HUB_LTE_PPPOS_PING_DONE_BIT) != 0;
-    if (!done) {
-        (void)esp_ping_stop(ping);
-    }
-
-    (void)esp_ping_delete_session(ping);
-    vEventGroupDelete(result.event_group);
-
-    if (done && result.success) {
-        ESP_LOGI(TAG,
-                 "PPP traffic test ping %s: INFO result=PASS target=%s time=%lu ms size=%lu ttl=%u ppp_if_index=%ld route_unchanged=1",
-                 label,
-                 target_text,
-                 (unsigned long)result.elapsed_ms,
-                 (unsigned long)result.recv_size,
-                 result.ttl,
-                 (long)ppp_if_index);
-        return "PASS";
-    }
-
-    ESP_LOGI(TAG,
-             "PPP traffic test ping %s: INFO result=NO_REPLY target=%s timeout_ms=%u icmp_may_be_filtered=1 ppp_if_index=%ld route_unchanged=1",
-             label,
-             target_text,
-             HUB_LTE_PPPOS_NET_TEST_PING_TIMEOUT_MS,
-             (long)ppp_if_index);
-    return "NO_REPLY";
-}
-
-static bool hub_lte_pppos_resolve_dns_name(const char *name, struct sockaddr_in *resolved_addr, char *addr_text, size_t addr_text_len)
-{
-    struct addrinfo hints = {
-        .ai_family = AF_INET,
-        .ai_socktype = SOCK_DGRAM,
-    };
-    struct addrinfo *result = NULL;
-
-    int err = getaddrinfo(name, NULL, &hints, &result);
-    if (err != 0) {
-        ESP_LOGW(TAG, "PPP traffic test DNS resolve: FAIL name=%s err=%d", name, err);
-        return false;
-    }
-
-    bool valid = false;
-    if ((result != NULL) &&
-        (result->ai_addr != NULL) &&
-        (result->ai_addrlen >= sizeof(struct sockaddr_in))) {
-        struct sockaddr_in *addr = (struct sockaddr_in *)result->ai_addr;
-        if (addr->sin_addr.s_addr != 0) {
-            valid = true;
-            if (resolved_addr != NULL) {
-                *resolved_addr = *addr;
-            }
-            if ((addr_text != NULL) && (addr_text_len > 0)) {
-                inet_ntoa_r(addr->sin_addr, addr_text, addr_text_len);
-            }
-        }
-    }
-    freeaddrinfo(result);
-
-    if (valid) {
-        ESP_LOGI(TAG, "PPP traffic test DNS resolve: PASS name=%s addr=%s", name, ((addr_text != NULL) && (addr_text[0] != '\0')) ? addr_text : "-");
-        return true;
-    }
-
-    ESP_LOGW(TAG, "PPP traffic test DNS resolve: FAIL name=%s reason=no_valid_ipv4_addr", name);
-    return false;
-}
-
-static void hub_lte_pppos_set_socket_timeout(int sock, uint32_t timeout_ms)
-{
-    struct timeval timeout = {
-        .tv_sec = (long)(timeout_ms / 1000U),
-        .tv_usec = (long)((timeout_ms % 1000U) * 1000U),
-    };
-    (void)setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    (void)setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-}
-
-static bool hub_lte_pppos_wait_tcp_connect(int sock, const struct sockaddr_in *remote_addr, int *connect_errno)
-{
-    int flags = fcntl(sock, F_GETFL, 0);
-    if (flags >= 0) {
-        (void)fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-    }
-
-    int ret = connect(sock, (const struct sockaddr *)remote_addr, sizeof(*remote_addr));
-    if (ret == 0) {
-        if (flags >= 0) {
-            (void)fcntl(sock, F_SETFL, flags);
-        }
-        return true;
-    }
-
-    if (errno != EINPROGRESS) {
-        if (connect_errno != NULL) {
-            *connect_errno = errno;
-        }
-        return false;
-    }
-
-    fd_set write_set;
-    FD_ZERO(&write_set);
-    FD_SET(sock, &write_set);
-    struct timeval timeout = {
-        .tv_sec = (long)(HUB_LTE_PPPOS_NET_TEST_SOCKET_TIMEOUT_MS / 1000U),
-        .tv_usec = (long)((HUB_LTE_PPPOS_NET_TEST_SOCKET_TIMEOUT_MS % 1000U) * 1000U),
-    };
-
-    ret = select(sock + 1, NULL, &write_set, NULL, &timeout);
-    if (ret <= 0) {
-        if (connect_errno != NULL) {
-            *connect_errno = (ret == 0) ? ETIMEDOUT : errno;
-        }
-        return false;
-    }
-
-    int so_error = 0;
-    socklen_t so_error_len = sizeof(so_error);
-    if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &so_error_len) != 0) {
-        if (connect_errno != NULL) {
-            *connect_errno = errno;
-        }
-        return false;
-    }
-    if (so_error != 0) {
-        if (connect_errno != NULL) {
-            *connect_errno = so_error;
-        }
-        return false;
-    }
-
-    if (flags >= 0) {
-        (void)fcntl(sock, F_SETFL, flags);
-    }
-    return true;
-}
-
-static void hub_lte_pppos_copy_status_line(char *dest, size_t dest_len, const char *src, int src_len)
-{
-    if ((dest == NULL) || (dest_len == 0)) {
-        return;
-    }
-    dest[0] = '\0';
-    if ((src == NULL) || (src_len <= 0)) {
-        return;
-    }
-
-    size_t copy_len = 0;
-    while ((copy_len < (dest_len - 1U)) &&
-           (copy_len < (size_t)src_len) &&
-           (src[copy_len] != '\r') &&
-           (src[copy_len] != '\n')) {
-        dest[copy_len] = src[copy_len];
-        copy_len++;
-    }
-    dest[copy_len] = '\0';
-}
-
-static bool hub_lte_pppos_tcp_http_roundtrip(const char *name, const struct sockaddr_in *remote_addr, const char *remote_ip)
-{
-    if ((remote_addr == NULL) || (remote_ip == NULL) || (remote_ip[0] == '\0')) {
-        ESP_LOGW(TAG, "PPP traffic test TCP HTTP: SKIP reason=no_valid_dns_result");
-        return false;
-    }
-
-    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    if (sock < 0) {
-        ESP_LOGW(TAG, "PPP traffic test TCP HTTP: FAIL remote=%s connect=0 sent=0 received=0 errno=%d", remote_ip, errno);
-        return false;
-    }
-
-    hub_lte_pppos_set_socket_timeout(sock, HUB_LTE_PPPOS_NET_TEST_SOCKET_TIMEOUT_MS);
-
-    struct sockaddr_in connect_addr = *remote_addr;
-    connect_addr.sin_port = htons(HUB_LTE_PPPOS_NET_TEST_TCP_HTTP_PORT);
-    int connect_errno = 0;
-    bool connected = hub_lte_pppos_wait_tcp_connect(sock, &connect_addr, &connect_errno);
-    if (!connected) {
-        ESP_LOGW(TAG,
-                 "PPP traffic test TCP HTTP: FAIL remote=%s connect=0 sent=0 received=0 errno=%d",
-                 remote_ip,
-                 connect_errno);
-        close(sock);
-        return false;
-    }
-
-    char request[128];
-    int request_len = snprintf(request,
-                               sizeof(request),
-                               "HEAD / HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",
-                               name);
-    int sent = -1;
-    int received = -1;
-    char response[HUB_LTE_PPPOS_NET_TEST_HTTP_RESPONSE_MAX_LEN] = {0};
-    char status_line[48] = {0};
-    if ((request_len > 0) && (request_len < (int)sizeof(request))) {
-        sent = send(sock, request, (size_t)request_len, 0);
-        if (sent > 0) {
-            received = recv(sock, response, sizeof(response) - 1U, 0);
-            if (received > 0) {
-                response[received] = '\0';
-                hub_lte_pppos_copy_status_line(status_line, sizeof(status_line), response, received);
-            }
-        }
-    }
-
-    int saved_errno = errno;
-    (void)shutdown(sock, SHUT_RDWR);
-    close(sock);
-
-    if ((sent > 0) && (received > 0)) {
-        ESP_LOGI(TAG,
-                 "PPP traffic test TCP HTTP: PASS remote=%s connect=1 sent=%d received=%d status=%s",
-                 remote_ip,
-                 sent,
-                 received,
-                 status_line[0] != '\0' ? status_line : "-");
-        return true;
-    }
-
-    ESP_LOGW(TAG,
-             "PPP traffic test TCP HTTP: FAIL remote=%s connect=1 sent=%d received=%d status=%s errno=%d",
-             remote_ip,
-             sent,
-             received,
-             status_line[0] != '\0' ? status_line : "-",
-             saved_errno);
-    return false;
-}
-
-static bool hub_lte_pppos_get_ppp_dns_server(esp_ip4_addr_t *dns_addr, char *dns_text, size_t dns_text_len)
-{
-    const int dns_types[] = {
-        ESP_NETIF_DNS_MAIN,
-        ESP_NETIF_DNS_BACKUP,
-    };
-
-    for (size_t index = 0; index < (sizeof(dns_types) / sizeof(dns_types[0])); index++) {
-        esp_netif_dns_info_t dns_info = {0};
-        esp_err_t ret = esp_netif_get_dns_info(s_lte_ppp_netif, dns_types[index], &dns_info);
-        if ((ret == ESP_OK) &&
-            (dns_info.ip.type == ESP_IPADDR_TYPE_V4) &&
-            hub_lte_pppos_ipv4_valid(&dns_info.ip.u_addr.ip4)) {
-            if (dns_addr != NULL) {
-                *dns_addr = dns_info.ip.u_addr.ip4;
-            }
-            if ((dns_text != NULL) && (dns_text_len > 0)) {
-                snprintf(dns_text, dns_text_len, IPSTR, IP2STR(&dns_info.ip.u_addr.ip4));
-            }
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static size_t hub_lte_pppos_build_dns_query(uint8_t *query, size_t query_len, uint16_t transaction_id, const char *name)
-{
-    if ((query == NULL) || (name == NULL) || (query_len < 18U)) {
-        return 0;
-    }
-
-    memset(query, 0, query_len);
-    query[0] = (uint8_t)(transaction_id >> 8);
-    query[1] = (uint8_t)(transaction_id & 0xFFU);
-    query[2] = 0x01;
-    query[5] = 0x01;
-
-    size_t offset = 12U;
-    const char *label = name;
-    while (*label != '\0') {
-        const char *dot = strchr(label, '.');
-        size_t label_len = (dot != NULL) ? (size_t)(dot - label) : strlen(label);
-        if ((label_len == 0U) || (label_len > 63U) || ((offset + 1U + label_len + 5U) > query_len)) {
-            return 0;
-        }
-        query[offset++] = (uint8_t)label_len;
-        memcpy(&query[offset], label, label_len);
-        offset += label_len;
-        if (dot == NULL) {
-            break;
-        }
-        label = dot + 1;
-    }
-
-    query[offset++] = 0x00;
-    query[offset++] = 0x00;
-    query[offset++] = 0x01;
-    query[offset++] = 0x00;
-    query[offset++] = 0x01;
-    return offset;
-}
-
-static const char *hub_lte_pppos_udp_dns_roundtrip(const char *name)
-{
-    esp_ip4_addr_t dns_addr = {0};
-    char dns_text[HUB_LTE_PPPOS_IP_ADDR_LEN] = {0};
-    if (!hub_lte_pppos_get_ppp_dns_server(&dns_addr, dns_text, sizeof(dns_text))) {
-        ESP_LOGI(TAG, "PPP traffic test UDP DNS: SKIP reason=no_valid_ppp_dns_server");
-        return "SKIP";
-    }
-
-    uint8_t query[HUB_LTE_PPPOS_NET_TEST_DNS_QUERY_MAX_LEN] = {0};
-    uint16_t transaction_id = (uint16_t)(((uint32_t)xTaskGetTickCount()) ^ dns_addr.addr ^ (uint32_t)s_lte_status.connected);
-    size_t query_len = hub_lte_pppos_build_dns_query(query, sizeof(query), transaction_id, name);
-    if (query_len == 0U) {
-        ESP_LOGW(TAG, "PPP traffic test UDP DNS: FAIL server=%s reason=query_build_failed", dns_text);
-        return "FAIL";
-    }
-
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (sock < 0) {
-        ESP_LOGW(TAG, "PPP traffic test UDP DNS: FAIL server=%s sent=0 received=0 errno=%d", dns_text, errno);
-        return "FAIL";
-    }
-
-    hub_lte_pppos_set_socket_timeout(sock, HUB_LTE_PPPOS_NET_TEST_SOCKET_TIMEOUT_MS);
-
-    struct sockaddr_in dest_addr = {0};
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = htons(HUB_LTE_PPPOS_NET_TEST_DNS_PORT);
-    dest_addr.sin_addr.s_addr = dns_addr.addr;
-
-    int sent = sendto(sock,
-                      query,
-                      query_len,
-                      0,
-                      (struct sockaddr *)&dest_addr,
-                      sizeof(dest_addr));
-    if (sent != (int)query_len) {
-        int saved_errno = errno;
-        ESP_LOGW(TAG, "PPP traffic test UDP DNS: FAIL server=%s sent=%d received=0 errno=%d", dns_text, sent, saved_errno);
-        close(sock);
-        return "FAIL";
-    }
-
-    uint8_t response[HUB_LTE_PPPOS_NET_TEST_DNS_RESPONSE_MAX_LEN] = {0};
-    int received = recvfrom(sock, response, sizeof(response), 0, NULL, NULL);
-    int saved_errno = errno;
-    close(sock);
-
-    bool enough = received >= 12;
-    bool id_match = enough && (response[0] == query[0]) && (response[1] == query[1]);
-    bool is_response = enough && ((response[2] & 0x80U) != 0);
-    uint8_t rcode = enough ? (response[3] & 0x0FU) : 0xFFU;
-    bool pass = enough && id_match && is_response;
-    if (pass) {
-        ESP_LOGI(TAG,
-                 "PPP traffic test UDP DNS: PASS server=%s sent=%d received=%d id_match=%d rcode=%u errno=0",
-                 dns_text,
-                 sent,
-                 received,
-                 id_match,
-                 rcode);
-        return "PASS";
-    }
-
-    ESP_LOGW(TAG,
-             "PPP traffic test UDP DNS: FAIL server=%s sent=%d received=%d id_match=%d rcode=%u errno=%d",
-             dns_text,
-             sent,
-             received,
-             id_match,
-             rcode,
-             saved_errno);
-    return "FAIL";
-}
-
-static void hub_lte_pppos_log_net_test_summary(const char *ppp_result,
-                                               const char *dns_result,
-                                               const char *tcp_result,
-                                               const char *udp_result,
-                                               const char *gateway_result,
-                                               const char *public_result,
-                                               const char *network_result)
-{
-    ESP_LOGI(TAG,
-             "PPP traffic test result: ppp_up=%s dns=%s tcp=%s udp_roundtrip=%s gateway_ping=%s public_ping=%s network_usable=%s",
-             ppp_result,
-             dns_result,
-             tcp_result,
-             udp_result,
-             gateway_result,
-             public_result,
-             network_result);
-}
-
-static void hub_lte_pppos_net_test_task(void *arg)
-{
-    hub_lte_pppos_net_test_args_t *test_args = (hub_lte_pppos_net_test_args_t *)arg;
-    const char *gateway_result = "SKIP";
-    const char *public_result = "SKIP";
-    const char *dns_result = "SKIP";
-    const char *udp_result = "SKIP";
-    const char *tcp_result = "SKIP";
-    const char *ppp_result = "FAIL";
-    const char *network_result = "FAIL";
-    bool dns_pass = false;
-    bool tcp_pass = false;
-    struct sockaddr_in resolved_addr = {0};
-    char resolved_ip[INET_ADDRSTRLEN] = {0};
-
-    if (test_args == NULL) {
-        hub_lte_pppos_net_test_clear_running();
-        vTaskDelete(NULL);
-        return;
-    }
-
-    ESP_LOGI(TAG,
-             "PPP traffic test begin: ppp_ip=%s gateway=%s public_ip=%s dns_name=%s udp=%d settle_ms=%u",
-             test_args->ip_text,
-             test_args->gateway_text,
-             HUB_LTE_PPPOS_NET_TEST_PUBLIC_IP,
-             HUB_LTE_PPPOS_NET_TEST_DNS_NAME,
-             HUB_LTE_PPPOS_NET_TEST_UDP_ENABLE,
-             HUB_LTE_PPPOS_NET_TEST_SETTLE_MS);
-
-    vTaskDelay(pdMS_TO_TICKS(HUB_LTE_PPPOS_NET_TEST_SETTLE_MS));
-
-    if (!hub_lte_pppos_net_test_ppp_up(test_args)) {
-        goto finish;
-    }
-
-    if (test_args->gateway.addr != 0) {
-        ip_addr_t gateway_addr;
-        IP_ADDR4(&gateway_addr,
-                 esp_ip4_addr1(&test_args->gateway),
-                 esp_ip4_addr2(&test_args->gateway),
-                 esp_ip4_addr3(&test_args->gateway),
-                 esp_ip4_addr4(&test_args->gateway));
-        gateway_result = hub_lte_pppos_ping_ipv4("gateway", &gateway_addr);
-    } else {
-        ESP_LOGI(TAG, "PPP traffic test ping gateway: INFO result=SKIP reason=empty_gateway");
-    }
-
-    if (!hub_lte_pppos_net_test_ppp_up(test_args)) {
-        goto finish;
-    }
-
-    ip_addr_t public_addr;
-    if (ipaddr_aton(HUB_LTE_PPPOS_NET_TEST_PUBLIC_IP, &public_addr) && IP_IS_V4(&public_addr)) {
-        public_result = hub_lte_pppos_ping_ipv4("public", &public_addr);
-    } else {
-        ESP_LOGI(TAG, "PPP traffic test ping public: INFO result=SKIP invalid_target=%s", HUB_LTE_PPPOS_NET_TEST_PUBLIC_IP);
-    }
-
-    if (!hub_lte_pppos_net_test_ppp_up(test_args)) {
-        goto finish;
-    }
-
-    dns_pass = hub_lte_pppos_resolve_dns_name(HUB_LTE_PPPOS_NET_TEST_DNS_NAME, &resolved_addr, resolved_ip, sizeof(resolved_ip));
-    dns_result = hub_lte_pppos_test_result(dns_pass);
-
-    if (!hub_lte_pppos_net_test_ppp_up(test_args)) {
-        goto finish;
-    }
-
-    tcp_pass = hub_lte_pppos_tcp_http_roundtrip(HUB_LTE_PPPOS_NET_TEST_DNS_NAME,
-                                                dns_pass ? &resolved_addr : NULL,
-                                                dns_pass ? resolved_ip : NULL);
-    tcp_result = hub_lte_pppos_test_result(tcp_pass);
-
-    if (!hub_lte_pppos_net_test_ppp_up(test_args)) {
-        goto finish;
-    }
-
-#if HUB_LTE_PPPOS_NET_TEST_UDP_ENABLE
-    udp_result = hub_lte_pppos_udp_dns_roundtrip(HUB_LTE_PPPOS_NET_TEST_DNS_NAME);
-#else
-    ESP_LOGI(TAG, "PPP traffic test UDP DNS: SKIP reason=disabled");
-#endif
-
-finish:
-    bool ppp_up = hub_lte_pppos_net_test_ppp_up(test_args);
-    ppp_result = hub_lte_pppos_test_result(ppp_up);
-    network_result = hub_lte_pppos_test_result(ppp_up && dns_pass && tcp_pass);
-    hub_lte_pppos_log_net_test_summary(ppp_result,
-                                       dns_result,
-                                       tcp_result,
-                                       udp_result,
-                                       gateway_result,
-                                       public_result,
-                                       network_result);
-
-    free(test_args);
-    hub_lte_pppos_net_test_clear_running();
-    vTaskDelete(NULL);
-}
-
-static void hub_lte_pppos_start_net_tests(const ip_event_got_ip_t *event)
-{
-    if (event == NULL) {
-        return;
-    }
-    if (!hub_lte_pppos_net_test_try_mark_running()) {
-        ESP_LOGW(TAG, "PPP traffic test already running; skip duplicate got-IP trigger");
-        return;
-    }
-
-    hub_lte_pppos_net_test_args_t *test_args = (hub_lte_pppos_net_test_args_t *)calloc(1, sizeof(*test_args));
-    if (test_args == NULL) {
-        ESP_LOGE(TAG, "PPP traffic test start failed: no memory");
-        hub_lte_pppos_net_test_clear_running();
-        return;
-    }
-
-    test_args->ip = event->ip_info.ip;
-    test_args->gateway = event->ip_info.gw;
-    snprintf(test_args->ip_text, sizeof(test_args->ip_text), IPSTR, IP2STR(&event->ip_info.ip));
-    snprintf(test_args->gateway_text, sizeof(test_args->gateway_text), IPSTR, IP2STR(&event->ip_info.gw));
-
-    BaseType_t created = xTaskCreate(hub_lte_pppos_net_test_task,
-                                     "pppos_net_test",
-                                     HUB_LTE_PPPOS_NET_TEST_TASK_STACK,
-                                     test_args,
-                                     HUB_LTE_PPPOS_NET_TEST_TASK_PRIO,
-                                     &s_lte_net_test_task);
-    if (created != pdPASS) {
-        ESP_LOGE(TAG, "PPP traffic test start failed: xTaskCreate returned %ld", (long)created);
-        free(test_args);
-        hub_lte_pppos_net_test_clear_running();
-    }
-}
-#endif
-#endif
 
 static const char *hub_lte_pppos_uart_owner_name(hub_lte_pppos_uart_owner_t owner)
 {
@@ -2163,12 +1438,6 @@ static esp_err_t hub_lte_pppos_cleanup_after_loss(const char *reason)
     s_lte_status.stop_requested = false;
     hub_network_manager_set_lte_status(false, NULL);
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_NET_TEST_ENABLE
-    if (s_lte_net_test_running) {
-        ESP_LOGW(TAG, "PPPoS cleanup: traffic-test task still running; it will abort when PPP state is not RUNNING");
-    }
-#endif
-
     esp_err_t cleanup_ret = hub_lte_pppos_destroy_runtime();
     if (cleanup_ret != ESP_OK) {
         ESP_LOGW(TAG, "PPPoS cleanup runtime destroy returned: %s", esp_err_to_name(cleanup_ret));
@@ -2645,7 +1914,6 @@ static esp_err_t hub_lte_pppos_run_start_preflight(hub_lte_pppos_preflight_t *pr
     return ESP_OK;
 }
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
 static void hub_lte_pppos_ppp_event_handler(void *handler_arg,
                                             esp_event_base_t event_base,
                                             int32_t event_id,
@@ -2726,9 +1994,6 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
         hub_lte_pppos_log_dns_info(ESP_NETIF_DNS_MAIN, "main");
         hub_lte_pppos_log_dns_info(ESP_NETIF_DNS_BACKUP, "backup");
         hub_lte_pppos_log_dns_info(ESP_NETIF_DNS_FALLBACK, "fallback");
-    #if HUB_LTE_PPPOS_NET_TEST_ENABLE
-        hub_lte_pppos_start_net_tests(event);
-    #endif
     } else if (event_id == IP_EVENT_PPP_LOST_IP) {
         s_lte_status.connected = false;
         s_lte_status.ip_addr[0] = '\0';
@@ -2743,11 +2008,9 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
         }
     }
 }
-#endif
 
 static esp_err_t hub_lte_pppos_create_netif(void)
 {
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
     if (s_lte_ppp_netif != NULL) {
         s_lte_runtime.ppp_netif_created = true;
         return ESP_OK;
@@ -2808,14 +2071,10 @@ static esp_err_t hub_lte_pppos_create_netif(void)
     s_lte_ppp_handler_registered = true;
     ESP_LOGI(TAG, "PPP status event handler registered for ESP_EVENT_ANY_ID");
     return ESP_OK;
-#else
-    return ESP_ERR_NOT_SUPPORTED;
-#endif
 }
 
 static esp_err_t hub_lte_pppos_create_modem(void)
 {
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
     if (s_lte_dce != NULL) {
         s_lte_runtime.modem_created = true;
         return ESP_OK;
@@ -2838,16 +2097,9 @@ static esp_err_t hub_lte_pppos_create_modem(void)
     s_lte_dte_config.uart_config.rx_io_num = s_lte_config.rx_io_num;
     s_lte_dte_config.uart_config.rts_io_num = s_lte_config.rts_io_num;
     s_lte_dte_config.uart_config.cts_io_num = s_lte_config.cts_io_num;
-#if HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_MANUAL_TEST
     s_lte_dte_config.uart_config.rts_io_num = UART_PIN_NO_CHANGE;
     s_lte_dte_config.uart_config.cts_io_num = UART_PIN_NO_CHANGE;
     s_lte_dte_config.uart_config.flow_control = ESP_MODEM_FLOW_CONTROL_NONE;
-#else
-    s_lte_dte_config.uart_config.flow_control = ((s_lte_config.rts_io_num != GPIO_NUM_NC) &&
-                                                 (s_lte_config.cts_io_num != GPIO_NUM_NC))
-                                                    ? ESP_MODEM_FLOW_CONTROL_HW
-                                                    : ESP_MODEM_FLOW_CONTROL_NONE;
-#endif
     s_lte_dte_config.uart_config.rx_buffer_size = s_lte_config.rx_buffer_size;
     s_lte_dte_config.uart_config.tx_buffer_size = s_lte_config.tx_buffer_size;
     if (s_lte_config.rx_buffer_size > 0) {
@@ -2871,17 +2123,12 @@ static esp_err_t hub_lte_pppos_create_modem(void)
              s_lte_dte_config.task_priority);
 
     esp_modem_dce_config_t dce_config = ESP_MODEM_DCE_DEFAULT_CONFIG(s_lte_config.apn);
-#if HUB_LTE_PPPOS_USE_SIM7600_DCE
     esp_modem_dce_device_t dce_device = ESP_MODEM_DCE_SIM7600;
-#else
-    esp_modem_dce_device_t dce_device = ESP_MODEM_DCE_GENERIC;
-#endif
     ESP_LOGI(TAG,
-             "PPPoS DCE config: device=%s(%d) apn=%s pdp_context=esp_modem_default data_cmd=ATD*99# alt_cmd=%s",
+             "PPPoS DCE config: device=%s(%d) apn=%s pdp_context=esp_modem_default data_cmd=ATD*99#",
              hub_lte_pppos_dce_device_name(dce_device),
              dce_device,
-             s_lte_config.apn,
-             HUB_LTE_PPPOS_ALT_DIAL_CMD);
+             s_lte_config.apn);
     s_lte_dce = esp_modem_new_dev(dce_device, &s_lte_dte_config, &dce_config, s_lte_ppp_netif);
     if (s_lte_dce == NULL) {
         return ESP_FAIL;
@@ -2902,14 +2149,10 @@ static esp_err_t hub_lte_pppos_create_modem(void)
 
     s_lte_runtime.modem_created = true;
     return ESP_OK;
-#else
-    return ESP_ERR_NOT_SUPPORTED;
-#endif
 }
 
 static esp_err_t hub_lte_pppos_enter_data_mode(void)
 {
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
     if (s_lte_runtime.data_mode_entered) {
         return ESP_OK;
     }
@@ -2923,16 +2166,9 @@ static esp_err_t hub_lte_pppos_enter_data_mode(void)
         return precheck_ret;
     }
 
-    ESP_LOGI(TAG, "enter data mode: dtr_level_before=%d dtr_level_macro=%d dial_mode=%d", a7608_get_dtr_level(), HUB_LTE_PPPOS_DTR_LEVEL_BEFORE_DATA, HUB_LTE_PPPOS_DIAL_MODE);
-#if HUB_LTE_PPPOS_DTR_LEVEL_BEFORE_DATA == 0
-    esp_err_t dtr_ret = a7608_set_dtr_level(0);
-    ESP_LOGI(TAG, "PPPoS DTR request before data mode: requested_level=0 gpio_readback=%d ret=%s", a7608_get_dtr_level(), esp_err_to_name(dtr_ret));
-#elif HUB_LTE_PPPOS_DTR_LEVEL_BEFORE_DATA == 1
+    ESP_LOGI(TAG, "enter data mode: dtr_level_before=%d", a7608_get_dtr_level());
     esp_err_t dtr_ret = a7608_set_dtr_level(1);
     ESP_LOGI(TAG, "PPPoS DTR request before data mode: requested_level=1 gpio_readback=%d ret=%s", a7608_get_dtr_level(), esp_err_to_name(dtr_ret));
-#else
-    ESP_LOGI(TAG, "PPPoS DTR unchanged before data mode: requested_level=-1 gpio_readback=%d", a7608_get_dtr_level());
-#endif
     s_lte_data_mode_enter_tick = xTaskGetTickCount();
     s_lte_terminal_unexpected_flow_count = 0;
     s_lte_terminal_break_after_data = false;
@@ -2944,14 +2180,10 @@ static esp_err_t hub_lte_pppos_enter_data_mode(void)
 
     s_lte_runtime.data_mode_entered = true;
     return ESP_OK;
-#else
-    return ESP_ERR_NOT_SUPPORTED;
-#endif
 }
 
 static esp_err_t hub_lte_pppos_start_ppp(void)
 {
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
     if (!s_lte_runtime.data_mode_entered) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -2959,23 +2191,16 @@ static esp_err_t hub_lte_pppos_start_ppp(void)
     s_lte_runtime.ppp_started = true;
     hub_lte_pppos_set_last_result(ESP_OK, "PPP started; waiting for IP event");
     return ESP_OK;
-#else
-    return ESP_ERR_NOT_SUPPORTED;
-#endif
 }
 
 static esp_err_t hub_lte_pppos_stop_ppp(void)
 {
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
     esp_err_t first_error = ESP_OK;
 
     if ((s_lte_dce != NULL) && s_lte_runtime.data_mode_entered) {
-#if HUB_LTE_PPPOS_SKIP_COMMAND_MODE_ON_TIMEOUT
         if (s_lte_timeout_cleanup_active) {
             ESP_LOGW(TAG, "Skip esp_modem_set_mode(COMMAND) during PPP timeout cleanup; destroy modem directly");
-        } else
-#endif
-        {
+        } else {
         esp_err_t ret = esp_modem_set_mode(s_lte_dce, ESP_MODEM_MODE_COMMAND);
         ESP_LOGI(TAG, "esp_modem_set_mode(COMMAND) returned %s", esp_err_to_name(ret));
         if (ret != ESP_OK) {
@@ -2991,20 +2216,12 @@ static esp_err_t hub_lte_pppos_stop_ppp(void)
     s_lte_status.ip_addr[0] = '\0';
     hub_network_manager_set_lte_status(false, NULL);
     return first_error;
-#else
-    s_lte_runtime.ppp_started = false;
-    s_lte_runtime.data_mode_entered = false;
-    s_lte_status.connected = false;
-    s_lte_status.ip_addr[0] = '\0';
-    return ESP_OK;
-#endif
 }
 
 static esp_err_t hub_lte_pppos_destroy_runtime(void)
 {
     esp_err_t first_error = hub_lte_pppos_stop_ppp();
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_REAL_RUNTIME
     if (s_lte_dce != NULL) {
         esp_modem_destroy(s_lte_dce);
         s_lte_dce = NULL;
@@ -3036,7 +2253,6 @@ static esp_err_t hub_lte_pppos_destroy_runtime(void)
     s_lte_data_mode_enter_tick = 0;
     s_lte_terminal_unexpected_flow_count = 0;
     s_lte_terminal_break_after_data = false;
-#endif
 
     s_lte_runtime.ppp_netif_created = false;
     if (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_PPPOS) {
@@ -3073,11 +2289,6 @@ static esp_err_t hub_lte_pppos_handle_starting_timeout(void)
     if (resume_ret != ESP_OK) {
         ESP_LOGW(TAG, "A7608 resume request after PPP timeout failed: %s", esp_err_to_name(resume_ret));
     }
-
-#if HUB_LTE_PPPOS_RESET_A7608_ON_TIMEOUT
-    esp_err_t reset_ret = a7608_hard_reset(A7608_HARD_RESET_PULSE_MS, A7608_HARD_RESET_QUIET_MS);
-    ESP_LOGW(TAG, "A7608 hard reset after PPP timeout: %s", esp_err_to_name(reset_ret));
-#endif
 
     s_lte_status.start_requested = false;
     s_lte_status.stop_requested = false;
@@ -3175,11 +2386,7 @@ esp_err_t hub_lte_pppos_init_with_config(const hub_lte_pppos_config_t *config)
     (void)hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
 
     ESP_LOGI(TAG,
-             "LTE PPPoS framework ready: HUB_LTE_PPPOS_ENABLE=%d HUB_LTE_PPPOS_TEST_MODE=%d HUB_LTE_PPPOS_REAL_RUNTIME=%d HUB_LTE_PPPOS_MANUAL_TEST=%d uart=%d owner=%s baud=%d tx=%d rx=%d apn=%s auto=%d",
-             HUB_LTE_PPPOS_ENABLE,
-             HUB_LTE_PPPOS_TEST_MODE,
-             HUB_LTE_PPPOS_REAL_RUNTIME,
-             HUB_LTE_PPPOS_MANUAL_TEST,
+             "LTE PPPoS ready: uart=%d owner=%s baud=%d tx=%d rx=%d apn=%s auto=%d",
              s_lte_config.uart_num,
              hub_lte_pppos_uart_owner_name(s_lte_status.uart_owner),
              s_lte_config.baud_rate,
@@ -3238,13 +2445,7 @@ esp_err_t hub_lte_pppos_request_start(void)
 
     if (!hub_lte_pppos_is_enabled()) {
         s_lte_status.start_requested = false;
-        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS disabled by build config");
-        ESP_LOGW(TAG, "PPP start request blocked: %s", hub_lte_pppos_get_last_reason());
-        return ESP_ERR_INVALID_STATE;
-    }
-    if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
-        s_lte_status.start_requested = false;
-        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS manual test disabled");
+        hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS not initialized");
         ESP_LOGW(TAG, "PPP start request blocked: %s", hub_lte_pppos_get_last_reason());
         return ESP_ERR_INVALID_STATE;
     }
@@ -3270,7 +2471,7 @@ esp_err_t hub_lte_pppos_request_start(void)
     s_lte_cell_recovery.cleanup_done = false;
     portEXIT_CRITICAL(&s_lte_cleanup_lock);
     s_lte_status.start_requested = true;
-    ESP_LOGI(TAG, "PPPoS test start requested: %s", preflight.reason);
+    ESP_LOGI(TAG, "PPPoS start requested: %s", preflight.reason);
     return ESP_OK;
 }
 
@@ -3312,7 +2513,7 @@ esp_err_t hub_lte_pppos_stop(void)
 
 bool hub_lte_pppos_is_enabled(void)
 {
-    return HUB_LTE_PPPOS_ENABLE != 0;
+    return s_lte_status.initialized;
 }
 
 bool hub_lte_pppos_real_runtime_enabled(void)
@@ -3339,8 +2540,6 @@ bool hub_lte_pppos_is_connected(void)
 bool hub_lte_pppos_can_take_uart(void)
 {
     return s_lte_status.initialized &&
-           (HUB_LTE_PPPOS_TEST_MODE != 0) &&
-            (HUB_LTE_PPPOS_MANUAL_TEST != 0) &&
            a7608_is_paused() &&
            (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
 }
@@ -3348,10 +2547,6 @@ bool hub_lte_pppos_can_take_uart(void)
 esp_err_t hub_lte_pppos_request_uart_owner(void)
 {
     if (!s_lte_status.initialized) {
-        return ESP_ERR_INVALID_STATE;
-    }
-    if ((HUB_LTE_PPPOS_TEST_MODE == 0) || (HUB_LTE_PPPOS_MANUAL_TEST == 0)) {
-        ESP_LOGW(TAG, "PPP UART request blocked: manual test mode is disabled");
         return ESP_ERR_INVALID_STATE;
     }
     if (!a7608_is_paused()) {
@@ -3509,10 +2704,6 @@ esp_err_t hub_lte_pppos_process(void)
         if (!s_lte_status.start_requested) {
             return hub_lte_pppos_set_state(HUB_PPP_STATE_IDLE, ESP_OK);
         }
-        if ((HUB_LTE_PPPOS_TEST_MODE == 0) || (HUB_LTE_PPPOS_MANUAL_TEST == 0)) {
-            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS manual test mode disabled");
-            return hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
-        }
         if (!a7608_is_paused()) {
             hub_lte_pppos_set_last_result(ESP_OK, "A7608 AT service still running");
             break;
@@ -3537,7 +2728,7 @@ esp_err_t hub_lte_pppos_process(void)
         }
 
         if (!hub_lte_pppos_real_runtime_allowed()) {
-            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS real runtime manual test disabled");
+            hub_lte_pppos_set_last_result(ESP_ERR_INVALID_STATE, "PPPoS runtime unavailable");
             return hub_lte_pppos_set_state(HUB_PPP_STATE_ERROR, ESP_ERR_INVALID_STATE);
         }
 
@@ -3713,12 +2904,9 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
         hub_lte_pppos_copy_string(preflight->apn, sizeof(preflight->apn), config.apn);
     }
 
-    preflight->test_mode_enabled = HUB_LTE_PPPOS_TEST_MODE != 0;
     preflight->pppos_enabled = hub_lte_pppos_is_enabled();
     preflight->uart_owner = (int)s_lte_status.uart_owner;
     preflight->uart_available = s_lte_status.initialized &&
-                                preflight->test_mode_enabled &&
-                                (HUB_LTE_PPPOS_MANUAL_TEST != 0) &&
                                 a7608_is_paused() &&
                                 (s_lte_status.uart_owner == HUB_LTE_PPPOS_UART_OWNER_AT_STATUS);
 
@@ -3762,13 +2950,7 @@ esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
     } else if (s_lte_cell_recovery.stage == CELL_RECOVERY_WAIT_AFTER_HARD_RESET) {
         hub_lte_pppos_set_preflight_reason(preflight, "Waiting after hardware reset");
     } else if (!preflight->pppos_enabled) {
-        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS disabled by build config");
-    } else if (!preflight->test_mode_enabled) {
-        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS test mode disabled");
-    } else if (HUB_LTE_PPPOS_REAL_RUNTIME == 0) {
-        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS real runtime disabled");
-    } else if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
-        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS manual test disabled");
+        hub_lte_pppos_set_preflight_reason(preflight, "PPPoS not initialized");
     } else if (config_ret != ESP_OK) {
         hub_lte_pppos_set_preflight_reason(preflight, "PPPoS config unavailable");
     } else if (!preflight->config_valid) {

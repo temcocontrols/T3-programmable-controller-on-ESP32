@@ -610,6 +610,7 @@ void uart0_rx_task(void *pvParameters)
     setup_reg_data();
     //uint8_t* uart_rsv = (uint8_t*)malloc(512);
     uint8_t uart_rsv[512];
+    const uint32_t block_time = 0;
 
     debug_info("modbous initial \r\n");
 

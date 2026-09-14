@@ -41,29 +41,19 @@ esp_err_t hub_module_process(void)
     return hub_lte_pppos_process();
 }
 
-esp_err_t hub_module_start_pppos_test(void)
+esp_err_t hub_module_start_lte(void)
 {
-    if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
-        ESP_LOGW(TAG, "PPPoS manual test entry blocked: HUB_LTE_PPPOS_MANUAL_TEST=0");
-        return ESP_ERR_INVALID_STATE;
-    }
-
     esp_err_t ret = hub_network_manager_set_policy(HUB_NET_POLICY_FORCE_LTE);
     if (ret != ESP_OK) {
         return ret;
     }
 
-    ESP_LOGI(TAG, "PPPoS test start requested");
+    ESP_LOGI(TAG, "LTE PPPoS start requested");
     return hub_lte_pppos_request_start();
 }
 
-esp_err_t hub_module_stop_pppos_test(void)
+esp_err_t hub_module_stop_lte(void)
 {
-    if (HUB_LTE_PPPOS_MANUAL_TEST == 0) {
-        ESP_LOGW(TAG, "PPPoS manual test stop blocked: HUB_LTE_PPPOS_MANUAL_TEST=0");
-        return ESP_ERR_INVALID_STATE;
-    }
-
     return hub_lte_pppos_request_stop();
 }
 
@@ -126,7 +116,7 @@ esp_err_t hub_module_dump_status(void)
     }
 
     ESP_LOGI(TAG,
-             "status: initialized=%d network_policy=%s ethernet_allowed=%d lte_allowed=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_real_runtime_enabled=%d pppos_running=%d a7608_service_state=%s a7608_paused=%d uart_owner=%d pppos_state=%s pppos_start_requested=%d pppos_stop_requested=%d pppos_runtime_ppp_netif_created=%d pppos_runtime_modem_created=%d pppos_runtime_data_mode_entered=%d pppos_runtime_ppp_started=%d pppos_last_error=%s pppos_last_reason=%s a7608_pause_requested=%d",
+             "status: initialized=%d network_policy=%s ethernet_allowed=%d lte_allowed=%d eth_link_up=%d eth_has_ip=%d lte_connected=%d lte_ip=%s active_interface=%s pppos_enabled=%d pppos_running=%d a7608_service_state=%s a7608_paused=%d uart_owner=%d pppos_state=%s pppos_start_requested=%d pppos_stop_requested=%d pppos_runtime_ppp_netif_created=%d pppos_runtime_modem_created=%d pppos_runtime_data_mode_entered=%d pppos_runtime_ppp_started=%d pppos_last_error=%s pppos_last_reason=%s a7608_pause_requested=%d",
              status.initialized,
              hub_network_manager_policy_name((hub_network_policy_t)status.network_policy),
              status.ethernet_allowed,
@@ -137,7 +127,6 @@ esp_err_t hub_module_dump_status(void)
              status.lte_ip[0] != '\0' ? status.lte_ip : "-",
              hub_network_manager_interface_name((hub_network_interface_t)status.active_interface),
              status.pppos_enabled,
-             hub_lte_pppos_real_runtime_enabled(),
              status.pppos_running,
              a7608_service_state_name(a7608_get_service_state()),
              a7608_is_paused(),
@@ -167,12 +156,11 @@ esp_err_t hub_module_dump_status(void)
     }
 
     ESP_LOGI(TAG,
-             "pppos_preflight: ready=%d reason=%s config_valid=%d pppos_enabled=%d test_mode=%d uart_available=%d uart_owner=%d modem_status_known=%d sim_ready=%d registered=%d has_signal=%d rssi=%d has_apn=%d apn=%s",
+             "pppos_preflight: ready=%d reason=%s config_valid=%d pppos_enabled=%d uart_available=%d uart_owner=%d modem_status_known=%d sim_ready=%d registered=%d has_signal=%d rssi=%d has_apn=%d apn=%s",
              preflight.ready_to_start,
              preflight_reason,
              preflight.config_valid,
              preflight.pppos_enabled,
-             preflight.test_mode_enabled,
              preflight.uart_available,
              preflight.uart_owner,
              preflight.modem_status_known,

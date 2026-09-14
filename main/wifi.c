@@ -34,7 +34,6 @@ STR_SSID	SSID_Info;
 bool ReconnectWithWifi = true;
 bool WifiScanComplete = false;
 extern unsigned short int Test[50];
-static int s_retry_num = 0;
 TaskHandle_t Wifi_Task_handle[7];
 extern int task_sock[7];
 void debug_print(char *string,char task_index)
@@ -104,10 +103,6 @@ static void wifi_event_handler(
             SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
             if(SSID_Info.IP_Auto_Manual == 1)
                 SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
-            break;
-
-        case WIFI_EVENT_SCAN_DONE:
-            WifiScanComplete = true;
             break;
 
         case WIFI_EVENT_SCAN_DONE:
@@ -506,7 +501,6 @@ void disable_wifi() {
 
 void wifi_task(void *pvParameters)
 {
-	uint8_t temp_rssi = 0;
     esp_log_level_set("wifi", ESP_LOG_ERROR);
 
     wifi_init_sta();

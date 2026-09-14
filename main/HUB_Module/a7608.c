@@ -14,6 +14,8 @@
 #include "hub_lte_pppos.h"
 #include "hub_network_manager.h"
 
+static const char *TAG = "A7608";
+
 #define A7608_LOG(fmt, ...) do { printf("[A7608] " fmt "\n", ##__VA_ARGS__); fflush(stdout); } while (0)
 
 static a7608_config_t a7608_cfg;
@@ -127,10 +129,16 @@ static esp_err_t a7608_read_gnss_info(char *response, size_t response_len, const
 
 static void a7608_debug_write(const char *text)
 {
-    if (text == NULL) {
+    if ((text == NULL) || (text[0] == '\0')) {
         return;
     }
-    hub_usb_serial_write((const uint8_t *)text, strlen(text), 50);
+    size_t len = strlen(text);
+    while ((len > 0) && ((text[len - 1] == '\r') || (text[len - 1] == '\n'))) {
+        len--;
+    }
+    if (len > 0) {
+        ESP_LOGI(TAG, "%.*s", (int)len, text);
+    }
 }
 
 static void a7608_debug_printf(const char *fmt, ...)
@@ -144,9 +152,15 @@ static void a7608_debug_printf(const char *fmt, ...)
         return;
     }
     if (len >= (int)sizeof(buf)) {
-        len = sizeof(buf) - 1;
+        buf[sizeof(buf) - 1] = '\0';
+        len = (int)sizeof(buf) - 1;
     }
-    hub_usb_serial_write((const uint8_t *)buf, (size_t)len, 50);
+    while ((len > 0) && ((buf[len - 1] == '\r') || (buf[len - 1] == '\n'))) {
+        buf[--len] = '\0';
+    }
+    if (len > 0) {
+        ESP_LOGI(TAG, "%s", buf);
+    }
 }
 
 static void a7608_debug_write_modem_bytes(const uint8_t *buf, int len)
@@ -158,37 +172,36 @@ static void a7608_debug_write_modem_bytes(const uint8_t *buf, int len)
         uint8_t ch = buf[i];
         if ((ch == '\r') || (ch == '\n') || (ch == '\t') || ((ch >= 0x20) && (ch <= 0x7e))) {
             if (out_len >= sizeof(out) - 1) {
-                hub_usb_serial_write((const uint8_t *)out, out_len, 50);
+                out[out_len] = '\0';
+                a7608_debug_write(out);
                 out_len = 0;
             }
             out[out_len++] = (char)ch;
         } else {
             if (out_len >= sizeof(out) - 5) {
-                hub_usb_serial_write((const uint8_t *)out, out_len, 50);
+                out[out_len] = '\0';
+                a7608_debug_write(out);
                 out_len = 0;
             }
-            out_len += snprintf(&out[out_len], sizeof(out) - out_len, "\\x%02X", ch);
+            out_len += (size_t)snprintf(&out[out_len], sizeof(out) - out_len, "\\x%02X", ch);
         }
     }
 
     if (out_len > 0) {
-        hub_usb_serial_write((const uint8_t *)out, out_len, 50);
+        out[out_len] = '\0';
+        a7608_debug_write(out);
     }
 }
 
 static void a7608_debug_write_response_block(const char *title, const char *response)
 {
-    a7608_debug_printf("[%s RAW]\r\n", title);
+    a7608_debug_printf("[%s RAW]", title);
     if ((response != NULL) && (response[0] != '\0')) {
         a7608_debug_write(response);
-        size_t len = strlen(response);
-        if ((len > 0) && (response[len - 1] != '\n')) {
-            a7608_debug_write("\r\n");
-        }
     } else {
-        a7608_debug_write("-\r\n");
+        a7608_debug_write("-");
     }
-    a7608_debug_printf("[%s RAW END]\r\n", title);
+    a7608_debug_printf("[%s RAW END]", title);
 }
 
 static bool a7608_take_uart_lock(uint32_t timeout_ms)
@@ -1222,16 +1235,8 @@ static void a7608_sync_network_status(void)
     bool connected = a7608_status.connected && a7608_ip_is_valid(a7608_status.ip_addr);
     const char *ip_addr = connected ? a7608_status.ip_addr : NULL;
 
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
-    if (connected) {
-        ESP_LOGI("A7608", "PPPoS manual test: ignore CGPADDR IP %s for Network Manager; waiting for PPP got IP", ip_addr);
-    }
-    (void)hub_lte_pppos_set_connected(false, NULL);
-    hub_network_manager_set_lte_status(false, NULL);
-#else
     (void)hub_lte_pppos_set_connected(connected, ip_addr);
     hub_network_manager_set_lte_status(connected, ip_addr);
-#endif
 }
 
 static esp_err_t a7608_reinstall_uart_driver(void)
@@ -2581,17 +2586,16 @@ static void a7608_debug_print_gnss_status(void)
     a7608_debug_write("[A7608 GNSS STATUS END]\r\n");
 }
 
-void a7608_at_debug_task(void *pvParameters)
+void a7608_hub_task(void *pvParameters)
 {
     (void)pvParameters;
 
-    ESP_LOGI("A7608", "A7608 AT status task started");
+    ESP_LOGI(TAG, "A7608 hub task started");
 
     a7608_config_t config;
     a7608_get_default_config(&config);
     esp_err_t ret = a7608_init(&config);
-    a7608_debug_write("\r\n[A7608 AT DEBUG]\r\n");
-    a7608_debug_printf("UART%d baud=%d ESP_TX/MODEM_RX=%d ESP_RX/MODEM_TX=%d PWRKEY=%d(active=%d) RESET=%d(active=%d)\r\n",
+    ESP_LOGI(TAG, "UART%d baud=%d ESP_TX/MODEM_RX=%d ESP_RX/MODEM_TX=%d PWRKEY=%d(active=%d) RESET=%d(active=%d)",
                        config.uart_num,
                        config.baud_rate,
                        config.modem_tx_pin,
@@ -2604,7 +2608,7 @@ void a7608_at_debug_task(void *pvParameters)
     if (ret != ESP_OK) {
         a7608_startup_probe_mark_started();
         a7608_startup_probe_mark_complete(ret);
-        a7608_debug_printf("A7608 init failed: %s\r\n", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "A7608 init failed: %s", esp_err_to_name(ret));
         vTaskDelete(NULL);
         return;
     }
@@ -2612,28 +2616,28 @@ void a7608_at_debug_task(void *pvParameters)
     a7608_startup_probe_mark_started();
 
     if (pin_is_valid(config.dtr_pin)) {
-        a7608_debug_printf("Set DTR pin %d LOW before AT probe\r\n", config.dtr_pin);
+        ESP_LOGI(TAG, "Set DTR pin %d LOW before AT probe", config.dtr_pin);
         ret = a7608_set_dtr(true);
         if (ret != ESP_OK) {
-            a7608_debug_printf("Set DTR failed: %s\r\n", esp_err_to_name(ret));
+            ESP_LOGW(TAG, "Set DTR failed: %s", esp_err_to_name(ret));
         } else {
-            ESP_LOGI("A7608",
+            ESP_LOGI(TAG,
                      "A7608 startup DTR: gpio=%d level=%d",
                      config.dtr_pin,
                      a7608_get_dtr_level());
         }
     }
 
-    ESP_LOGI("A7608", "A7608 startup phase: INITIAL_AT_PROBE boot_state=unknown");
+    ESP_LOGI(TAG, "A7608 startup phase: INITIAL_AT_PROBE boot_state=unknown");
     bool modem_ready_before_boot = a7608_startup_detect_running_modem();
     bool cold_boot = !modem_ready_before_boot;
     if (modem_ready_before_boot) {
-        ESP_LOGI("A7608", "A7608 startup boot classification: warm");
+        ESP_LOGI(TAG, "A7608 startup boot classification: warm");
     } else {
-        ESP_LOGW("A7608", "A7608 startup boot classification: cold/unresponsive");
+        ESP_LOGW(TAG, "A7608 startup boot classification: cold/unresponsive");
     }
 
-    a7608_debug_printf("Control levels: PWRKEY=%d RESET=%d DTR=%d RING=%d\r\n",
+    ESP_LOGI(TAG, "Control levels: PWRKEY=%d RESET=%d DTR=%d RING=%d",
                        gpio_get_level(config.pwrkey_pin),
                        gpio_get_level(config.reset_pin),
                        gpio_get_level(config.dtr_pin),
@@ -2664,11 +2668,11 @@ void a7608_at_debug_task(void *pvParameters)
                                                         &startup_ret,
                                                         A7608_STARTUP_AT_TIMEOUT_MS);
         } else if (uart_silent) {
-            ESP_LOGW("A7608", "A7608 startup UART silent after PPP escape; skip RESET and use PWRKEY");
+            ESP_LOGW(TAG, "A7608 startup UART silent after PPP escape; skip RESET and use PWRKEY");
         }
 
         if (!startup_ready && !at_stable && !uart_silent) {
-            ESP_LOGW("A7608", "A7608 startup recovery stage=RESET");
+            ESP_LOGW(TAG, "A7608 startup recovery stage=RESET");
             ret = a7608_hard_reset(A7608_STARTUP_RESET_PULSE_MS,
                                    A7608_STARTUP_RESET_QUIET_MS);
             if (ret == ESP_OK) {
@@ -2680,7 +2684,7 @@ void a7608_at_debug_task(void *pvParameters)
                                                             &startup_ret,
                                                             A7608_STARTUP_RESET_AT_TIMEOUT_MS);
             } else {
-                ESP_LOGE("A7608", "A7608 startup RESET recovery failed: %s", esp_err_to_name(ret));
+                ESP_LOGE(TAG, "A7608 startup RESET recovery failed: %s", esp_err_to_name(ret));
             }
         }
     }
@@ -2688,8 +2692,8 @@ void a7608_at_debug_task(void *pvParameters)
     if (!startup_ready && !at_stable) {
         cold_boot = true;
         at_stable = false;
-        ESP_LOGW("A7608", "A7608 startup AT still down; recovery stage=PWRKEY");
-        ESP_LOGW("A7608", "A7608 startup recovery stage=PWRKEY");
+        ESP_LOGW(TAG, "A7608 startup AT still down; recovery stage=PWRKEY");
+        ESP_LOGW(TAG, "A7608 startup recovery stage=PWRKEY");
         ret = a7608_power_on(A7608_STARTUP_PWRKEY_PULSE_MS,
                              A7608_STARTUP_BOOT_QUIET_MS);
         if (ret == ESP_OK) {
@@ -2701,7 +2705,7 @@ void a7608_at_debug_task(void *pvParameters)
                                                         &startup_ret,
                                                         A7608_STARTUP_AT_TIMEOUT_MS);
         } else {
-            ESP_LOGE("A7608", "A7608 startup PWRKEY recovery failed: %s", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "A7608 startup PWRKEY recovery failed: %s", esp_err_to_name(ret));
         }
     }
 
@@ -2717,11 +2721,11 @@ void a7608_at_debug_task(void *pvParameters)
         } else if ((startup_sim_result == A7608_STARTUP_SIM_AT_LOST) ||
                    (startup_sim_result == A7608_STARTUP_SIM_PERSISTENT_FAILURE)) {
             if (startup_sim_result == A7608_STARTUP_SIM_PERSISTENT_FAILURE) {
-                ESP_LOGE("A7608", "A7608 persistent CME 13 after radio restart");
+                ESP_LOGE(TAG, "A7608 persistent CME 13 after radio restart");
             } else {
-                ESP_LOGE("A7608", "A7608 AT interface lost after radio restart");
+                ESP_LOGE(TAG, "A7608 AT interface lost after radio restart");
             }
-            ESP_LOGE("A7608", "A7608 SIM recovery action=HARD_RESET");
+            ESP_LOGE(TAG, "A7608 SIM recovery action=HARD_RESET");
             at_stable = false;
             ret = a7608_hard_reset(A7608_STARTUP_RESET_PULSE_MS,
                                    A7608_STARTUP_RESET_QUIET_MS);
@@ -2734,14 +2738,14 @@ void a7608_at_debug_task(void *pvParameters)
                                                             &startup_ret,
                                                             A7608_STARTUP_AT_TIMEOUT_MS);
             } else {
-                ESP_LOGE("A7608", "A7608 SIM recovery HARD_RESET failed: %s", esp_err_to_name(ret));
+                ESP_LOGE(TAG, "A7608 SIM recovery HARD_RESET failed: %s", esp_err_to_name(ret));
             }
         }
     }
 
     if (!startup_ready && !at_stable) {
-        ESP_LOGW("A7608", "A7608 startup PWRKEY did not restore stable AT");
-        ESP_LOGW("A7608", "A7608 startup recovery stage=RESET_RETRY");
+        ESP_LOGW(TAG, "A7608 startup PWRKEY did not restore stable AT");
+        ESP_LOGW(TAG, "A7608 startup recovery stage=RESET_RETRY");
         ret = a7608_hard_reset(A7608_STARTUP_RESET_PULSE_MS,
                                A7608_STARTUP_RESET_QUIET_MS);
         if (ret == ESP_OK) {
@@ -2753,34 +2757,27 @@ void a7608_at_debug_task(void *pvParameters)
                                                         &startup_ret,
                                                         A7608_STARTUP_AT_TIMEOUT_MS);
         } else {
-            ESP_LOGE("A7608", "A7608 startup RESET retry failed: %s", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "A7608 startup RESET retry failed: %s", esp_err_to_name(ret));
         }
     }
 
     if (startup_ready) {
         a7608_startup_log_phase("STARTUP_COMPLETE", cold_boot);
-        ESP_LOGI("A7608",
+        ESP_LOGI(TAG,
                  "A7608 startup complete: slot=%s sim1_present=%d sim2_present=%d",
                  a7608_sim_slot_name(a7608_get_active_sim_slot()),
                  a7608_get_status()->sim1_present,
                  a7608_get_status()->sim2_present);
         a7608_startup_probe_mark_complete(startup_ret);
-        a7608_debug_write("\r\nTransparent AT bridge ready. Type AT commands with CR/LF.\r\n");
-#if HUB_LTE_PPPOS_ENABLE && HUB_LTE_PPPOS_TEST_MODE && HUB_LTE_PPPOS_REAL_RUNTIME && HUB_LTE_PPPOS_MANUAL_TEST
-        a7608_debug_write("Skip GNSS status/probe in PPPoS manual test mode.\r\n");
-#else
-        a7608_debug_print_gnss_status();
-#endif
+        ESP_LOGI(TAG, "Transparent AT bridge ready");
     } else if (at_stable) {
-        ESP_LOGE("A7608", "A7608 startup incomplete: AT stable but SIM not ready or status unknown");
+        ESP_LOGE(TAG, "A7608 startup incomplete: AT stable but SIM not ready or status unknown");
         a7608_startup_probe_mark_complete(ESP_FAIL);
-        a7608_debug_write("A7608 startup incomplete: AT stable, SIM not ready or status unknown.\r\n");
-        a7608_debug_write("\r\nManual AT bridge ready, modem background read is paused until USB input is sent.\r\n");
+        ESP_LOGW(TAG, "Manual AT bridge ready; modem background read paused until USB input");
     } else {
-        ESP_LOGE("A7608", "A7608 startup timeout: recovery exhausted cold_boot=%d", cold_boot);
+        ESP_LOGE(TAG, "A7608 startup timeout: recovery exhausted cold_boot=%d", cold_boot);
         a7608_startup_probe_mark_complete(ESP_FAIL);
-        a7608_debug_write("A7608 startup failed after RESET/PWRKEY recovery.\r\n");
-        a7608_debug_write("\r\nManual AT bridge ready, modem background read is paused until USB input is sent.\r\n");
+        ESP_LOGW(TAG, "Manual AT bridge ready; modem background read paused until USB input");
     }
 
     uint8_t usb_buf[128];
@@ -2824,7 +2821,8 @@ void a7608_at_debug_task(void *pvParameters)
                 int modem_len = uart_read_bytes(a7608_cfg.uart_num, modem_buf, sizeof(modem_buf), pdMS_TO_TICKS(10));
                 a7608_give_uart_lock();
                 if (modem_len > 0) {
-                    a7608_debug_write_modem_bytes(modem_buf, modem_len);
+                    /* Interactive AT reply path only — not status logging */
+                    hub_usb_serial_write(modem_buf, (size_t)modem_len, 50);
                 }
             }
         }
