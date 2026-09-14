@@ -3514,7 +3514,11 @@ void i2c_master_task(void *pvParameters)
 	}
 	if(Modbus.mini_type == PROJECT_RMC1232)
 	{
+		
 		Modbus.RMC1232_led_Test = Modbus.mini_type;
+#if 0//LED_TEST
+		Modbus.RMC1232_led_Test = 255;
+#endif
 		ptr = put_io_buf(IN,8);
 		ptr.pin->range = V0_5;
 		ptr = put_io_buf(IN,9);
@@ -4374,6 +4378,7 @@ void i2c_master_task(void *pvParameters)
 										ptr = put_io_buf(IN,32); // IN33 internal temperature
 										ptr.pin->value = (i2c_rcv_buf[98] * 256 + i2c_rcv_buf[99]) * 1000;
 										// get 32AI
+										// Filter() holds 0-20mA jumps until the next ARM sample (not the next I2C reread)
 										for(i = 0;i < 64 / 2;i++)	  // 88 == 24+64
 										{
 											temp = i2c_rcv_buf[i * 2 + 1 + 24] + (U16_T)i2c_rcv_buf[i * 2 + 24] * 256;
