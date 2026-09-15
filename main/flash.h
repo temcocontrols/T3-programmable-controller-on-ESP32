@@ -34,9 +34,10 @@ typedef enum
 #define FLASH_SNTP			"Email_SNTP"
 #define FLASH_SPD_CNT		"SPD_CNT"
 #define FLASH_MSV			"MSV"
-/* CT_channel[6] + en_power[24] + power[24] — see STR_PLC head in define.h */
+/* CT_channel[6] + en_power[24] + energy[24] + dis_energy[24] — see STR_PLC head in define.h */
 #define FLASH_PLC_POWER		"PLC_POWER"
-#define PLC_POWER_NVS_SIZE	(6U + 24U + 24U * 4U)
+#define PLC_POWER_NVS_SIZE_V1	(6U + 24U + 24U * 4U)			/* legacy: no dis_energy */
+#define PLC_POWER_NVS_SIZE	(PLC_POWER_NVS_SIZE_V1 + 24U * 4U)	/* + dis_energy[24] */
 #define FLASH_RMC_CUV		"RMC_CUV"
 #define FLASH_RMC_COV		"RMC_COV"
 #define FLASH_RMC_SHUTDOWN	"RMC_SHUT"

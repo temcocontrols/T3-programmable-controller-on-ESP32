@@ -4202,6 +4202,8 @@ void i2c_master_task(void *pvParameters)
 								{	// normal format : 0x55 + 0xaa + top_rev + sw_rev
 									top_hardware = i2c_rcv_buf[2];
 									top_firmware = i2c_rcv_buf[3];
+									chip_info[1] = top_firmware;
+									chip_info[2] = top_firmware;
 									if(Modbus.mini_type == PROJECT_RMC1216)
 									{// 8DO+4AO+24AI?
 										// get output switch

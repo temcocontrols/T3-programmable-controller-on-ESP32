@@ -104,21 +104,25 @@ uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
 
 STR_PLC plc_power = { .flag_48V_exist = 1 };
-/* internal accumulator: (W * 1000) * seconds; power[] = kWh * 1000 = acc / 3600000 */
-static uint64_t plc_energy_acc[24];
+/* internal accumulators: (W * 1000) * seconds; energy = kWh * 1000 = acc / 3600000 */
+static uint64_t plc_energy_acc[24];     /* charge (I > 0) → MODBUS_ENERGY1 */
+static uint64_t plc_dis_energy_acc[24]; /* discharge (I < 0) → MODBUS_DIS_ENERGY1 */
 uint16 rmc_cuv = 2550;		/* POWER_CELL_UV_MV default */
 uint16 rmc_cov = 3600;		/* POWER_CELL_OV_MV default */
 uint16 rmc_stack = 2500;	/* POWER_SHUTDOWN_CELL_MV default */
 uint16 rmc_oc_chg = 3000;	/* POWER_OC_CHG_MA default */
 uint16 rmc_oc_dsg = 4000;	/* POWER_OC_DSG_MA default */
 
-/* Keep integrator in sync so power[] survives reboot and keeps accumulating */
+/* Keep integrators in sync so energy survives reboot and keeps accumulating */
 void plc_power_sync_acc(void)
 {
 	uint8_t i;
 
 	for(i = 0; i < 24; i++)
+	{
 		plc_energy_acc[i] = (uint64_t)plc_power.energy[i] * 3600000ULL;
+		plc_dis_energy_acc[i] = (uint64_t)plc_power.dis_energy[i] * 3600000ULL;
+	}
 }
 
 /* Accumulate energy: power[v*6+ct] in kWh*1000 (0.001 kWh resolution)
@@ -206,7 +210,9 @@ void calculate_plc_power(void)
 			if(plc_power.en_power[index] == 0)
 			{
 				plc_energy_acc[index] = 0;
+				plc_dis_energy_acc[index] = 0;
 				plc_power.energy[index] = 0;
+				plc_power.dis_energy[index] = 0;
 				plc_power.power[index] = 0;
 			}
 			else
@@ -230,13 +236,17 @@ void calculate_plc_power(void)
 				int32_t vol_abs = (vol[v] < 0) ? -vol[v] : vol[v];
 				if(cur_abs != 0)
 				{
-					/* energy uses |P|: P(W*1000) = |V|*|I|/1000; integrate over dt */
+					/* |P|(W*1000) = |V|*|I|/1000; route by CT current sign */
 					uint32_t p_x1000 = (uint32_t)(((int64_t)vol_abs * cur_abs) / 1000);
-					plc_energy_acc[index] += (uint64_t)p_x1000 * dt_ms / 1000;
+					uint64_t dE = (uint64_t)p_x1000 * dt_ms / 1000;
+					if(cur[ct] > 0)
+						plc_energy_acc[index] += dE;      /* charge → ENERGY */
+					else
+						plc_dis_energy_acc[index] += dE;  /* discharge → DIS_ENERGY */
 				}
 				/* kWh*1000 = (W*1000 * s) / 3,600,000 */
 				plc_power.energy[index] = (uint32_t)(plc_energy_acc[index] / 3600000ULL);
-				
+				plc_power.dis_energy[index] = (uint32_t)(plc_dis_energy_acc[index] / 3600000ULL);
 			}
 		}
 	}
@@ -1391,6 +1401,20 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			{
 				temp1 = (U8_T)(plc_power.energy[index] >> 8);
 				temp2 = (U8_T)(plc_power.energy[index]);
+			}
+		}
+		else if(address >= MODBUS_DIS_ENERGY1 && address <= MODBUS_DIS_ENERGY24)
+		{
+			U16_T index = (address - MODBUS_DIS_ENERGY1) / 2;
+			if((address - MODBUS_DIS_ENERGY1) % 2 == 0)  // high word
+			{
+				temp1 = (U8_T)(plc_power.dis_energy[index] >> 24);
+				temp2 = (U8_T)(plc_power.dis_energy[index] >> 16);
+			}
+			else  // low word
+			{
+				temp1 = (U8_T)(plc_power.dis_energy[index] >> 8);
+				temp2 = (U8_T)(plc_power.dis_energy[index]);
 			}
 		}
 		else if(address >= MODBUS_POWER1 && address <= MODBUS_POWER24)
@@ -2839,7 +2863,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
     	  if(plc_power.en_power[index] == 0)
     	  {
     		  plc_energy_acc[index] = 0;
+    		  plc_dis_energy_acc[index] = 0;
     		  plc_power.energy[index] = 0;
+    		  plc_power.dis_energy[index] = 0;
     	  }
     	  Save_PLC_Power();
       }
@@ -2860,6 +2886,24 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
     	  plc_power.energy[index] = tempval;
     	  /* sync accumulator: kWh*1000 -> (W*1000)*s */
     	  plc_energy_acc[index] = (uint64_t)tempval * 3600000ULL;
+    	  Save_PLC_Power();
+      }
+      else if(address >= MODBUS_DIS_ENERGY1 && address <= MODBUS_DIS_ENERGY24)
+      {
+    	  U16_T index = (address - MODBUS_DIS_ENERGY1) / 2;
+    	  uint32_t tempval = plc_power.dis_energy[index];
+    	  if((address - MODBUS_DIS_ENERGY1) % 2 == 0)  // high word
+    	  {
+    		  tempval &= 0x0000ffff;
+    		  tempval += 65536L * (*(bufadd + 5) + 256 * *(bufadd + 4));
+    	  }
+    	  else  // low word
+    	  {
+    		  tempval &= 0xffff0000;
+    		  tempval += (*(bufadd + 5) + 256 * *(bufadd + 4));
+    	  }
+    	  plc_power.dis_energy[index] = tempval;
+    	  plc_dis_energy_acc[index] = (uint64_t)tempval * 3600000ULL;
     	  Save_PLC_Power();
       }
       else if(address == MODBUS_CUVT)

@@ -247,8 +247,11 @@ enum {
 	MODBUS_VOL_IN12 = 1207,	
 	
 	MODBUS_POWER1 = 1210,
-	MODBUS_POWER24 = MODBUS_POWER1 + 23,	
-	
+	MODBUS_POWER24 = MODBUS_POWER1 + 23,
+
+	/* discharge energy (kWh*1000, unsigned), 2 regs per uint32; charge at MODBUS_ENERGY1 */
+	MODBUS_DIS_ENERGY1 = 1250,
+	MODBUS_DIS_ENERGY24 = MODBUS_DIS_ENERGY1 + 46,	/* 1296 1297 */
 
 /******** WIFI START ************************/
 	MODBUS_WIFI_START = 2000,

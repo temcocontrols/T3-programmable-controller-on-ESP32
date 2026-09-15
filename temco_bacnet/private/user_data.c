@@ -920,12 +920,9 @@ void Sync_Panel_Info(void)
 
 	Setting_Info.reg.en_dyndns = Modbus.en_dyndns;
 
-	Setting_Info.reg.pro_info.firmware_rev = chip_info[1]; // firmware
+	Setting_Info.reg.pro_info.firmware_rev = chip_info[1]; /* top firmware */
 	Setting_Info.reg.pro_info.hardware_rev = chip_info[2]; // hardware
-	if(chip_info[1] >= 42 && chip_info[2] == 1)
-		Setting_Info.reg.specila_flag |= 0x01;
-	else
-		Setting_Info.reg.specila_flag &= 0xfe;
+	Setting_Info.reg.specila_flag = 0;
 
 	Setting_Info.reg.en_sntp = Modbus.en_sntp;
 	Setting_Info.reg.en_time_sync_with_pc = Modbus.en_time_sync_with_pc;

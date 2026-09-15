@@ -542,10 +542,26 @@ esp_err_t read_default_from_flash(void)
 
 	len = PLC_POWER_NVS_SIZE;
 	err = nvs_get_blob(my_handle, FLASH_PLC_POWER, &plc_power, &len);
-	
-	if(err == ESP_OK && len >= PLC_POWER_NVS_SIZE)
+	/* accept legacy blob without dis_energy[] */
+	if(err == ESP_OK && len >= PLC_POWER_NVS_SIZE_V1)
 	{
-		plc_power_sync_acc(); /* restore energy integrator so power[] keeps accumulating */
+		uint8_t i;
+		if(len < PLC_POWER_NVS_SIZE)
+		{
+			for(i = 0; i < 24; i++)
+				plc_power.dis_energy[i] = 0;
+		}
+		else
+		{
+			/* previous build stored discharge as signed negative; keep magnitude */
+			for(i = 0; i < 24; i++)
+			{
+				int32_t d = (int32_t)plc_power.dis_energy[i];
+				if(d < 0)
+					plc_power.dis_energy[i] = (uint32_t)(-d);
+			}
+		}
+		plc_power_sync_acc(); /* restore energy integrator so energy[] keeps accumulating */
 	}
 
 	err = nvs_get_u16(my_handle, FLASH_RMC_CUV, &rmc_cuv);
@@ -939,6 +955,7 @@ void Save_PLC_Power(void)
 void Store_PLC_Power(uint8_t flag)
 {
 	static uint32_t old_energy[24];
+	static uint32_t old_dis_energy[24];
 	static uint8_t inited;
 	uint8_t i;
 	uint8_t changed = 0;
@@ -946,7 +963,10 @@ void Store_PLC_Power(uint8_t flag)
 	if(!inited)
 	{
 		for(i = 0; i < 24; i++)
+		{
 			old_energy[i] = plc_power.energy[i];
+			old_dis_energy[i] = plc_power.dis_energy[i];
+		}
 		inited = 1;
 		if(flag == 0)
 			return;
@@ -957,6 +977,11 @@ void Store_PLC_Power(uint8_t flag)
 		if(old_energy[i] != plc_power.energy[i])
 		{
 			old_energy[i] = plc_power.energy[i];
+			changed = 1;
+		}
+		if(old_dis_energy[i] != plc_power.dis_energy[i])
+		{
+			old_dis_energy[i] = plc_power.dis_energy[i];
 			changed = 1;
 		}
 	}

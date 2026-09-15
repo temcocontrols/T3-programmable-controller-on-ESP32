@@ -60,8 +60,9 @@ uint16_t Filter(uint8_t channel,uint16_t input)
   	siTemp = input;
   	ptr = put_io_buf(IN,I);
 
-	if((Modbus.mini_type == PROJECT_RMC1232) && (I < 32))
-	{
+	if((Modbus.mini_type == PROJECT_RMC1232) && (I < 32) && (chip_info[1] == 42))  
+	{// 仅针对arm芯片 rev23以及更旧的版本不方便更新到rev24，在ESP32里面进行filter
+	// 之前的chip_info[1]都被固定到rev42，这是不对的
 		uint8_t is_ma;
 		int16_t jump;
 		uint8_t new_arm;
