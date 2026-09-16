@@ -1545,7 +1545,7 @@ void handler_private_transfer(
 						U8_T i;
 						for(i = 0;i < MAX_MONITORS * 2;i++)
 						{
-							if(Temp_CS.value[header_len + i] == 1) // clear current monitor
+							//if(Temp_CS.value[header_len + i] == 1) // clear current monitor
 							{ // clear current monitor
 
 								flash_trendlog_seg = 0;

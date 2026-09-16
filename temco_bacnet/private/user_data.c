@@ -920,9 +920,9 @@ void Sync_Panel_Info(void)
 
 	Setting_Info.reg.en_dyndns = Modbus.en_dyndns;
 
-	Setting_Info.reg.pro_info.firmware_rev = chip_info[1]; /* top firmware */
+	Setting_Info.reg.pro_info.firmware_rev = chip_info[1]; // firmware
 	Setting_Info.reg.pro_info.hardware_rev = chip_info[2]; // hardware
-	Setting_Info.reg.specila_flag = 0;
+	Setting_Info.reg.specila_flag = 0; // no pt sensor
 
 	Setting_Info.reg.en_sntp = Modbus.en_sntp;
 	Setting_Info.reg.en_time_sync_with_pc = Modbus.en_time_sync_with_pc;
@@ -4571,7 +4571,7 @@ void monitor_init(void)
 	boot = 0;
 
 }
-
+/*
 U8_T Write_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 {
 	uint8 ret;//, loop = 50;
@@ -4600,7 +4600,7 @@ U8_T Read_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 	
 	
 	return result;
-}
+}*/
 
 void dealwithMonitor(uint8_t bank)
 {
