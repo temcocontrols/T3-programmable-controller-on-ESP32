@@ -1,0 +1,9 @@
+..\obj\sgp30.o: ..\HARDWARE\VOC\sgp30.c
+..\obj\sgp30.o: ..\HARDWARE\VOC\sgp30.h
+..\obj\sgp30.o: ..\HARDWARE\VOC\sensirion_arch_config.h
+..\obj\sgp30.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+..\obj\sgp30.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+..\obj\sgp30.o: ..\HARDWARE\VOC\sensirion_common.h
+..\obj\sgp30.o: ..\HARDWARE\VOC\sensirion_i2c.h
+..\obj\sgp30.o: ..\HARDWARE\VOC\sgp_featureset.h
+..\obj\sgp30.o: ..\HARDWARE\VOC\sgp_git_version.h

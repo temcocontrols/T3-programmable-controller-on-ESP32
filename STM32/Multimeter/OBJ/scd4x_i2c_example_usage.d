@@ -1,0 +1,10 @@
+..\obj\scd4x_i2c_example_usage.o: ..\HARDWARE\CO2_I2C\scd4x_i2c_example_usage.c
+..\obj\scd4x_i2c_example_usage.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+..\obj\scd4x_i2c_example_usage.o: ..\HARDWARE\CO2_I2C\scd4x_i2c.h
+..\obj\scd4x_i2c_example_usage.o: ..\HARDWARE\CO2_I2C\sensirion_config.h
+..\obj\scd4x_i2c_example_usage.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+..\obj\scd4x_i2c_example_usage.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+..\obj\scd4x_i2c_example_usage.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
+..\obj\scd4x_i2c_example_usage.o: ..\HARDWARE\CO2_I2C\sensirion_common.h
+..\obj\scd4x_i2c_example_usage.o: ..\HARDWARE\HUMIDITY\sensirion_arch_config.h
+..\obj\scd4x_i2c_example_usage.o: ..\HARDWARE\CO2_I2C\sensirion_i2c.h

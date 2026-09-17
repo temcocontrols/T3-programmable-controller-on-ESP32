@@ -1,0 +1,109 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¦ÌVision V5.14.0.0
+Copyright (C) 2015 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: J L, T, LIC=3UUPC-7XJ00-49PG2-98TJQ-KXDR8-H0UF3
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Professional  Version: 5.14.0.0
+Toolchain Path:  D:\Keil_v5\ARM\ARMCC\Bin
+C Compiler:      Armcc.exe V5.05 update 1 (build 106)
+Assembler:       Armasm.exe V5.05 update 1 (build 106)
+Linker/Locator:  ArmLink.exe V5.05 update 1 (build 106)
+Library Manager: ArmAr.exe V5.05 update 1 (build 106)
+Hex Converter:   FromElf.exe V5.05 update 1 (build 106)
+CPU DLL:         SARMCM3.DLL V5.14.0.0
+Dialog DLL:      DCM.DLL V1.13.1.0
+Target DLL:      UL2CM3.DLL V1.155.0.0
+Dialog DLL:      TCM.DLL V1.14.4.0
+ 
+<h2>Project:</h2>
+D:\work\multiMeter_STM32\USER\Tstat10_Top.uvprojx
+Project File Date:  11/21/2025
+
+<h2>Output:</h2>
+Build target 'STM32F103'
+compiling hy3131_spi.c...
+hy3131_spi.c(73): warning:  #61-D: integer operation result is out of range
+      GPIOA->CRL &= ~(0xF << 28);
+hy3131_spi.c(74): warning:  #61-D: integer operation result is out of range
+      GPIOA->CRL |=  (0xB << 28);  // AF push-pull
+hy3131_spi.c(74): warning:  #68-D: integer conversion resulted in a change of sign
+      GPIOA->CRL |=  (0xB << 28);  // AF push-pull
+hy3131_spi.c(83): warning:  #61-D: integer operation result is out of range
+      GPIOB->CRH &= ~(0xFFFFF << 12);
+hy3131_spi.c(204): error:  #253: expected a ","
+      /* R20 */ 0b11000000,   // M3..M0=1100
+hy3131_spi.c(205): error:  #253: expected a ","
+      /* R21 */ 0b00000010,   // AD1RG gain=mid
+hy3131_spi.c(206): error:  #253: expected a ","
+      /* R22 */ 0b00000001,   // AD1BUF enabled
+hy3131_spi.c(207): error:  #253: expected a ","
+      /* R23 */ 0b00000000,   // AC path disable
+hy3131_spi.c(208): error:  #253: expected a ","
+      /* R24 */ 0b01000000,   // SAD1I = DC input (PAx)
+hy3131_spi.c(214): error:  #253: expected a ","
+      /* R2A */ 0b01010000,   // DS/FS select = DCV path
+hy3131_spi.c(237): error:  #253: expected a ","
+      /* R20 */ 0b11110000,   // AC mode
+hy3131_spi.c(238): error:  #253: expected a ","
+      /* R21 */ 0b00001000,   // AC buffer on
+hy3131_spi.c(239): error:  #253: expected a ","
+      /* R22 */ 0b00000000,
+hy3131_spi.c(240): error:  #253: expected a ","
+      /* R23 */ 0b10000000,   // enable RMS path
+hy3131_spi.c(241): error:  #253: expected a ","
+      /* R24 */ 0b01100000,   // SAD1I = AC input
+hy3131_spi.c(247): error:  #253: expected a ","
+      /* R2A */ 0b01000000,
+hy3131_spi.c(264): error:  #253: expected a ","
+      /* R20 */ 0b10110000,
+hy3131_spi.c(265): error:  #253: expected a ","
+      /* R21 */ 0b00000100,   // enable ohm excitation path
+hy3131_spi.c(266): error:  #253: expected a ","
+      /* R22 */ 0b00000001,   // AD1BUF enable
+hy3131_spi.c(267): error:  #253: expected a ","
+      /* R23 */ 0b00000000,
+hy3131_spi.c(268): error:  #253: expected a ","
+      /* R24 */ 0b01010000,   // SAD1I = ohm input
+hy3131_spi.c(274): error:  #253: expected a ","
+      /* R2A */ 0b01110000,   // select ohm path
+hy3131_spi.c(290): error:  #253: expected a ","
+      /* R20 */ 0b11110000,
+hy3131_spi.c(291): error:  #253: expected a ","
+      /* R21 */ 0b00000010,   // diode excitation
+hy3131_spi.c(292): error:  #253: expected a ","
+      /* R22 */ 0b00000001,
+hy3131_spi.c(294): error:  #253: expected a ","
+      /* R24 */ 0b01000000,   // SAD1I = diode
+hy3131_spi.c(300): error:  #253: expected a ","
+      /* R2A */ 0b01010000,
+hy3131_spi.c(316): error:  #253: expected a ","
+      /* R20 */ 0b11110000,
+hy3131_spi.c(317): error:  #253: expected a ","
+      /* R21 */ 0b00000010,
+hy3131_spi.c(318): error:  #253: expected a ","
+      /* R22 */ 0b00000001,
+hy3131_spi.c(320): error:  #253: expected a ","
+      /* R24 */ 0b01000000,
+hy3131_spi.c(326): error:  #253: expected a ","
+      /* R2A */ 0b01010000,
+hy3131_spi.c(342): error:  #253: expected a ","
+      /* R20 */ 0b01010000,
+hy3131_spi.c(343): error:  #253: expected a ","
+      /* R21 */ 0b00000000,
+hy3131_spi.c: 4 warnings, 30 errors
+"..\OBJ\MultiMeter_stm.hex" - 30 Error(s), 4 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  D:\work\multiMeter_STM32\USER\RTE
+  D:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.3.0
+
+<h2>Collection of Component Files used:</h2>
+Target not created.
+</pre>
+</body>
+</html>

@@ -1,0 +1,357 @@
+﻿ES51932 clean build using ARM Compiler 5.05 and Keil project source list.
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\main.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\ES51932_Driver.h", line 151: War
+ning:  #1-D: last line of file ends without a newline
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...thout a newline:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  #endif // ES51932_DRIVER_H
+                            ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\main.c", line 250: Warning:  #177-D: variabl
+e "count_1s" was declared but never referenced
+  	uint16_t count_1s = 0;
+  	         ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\main.c", line 45: Warning:  #177-D: function
+ "debug_config" was declared but never referenced
+  static void debug_config(void)
+              ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\main.c: 3 warnings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\stm32f10x_it.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\system_stm32f10x.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\ES51932_Driver.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\ES51932_Driver.h", line 151: War
+ning:  #1-D: last line of file ends without a newline
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...thout a newline:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  #endif // ES51932_DRIVER_H
+                            ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\ES51932_Driver.c: 1 warning, 0 errors
+Excluded: hy3131_spi.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\misc.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_adc.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_bkp.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_can.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_cec.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_crc.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_dac.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_dbgmcu.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_dma.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_exti.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_flash.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_fsmc.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_gpio.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_i2c.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_iwdg.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_pwr.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_rcc.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_rtc.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_sdio.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_spi.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_tim.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_usart.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\STM32F10x_FWLib\src\stm32f10x_wwdg.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\CORE\cortexm3_macro_rvds.s
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\CORE\core_cm3.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\CORE\startup_stm32f10x_hd.s
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\LED\led.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\LED\led.c", line 55: Warning
+:  #177-D: variable "count" was declared but never referenced
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ever referenced:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  	static	uint8_t count = 0;
+  	      	        ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\LED\led.c", line 56: Warning:  #177-D: v
+ariable "i" was declared but never referenced
+  	uint8_t i;
+  	        ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\LED\led.c: 2 warnings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\DMA\dma.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\TIMER\timerx.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\TIMER\timerx.c", line 61: Wa
+rning:  #177-D: variable "i" was declared but never referenced
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ever referenced:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  	u8 i;
+  	   ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\TIMER\timerx.c", line 62: Warning:  #177
+-D: variable "j" was declared but never referenced
+  	u8 j;
+  	   ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\TIMER\timerx.c: 2 warnings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c", line 156: Warning:  #
+177-D: variable "i" was declared but never referenced
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ever referenced:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    char i;
+         ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c", line 199: Warning:  #177-D: varia
+ble "EXTI_InitStructure" was declared but never referenced
+  	EXTI_InitTypeDef EXTI_InitStructure;
+  	                 ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c", line 200: Warning:  #177-D: varia
+ble "NVIC_InitStructure" was declared but never referenced
+  	NVIC_InitTypeDef NVIC_InitStructure;
+  	                 ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c", line 316: Warning:  #223-D: funct
+ion "delay_us" declared implicitly
+  		delay_us(5);
+  		^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c", line 328: Warning:  #186-D: point
+less comparison of unsigned integer with zero
+  		if(count >= 0)
+  		         ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c", line 497: Warning:  #940-D: missi
+ng return statement at end of non-void function "Check_sensor_exist"
+  }
+  ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\inputs.c: 6 warnings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\output.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\IIC\i2c.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\ES51932_Driver.h", line 151: War
+ning:  #1-D: last line of file ends without a newline
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...thout a newline:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  #endif // ES51932_DRIVER_H
+                            ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\IIC\i2c.c", line 57: Warning:  #177-D: v
+ariable "index" was declared but never referenced
+  	u16 index;
+  	    ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\IIC\i2c.c", line 58: Warning:  #177-D: v
+ariable "key_temp" was declared but never referenced
+  	u16 key_temp;
+  	    ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\IIC\i2c.c", line 61: Warning:  #177-D: v
+ariable "i2c_tx_temp" was declared but never referenced
+  	u8 i2c_tx_temp[200];
+  	   ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\IIC\i2c.c", line 184: Warning:  #177-D: 
+variable "i" was declared but never referenced
+  		uint8_t i;
+  		        ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\IIC\i2c.c", line 287: Warning:  #1-D: la
+st line of file ends without a newline
+  }
+   ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\IIC\i2c.c: 6 warnings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sensirion_common.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sensirion_sw_i2c.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sensirion_sw_i2c.c"
+, line 65: Warning:  #177-D: variable "i" was declared but never referenced
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ever referenced:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+      int8_t i;
+             ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sensirion_sw_i2c.c: 1 warning, 0
+ errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sht4x.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sht4x_example_usage.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sht4x_example_usage
+.c", line 56: Warning:  #177-D: variable "i" was declared but never referenced
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ever referenced:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  	uint8_t i = 0;
+  	        ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sht4x_example_usage.c: 1 warning
+, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\myiic.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sensirion_sw_i2c_implementation.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\HUMIDITY\sht_git_version.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\KEY\key.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\KEY\key.c", line 109: Warnin
+g:  #191-D: type qualifier is meaningless on cast type
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ss on cast type:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  	xTaskCreate(Key_Process, (const signed portCHAR * const)"key_task",100, NULL, uxPriority, (xTaskHandle *)&xKeyTask);
+  	^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\KEY\key.c", line 109: Warning:  #167-D: 
+argument of type "void (*)(void)" is incompatible with parameter of type "pdTASK_CODE"
+  	xTaskCreate(Key_Process, (const signed portCHAR * const)"key_task",100, NULL, uxPriority, (xTaskHandle *)&xKeyTask);
+  	^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\KEY\key.c", line 150: Warning:  #177-D: 
+variable "count" was declared but never referenced
+  	u16 count;
+  	    ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\KEY\key.c", line 46: Warning:  #177-D: v
+ariable "by_shake_Count" was declared but never referenced
+  static U8_T by_shake_Count = 0;
+              ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\KEY\key.c: 4 warnings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\FreeRTOS\tasks.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\FreeRTOS\list.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\FreeRTOS\queue.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\FreeRTOS\portable\RVDS\ARM_CM3\port.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\FreeRTOS\portable\MemMang\heap_2.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\SYSTEM\delay\delay.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\SYSTEM\usart\usart.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\MODBUS\crc.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\MODBUS\modbus.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\USER\ES51932_Driver.h", line 151: War
+ning:  #1-D: last line of file ends without a newline
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...thout a newline:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  #endif // ES51932_DRIVER_H
+                            ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\MODBUS\modbus.c", line 30: Warning:  #177-D: vari
+able "receive_buf" was declared but never referenced
+  	u8 receive_buf ;
+  	   ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\MODBUS\modbus.c", line 155: Warning:  #177-D: var
+iable "address_temp" was declared but never referenced
+  	u8 address_temp ;
+  	   ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\MODBUS\modbus.c", line 225: Warning:  #177-D: var
+iable "address_temp" was declared but never referenced
+  		u16 address_temp ;
+  		    ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\MODBUS\modbus.c", line 446: Warning:  #1-D: last 
+line of file ends without a newline
+  #endif
+        ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\MODBUS\modbus.c: 5 warnings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 7
+4: Warning:  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ared implicitly:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 6);
+              ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 126: Warning:
+  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 2);
+              ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 152: Warning:
+  #223-D: function "sensirion_i2c_add_uint16_t_to_buffer" declared implicitly
+      offset = sensirion_i2c_add_uint16_t_to_buffer(&buffer[0], offset, t_offset);
+               ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 180: Warning:
+  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 2);
+              ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 194: Warning:
+  #223-D: function "sensirion_i2c_add_uint16_t_to_buffer" declared implicitly
+      offset = sensirion_i2c_add_uint16_t_to_buffer(&buffer[0], offset,
+               ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 211: Warning:
+  #223-D: function "sensirion_i2c_add_uint16_t_to_buffer" declared implicitly
+      offset = sensirion_i2c_add_uint16_t_to_buffer(&buffer[0], offset,
+               ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 229: Warning:
+  #223-D: function "sensirion_i2c_add_uint16_t_to_buffer" declared implicitly
+      offset = sensirion_i2c_add_uint16_t_to_buffer(&buffer[0], offset,
+               ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 239: Warning:
+  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 2);
+              ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 260: Warning:
+  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 2);
+              ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 275: Warning:
+  #223-D: function "sensirion_i2c_add_uint16_t_to_buffer" declared implicitly
+          sensirion_i2c_add_uint16_t_to_buffer(&buffer[0], offset, asc_enabled);
+          ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 306: Warning:
+  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 2);
+              ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 340: Warning:
+  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 6);
+              ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c", line 363: Warning:
+  #223-D: function "sensirion_i2c_read_data_inplace" declared implicitly
+      error = sensirion_i2c_read_data_inplace(SCD4X_I2C_ADDRESS, &buffer[0], 2);
+              ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c.c: 13 warnings, 0 error
+s
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c_example_usage.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c_example_us
+age.c", line 105: Warning:  #223-D: function "delay_ms" declared implicitly
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin...ared implicitly:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  			scd4x_stop_periodic_measurement();delay_ms(100);
+  			                                  ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c_example_usage.c", line
+ 149: Warning:  #1-D: last line of file ends without a newline
+  }
+   ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\scd4x_i2c_example_usage.c: 2 warn
+ings, 0 errors
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\CO2_I2C\sensirion_i2c.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\sgp_git_version.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\sgp30.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\sgp30_featureset.c
+Source: C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\voc.c
+armcc.exe : "C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\voc.c", line 39: Warning
+:  #550-D: variable "err" was set but never used
+@b(WMOn L�:17 W[&{: 36
++ ...  -eq '1') { & 'D:\Keil_v5\ARM\ARMCC\bin\armcc.exe' --cpu Cortex-M3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ("C:\Users\Admin... but never used:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  		int16_t err;
+  		        ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\voc.c", line 41: Warning:  #177-D: v
+ariable "iaq_baseline" was declared but never referenced
+  		uint32_t iaq_baseline;
+  		         ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\voc.c", line 44: Warning:  #177-D: v
+ariable "temp1" was declared but never referenced
+  		uint8 temp1[4];
+  		      ^
+"C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\voc.c", line 106: Warning:  #177-D: 
+variable "co2_eq_ppm" was declared but never referenced
+  	uint16_t tvoc_ppb, co2_eq_ppm;
+  	                   ^
+C:\Users\Administrator\Documents\GitHub\MultiSensor\STM32\Multimeter\HARDWARE\VOC\voc.c: 4 warnings, 0 errors
