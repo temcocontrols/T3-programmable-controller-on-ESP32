@@ -7,7 +7,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6706
+#define SOFTREV     6707
 
 
 #define		SW_OFF 	 0
@@ -27,9 +27,9 @@ typedef	struct
 {	
 	uint8_t  CT_channel[6];
 	uint8_t  en_power[24];
-	uint32_t energy[24];     /* charge kWh*1000: accumulate when CT current > 0 */
-	uint32_t dis_energy[24]; /* discharge kWh*1000: accumulate when CT current < 0 */
-	int16_t  power[24];  /* signed W: sign follows CT current direction */
+	uint32_t energy[24];     /* charge kWh*1000: accumulate when power > 0 */
+	uint32_t dis_energy[24]; /* discharge kWh*1000: accumulate when power < 0 */
+	int16_t  power[24];  /* signed W: V * I */
 	uint8_t battery[7];
 	uint16_t battery_sum;
 	uint8_t flag_bms_comm;

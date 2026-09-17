@@ -105,8 +105,8 @@ uint8_t com_config_back[3];
 
 STR_PLC plc_power = { .flag_48V_exist = 1 };
 /* internal accumulators: (W * 1000) * seconds; energy = kWh * 1000 = acc / 3600000 */
-static uint64_t plc_energy_acc[24];     /* charge (I > 0) → MODBUS_ENERGY1 */
-static uint64_t plc_dis_energy_acc[24]; /* discharge (I < 0) → MODBUS_DIS_ENERGY1 */
+static uint64_t plc_energy_acc[24];     /* charge (P > 0) → MODBUS_ENERGY1 */
+static uint64_t plc_dis_energy_acc[24]; /* discharge (P < 0) → MODBUS_DIS_ENERGY1 */
 uint16 rmc_cuv = 2550;		/* POWER_CELL_UV_MV default */
 uint16 rmc_cov = 3600;		/* POWER_CELL_OV_MV default */
 uint16 rmc_stack = 2500;	/* POWER_SHUTDOWN_CELL_MV default */
@@ -217,32 +217,30 @@ void calculate_plc_power(void)
 			}
 			else
 			{
-				/* signed instantaneous power (W); sign = CT current sign */
+				/* power = V * I (signed); energy/dis_energy follow power sign */
+				int64_t p_x1000 = ((int64_t)vol[v] * cur[ct]) / 1000; /* W*1000 */
+				int32_t p_w;
 				{
 					if(index == 0)
 					{
 						Test[41] = vol[v] / 1000;
 						Test[42] = cur[ct] / 1000;
-						
 					}
-					int32_t p_w = (vol[v] / 1000) * (cur[ct] / 1000);
+					p_w = (int32_t)(p_x1000 / 1000); /* W */
 					if(p_w > 32767)
 						p_w = 32767;
 					else if(p_w < -32768)
 						p_w = -32768;
 					plc_power.power[index] = (int16_t)p_w;
 				}
-				int32_t cur_abs = (cur[ct] < 0) ? -cur[ct] : cur[ct];
-				int32_t vol_abs = (vol[v] < 0) ? -vol[v] : vol[v];
-				if(cur_abs != 0)
+				if(p_x1000 != 0)
 				{
-					/* |P|(W*1000) = |V|*|I|/1000; route by CT current sign */
-					uint32_t p_x1000 = (uint32_t)(((int64_t)vol_abs * cur_abs) / 1000);
-					uint64_t dE = (uint64_t)p_x1000 * dt_ms / 1000;
-					if(cur[ct] > 0)
-						plc_energy_acc[index] += dE;      /* charge → ENERGY */
+					uint64_t mag = (p_x1000 < 0) ? (uint64_t)(-p_x1000) : (uint64_t)p_x1000;
+					uint64_t dE = mag * dt_ms / 1000;
+					if(p_x1000 > 0)
+						plc_energy_acc[index] += dE;      /* +P → ENERGY */
 					else
-						plc_dis_energy_acc[index] += dE;  /* discharge → DIS_ENERGY */
+						plc_dis_energy_acc[index] += dE;  /* -P → DIS_ENERGY */
 				}
 				/* kWh*1000 = (W*1000 * s) / 3,600,000 */
 				plc_power.energy[index] = (uint32_t)(plc_energy_acc[index] / 3600000ULL);
