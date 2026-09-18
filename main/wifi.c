@@ -105,17 +105,18 @@ static void wifi_event_handler(
                 xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             }
 
-            vTaskDelay(2000 / portTICK_PERIOD_MS);
-            wifi_retry_count ++;
-            if(wifi_retry_count == 5)
+            /* Keep retrying forever once credentials are configured.
+             * Previous limit of 10 left STA dead until power cycle after
+             * a temporary router outage (all products share this path). */
+            if (wifi_retry_count < 255) {
+                wifi_retry_count++;
+            }
+            if (wifi_retry_count == 5)
             {
                 wifi_start_softap();
                 wifi_web_server_start();
             }
-            if (wifi_retry_count <= 10)
-            {
-                esp_wifi_connect();
-            }
+            esp_wifi_connect();
             break;
 
         default:
@@ -504,6 +505,12 @@ void wifi_task(void *pvParameters)
 		temp_rssi /= 15;
 		SSID_Info.rssi = temp_rssi - 95;*/
 	get_wifi_signal_strength();
+		/* Safety net: if STA dropped and credentials exist, keep trying
+		 * even if a disconnect storm stopped event-driven reconnect. */
+		if (SSID_Info.MANUEL_EN == 1 && SSID_Info.name[0] != 0 &&
+		    SSID_Info.IP_Wifi_Status != WIFI_NORMAL) {
+			esp_wifi_connect();
+		}
 	    //Initialize the system event handler
 		/*
 	    ESP_ERROR_CHECK(esp_event_loop_init(scan_event_handler, NULL));

@@ -307,8 +307,7 @@ int PCF_systohc(){
 	ret = PCF_Init(0);
 	if (ret != 0) {
 		goto fail;
-	}
-
+	}	
 	time_t now = time(NULL);
 	gmtime_r(&now, &tm);
 	rtc_date.second = tm.tm_sec;
@@ -319,7 +318,6 @@ int PCF_systohc(){
 	rtc_date.year = tm.tm_year + 1900;
 	rtc_date.weekday = RTC_Get_Week(rtc_date.year,rtc_date.month,rtc_date.day);//tm.tm_wday;
 	ret = PCF_SetDateTime(&rtc_date);
-	Test[37]++;
 
 fail:
 	return ret;
@@ -398,7 +396,8 @@ void update_timers( void )
 
 	time_since_1970 += timestart;
 	Get_Time_by_sec(get_current_time_with_timezone(),&Rtc,1);
-
+	system_timer = 0;
+	Test[39]++;
 }
 
 U32_T get_current_time(void)  // orignal data
@@ -521,7 +520,7 @@ void Get_Time_by_sec(u32 sec_time,UN_Time * rtc, uint8_t flag)
 	rtc->Clk.min = (temp % 3600) / 60;
 	rtc->Clk.sec = (temp % 3600) % 60;
 	rtc->Clk.week = RTC_Get_Week(2000 + rtc->Clk.year, rtc->Clk.mon,rtc->Clk.day);
-	Test[36]++;
+
 	if(flag == 1)
 	{
 	Local_Date.year = rtc_date.year;
@@ -546,12 +545,11 @@ uint32_t Rtc_Set(uint16_t syear, uint8_t smon, uint8_t sday, uint8_t hour, uint8
 		rtc_date.month = smon;
 		rtc_date.year = syear + 2000;
 		rtc_date.day = sday;
+		rtc_date.weekday = RTC_Get_Week(rtc_date.year,rtc_date.month,rtc_date.day);
 		system_timer = 0;
 		PCF_SetDateTime(&rtc_date);
-		Test[38]++;
 	}
 	// if no rtc chip
-	Test[39]++;
 	update_timers();
 
 	return time_since_1970 + system_timer / 1000;

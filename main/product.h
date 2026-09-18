@@ -102,8 +102,8 @@
 #define RMC1216_MAX_DIS 0
 #define RMC1216_MAX_SCS 8
 
-#define RMC32I_MAX_AIS 38 // 32AI + 2I2C * 2 + 1battery + 1power voltage
-#define RMC32I_MAX_DOS 6
+#define RMC32I_MAX_AIS 38 // 32AI + 2I2C * 2 + 1battery + 1 10k
+#define RMC32I_MAX_DOS 4
 #define RMC32I_MAX_AOS 0
 #define RMC32I_MAX_AVS 128
 #define RMC32I_MAX_DIS 0

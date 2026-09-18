@@ -9,7 +9,7 @@
 #define NEW_IO 1
 
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
-
+uint8_t NG3_conver_output_index(uint8_t point);
 #pragma pack(1)
 
 typedef struct

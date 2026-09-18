@@ -166,6 +166,8 @@ extern u8 modbus_send_buf[500];
 extern U16_T modbus_send_len;
 
 void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header);
+void subnet_bus_lock(void);
+void subnet_bus_unlock(void);
 void Record_conflict_ID(U8_T id, U32_T oldsn,U32_T newsn,U8_T port,U8_T product);
 void clear_conflict_id(void);
 void Check_whether_clear_conflict_id(void);

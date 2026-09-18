@@ -15,7 +15,6 @@ extern Str_in_point        far        inputs[MAX_INS];
 uint8_t far input_type[32];
 uint8_t far input_type1[32];
 
-extern U16_T far chip_info[6];
 extern U16_T PT1K_para;
 
 #define SENSOR_DELAY 10
@@ -37,32 +36,6 @@ const S32_T limit[10][2] = { { -40000L, 150000L }, { -40000L, 302000L },
 							{ -200000L, 300000l }, { -200000L, 300000L }
 						  };
 
-
-const uint16_t def_tab_10bit[5][17] = {
- /* 3k termistor YSI44005 -40 to 150 Deg.C or -40 to 302 Deg.F */
-	{ 233*4,  211*4, 179*4, 141*4, 103*4, 71*4, 48*4, 32*4,
-		21*4, 14*4, 10*4, 7*4, 5*4, 4*4, 3*4, 2*4, 1*4 },
-
- /* 10k termistor GREYSTONE -40 to 120 Deg.C or -40 to 248 Deg.F */  // type2
-	{ 988, 964, 924, 862, 778, 682, 572, 462,
-	 364, 282, 214, 164, 128, 100, 76, 62, 48 },
-
- /* 3k termistor GREYSTONE -40 to 120 Deg.C or -40 to 248 Deg.F */
-	{ 233*4, 215*4, 190*4, 160*4, 127*4, 96*4, 70*4, 50*4,
-		35*4, 25*4, 18*4, 13*4, 9*4, 7*4, 5*4, 4*4, 3*4 },
-
- /* 10k termistor KM -40 to 120 Deg.C or -40 to 248 Deg.F */ // type3
-	{ 976, 948, 906, 842, 764, 670, 566, 466,
-		376, 296, 234, 180, 144, 114, 90, 76, 60 },
-
- /* 3k termistor AK -40 to 150 Deg.C or -40 to 302 Deg.F */
-//	{ 246*4, 238*4, 227*4, 211*4, 191*4, 167*4, 141*4, 115*4,
-//		92*4, 72*4, 55*4, 42*4, 33*4, 25*4, 19*4, 15*4, 12*4 }
-		{
-			//61,105,150,191,232,272,314,355,396,433,474,512,546,587,624,661,699
-			109,122,164,206,247,288,328,368,407,446,485,523,562,600,638,676,694
-		}
-};
 
 const uint16_t def_tab_12bit_PT1K[51] = 
 {
@@ -165,11 +138,7 @@ uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
 	ran_in = range;
 	range >>= 1;
 	end = 0;
-	chip_info[1] = 42;
-	//raw = raw * PT1K_para / 10000;
-	if(chip_info[1] >= 42)  // firmware rev is higher than 42, it is 12bit adc for arm chip
-	{
-			
+	/* 12-bit ADC lookup */
 	if(range <= 3) // 0,1,2,3 -> old type
 	{step = 100;
 		delta = MIDDLE_RANGE;
@@ -284,55 +253,8 @@ uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
 			}
 			
 		}
-	}	
-		
 	}
-	else
-	{step = 100;
-		def_tbl = ( uint16_t * )&def_tab_10bit[range];
-		delta = MIDDLE_RANGE;
-			if( raw <= def_tbl[NO_TABLE_RANGES] )
-			return limit[ran_in][1];
-			if( raw >= def_tbl[0] )
-				return limit[ran_in][0];
-			index = MIDDLE_RANGE;
 
-			
-			while( !end )
-			{
-				if( ( raw >= def_tbl[index] ) && ( raw <= def_tbl[index-1] ) )
-				{
-					index--;
-					delta = def_tbl[index] - def_tbl[index+1];
-					if( delta )
-					{
-						work_var = (int)( ( def_tbl[index] - raw ) * step );
-						work_var /= delta;
-						work_var += ( index * step );
-						val = tab_int[ran_in];
-						val *= work_var;
-						val /= step;
-						val += limit[ran_in][0];
-					}
-					return val;
-				}
-				else
-				{
-					if( !delta )
-						end = 1;
-					delta /= 2;
-					if( raw < def_tbl[index] )
-						index += delta;
-					else
-						index -= delta;
-					if( index <= 0 )
-						return limit[ran_in][0];
-					if( index >= NO_TABLE_RANGES )
-						return limit[ran_in][1];
-				}
-			}			
-	}	
-	
 	return 0;
 }
 
@@ -401,14 +323,9 @@ void control_input(void)
 	U32_T sample;
 //	U8_T max_input;
     U8_T temp;	
-	U8_T shift = 1;
+	U8_T shift = 4; /* 12-bit ADC */
 //	ins = inputs;
 //	inx = in_aux;
-	chip_info[1] = 42;
-	if(chip_info[1] >= 42)
-		shift = 4;
-	else
-		shift = 1;
 	
 	while( point < MAX_INS )
 	{
@@ -447,8 +364,8 @@ void control_input(void)
 					input_type[point] = INPUT_THERM;
 				}
 				else
-				{
-					if((ptr.pin->range == V0_5) || (ptr.pin->range == P0_100_0_5V)) // 0-_5v
+				{// AHKC_Hall is only for PLC RMC1232
+					if((ptr.pin->range == V0_5) || (ptr.pin->range == P0_100_0_5V) || (ptr.pin->range == AHKC_Hall)) // 0-_5v
 					{
 						input_type[point] = INPUT_V0_5;				
 					}
@@ -578,7 +495,8 @@ void control_input(void)
 								}				
 								sample = get_input_value_by_range( ptr.pin->range, sample );
 								break;
-							case V0_5:			
+							case V0_5:
+							case AHKC_Hall:  /* RMC1232 Hall: first as mV, then convert_rmc1232_AHKC_Hall → ±A */
 								sample = conver_by_unit_5v(sample / shift);
 
 

@@ -21,7 +21,6 @@
 #include "driver/uart.h"
 extern char debug_array[100];
 void debug_info(char *string);
-#define STORE_TO_SD 0
 
 #define DEBUG_TRENDLOG 0
 
@@ -29,12 +28,12 @@ extern uint16_t current_page;
 extern char sntp_server[30];
 extern U8_T current_online[32];
 
-uint16_t 	flash_trendlog_num[MAX_MONITORS * 2];
+uint32_t 	flash_trendlog_num[MAX_MONITORS * 2];
 
 uint32 get_current_time(void);
 
 esp_err_t save_trendlog(void);
-esp_err_t read_trendlog(uint8_t page,uint8_t seg);
+esp_err_t read_trendlog(uint16_t page_total, uint8_t seg);
 
 void write_parameters_to_nodes(uint8_t func,uint8 id, uint16 reg, uint16* value,uint8_t len);
 int write_NP_Modbus_to_nodes(U8_T ip,U8_T func,U8_T sub_id, U16_T reg, U16_T * value, U8_T len);
@@ -109,6 +108,7 @@ BACNET_TIME Local_Time;
 //uint32_t test111,test222;
  U8_T max_dos;
  U8_T max_aos;
+ U8_T max_dos_2;
 
  U16_T  input_raw[MAX_INS];
  U16_T  input_raw_back[MAX_INS];
@@ -422,7 +422,7 @@ static void init_default_input_point(Str_in_point *pin, uint16_t i)
 {
 	memset(pin, 0, sizeof(Str_in_point));
 	pin->value = 0;
-	snprintf((char *)pin->description, sizeof(pin->description), "newIN %d", (int)(i + 1));
+	snprintf((char *)pin->description, sizeof(pin->description), "IN %d", (int)(i + 1));
 	pin->filter = DEFAULT_FILTER;
 	pin->decom = 0;
 	pin->control = 1;
@@ -451,7 +451,7 @@ static void init_default_output_point(Str_out_point *pout, uint16_t i)
 		pout->range = 4;
 		pout->digital_analog = 1;
 	}
-	snprintf((char *)pout->description, sizeof(pout->description), "newOUT%d", (int)(i + 1));
+	snprintf((char *)pout->description, sizeof(pout->description), "OUT%d", (int)(i + 1));
 	snprintf((char *)pout->label, sizeof(pout->label), "OUT%d", (int)(i + 1));
 	pout->auto_manual = 0;
 }
@@ -464,7 +464,7 @@ static void init_default_var_point(Str_variable_point *pvar, uint16_t i)
 	pvar->digital_analog = 1;
 	pvar->unused = 2;
 	pvar->range = 0;
-	snprintf((char *)pvar->description, sizeof(pvar->description), "newVAR%d", (int)(i + 1));
+	snprintf((char *)pvar->description, sizeof(pvar->description), "VAR%d", (int)(i + 1));
 	snprintf((char *)pvar->label, sizeof(pvar->label), "VAR%d", (int)(i + 1));
 }
 
@@ -922,10 +922,7 @@ void Sync_Panel_Info(void)
 
 	Setting_Info.reg.pro_info.firmware_rev = chip_info[1]; // firmware
 	Setting_Info.reg.pro_info.hardware_rev = chip_info[2]; // hardware
-	if(chip_info[1] >= 42 && chip_info[2] == 1)
-		Setting_Info.reg.specila_flag |= 0x01;
-	else
-		Setting_Info.reg.specila_flag &= 0xfe;
+	Setting_Info.reg.specila_flag = 0; // no pt sensor
 
 	Setting_Info.reg.en_sntp = Modbus.en_sntp;
 	Setting_Info.reg.en_time_sync_with_pc = Modbus.en_time_sync_with_pc;
@@ -1413,7 +1410,9 @@ U8_T check_point_type(Point_Net * point)
 	if((point_type <= MB_REG + 1) 
 		&& (point_type >= MB_COIL_REG + 1))
 		return 1;	
-	if((point_type >= BAC_FLOAT_ABCD + 1) && (point_type <= BAC_FLOAT_DCBA + 1))
+	if((point_type >= MB_HOLDING_FLOAT_ABCD + 1) && (point_type <= MB_HOLDING_FLOAT_DCBA + 1))
+		return 1;
+	if((point_type >= MB_INPUT_FLOAT_ABCD + 1) && (point_type <= MB_INPUT_FLOAT_DCBA + 1))
 		return 1;
 	return 0;
 }
@@ -1881,7 +1880,9 @@ U8_T check_network_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 			if(((point->point_type & 0x1f) == (ptr->point.point_type & 0x1f)) ||
 				(((point->point_type & 0x1f) == VAR + 1) && ((ptr->point.point_type & 0x1f) == MB_REG + 1)) || 
 				(((point->point_type & 0x1f) == MB_REG +1) && ((ptr->point.point_type & 0x1f)== VAR + 1)) ||
-				(((point->point_type & 0x1f) == READ_DIS_INPUT +1) && ((ptr->point.point_type & 0x1f)== MB_DIS_REG + 1))
+				(((point->point_type & 0x1f) == READ_DIS_INPUT +1) && ((ptr->point.point_type & 0x1f)== MB_DIS_REG + 1)) || 
+				(((point->point_type & 0x1f) == READ_COIL +1) && ((ptr->point.point_type & 0x1f)== MB_COIL_REG + 1))
+
 			)	
 			{
 				*index = i;
@@ -2008,7 +2009,14 @@ void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T 
 		else if(type == READ_DIS_INPUT)
 			ptr.point.point_type = MB_DIS_REG + 1 + number_high3bit;
 		else if(type == READ_INPUT)
+		{
 			ptr.point.point_type = MB_IN_REG + 1 + number_high3bit;
+			if(float_type > 0)
+			{
+				ptr.point.point_type = ((MB_INPUT_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
+				ptr.point.network_number |= ((MB_INPUT_FLOAT_ABCD + float_type) & 0x60);
+			}
+		}
 		else if(type == READ_VARIABLES || type == (OUT+1) || type == (IN+1) || type == (VAR+1))
 		{
 			if(specail == 1) 
@@ -2021,8 +2029,8 @@ void add_remote_point(U8_T id,U8_T point_type,U8_T high_5bit, U8_T number,S32_T 
 			}
 			if(float_type > 0)
 			{
-				ptr.point.point_type = ((BAC_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
-				ptr.point.network_number |= ((BAC_FLOAT_ABCD + float_type) & 0x60);
+				ptr.point.point_type = ((MB_HOLDING_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
+				ptr.point.network_number |= ((MB_HOLDING_FLOAT_ABCD + float_type) & 0x60);
 			}
 		}		
 	}
@@ -2104,15 +2112,18 @@ void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_
 		type = point_type & 0x1f;
 		number_high3bit = point_type & 0xe0;
 		
-		if(type == READ_COIL)
+		if(type == READ_COIL || type == MB_COIL_REG)
 			ptr.point.point_type = MB_COIL_REG + 1 + number_high3bit;
-		else if(type == READ_DIS_INPUT)
+		else if(type == READ_DIS_INPUT || type == MB_DIS_REG)
 			ptr.point.point_type = MB_DIS_REG + 1 + number_high3bit;
-		else if(type == READ_INPUT)
+		else if(type == READ_INPUT || type == MB_IN_REG)
 		{
 			ptr.point.point_type = MB_IN_REG + 1 + number_high3bit;
-			float_type = 1;			// read input float 32bit
-			protocal = 0;			
+			if(float_type > 0)
+			{
+				ptr.point.point_type = ((MB_INPUT_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
+				ptr.point.network_number |= ((MB_INPUT_FLOAT_ABCD + float_type) & 0x60);
+			}		
 		}
 		else //if(type == READ_VARIABLES)
 		{
@@ -2123,8 +2134,8 @@ void add_network_point(U8_T panel,U8_T id,U8_T point_type,U8_T number,S32_T val_
 			
 			if(float_type > 0)
 			{
-				ptr.point.point_type = ((BAC_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
-				ptr.point.network_number |= ((BAC_FLOAT_ABCD + float_type) & 0x60);
+				ptr.point.point_type = ((MB_HOLDING_FLOAT_ABCD + float_type) & 0x1f) + number_high3bit;
+				ptr.point.network_number |= ((MB_HOLDING_FLOAT_ABCD + float_type) & 0x60);
 			}
 		}
 		protocal = 0;
@@ -2272,10 +2283,13 @@ S16_T insert_remote_point( Point_Net *point, S16_T index )
 							remote_points_list[i].tb.RP_modbus.func = READ_DIS_INPUT;
 						else if(point_type == MB_IN_REG + 1)
 							remote_points_list[i].tb.RP_modbus.func = READ_INPUT;
-						else if((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))
+						else if((point_type >= MB_HOLDING_FLOAT_ABCD + 1) &&( point_type <= MB_HOLDING_FLOAT_DCBA + 1))
 						{
-							remote_points_list[i].tb.RP_modbus.func = READ_VARIABLES
-							+ ((point_type - BAC_FLOAT_ABCD) << 8);
+							remote_points_list[i].tb.RP_modbus.func = READ_VARIABLES + ((point_type - MB_HOLDING_FLOAT_ABCD) << 8);
+						}
+						else if((point_type >= MB_INPUT_FLOAT_ABCD + 1) &&( point_type <= MB_INPUT_FLOAT_DCBA + 1))
+						{
+							remote_points_list[i].tb.RP_modbus.func = READ_INPUT + ((point_type - MB_INPUT_FLOAT_ABCD) << 8);
 						}
 						else	// other things
 							remote_points_list[i].tb.RP_modbus.func = READ_VARIABLES;
@@ -2368,10 +2382,13 @@ S16_T insert_network_point( Point_Net *point, S16_T index )
 								network_points_list[i].tb.NT_modbus.func = READ_DIS_INPUT;
 							else if((point_type & 0x1f) == MB_IN_REG + 1)
 								network_points_list[i].tb.NT_modbus.func = READ_INPUT;
-							else if((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))
+							else if((point_type >= MB_HOLDING_FLOAT_ABCD + 1) &&( point_type <= MB_HOLDING_FLOAT_DCBA + 1))
 							{
-								network_points_list[i].tb.NT_modbus.func = READ_VARIABLES
-								+ ((point_type - BAC_FLOAT_ABCD) << 8);
+								network_points_list[i].tb.NT_modbus.func = READ_VARIABLES	+ ((point_type - MB_HOLDING_FLOAT_ABCD) << 8);
+							}		
+							else if((point_type >= MB_INPUT_FLOAT_ABCD + 1) &&( point_type <= MB_INPUT_FLOAT_DCBA + 1))
+							{
+								network_points_list[i].tb.NT_modbus.func = READ_INPUT	+ ((point_type - MB_INPUT_FLOAT_ABCD) << 8);
 							}
 							else	// other things
 								network_points_list[i].tb.NT_modbus.func = READ_VARIABLES;
@@ -3256,7 +3273,8 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 				if((point_type == (VAR + 1)) \
 				|| (point_type == (MB_IN_REG + 1))\
 				|| (point_type == (MB_REG + 1)) \
-				|| ((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))\
+				|| ((point_type >= MB_HOLDING_FLOAT_ABCD + 1) &&( point_type <= MB_HOLDING_FLOAT_DCBA + 1))\
+				|| ((point_type >= MB_INPUT_FLOAT_ABCD + 1) &&( point_type <= MB_INPUT_FLOAT_DCBA + 1))\
 				|| (point_type == (OUT + 1)) \
 				|| (point_type == (IN + 1)) 
 				)
@@ -3267,10 +3285,15 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 						high_5bit = 0;
 					if(ptr->point_value != *val_ptr)
 					{
-						if((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))
-						{
-							Float_to_Byte((float)(*val_ptr) / 1000,(U8_T *)&value,point_type - BAC_FLOAT_ABCD);
-							write_parameters_to_nodes(0x10,remote_points_list[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,4);
+						if((point_type >= MB_HOLDING_FLOAT_ABCD + 1) &&( point_type <= MB_HOLDING_FLOAT_DCBA + 1))
+						{						
+							Float_to_Byte((float)(*val_ptr) / 1000,(U8_T *)&value,point_type - MB_HOLDING_FLOAT_ABCD);
+							write_parameters_to_nodes(0x10,remote_points_list[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,4);					
+						}
+						else if((point_type >= MB_INPUT_FLOAT_ABCD + 1) &&( point_type <= MB_INPUT_FLOAT_DCBA + 1))
+						{				
+							Float_to_Byte((float)(*val_ptr) / 1000,(U8_T *)&value,point_type - MB_INPUT_FLOAT_ABCD);
+							write_parameters_to_nodes(0x10,remote_points_list[index].tb.RP_modbus.id,ptr->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,4);					
 						}
 						else
 						{	
@@ -3446,7 +3469,8 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 				|| (point_type == (MB_IN_REG + 1))\
 				|| (point_type == (MB_REG + 1))
 				|| (point_type == (MB_COIL_REG + 1))
-				|| ((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1)))
+				|| ((point_type >= MB_HOLDING_FLOAT_ABCD + 1) &&( point_type <= MB_HOLDING_FLOAT_DCBA + 1)) \
+				|| ((point_type >= MB_INPUT_FLOAT_ABCD + 1) &&( point_type <= MB_INPUT_FLOAT_DCBA + 1))) 
 				{
 					if(ptr1->point.network_number & 0x80)
 						high_5bit = ptr1->point.network_number & 0x1f;
@@ -3455,10 +3479,17 @@ S16_T put_net_point_value( Point_Net *p, S32_T *val_ptr, S16_T aux, S16_T prog_o
 
 					if(ptr1->point_value != *val_ptr)
 					{
-						if((point_type >= BAC_FLOAT_ABCD + 1) &&( point_type <= BAC_FLOAT_DCBA + 1))
+						if((point_type >= MB_HOLDING_FLOAT_ABCD + 1) &&( point_type <= MB_HOLDING_FLOAT_DCBA + 1))
 						{
-								Float_to_Byte(*val_ptr,(U8_T *)&value,point_type - BAC_FLOAT_ABCD);
-								write_NP_Modbus_to_nodes(ptr1->point.panel,0x10,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,2);
+							Float_to_Byte((float)(*val_ptr) / 1000,(U8_T *)&value,point_type - MB_HOLDING_FLOAT_ABCD);
+							//network_points_list[index].invoked_id =
+							write_NP_Modbus_to_nodes(ptr1->point.panel,0x10,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,2);	
+						}
+						else if((point_type >= MB_INPUT_FLOAT_ABCD + 1) &&( point_type <= MB_INPUT_FLOAT_DCBA + 1))
+						{
+							Float_to_Byte((float)(*val_ptr) / 1000,(U8_T *)&value,point_type - MB_INPUT_FLOAT_ABCD);
+							//network_points_list[index].invoked_id =
+							write_NP_Modbus_to_nodes(ptr1->point.panel,0x10,ptr1->point.sub_id,ptr1->point.number + 256 * high_3bit + 2048 * high_5bit,(U16_T*)&value,2);	
 						}
 						else
 						{
@@ -4012,6 +4043,7 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 						+ ((uint32_t)temp[1] << 16) + ((uint32_t)temp[0] << 24);
 
 			flash_trendlog_seg++;
+			flash_trendlog_num[i * 2]++;
 		}
 	}
 	if(flash_trendlog_seg +  mon_block[i * 2].no_points > MAX_MON_POINT_FLASH/*256*/)
@@ -4022,10 +4054,7 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 		{
 			memset(&write_mon_point_buf_to_flash[k],0,sizeof(Str_mon_element));
 		}
-		if(save_trendlog() == ESP_OK)
-		{
-			flash_trendlog_num[i * 2]++;
-		}	
+		save_trendlog();
 		flash_trendlog_seg = 0;
 #if DEBUG_TRENDLOG
     sprintf(debug_array,"new block %u, \r\n",flash_trendlog_num[i * 2]);
@@ -4137,6 +4166,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf_to_flash[flash_trendlog_seg].point.network_number = ptr.pnet->network_number;
 								write_mon_point_buf_to_flash[flash_trendlog_seg].value = 0;//get_input_sample( ptr.pnet->number );
 								flash_trendlog_seg++;
+								flash_trendlog_num[i * 2 + 1]++;
 							}
 							else
 							{
@@ -4163,6 +4193,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
 									flash_trendlog_seg++;
+									flash_trendlog_num[i * 2 + 1]++;
 								}
 
 							}
@@ -4192,6 +4223,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 								write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
 								flash_trendlog_seg++;
+								flash_trendlog_num[i * 2 + 1]++;
 							}
 							else
 							{
@@ -4221,6 +4253,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 									write_mon_point_buf_to_flash[flash_trendlog_seg].mark = 0x0a0d;
 
 									flash_trendlog_seg++;
+									flash_trendlog_num[i * 2 + 1]++;
 								}
 							}
 
@@ -4243,10 +4276,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 			memset(&write_mon_point_buf_to_flash[k],0,sizeof(Str_mon_element));
 		}
 		//if(Write_SD(HIGH_BYTE(SD_block_num[i * 2 + 1]) + ((SD_block_num[i * 2 + 1] >> 24) << 16),i,0,(uint32_t)LOW_BYTE(SD_block_num[i * 2 + 1]) * MAX_MON_POINT * sizeof(Str_mon_element))==1)
-		if(save_trendlog() == ESP_OK)
-		{
-			flash_trendlog_num[i * 2 + 1]++;
-		}
+		save_trendlog();		
 
 		flash_trendlog_seg = 0;
 //			if(mon_block[i * 2 + 1].index + mon_block[i * 2 + 1].no_points > MAX_MON_POINT)
@@ -4320,17 +4350,26 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 	if(PTRtable->seg_index > 0)
 	{
 		uint16_t temp_seg = 0;
-		if((PTRtable->seg_index - 1) >= current_page * get_max_trend_page() + 1 + get_max_trend_page() * MAX_TREND_SEG)
-		{
-			// 
+		uint32_t end_seg = current_page * MAX_TREND_SEG + flash_trendlog_seg / MAX_MON_POINT_READ;
+		uint32_t start_seg = 0;
 
+		if (current_page > get_max_trend_page()) {
+			start_seg = (current_page - get_max_trend_page()) * MAX_TREND_SEG;
+		}
+		//Test[12] = start_seg;
+		//Test[13] = end_seg;
+		//Test[14] = PTRtable->seg_index - 1;
+		if((PTRtable->seg_index - 1) < start_seg || (PTRtable->seg_index - 1) > end_seg)
+		{
+			// segment out of range, no data available
+			//Test[11]++;
 		}
 		else
 		{			
-			if((PTRtable->seg_index - 1) >= current_page * get_max_trend_page()/* + 1*/)
+			if((PTRtable->seg_index - 1) >= current_page * MAX_TREND_SEG)
 			{// read last packet, not store into flash
 				PTRtable->special = 1;
-
+				//Test[15]++;
 				temp_seg = (PTRtable->seg_index - 1 - current_page * MAX_TREND_SEG);
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read last packet seg = %ld, temp_set = %u",PTRtable->seg_index,temp_seg);
@@ -4343,10 +4382,11 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 
 			}
 			else			
-			{
+			{	//Test[16]++;
 				PTRtable->special = 0;
 				if(read_trendlog((PTRtable->seg_index - 1) / MAX_TREND_SEG, (PTRtable->seg_index - 1) % MAX_TREND_SEG) == 0) // no error
-				{
+				{//Test[17]++;
+				//Test[18] = PTRtable->seg_index;
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read from flash = %ld",PTRtable->seg_index);
 		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
@@ -4354,7 +4394,7 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 					memcpy( PTRtable->asdu,&read_mon_point_buf_from_flash, MAX_MON_POINT_READ * sizeof(Str_mon_element));
 				}
 				else
-				{
+				{//Test[19]++;
 	#if DEBUG_TRENDLOG
 		sprintf(debug_array," read error");
 		uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
@@ -4374,14 +4414,14 @@ U8_T ReadMonitor( Mon_Data *PTRtable)
 
 		if(end_seg > get_max_trend_page() * MAX_TREND_SEG)
 		{
-			PTRtable->seg_index = end_seg - get_max_trend_page() * MAX_TREND_SEG;
+			PTRtable->seg_index = end_seg - get_max_trend_page() * MAX_TREND_SEG + 1;
 			PTRtable->total_seg = get_max_trend_page() * MAX_TREND_SEG;
 		}
 		else
 		{
 			PTRtable->seg_index = 1;
 			PTRtable->total_seg = end_seg;
-		};
+		}
 #if DEBUG_TRENDLOG
 	sprintf(debug_array," start read, seg = %lu, total = %lu",PTRtable->seg_index,PTRtable->total_seg);
 	uart_write_bytes(0, (const char *)debug_array, strlen(debug_array));
@@ -4531,7 +4571,7 @@ void monitor_init(void)
 	boot = 0;
 
 }
-
+/*
 U8_T Write_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 {
 	uint8 ret;//, loop = 50;
@@ -4560,7 +4600,7 @@ U8_T Read_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 	
 	
 	return result;
-}
+}*/
 
 void dealwithMonitor(uint8_t bank)
 {
@@ -4573,7 +4613,7 @@ void dealwithMonitor(uint8_t bank)
 	//for( bank = 0; bank < MAX_MONITORS; bank++, ptr.pmon++, ptr2.pmon++ )
 	{
 		flag = 0;
-
+		Test[31]++;
 		//if(ptr2.pmon->status == 1)
 		{
 	// check whether change monitor setting, if changed, change next_sample_time
@@ -4642,72 +4682,13 @@ void dealwithMonitor(uint8_t bank)
 	//	no_points = ( ptr.pmon - monitors );/* / sizeof(Str_monitor_point);*/
 			if( flag & 0x01 ) /* get a new analog block */
 			{
-#if  STORE_TO_SD
-				if(Write_SD((SD_block_num[bank * 2] >> 8) & 0xfff,bank,1,(uint32_t)LOW_BYTE(SD_block_num[bank * 2]) * sizeof(Str_mon_element)) == 1)
-#endif
-				{
-					/*if(SD_exist == 2)
-					{
-						U8_T temp;
-						//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + bank,&temp);
-						if((temp & 0x0f) != (SD_block_num[bank * 2] >> 16 & 0x0f))
-						{
-							temp &= 0xf0;
-							temp |= (SD_block_num[bank * 2] >> 16 & 0x0f);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp);
-
-						}
-
-						//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2,HIGH_BYTE(SD_block_num[bank * 2]));
-						//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2 + 1,LOW_BYTE(SD_block_num[bank * 2]));
-						if(SD_block_num[bank * 2] < 0xfffff)
-							SD_block_num[bank * 2]++;
-						else
-						{
-							//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_A1 + bank * 2 + 1,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp & 0xf0);
-							SD_block_num[bank * 2] = 0;
-						}
-					}*/
-
-					init_new_analog_block( bank, ptr2.pmon);
-				}
+				init_new_analog_block( bank, ptr2.pmon);
 
 			}
 			if( flag & 0x02 ) /* get a new digital block */
 			{
-#if  STORE_TO_SD
 
-				if(Write_SD(HIGH_BYTE(SD_block_num[bank * 2 + 1]) + ((SD_block_num[bank * 2 + 1] >> 24) << 16),bank,0,(uint32_t)LOW_BYTE(SD_block_num[bank * 2 + 1]) * sizeof(Str_mon_element)) == 1)
-#endif
-				{
-/*					if(SD_exist == 2)
-					{
-						U8_T temp;
-						//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + bank,&temp);  // high 4 bits
-						if((temp & 0xf0) != (SD_block_num[bank * 2] >> 16 & 0xf0))
-						{
-							temp &= 0x0f;
-							temp |= (SD_block_num[bank * 2] >> 16 & 0xf0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp);
-
-						}
-
-						//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2,HIGH_BYTE(SD_block_num[bank * 2 + 1]));
-						//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2 + 1,LOW_BYTE(SD_block_num[bank * 2 + 1]));
-						if(SD_block_num[bank * 2 + 1] < 0xfffff)
-							SD_block_num[bank * 2 + 1] ++;
-						else
-						{
-							//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_D1 + bank * 2 + 1,0);
-							//E2prom_Write_Byte(EEP_SD_BLOCK_HI1 + bank,temp & 0x0f);
-							SD_block_num[bank * 2 + 1] = 0;
-						}
-					}*/
-					init_new_digital_block( bank, ptr2.pmon);
-				}
+				init_new_digital_block( bank, ptr2.pmon);				
 
 			}
 

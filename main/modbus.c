@@ -103,6 +103,155 @@ uint8_t count_change_uart2 = 0;
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
 
+STR_PLC plc_power = { .flag_48V_exist = 1 };
+/* internal accumulators: (W * 1000) * seconds; energy = kWh * 1000 = acc / 3600000 */
+static uint64_t plc_energy_acc[24];     /* charge (I > 0) → MODBUS_ENERGY1 */
+static uint64_t plc_dis_energy_acc[24]; /* discharge (I < 0) → MODBUS_DIS_ENERGY1 */
+uint16 rmc_cuv = 2550;		/* POWER_CELL_UV_MV default */
+uint16 rmc_cov = 3600;		/* POWER_CELL_OV_MV default */
+uint16 rmc_stack = 2500;	/* POWER_SHUTDOWN_CELL_MV default */
+uint16 rmc_oc_chg = 3000;	/* POWER_OC_CHG_MA default */
+uint16 rmc_oc_dsg = 4000;	/* POWER_OC_DSG_MA default */
+
+/* Keep integrators in sync so energy survives reboot and keeps accumulating */
+void plc_power_sync_acc(void)
+{
+	uint8_t i;
+
+	for(i = 0; i < 24; i++)
+	{
+		plc_energy_acc[i] = (uint64_t)plc_power.energy[i] * 3600000ULL;
+		plc_dis_energy_acc[i] = (uint64_t)plc_power.dis_energy[i] * 3600000ULL;
+	}
+}
+
+/* Accumulate energy: power[v*6+ct] in kWh*1000 (0.001 kWh resolution)
+ * vol1..4 = IN9..IN12; CT_channel[ct]: 0=unused, n=INn (1..24, exclude 9..12)
+ * en_power==0 clears that channel energy */
+void calculate_plc_power(void)
+{
+	uint8_t v, ct;
+	int32_t vol[4];
+	int32_t cur[6];
+	Str_points_ptr ptr;
+	static uint32_t last_ms = 0;
+	uint32_t now = system_timer;
+	uint32_t dt_ms;
+	static uint8_t bms_neg_timing = 0;
+	static uint32_t t_bms_neg_start = 0;
+
+	/* RMC1232: IN39 BMS current (1000x A).
+	 * No BMS comm → assume 48V present (cannot judge from current). */
+	if(plc_power.flag_bms_comm == 0)
+	{
+		bms_neg_timing = 0;
+		plc_power.flag_48V_exist = 1;
+	}
+	else
+	{
+		ptr = put_io_buf(IN, 38);
+		if(ptr.pin->value < 0)
+		{
+			if(bms_neg_timing == 0)
+			{
+				bms_neg_timing = 1;
+				t_bms_neg_start = now;
+			}
+			if((now - t_bms_neg_start) >= 10000)
+				plc_power.flag_48V_exist = 0;
+			else
+				plc_power.flag_48V_exist = 1;
+		}
+		else
+		{
+			bms_neg_timing = 0;
+			plc_power.flag_48V_exist = 1;
+		}
+	}
+	
+
+	if(last_ms == 0)
+	{
+		last_ms = now;
+		return;
+	}
+	dt_ms = now - last_ms;
+	last_ms = now;
+	if(dt_ms == 0)
+		return;
+	if(dt_ms > 5000)  /* clamp after long stall */
+		dt_ms = 1000;
+
+	for(v = 0; v < 4; v++)
+	{
+		ptr = put_io_buf(IN, 8 + v);  // IN9..IN12
+		vol[v] = (ptr.pin->value);
+		//if(vol[v] < 0)
+		//	vol[v] = -vol[v];
+	}
+
+	for(ct = 0; ct < 6; ct++)
+	{
+		uint8_t ch = plc_power.CT_channel[ct];
+		cur[ct] = 0;
+		/* 0 = no CT; 9..12 reserved for voltage; allow 1..8 and 13..24 */
+		if(ch == 0 || ch > 24 || (ch >= 9 && ch <= 12))
+			continue;
+		ptr = put_io_buf(IN, ch - 1);
+		/* keep CT sign: positive/negative power follows current direction */
+		cur[ct] = (ptr.pin->value);
+	}
+
+	for(v = 0; v < 4; v++)
+	{
+		for(ct = 0; ct < 6; ct++)
+		{
+			uint8_t index = v * 6 + ct;
+			if(plc_power.en_power[index] == 0)
+			{
+				plc_energy_acc[index] = 0;
+				plc_dis_energy_acc[index] = 0;
+				plc_power.energy[index] = 0;
+				plc_power.dis_energy[index] = 0;
+				plc_power.power[index] = 0;
+			}
+			else
+			{
+				/* signed instantaneous power (W); sign = CT current sign */
+				{
+					if(index == 0)
+					{
+						Test[41] = vol[v] / 1000;
+						Test[42] = cur[ct] / 1000;
+						
+					}
+					int32_t p_w = (vol[v] / 1000) * (cur[ct] / 1000);
+					if(p_w > 32767)
+						p_w = 32767;
+					else if(p_w < -32768)
+						p_w = -32768;
+					plc_power.power[index] = (int16_t)p_w;
+				}
+				int32_t cur_abs = (cur[ct] < 0) ? -cur[ct] : cur[ct];
+				int32_t vol_abs = (vol[v] < 0) ? -vol[v] : vol[v];
+				if(cur_abs != 0)
+				{
+					/* |P|(W*1000) = |V|*|I|/1000; route by CT current sign */
+					uint32_t p_x1000 = (uint32_t)(((int64_t)vol_abs * cur_abs) / 1000);
+					uint64_t dE = (uint64_t)p_x1000 * dt_ms / 1000;
+					if(cur[ct] > 0)
+						plc_energy_acc[index] += dE;      /* charge → ENERGY */
+					else
+						plc_dis_energy_acc[index] += dE;  /* discharge → DIS_ENERGY */
+				}
+				/* kWh*1000 = (W*1000 * s) / 3,600,000 */
+				plc_power.energy[index] = (uint32_t)(plc_energy_acc[index] / 3600000ULL);
+				plc_power.dis_energy[index] = (uint32_t)(plc_dis_energy_acc[index] / 3600000ULL);
+			}
+		}
+	}
+}
+
 void check_modbus_slave(void)
 {
 	if(Modbus.fix_com_config == 1)
@@ -543,7 +692,14 @@ extern uint8 led_main_rx;
 void check_whether_modbus_slave(uint8_t * uart_rsv, uint16_t len, uint8_t port)
 {
 	U16_T crc_val;
-//	if(Modbus.fix_com_config == 0)  // default is 0
+// 针对PLC的产品，不要把master改为MODBUS_SLAVE, Temco的产品仍然要求能改为MODBUS_SLAVE
+	if(Modbus.mini_type == PROJECT_RMC1232 || Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_NG3)
+	{
+		if(Modbus.fix_com_config == 1) 
+			return ;
+	}		
+		
+	//	if(Modbus.fix_com_config == 0)  // default is 0
 	{
 		if(((len == 6) && (uart_rsv[0] == 0xff) && (uart_rsv[1] == 0x19)) \
 		|| ((len == 8) && (uart_rsv[1] == 0x03) && (uart_rsv[7] != 0))) // receive data
@@ -1088,10 +1244,10 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = 0;
 			temp2 = Modbus.LCD_time_off_delay;
 		}
-		else if(address == MODBUS_DEAD_MASTER_FOR_PLC)
+		else if(address == MODBUS_LED_TEST_FOR_PLC)
 		{
 			temp1 = 0;
-			temp2 = Modbus.dead_master_for_PLC;
+			temp2 = Modbus.RMC1232_led_Test;
 		}
          else if((address >= MAC_ADDR_1) && (address <= MAC_ADDR_6))
          {
@@ -1222,6 +1378,157 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 				temp2 = task_test.inactive_count[reg] & 0xff;
 			}
 		}
+// FOR PLC
+		else if(address >= MODBUS_CT1_CHANNEL && address <= MODBUS_CT6_CHANNEL)
+		{
+			temp1 = 0;
+			temp2 = plc_power.CT_channel[address - MODBUS_CT1_CHANNEL];
+		}
+		else if(address >= MODBUS_POWER_EN1 && address <= MODBUS_POWER_EN24)
+		{
+			temp1 = 0;
+			temp2 = plc_power.en_power[address - MODBUS_POWER_EN1];
+		}
+		else if(address >= MODBUS_ENERGY1 && address <= MODBUS_ENERGY24)
+		{
+			U16_T index = (address - MODBUS_ENERGY1) / 2;
+			if((address - MODBUS_ENERGY1) % 2 == 0)  // high word
+			{
+				temp1 = (U8_T)(plc_power.energy[index] >> 24);
+				temp2 = (U8_T)(plc_power.energy[index] >> 16);
+			}
+			else  // low word
+			{
+				temp1 = (U8_T)(plc_power.energy[index] >> 8);
+				temp2 = (U8_T)(plc_power.energy[index]);
+			}
+		}
+		else if(address >= MODBUS_DIS_ENERGY1 && address <= MODBUS_DIS_ENERGY24)
+		{
+			U16_T index = (address - MODBUS_DIS_ENERGY1) / 2;
+			if((address - MODBUS_DIS_ENERGY1) % 2 == 0)  // high word
+			{
+				temp1 = (U8_T)(plc_power.dis_energy[index] >> 24);
+				temp2 = (U8_T)(plc_power.dis_energy[index] >> 16);
+			}
+			else  // low word
+			{
+				temp1 = (U8_T)(plc_power.dis_energy[index] >> 8);
+				temp2 = (U8_T)(plc_power.dis_energy[index]);
+			}
+		}
+		else if(address >= MODBUS_POWER1 && address <= MODBUS_POWER24)
+		{
+			U16_T index = address - MODBUS_POWER1;
+			temp1 = plc_power.power[index] >> 8;
+			temp2 = plc_power.power[index];
+		}
+		else if(address >= MODBUS_BATTERY1 && address <= MODBUS_BATTERY7)
+		{
+			if(Modbus.mini_type == PROJECT_RMC1232)
+			{
+				temp1 = 0;
+				temp2 = plc_power.battery[address - MODBUS_BATTERY1];
+			}
+			else
+			{
+				extern uint16 mini_bms_cell_mv[7];
+				temp1 = mini_bms_cell_mv[address - MODBUS_BATTERY1] >> 8;
+				temp2 = mini_bms_cell_mv[address - MODBUS_BATTERY1];
+			}
+		}
+		else if(address == MODBUS_BATTERY_SUM)
+		{
+			temp1 = plc_power.battery_sum >> 8;
+			temp2 = plc_power.battery_sum;
+		}
+		else if(address == MODBUS_BMS_COMM)
+		{
+			temp1 = 0;
+			temp2 = plc_power.flag_bms_comm;
+		}
+		else if(address == MODBUS_48V_EXIST)
+		{
+			temp1 = 0;
+			temp2 = plc_power.flag_48V_exist;
+		}
+		else if(address == MODBUS_CUVT)
+		{
+			temp1 = rmc_cuv >> 8;
+			temp2 = rmc_cuv;
+		}
+		else if(address == MODBUS_COVT)
+		{
+			temp1 = rmc_cov >> 8;
+			temp2 = rmc_cov;
+		}
+		else if(address == MODBUS_SHUTDOWN_CELL)
+		{
+			temp1 = rmc_stack >> 8;
+			temp2 = rmc_stack;
+		}
+		else if(address == MODBUS_OC_CHG)
+		{
+			temp1 = rmc_oc_chg >> 8;
+			temp2 = rmc_oc_chg;
+		}
+		else if(address == MODBUS_OC_DSG)
+		{
+			temp1 = rmc_oc_dsg >> 8;
+			temp2 = rmc_oc_dsg;
+		}
+		else if(address == MODBUS_BMS_CURRENT)
+		{
+			if(Modbus.mini_type == MINI_BMS)
+			{extern uint16_t mini_bms_current_ma;
+				uint16_t cur = (uint16_t)mini_bms_current_ma;
+				temp1 = cur >> 8;
+				temp2 = cur;
+			}
+			else if(Modbus.mini_type == PROJECT_RMC1232)
+			{
+				Str_points_ptr ptr;
+				ptr = put_io_buf(IN,38);
+				temp1 = (ptr.pin->value / 100) >> 8;
+				temp2 = (ptr.pin->value / 100);
+			}
+		}
+		else if(address == MODBUS_TEMP1)
+		{
+			Str_points_ptr ptr;
+			ptr = put_io_buf(IN,33);
+			temp1 = (ptr.pin->value / 100) >> 8;
+			temp2 = (ptr.pin->value / 100);
+		}
+		else if(address == MODBUS_HUM1)
+		{
+			Str_points_ptr ptr;
+			ptr = put_io_buf(IN,34);
+			temp1 = (ptr.pin->value / 100) >> 8;
+			temp2 = (ptr.pin->value / 100);
+		}
+		else if(address == MODBUS_TEMP2)
+		{
+			Str_points_ptr ptr;
+			ptr = put_io_buf(IN,35);
+			temp1 = (ptr.pin->value / 100) >> 8;
+			temp2 = (ptr.pin->value / 100);
+		}
+		else if(address == MODBUS_HUM2)
+		{
+			Str_points_ptr ptr;
+			ptr = put_io_buf(IN,36);
+			temp1 = (ptr.pin->value / 100) >> 8;
+			temp2 = (ptr.pin->value / 100);
+		}
+		else if(address >= MODBUS_VOL_IN9 && address <= MODBUS_VOL_IN12 )
+		{
+			Str_points_ptr ptr;
+			ptr = put_io_buf(IN,8 + address - MODBUS_VOL_IN9);
+			temp1 = (ptr.pin->value / 100) >> 8;
+			temp2 = (ptr.pin->value / 100);			
+		}
+//end PLC 
          else if(address == WIFI_RSSI)
          {
             temp1 = 0xff;
@@ -2281,6 +2588,10 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
     	  save_uint8_to_flash( FLASH_LCD_TIME_OFF_DELAY,  Modbus.LCD_time_off_delay);
     	  count_lcd_time_off_delay = 0;
       }
+      else if(address == MODBUS_LED_TEST_FOR_PLC)
+      {
+    	  Modbus.RMC1232_led_Test = *(bufadd + 5);
+      }
       else if(address == IP_MODE)
       {
     	  Modbus.tcp_type = *(bufadd + 5);
@@ -2346,7 +2657,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			if(*(bufadd + 5) == 111)	 // reboot
 			{
 				if(system_timer / 1000 > 10)
-					esp_restart();//flag_reboot = 1;//SoftReset();
+					esp_retboot();//flag_reboot = 1;//SoftReset();
 			}
 			if(*(bufadd + 5)== 150)	 // clear db
 			{
@@ -2375,7 +2686,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 					Set_Object_Name("T3-POWER-ESP");
 				else if(Modbus.mini_type == PROJECT_RMC1216)
 					Set_Object_Name("T3-RMC1216");
-				else if(Modbus.mini_type == PROJECT_RMC1216_32I)
+				else if(Modbus.mini_type == PROJECT_RMC1232)
 					Set_Object_Name("T3-RMC1216_32I");
 				else if(Modbus.mini_type == PROJECT_NG3)
 					Set_Object_Name("T3-NEWNG2-ESP");
@@ -2535,8 +2846,118 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
       {
     	  Test[address - MODBUS_TEST_1] = (((uint16_t)*(bufadd+0 + 4)<<8) + *(bufadd + 5));
       }
+      else if(address >= MODBUS_CT1_CHANNEL && address <= MODBUS_CT6_CHANNEL)
+      {
+    	  uint8_t ch = *(bufadd + 5);
+    	  /* 0 = unused; 1..8 / 13..24 valid; 9..12 reserved for voltage */
+    	  if(ch == 0 || (ch <= 24 && (ch < 9 || ch > 12)))
+    	  {
+    		  plc_power.CT_channel[address - MODBUS_CT1_CHANNEL] = ch;
+    		  Save_PLC_Power();
+    	  }
+      }
+      else if(address >= MODBUS_POWER_EN1 && address <= MODBUS_POWER_EN24)
+      {
+    	  U16_T index = address - MODBUS_POWER_EN1;
+    	  plc_power.en_power[index] = *(bufadd + 5);
+    	  if(plc_power.en_power[index] == 0)
+    	  {
+    		  plc_energy_acc[index] = 0;
+    		  plc_dis_energy_acc[index] = 0;
+    		  plc_power.energy[index] = 0;
+    		  plc_power.dis_energy[index] = 0;
+    	  }
+    	  Save_PLC_Power();
+      }
+      else if(address >= MODBUS_ENERGY1 && address <= MODBUS_ENERGY24)
+      {
+    	  U16_T index = (address - MODBUS_ENERGY1) / 2;
+    	  uint32_t tempval = plc_power.energy[index];
+    	  if((address - MODBUS_ENERGY1) % 2 == 0)  // high word
+    	  {
+    		  tempval &= 0x0000ffff;
+    		  tempval += 65536L * (*(bufadd + 5) + 256 * *(bufadd + 4));
+    	  }
+    	  else  // low word
+    	  {
+    		  tempval &= 0xffff0000;
+    		  tempval += (*(bufadd + 5) + 256 * *(bufadd + 4));
+    	  }
+    	  plc_power.energy[index] = tempval;
+    	  /* sync accumulator: kWh*1000 -> (W*1000)*s */
+    	  plc_energy_acc[index] = (uint64_t)tempval * 3600000ULL;
+    	  Save_PLC_Power();
+      }
+      else if(address >= MODBUS_DIS_ENERGY1 && address <= MODBUS_DIS_ENERGY24)
+      {
+    	  U16_T index = (address - MODBUS_DIS_ENERGY1) / 2;
+    	  uint32_t tempval = plc_power.dis_energy[index];
+    	  if((address - MODBUS_DIS_ENERGY1) % 2 == 0)  // high word
+    	  {
+    		  tempval &= 0x0000ffff;
+    		  tempval += 65536L * (*(bufadd + 5) + 256 * *(bufadd + 4));
+    	  }
+    	  else  // low word
+    	  {
+    		  tempval &= 0xffff0000;
+    		  tempval += (*(bufadd + 5) + 256 * *(bufadd + 4));
+    	  }
+    	  plc_power.dis_energy[index] = tempval;
+    	  plc_dis_energy_acc[index] = (uint64_t)tempval * 3600000ULL;
+    	  Save_PLC_Power();
+      }
+      else if(address == MODBUS_CUVT)
+      {
+		 rmc_cuv = (*(bufadd + 5) + 256 * *(bufadd + 4));
+		 save_uint16_to_flash(FLASH_RMC_CUV, rmc_cuv);
+		 if(Modbus.mini_type == MINI_BMS)
+		 {
+			 extern volatile uint8_t mini_bms_prot_apply;
+			 mini_bms_prot_apply = 1;
+		 }
+	  }
+	  else if(address == MODBUS_COVT)
+      {
+		  rmc_cov = (*(bufadd + 5) + 256 * *(bufadd + 4));
+		  save_uint16_to_flash(FLASH_RMC_COV, rmc_cov);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
+	  }
+	  else if(address == MODBUS_SHUTDOWN_CELL)
+      {
+		  rmc_stack = (*(bufadd + 5) + 256 * *(bufadd + 4));
+		  save_uint16_to_flash(FLASH_RMC_SHUTDOWN, rmc_stack);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
+	  }
+	  else if(address == MODBUS_OC_CHG)
+      {
+		  rmc_oc_chg = (*(bufadd + 5) + 256 * *(bufadd + 4));
+		  save_uint16_to_flash(FLASH_RMC_OC_CHG, rmc_oc_chg);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
+	  }
+	  else if(address == MODBUS_OC_DSG)
+      {
+		  rmc_oc_dsg = (*(bufadd + 5) + 256 * *(bufadd + 4));
+		  save_uint16_to_flash(FLASH_RMC_OC_DSG, rmc_oc_dsg);
+		  if(Modbus.mini_type == MINI_BMS)
+		  {
+			  extern volatile uint8_t mini_bms_prot_apply;
+			  mini_bms_prot_apply = 1;
+		  }
+	  }
       else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)
-     {
+      {
 		if(address - MODBUS_TIMER_ADDRESS == 0)
 			rtc_date.second = *(bufadd + 5);// sec
 		else if(address - MODBUS_TIMER_ADDRESS == 1)
@@ -3913,7 +4334,7 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
 		if(ptr->reg.reset_default == 111)	 // reboot
 		{
 			if(system_timer / 1000 > 10)
-				esp_restart();//flag_reboot = 1;//SoftReset();
+				esp_retboot();//flag_reboot = 1;//SoftReset();
 			ptr->reg.reset_default = 0;
 		}
 		if(ptr->reg.reset_default == 150)	 // clear db

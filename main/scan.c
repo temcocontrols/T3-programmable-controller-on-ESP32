@@ -7,6 +7,7 @@
 #include "define.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "user_data.h"
 #include "driver/uart.h"
 
@@ -17,8 +18,56 @@ extern TaskHandle_t main_task_handle[20];
 #define ScanSTACK_SIZE					2048
 #define ScanNetSTACK_SIZE	  512
 
+/* Serialize TCP gateway and scan master on the same RS485 UART */
+static SemaphoreHandle_t xMutex_modbus_subnet = NULL;
+#define MODBUS_EX_GATEWAY_TARGET_FAILED  0x0B
+
 void uart_send_string(U8_T *p, U16_T length,U8_T port);
 TaskHandle_t Handle_Scan;
+
+void subnet_bus_lock(void)
+{
+	if(xMutex_modbus_subnet == NULL)
+	{
+		xMutex_modbus_subnet = xSemaphoreCreateMutex();
+	}
+	if(xMutex_modbus_subnet != NULL)
+	{
+		xSemaphoreTake(xMutex_modbus_subnet, portMAX_DELAY);
+	}
+}
+
+void subnet_bus_unlock(void)
+{
+	if(xMutex_modbus_subnet != NULL)
+	{
+		xSemaphoreGive(xMutex_modbus_subnet);
+	}
+}
+
+static void subnet_uart_flush(U8_T port)
+{
+	if(port == 0)
+		uart_flush_input(UART_NUM_0);
+	else if(port == 2)
+		uart_flush_input(UART_NUM_2);
+}
+
+static void subnet_fill_tcp_exception(U8_T *header, U8_T unit, U8_T func, U8_T ex_code)
+{
+	header[4] = 0;
+	header[5] = 3; /* Unit + exception func + code */
+	modbus_send_buf[0] = header[0];
+	modbus_send_buf[1] = header[1];
+	modbus_send_buf[2] = header[2];
+	modbus_send_buf[3] = header[3];
+	modbus_send_buf[4] = header[4];
+	modbus_send_buf[5] = header[5];
+	modbus_send_buf[6] = unit;
+	modbus_send_buf[7] = func | 0x80;
+	modbus_send_buf[8] = ex_code;
+	modbus_send_len = 9;
+}
 //TaskHandle_t Handle_COV;
 //void check_id_alarm(uint8_t type, uint8_t id, uint32_t old_sn, uint32_t new_sn);
 void add_id_online(U8_T index);
@@ -270,6 +319,8 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 
 	buf[4] = HIGH_BYTE(wCrc16);
 	buf[5] = LOW_BYTE(wCrc16);
+	subnet_bus_lock();
+	subnet_uart_flush(port);
 	uart_send_string(buf, 6,port);
 
 	subnet_rec_package_size = 9;
@@ -282,6 +333,7 @@ U8_T send_scan_cmd(U8_T max_id, U8_T min_id,U8_T port)
 	}
 	else
 		length = 0;
+	subnet_bus_unlock();
 
 	if(length > 0)
 	{
@@ -1174,6 +1226,8 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 
 	set_baut_by_port(port,baut);   // need set temp baut
 	//uart_init_send_com(port);
+	subnet_bus_lock();
+	subnet_uart_flush(port);
 	uart_send_string(buf, 8,port);
 
 
@@ -1190,6 +1244,7 @@ void get_parameters_from_nodes(U8_T index,U8_T type)
 		length = uart_read_bytes(port, subnet_response_buf, 100, 100 / portTICK_PERIOD_MS);
 	else
 		length = 0;
+	subnet_bus_unlock();
 
 	// check whether subnet_response_buf is invalid
 	if(subnet_response_buf[1] == READ_COIL || subnet_response_buf[1] == READ_DIS_INPUT || subnet_response_buf[1] == READ_VARIABLES || subnet_response_buf[1] == READ_INPUT)
@@ -1556,6 +1611,8 @@ void check_write_to_nodes(U8_T port)
 	set_baut_by_port(port,baut);
 
 	//uart_init_send_com(port);
+	subnet_bus_lock();
+	subnet_uart_flush(port);
 
 	buf[2] = HIGH_BYTE(node_write[i].reg);
 	buf[3] = LOW_BYTE(node_write[i].reg); // start address
@@ -1636,6 +1693,7 @@ void check_write_to_nodes(U8_T port)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 100 / portTICK_PERIOD_MS);
 	else
 		length = 0;
+	subnet_bus_unlock();
 
 	if(length > 0)
 	{
@@ -1760,6 +1818,8 @@ uint8_t read_ws90_id(void)
 	buf[7] = LOW_BYTE(crc_check);
 
 	set_baut_by_port(port,baut);
+	subnet_bus_lock();
+	subnet_uart_flush(port);
 	uart_send_string(buf,8,port);
 
 
@@ -1768,6 +1828,7 @@ uint8_t read_ws90_id(void)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 1000 / portTICK_PERIOD_MS);
 	else
 		length = 0;
+	subnet_bus_unlock();
 
 
 	if(length > 0)
@@ -2079,6 +2140,8 @@ uint8_t read_PM_value(uint16_t reg,uint8_t len)
 	buf[7] = LOW_BYTE(crc_check);
 
 	set_baut_by_port(port,baut);
+	subnet_bus_lock();
+	subnet_uart_flush(port);
 	uart_send_string(buf,8,port);
 
 
@@ -2087,6 +2150,7 @@ uint8_t read_PM_value(uint16_t reg,uint8_t len)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 1000 / portTICK_PERIOD_MS);// read sub device, should wait 1s to avoid read error
 	else
 		length = 0;
+	subnet_bus_unlock();
 
 	if(length > 0)
 	{
@@ -2316,7 +2380,7 @@ void Scan_Idle(void)
 
 		}
 		if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
-			    	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_RMC1216_32I) || (Modbus.mini_type == PROJECT_NG3))
+			    	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_RMC1232) || (Modbus.mini_type == PROJECT_NG3))
 		{
 			if(uart2_sub_no == 0)
 			{
@@ -2466,6 +2530,8 @@ void ScanTask(void *pvParameters)
 							uint8_t i;
 							for(i = 0;i < 5;i++)
 							{
+								if(flag_suspend_scan != 0)
+									break;
 								Scan_Idle();
 								vTaskDelay( 1000 / portTICK_PERIOD_MS);
 							}
@@ -2632,19 +2698,17 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	U16_T size0 = 0;
 	U8_T flag_expansion = 0;
 	U8_T ret = 0;
-	//uint8 tmp_sendbuf[500];
-	//uint8_t subnet_response_buf[500];
 	uint8_t *tmp_sendbuf = NULL;
 	uint8_t *subnet_response_buf = NULL;
+	U16_T rx_expect;
 
 	tmp_sendbuf = malloc(512);
 	if (tmp_sendbuf == NULL) {
-		// 处理内存分配失败
 		return;
 	}
 	subnet_response_buf = malloc(512);
 	if (subnet_response_buf == NULL) {
-		// 处理内存分配失败
+		free(tmp_sendbuf);
 		return;
 	}
 
@@ -2652,14 +2716,12 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 
 	if(buf[1] == READ_VARIABLES || buf[1] == READ_INPUT || buf[1] == READ_COIL || buf[1] == READ_DIS_INPUT ) // read
 	{
-		U8_T i;
 		if(buf[1] == READ_COIL || buf[1] == READ_DIS_INPUT)
 		{
 			size0 = (buf[5] + 7) / 8 + 5;
 		}
 		else
 		  size0 = buf[5] * 2 + 5;
-		// change it bigger, tstat7 response too slow
 	}
 	else if(buf[1] == WRITE_VARIABLES || buf[1] == MULTIPLE_WRITE || buf[1] == WRITE_COIL || buf[1] == WRITE_MULTI_COIL)
 	{
@@ -2677,17 +2739,14 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 	{
 		uint16 size;
 
-//0A FF 54 45 4D 43 4F 07 00 15 00 00 0A 00 0F 39
-//0A FF 54 45 4D 43 4F 07 00 15 00 00 0A 00 3A 4E C1 57 20 00 00 00 00 00 BF 24
-
 		if(buf[9] < 100)  // read   command < 100
 		{
 			size = (U16_T)((buf[13] & 0x01)	<< 8)	+ buf[12]; // entysize
-			size0 = 16 + size * (buf[11] - buf[10] + 1); // �ظ��ĳ�����xx
+			size0 = 16 + size * (buf[11] - buf[10] + 1);
 		}
 		else  // private command > 100 write
 		{
-			size0 = 16;  // �ظ��ĳ�����16
+			size0 = 16;
 		}
 
 	}
@@ -2714,6 +2773,8 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 		}
 	}
 
+	subnet_bus_lock();
+	subnet_uart_flush(port);
 
 	if(buf[1] == TEMCO_MODBUS)
 	{
@@ -2762,18 +2823,15 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				if(Modbus.com_config[port] != MODBUS_MASTER)
 				{
 					Modbus.com_config[port] = MODBUS_MASTER;
-					//E2prom_Write_Byte(EEP_COM0_CONFIG + port,Modbus.com_config[port]);
 				}
 
 				if(port == 0)
 				{
 					Modbus.baudrate[0] = scan_baut;
-					//E2prom_Write_Byte(EEP_UART0_BAUDRATE,uart0_baudrate);
 				}
 				else if(port == 1)
 				{
 					Modbus.baudrate[1] = scan_baut;
-					//E2prom_Write_Byte(EEP_UART2_BAUDRATE,uart2_baudrate);
 				}
 
 				if(scan_db_changed == TRUE)
@@ -2783,11 +2841,21 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 				}
 			}
 		}
+		else
+		{
+			subnet_fill_tcp_exception(header, buf[0], buf[1], MODBUS_EX_GATEWAY_TARGET_FAILED);
+		}
 	}
 	else
 	{
+		rx_expect = size0;
+		if(rx_expect < 5)
+			rx_expect = 8;
+		if(rx_expect > 512)
+			rx_expect = 512;
+
 		if(port == 0 || port == 2)
-			length = uart_read_bytes(port, subnet_response_buf, 512, 100 / portTICK_PERIOD_MS);
+			length = uart_read_bytes(port, subnet_response_buf, rx_expect, 200 / portTICK_PERIOD_MS);
 		else
 			length = 0;
 
@@ -2801,7 +2869,6 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			crc_check = crc16(subnet_response_buf, length - 2);
 			if(crc_check == subnet_response_buf[length - 2] * 256 + subnet_response_buf[length - 1])
 			{
-//			auto_check_master_retry[port] = 0;
 				memcpy(tmp_sendbuf,header,6);
 
 
@@ -2857,31 +2924,19 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 			else
 			{
 				packet_error[port]++;
+				subnet_fill_tcp_exception(header, buf[0], buf[1], MODBUS_EX_GATEWAY_TARGET_FAILED);
 			}
 		}
 		else
-		{// һ��read�����ظ�ȫ0
-			memset(&modbus_send_buf,0,size0 + 4);
-			modbus_send_len = size0 + 4;
-
+		{
 			timeout[port]++;
 			tst_retry[buf[0]]++;
+			subnet_fill_tcp_exception(header, buf[0], buf[1], MODBUS_EX_GATEWAY_TARGET_FAILED);
 		}
-
-		/*if(tst_retry[buf[0]] >= 10)
-		{
-			U8_T remove_i;
-			// get index form scan_db
-			if(get_index_by_id(buf[0],&remove_i) == 1)
-			{
-				if(scan_db[remove_i].product_model < CUSTOMER_PRODUCT)
-				{
-					remove_id_online(remove_i);
-				}
-			}
-		}*/
 	}
 #endif
+	subnet_bus_unlock();
+
 	free(subnet_response_buf);
 
 	free(tmp_sendbuf);
@@ -2930,6 +2985,11 @@ void vStartScanTask(unsigned char uxPriority)
 #endif
 	scan_port = 0xff;
     scan_baut = 0xff;
+
+	if(xMutex_modbus_subnet == NULL)
+	{
+		xMutex_modbus_subnet = xSemaphoreCreateMutex();
+	}
 
     xTaskCreate(ScanTask,"ScanTask",4096, NULL, uxPriority, (TaskHandle_t *)&main_task_handle[5]);
 
@@ -2988,6 +3048,8 @@ void read_rmp_ad(uint8_t index)
 			buf[7] = LOW_BYTE(crc_check);
 
 			set_baut_by_port(port,baut);
+			subnet_bus_lock();
+			subnet_uart_flush(port);
 			uart_send_string(buf,8,port);
 
 			uint8_t *subnet_response_buf = (uint8_t*)malloc(50);
@@ -2996,6 +3058,7 @@ void read_rmp_ad(uint8_t index)
 				length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
 			else
 				length = 0;
+			subnet_bus_unlock();
 
 			if(length > 0)
 			{
@@ -3073,6 +3136,8 @@ void read_name_of_tstat(U8_T index)
 	buf[7] = LOW_BYTE(crc_check);
 
 	set_baut_by_port(port,baut);
+	subnet_bus_lock();
+	subnet_uart_flush(port);
 	uart_send_string(buf,8,port);
 
 
@@ -3081,6 +3146,7 @@ void read_name_of_tstat(U8_T index)
 		length = uart_read_bytes(port, subnet_response_buf, 50, 10 / portTICK_PERIOD_MS);
 	else
 		length = 0;
+	subnet_bus_unlock();
 
 
 	if(length > 0)
