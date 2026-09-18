@@ -386,7 +386,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_x(ui_TemperatureSetPoint, 64);
     lv_obj_set_y(ui_TemperatureSetPoint, 60);
     lv_obj_set_align(ui_TemperatureSetPoint, LV_ALIGN_CENTER);
-    lv_textarea_set_accepted_chars(ui_TemperatureSetPoint, "012345678.°CF ");
+    lv_textarea_set_accepted_chars(ui_TemperatureSetPoint, "0123456789.°CF ");
     lv_textarea_set_max_length(ui_TemperatureSetPoint, 8);
     lv_textarea_set_placeholder_text(ui_TemperatureSetPoint, "SetPoint");
     lv_textarea_set_one_line(ui_TemperatureSetPoint, true);

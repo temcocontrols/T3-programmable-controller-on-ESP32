@@ -153,10 +153,10 @@ int16_t tz_offset_table[] =
  */
 void lv_Init_UserParameters( void )
 {
-    Temperature_IndorrDataPt = put_io_buf(IN, 8); // VAR9 is for room temperature
-    Temperature_AmbientDataPt = put_io_buf(IN, 9); // VAR10 is for outdoor temperature
-    Humidity_IutdorrDataPt = put_io_buf(IN, 10); // VAR11 is for room humidity
-    Humidity_AmbientDataPt = put_io_buf(IN, 11); // VAR12 is for outdoor humidity
+    Temperature_IndorrDataPt = put_io_buf(IN, 0);  // IN0 is for room temperature
+    Temperature_AmbientDataPt = put_io_buf(IN, 9); // TBD
+    Humidity_IutdorrDataPt = put_io_buf(IN, 1);    // IN1 is for room humidity
+    Humidity_AmbientDataPt = put_io_buf(IN, 11);   // TBD
     Temperature_SetpointDataPt = put_io_buf(VAR,0);
     FanModePt = put_io_buf(VAR, 2);
     SysModePt = put_io_buf(VAR, 1);
@@ -322,10 +322,33 @@ static void lv_refresh_HomeScreen_Data(void)
         }
     }
 
-    if((!s_show_outdoor_temperature) && (Temperature_SetpointVal != Temperature_SetpointDataPt.pvar->value))
+    if((!s_show_outdoor_temperature) && (Temperature_SetpointDataPt.pvar != NULL))
     {
-        Temperature_SetpointVal = Temperature_SetpointDataPt.pvar->value;
-        ui_update_setpoint_arc(Temperature_SetpointDataPt.pvar->value / 1000);
+        int32_t sp = Temperature_SetpointDataPt.pvar->value;
+        bool need_update = isScreenChanged || (Temperature_SetpointVal != sp);
+
+        /* SquareLine leaves the textarea empty, so LVGL shows placeholder "SetPoint"
+           until lv_textarea_set_text() runs. VAR0 also defaults to 0, which matches
+           the cache and skipped the first paint. */
+        if(UI_OBJ_READY(uic_TemperatureSetPoint))
+        {
+            const char *txt = lv_textarea_get_text(uic_TemperatureSetPoint);
+            if((txt == NULL) || (txt[0] == '\0'))
+            {
+                need_update = true;
+            }
+        }
+
+        if(need_update)
+        {
+            uint8_t setpoint = (uint8_t)(sp / 1000);
+            if((setpoint == 0) && UI_OBJ_READY(ui_TempSetPoint1))
+            {
+                setpoint = (uint8_t)lv_arc_get_value(ui_TempSetPoint1);
+            }
+            Temperature_SetpointVal = sp;
+            ui_update_setpoint_arc(setpoint);
+        }
     }
 
     /* WiFi symbol: strength + connection state (same rules as DisplayHeaderSymbol). */
@@ -2062,8 +2085,8 @@ static void ui_update_setpoint_arc(uint8_t setpoint)
     lv_arc_set_value(ui_TempSetPoint2, setpoint);
 
     /* Update text */
-    char buf[10];
-    snprintf(buf, sizeof(buf), "%d °C", setpoint);
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%u °C", setpoint);
     lv_textarea_set_text(uic_TemperatureSetPoint, buf);
 }
 
@@ -2149,7 +2172,17 @@ static void ui_update_wifi_symbol(void)
  */
 void Event_Cb_SetSetpointValue(lv_event_t * e)
 {
-    Temperature_SetpointDataPt.pvar->value = 1000 * lv_arc_get_value(ui_TempSetPoint1);
+    uint8_t setpoint = (uint8_t)lv_arc_get_value(ui_TempSetPoint1);
+
+    (void)e;
+    if(Temperature_SetpointDataPt.pvar == NULL)
+    {
+        return;
+    }
+
+    Temperature_SetpointDataPt.pvar->value = 1000 * setpoint;
+    Temperature_SetpointVal = Temperature_SetpointDataPt.pvar->value;
+    ui_update_setpoint_arc(setpoint);
 }
 
 /**

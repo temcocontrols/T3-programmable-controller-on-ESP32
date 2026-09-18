@@ -195,7 +195,7 @@ typedef	enum
 #define DDNS 0
 #endif
 
-#define MAX_MINI_TYPE 		30
+#define MAX_MINI_TYPE 		31
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;
