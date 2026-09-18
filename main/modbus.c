@@ -139,9 +139,13 @@ void calculate_plc_power(void)
 	uint32_t dt_ms;
 	static uint8_t bms_neg_timing = 0;
 	static uint32_t t_bms_neg_start = 0;
+	/* IN39 is A*1000; ignore small ±float when full + adapter (no real load) */
+	enum { BMS_48V_I_DEADBAND = 500 }; /* 0.5 A */
 
 	/* RMC1232: IN39 BMS current (1000x A).
-	 * No BMS comm → assume 48V present (cannot judge from current). */
+	 * No BMS comm → assume 48V present (cannot judge from current).
+	 * Only sustained discharge below -deadband clears flag_48V_exist;
+	 * near-zero chatter must not trip it. */
 	if(plc_power.flag_bms_comm == 0)
 	{
 		bms_neg_timing = 0;
@@ -149,8 +153,11 @@ void calculate_plc_power(void)
 	}
 	else
 	{
+		int32_t i_bms;
+
 		ptr = put_io_buf(IN, 38);
-		if(ptr.pin->value < 0)
+		i_bms = ptr.pin->value;
+		if(i_bms < -BMS_48V_I_DEADBAND)
 		{
 			if(bms_neg_timing == 0)
 			{
@@ -164,6 +171,7 @@ void calculate_plc_power(void)
 		}
 		else
 		{
+			/* charging / idle float / noise within ±deadband → 48V present */
 			bms_neg_timing = 0;
 			plc_power.flag_48V_exist = 1;
 		}
