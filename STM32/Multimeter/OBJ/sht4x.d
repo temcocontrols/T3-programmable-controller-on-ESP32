@@ -1,9 +1,0 @@
-..\obj\sht4x.o: ..\HARDWARE\HUMIDITY\sht4x.c
-..\obj\sht4x.o: ..\HARDWARE\HUMIDITY\sht4x.h
-..\obj\sht4x.o: ..\HARDWARE\HUMIDITY\sensirion_arch_config.h
-..\obj\sht4x.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
-..\obj\sht4x.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
-..\obj\sht4x.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
-..\obj\sht4x.o: ..\HARDWARE\HUMIDITY\sensirion_i2c.h
-..\obj\sht4x.o: ..\HARDWARE\HUMIDITY\sht_git_version.h
-..\obj\sht4x.o: ..\HARDWARE\HUMIDITY\sensirion_common.h
