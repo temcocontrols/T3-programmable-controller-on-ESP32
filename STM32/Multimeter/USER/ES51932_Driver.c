@@ -237,131 +237,142 @@ void GPIO_Configuration(void) {
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    // Configure PC0, PC2, PC6, PC7, PC8, PC9, PC10, PC11 as output push-pull
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_2 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11;
+    // Configure PC6, PC7, PC8, PC9, PC10, PC11 as output push-pull
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
     GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-    // Configure PA5, PA6, PA7, PA13 as output push-pull
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_13;
+    // Configure PA5, PA6, PA7, PA11, PA12, PA13 as output push-pull
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 
     // Set initial states
-    GPIO_ResetBits(GPIOB, GPIO_Pin_3); // PB3 low
+    GPIO_SetBits(GPIOB, GPIO_Pin_3); // CH1 off (high)
     GPIO_SetBits(GPIOB, GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_14 | GPIO_Pin_15); // Other PB pins high
     GPIO_SetBits(GPIOB, GPIO_Pin_13); // PB13 high
-    GPIO_SetBits(GPIOC, GPIO_Pin_0 | GPIO_Pin_2 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9); // PC0, PC2, PC6, PC7, PC8, PC9 high
+//    GPIO_ResetBits(GPIOB, GPIO_Pin_14); // PB14 low (DC default)
+    GPIO_SetBits(GPIOC, GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9); // PC6, PC7, PC8, PC9 high
     GPIO_ResetBits(GPIOC, GPIO_Pin_10 | GPIO_Pin_11); // PC10, PC11 low
 
     // Set initial states for PA pins
     GPIO_SetBits(GPIOA, GPIO_Pin_5); // PA5 (FC5) high
+    GPIO_SetBits(GPIOA, GPIO_Pin_12 | GPIO_Pin_11 | GPIO_Pin_7 | GPIO_Pin_6); // FC1, FC2, FC3, FC4 high
     GPIO_ResetBits(GPIOA, GPIO_Pin_13); // PA13 (RANGE) low
-    //GPIO_SetBits(GPIOA, GPIO_Pin_12 | GPIO_Pin_11 | GPIO_Pin_7 | GPIO_Pin_6); // PA12 (FC1), PA11 (FC2), PA7 (FC3), PA6 (FC4) high
 		
 }
 
 void ControlChannels(uint16_t value) {
-    // Open all channels by setting the corresponding pins low
-    if (value != 1) GPIO_ResetBits(GPIOB, GPIO_Pin_3); // Open CH1
-    if (value != 2) GPIO_ResetBits(GPIOB, GPIO_Pin_4); // Open CH2
-    if (value != 3) GPIO_ResetBits(GPIOB, GPIO_Pin_5); // Open CH3
-    if (value != 4) GPIO_ResetBits(GPIOC, GPIO_Pin_6); // Open CH4
-    if (value != 5) GPIO_ResetBits(GPIOC, GPIO_Pin_7); // Open CH5
-    if (value != 6) GPIO_ResetBits(GPIOB, GPIO_Pin_8); // Open CH6
-    if (value != 7) GPIO_ResetBits(GPIOB, GPIO_Pin_9); // Open CH7
-    if (value != 8) GPIO_ResetBits(GPIOB, GPIO_Pin_10); // Open CH8
+    // Turn off unselected channels by setting their pins high
+    if (value != 1) GPIO_SetBits(GPIOB, GPIO_Pin_3); // Turn off CH1
+    if (value != 2) GPIO_SetBits(GPIOB, GPIO_Pin_4); // Turn off CH2
+    if (value != 3) GPIO_SetBits(GPIOB, GPIO_Pin_5); // Turn off CH3
+    if (value != 4) GPIO_SetBits(GPIOC, GPIO_Pin_6); // Turn off CH4
+    if (value != 5) GPIO_SetBits(GPIOC, GPIO_Pin_7); // Turn off CH5
+    if (value != 6) GPIO_SetBits(GPIOB, GPIO_Pin_8); // Turn off CH6
+    if (value != 7) GPIO_SetBits(GPIOB, GPIO_Pin_9); // Turn off CH7
+    if (value != 8) GPIO_SetBits(GPIOB, GPIO_Pin_10); // Turn off CH8
 
     i2c_send[8]++;
-    // Close the specified channel by setting the corresponding pin high
+    // Select the specified channel by setting its pin low
     switch (value) {
         case 1:
-            GPIO_SetBits(GPIOB, GPIO_Pin_3); // Close CH1
+            GPIO_ResetBits(GPIOB, GPIO_Pin_3); // Select CH1
             break;
         case 2:
-            GPIO_SetBits(GPIOB, GPIO_Pin_4); // Close CH2
+            GPIO_ResetBits(GPIOB, GPIO_Pin_4); // Select CH2
             break;
         case 3:
-            GPIO_SetBits(GPIOB, GPIO_Pin_5); // Close CH3
+            GPIO_ResetBits(GPIOB, GPIO_Pin_5); // Select CH3
             break;
         case 4:
-            GPIO_SetBits(GPIOC, GPIO_Pin_6); // Close CH4
+            GPIO_ResetBits(GPIOC, GPIO_Pin_6); // Select CH4
             break;
         case 5:
-            GPIO_SetBits(GPIOC, GPIO_Pin_7); // Close CH5
+            GPIO_ResetBits(GPIOC, GPIO_Pin_7); // Select CH5
             break;
         case 6:
-            GPIO_SetBits(GPIOB, GPIO_Pin_8); // Close CH6
+            GPIO_ResetBits(GPIOB, GPIO_Pin_8); // Select CH6
             break;
         case 7:
-            GPIO_SetBits(GPIOB, GPIO_Pin_9); // Close CH7
+            GPIO_ResetBits(GPIOB, GPIO_Pin_9); // Select CH7
             break;
         case 8:
-            GPIO_SetBits(GPIOB, GPIO_Pin_10); // Close CH8
+            GPIO_ResetBits(GPIOB, GPIO_Pin_10); // Select CH8
             break;
         default:
-            GPIO_SetBits(GPIOB, GPIO_Pin_3); // Default to Close CH1
+            GPIO_ResetBits(GPIOB, GPIO_Pin_3); // Default to Select CH1
             break;
     }
+
+    test[248] = value;
+    test[249] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_3);  // CH1
+    test[250] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_4);  // CH2
+    test[251] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_5);  // CH3
+    test[252] = GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_6);  // CH4
+    test[253] = GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_7);  // CH5
+    test[254] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_8);  // CH6
+    test[255] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_9);  // CH7
+    test[256] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_10); // CH8
 }
 
 void SingleControlChannels(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4, uint16_t ch5, uint16_t ch6, uint16_t ch7, uint16_t ch8) {
     // Control CH1
     if (ch1 == 1) {
-        GPIO_SetBits(GPIOB, GPIO_Pin_3); // Close CH1
+        GPIO_ResetBits(GPIOB, GPIO_Pin_3); // Select CH1
     } else {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_3); // Open CH1
+        GPIO_SetBits(GPIOB, GPIO_Pin_3); // Turn off CH1
     }
 
     // Control CH2
     if (ch2 == 1) {
-        GPIO_SetBits(GPIOB, GPIO_Pin_4); // Close CH2
+        GPIO_ResetBits(GPIOB, GPIO_Pin_4); // Select CH2
     } else {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_4); // Open CH2
+        GPIO_SetBits(GPIOB, GPIO_Pin_4); // Turn off CH2
     }
 
     // Control CH3
     if (ch3 == 1) {
-        GPIO_SetBits(GPIOB, GPIO_Pin_5); // Close CH3
+        GPIO_ResetBits(GPIOB, GPIO_Pin_5); // Select CH3
     } else {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_5); // Open CH3
+        GPIO_SetBits(GPIOB, GPIO_Pin_5); // Turn off CH3
     }
 
     // Control CH4
     if (ch4 == 1) {
-        GPIO_SetBits(GPIOC, GPIO_Pin_6); // Close CH4
+        GPIO_ResetBits(GPIOC, GPIO_Pin_6); // Select CH4
     } else {
-        GPIO_ResetBits(GPIOC, GPIO_Pin_6); // Open CH4
+        GPIO_SetBits(GPIOC, GPIO_Pin_6); // Turn off CH4
     }
 
     // Control CH5
     if (ch5 == 1) {
-        GPIO_SetBits(GPIOC, GPIO_Pin_7); // Close CH5
+        GPIO_ResetBits(GPIOC, GPIO_Pin_7); // Select CH5
     } else {
-        GPIO_ResetBits(GPIOC, GPIO_Pin_7); // Open CH5
+        GPIO_SetBits(GPIOC, GPIO_Pin_7); // Turn off CH5
     }
 
     // Control CH6
     if (ch6 == 1) {
-        GPIO_SetBits(GPIOB, GPIO_Pin_8); // Close CH6
+        GPIO_ResetBits(GPIOB, GPIO_Pin_8); // Select CH6
     } else {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_8); // Open CH6
+        GPIO_SetBits(GPIOB, GPIO_Pin_8); // Turn off CH6
     }
 
     // Control CH7
     if (ch7 == 1) {
-        GPIO_SetBits(GPIOB, GPIO_Pin_9); // Close CH7
+        GPIO_ResetBits(GPIOB, GPIO_Pin_9); // Select CH7
     } else {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_9); // Open CH7
+        GPIO_SetBits(GPIOB, GPIO_Pin_9); // Turn off CH7
     }
 
     // Control CH8
     if (ch8 == 1) {
-        GPIO_SetBits(GPIOB, GPIO_Pin_10); // Close CH8
+        GPIO_ResetBits(GPIOB, GPIO_Pin_10); // Select CH8
     } else {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_10); // Open CH8
+        GPIO_SetBits(GPIOB, GPIO_Pin_10); // Turn off CH8
     }
 }
 
@@ -428,6 +439,13 @@ void ControlSwitches(uint16_t sw2, uint16_t sw3, uint16_t sw4, uint16_t sw5) {
     } else {
         GPIO_SetBits(GPIOB, GPIO_Pin_15); // Turn off SW5 (high)
     }
+
+    test[257] = (sw2 & 0x01) | ((sw3 & 0x01) << 1) |
+                ((sw4 & 0x01) << 2) | ((sw5 & 0x01) << 3);
+    test[258] = GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_9);  // SW2
+    test[259] = GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_10); // SW3
+    test[260] = GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_11); // SW4
+    test[261] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_15); // SW5
 }
 
 extern uint8_t multiChannel;
@@ -639,267 +657,267 @@ void SetMode(uint8_t mode) {
     switch (mode) {
         case 0:
             // DC Voltage Measurement
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for voltage measurement
             break;
         case 1:
             // Auto DC Current Measurement(µA)
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 2:
             // Auto DC Current Measurement(mA)
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 3:
             // 322A DC Current Measurement(A)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 4:
             // DC 220.00mV
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for voltage measurement
             break;
         case 5:
             // Manual DC 22.000A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 6:
             // Manual DC 220.00A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 7:
             // Manual DC 2200.0A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 8:
             // Manual DC 22000A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 9:
             // Resistance Measurement
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 1, 1, 0);          // Set switches for resistance measurement
             break;
         case 10:
             // Continuity Check
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 1, 1, 0);          // Set switches for continuity check
             break;
         case 11:
             // Diode Measurement
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 1, 1, 0);          // Set switches for diode measurement
             break;
         case 12:
             // Frequency Measurement
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 1);          // Set switches for frequency measurement
             break;
         case 13:
             // Capacitance Measurement
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 1, 1, 0);          // Set switches for capacitance measurement
             break;
         case 14:
             // Temperature Measurement (oC)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for temperature measurement
             break;
         case 15:
             // Resistance Measurement (Alternative)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 1, 1, 0);          // Set switches for resistance measurement
             break;
         case 16:
             // AC Voltage Measurement
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for voltage measurement
             break;
         case 17:
             // Auto AC Current Measurement(µA)
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 18:
             // Auto AC Current Measurement(mA)
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 19:
             // 322A AC Current Measurement(A)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 20:
             // AC 220.00mV
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for voltage measurement
             break;
         case 21:
             // Manual AC 22.000A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 22:
             // Manual AC 220.00A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 23:
             // Manual AC 2200.0A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 24:
             // Manual AC 22000A
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0);    // FC1 low
-            GPIO_SetBits(GPIOC, GPIO_Pin_2);      // FC2 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_12);     // FC1 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_11);   // FC2 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for current measurement
             break;
         case 25:
             // ADP0(22000)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(1, 0, 0, 0);          // Set switches for ADP measurement
             break;
         case 26:
             // ADP1(2200.0)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(1, 0, 0, 0);          // Set switches for ADP measurement
             break;
         case 27:
             // ADP2(220.00)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(1, 0, 0, 0);          // Set switches for ADP measurement
             break;
         case 28:
             // ADP3(22.000)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(1, 0, 0, 0);          // Set switches for ADP measurement
             break;
         case 29:
             // ADP4(2.2000)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 low
             ControlSwitches(1, 0, 0, 0);          // Set switches for ADP measurement
             break;
         case 30:
             // Temperature Measurement (oF)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 0, 0, 0);          // Set switches for temperature measurement
             break;
         case 31:
             // Capacitance Measurement (Clamp)
-            GPIO_SetBits(GPIOC, GPIO_Pin_0);      // FC1 high
-            GPIO_ResetBits(GPIOC, GPIO_Pin_2);    // FC2 low
-            GPIO_SetBits(GPIOA, GPIO_Pin_7);      // FC3 high
-            GPIO_ResetBits(GPIOA, GPIO_Pin_6);    // FC4 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_12);   // FC1 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_11);     // FC2 high
+            GPIO_ResetBits(GPIOA, GPIO_Pin_7);    // FC3 low
+            GPIO_SetBits(GPIOA, GPIO_Pin_6);      // FC4 high
             ControlSwitches(0, 1, 1, 0);          // Set switches for capacitance measurement
             break;
         default:
             // Invalid mode, set all FC pins to high (1)
-            GPIO_ResetBits(GPIOC, GPIO_Pin_0 | GPIO_Pin_2 | GPIO_Pin_7 | GPIO_Pin_6);
+            GPIO_SetBits(GPIOA, GPIO_Pin_12 | GPIO_Pin_11 | GPIO_Pin_7 | GPIO_Pin_6);
             break;
     }
 
     test[240] = mode;
     test[241] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_13); // SLACDC
     test[242] = GPIO_ReadOutputDataBit(GPIOA, GPIO_Pin_5);  // FC5
-    test[243] = GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_0);  // FC1
-    test[244] = GPIO_ReadOutputDataBit(GPIOC, GPIO_Pin_2);  // FC2
+    test[243] = GPIO_ReadOutputDataBit(GPIOA, GPIO_Pin_12); // FC1
+    test[244] = GPIO_ReadOutputDataBit(GPIOA, GPIO_Pin_11); // FC2
     test[245] = GPIO_ReadOutputDataBit(GPIOA, GPIO_Pin_7);  // FC3
     test[246] = GPIO_ReadOutputDataBit(GPIOA, GPIO_Pin_6);  // FC4
 }
@@ -908,10 +926,13 @@ void SetSLACDC(uint8_t mode) {
     if (mode == SELECT_DC) {
         // Set PB13 high for SELECT_DC
         GPIO_SetBits(GPIOB, GPIO_Pin_13);
+        GPIO_SetBits(GPIOB, GPIO_Pin_14); // PB14 low for DC
     } else if (mode == SELECT_AC) {
         // Set PB13 low for SELECT_AC
         GPIO_ResetBits(GPIOB, GPIO_Pin_13);
+        GPIO_ResetBits(GPIOB, GPIO_Pin_14); // PB14 high for AC
     }
 
     test[247] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_13);
+    test[262] = GPIO_ReadOutputDataBit(GPIOB, GPIO_Pin_14);
 }

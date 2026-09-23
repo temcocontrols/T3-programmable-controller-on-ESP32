@@ -226,6 +226,7 @@ void I2C1_EV_IRQHandler(void)
                 // Check if the data is within the mode range
                 if(wert <= MODE_CAPACITANCE_MEASUREMENT_CLAMP){
                     SetMode(wert); // Set the mode
+                    //SetMode(9);
                 }
             }
 			// Check if the register address is 11, the number is for Mode selection

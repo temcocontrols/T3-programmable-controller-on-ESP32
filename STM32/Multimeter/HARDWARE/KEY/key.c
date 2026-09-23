@@ -59,7 +59,7 @@ void KEY_IO_config(void)
 	GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
 
 	
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA,&GPIO_InitStructure);
@@ -121,9 +121,9 @@ u8 KEY_Scan(void)
 	
 	u16 key_val = K_NONE;
 	test[0]++;
-	key_1st = ~GPIO_ReadInputData(GPIOA) & 0x7800; // PA11-14
+	key_1st = ~GPIO_ReadInputData(GPIOA) & 0x6000; // PA13-14; PA11-12 are ES51932 FC outputs
 	delay_ms(10);IWDG_ReloadCounter();		
-	key_2nd = ~GPIO_ReadInputData(GPIOA) & 0x7800; // PA11-14
+	key_2nd = ~GPIO_ReadInputData(GPIOA) & 0x6000; // PA13-14; PA11-12 are ES51932 FC outputs
 	
 	if(key_1st & key_2nd & K_DOWN){test[22]++;
 		key_val |= K_DOWN;}
@@ -158,7 +158,7 @@ void Key_Process(void )
 	{
 		if((key_temp = KEY_Scan()) != pre_key)
 		{test[30]++;
-			if(pre_key == 0) // ±ÜÃâµ¥¼üºÍ×éºÏ¼üÕ³Á¬
+			if(pre_key == 0) // ï¿½ï¿½ï¿½âµ¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¼ï¿½Õ³ï¿½ï¿½
 			{test[31]++;
 				//xQueueSend(qKey, &key_temp, 0);
 				g_key = key_temp;
