@@ -477,6 +477,27 @@ void Aialab_IO_Init(void)
     PM25_ENABLE; // ENALBLE PM25
 }
 
+void Apple_IO_Init(void)
+{
+    gpio_config_t io_conf;
+    //disable interrupt
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    //set as output mode
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //bit mask of the pins that you want to set,e.g.GPIO18/19
+
+    io_conf.pin_bit_mask = GPIO_EN_PM25_SEL;
+    //disable pull-down mode
+    io_conf.pull_down_en = 0;
+    //disable pull-up mode
+    io_conf.pull_up_en = 0;
+    //configure GPIO with the given settings
+
+    gpio_config(&io_conf);
+
+    PM25_ENABLE; // ENALBLE PM25
+}
+
 void vPM25Task(void *pvParameters )
 {
 	uint8 err_count = 0;
@@ -487,10 +508,13 @@ void vPM25Task(void *pvParameters )
 	task_test.enable[15] = 1;
 	flag_pm25 = 0;
 
-	Aialab_IO_Init();
+	// AL
+	if(Modbus.mini_type == PROJECT_AIRLAB)
+		Aialab_IO_Init();
+	else
+		Apple_IO_Init();
 
-
-#if LSW_ON_OFF
+#if 0//LSW_ON_OFF
 	if(Modbus.mini_type == PROJECT_LSW_SENSOR)
 	{
 		Light_SW_Init();
@@ -634,13 +658,13 @@ void Airlab_init(void)
 	adc1_config_channel_atten(Airlab_transducer_channel_3, Airlab_atten);
 	adc1_config_channel_atten(Airlab_transducer_channel_4, Airlab_atten);
 
-    if(qKey == NULL)
+/*    if(qKey == NULL)
        	qKey = xQueueCreate(2, 2);
 
     while( (pca9536_init() != ESP_OK) && (retry++ < 5)) {
     	Test[27]++;
        }
-    Test[28] = retry;
+    Test[28] = retry;*/
 
     xTaskCreate(Airlab_adc_task, "adc_task", 2048*2, NULL, 2, NULL);
    	xTaskCreate(Key_Process, "key_task",2048, NULL, 5, NULL);
@@ -715,16 +739,16 @@ static void Airlab_adc_task(void* arg)
 			vol_pir = esp_adc_cal_raw_to_voltage(adc_pir, Airlab_adc_chars);
 			vol_voice = esp_adc_cal_raw_to_voltage(adc_voice, Airlab_adc_chars);
 			vol_rs485 = esp_adc_cal_raw_to_voltage(adc_rs485, Airlab_adc_chars);
-			Test[25] = vol_pir;
+			//Test[25] = vol_pir;
 			if(abs(vol_pir - PirSensorZero) > Pir_Sensetivity) //occupied
 			{
 				pir_trigger = PIR_TRIGGERED;
-				Test[26] = 1;
+				//Test[26] = 1;
 			}
 			else
 			{
 				pir_trigger = PIR_NOTTRIGGERED;
-				Test[26] = 0;
+				//Test[26] = 0;
 			}
 
 			sound_level = check_voice_table(adc_voice);
@@ -883,7 +907,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_2_5)
 	{
 	  return pm25_weight_25;
-	}
+	}	
 	else if(addr == MODBUS_AIRLAB_PM25_WEIGHT_4_0)
 	{
 	  return pm25_weight_40;
@@ -990,7 +1014,7 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	{
 	  return aqi_table_customer[addr - MODBUS_AIRLAB_AQI_FIRST_LINE];
 	}
-
+	
 	// CO2
 	else if(addr == MODBUS_AIRLAB_CO2_ASC_ENABLE)
 	{
@@ -1049,34 +1073,34 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 	{
 		DEGCorF = pData[HeadLen + 5];
 	}
-
+	
 	else if(addr == MODBUS_AIRLAB_CALIBRATION)
 	{
-
+	  
 	}
 	else if(addr == MODBUS_AIRLAB_CO2_CALIBRATION)
 	{
-
+	  
 	}
 	else if(addr == MODBUS_AIRLAB_HUM_CALIBRATION)
 	{
-
+	  
 	}
-
+	
 	// PIR
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_VALUE)
 	{
-
+	  
 	}
 	else if(addr == MODBUS_AIRLAB_PIR_SENSOR_ZERO)
 	{
 	  PirSensorZero = pData[HeadLen + 5];
 	}
-
+	
 // PM2.5
-
-// VOC
-
+	
+// VOC	
+	
 	// AQI
 	else if(addr >= MODBUS_AIRLAB_AQ_LEVEL0 && addr <= MODBUS_AIRLAB_MAX_AQ_VAL)
 	{
@@ -1097,12 +1121,12 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 		aqi_table_customer[addr - MODBUS_AIRLAB_AQI_FIRST_LINE] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
 	  }
 	}
-
-	// CO2
+	
+	// CO2	
 	else if(addr == MODBUS_AIRLAB_CO2_FRC_VALUE)
 	{
 		uint16 tmp;
-		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];
+		sensirion_co2_cmd_ForcedCalibration[4] = pData[HeadLen + 4];	
 		sensirion_co2_cmd_ForcedCalibration[5] = pData[HeadLen + 5];
 		tmp = (uint16)(sensirion_co2_cmd_ForcedCalibration[4]<<8 )|sensirion_co2_cmd_ForcedCalibration[5];
 		if((tmp >= 0) && (tmp <= 5000))
@@ -1119,7 +1143,7 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 					scd4x_perform_forced = 1;
 					//scd4x_perform_forced_count = 0;
 				}
-			}
+			}					
 		}
 	}
 	// DISPLAY CONFIG
@@ -1131,7 +1155,7 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 	{
 		if((pData[HeadLen + 5] == 0) || (pData[HeadLen + 5]==1))
 		{
-			isBlankScreen= pData[HeadLen + 5];
+			isBlankScreen= pData[HeadLen + 5];	
 			//SoftReset();
 		}
 	}
@@ -1191,7 +1215,7 @@ void Get_AVS(void)
 	ptr = put_io_buf(VAR,base + 3);ptr.pvar->value = (uint32)Instance;
 	ptr = put_io_buf(VAR,base + 4);ptr.pvar->value = DEGCorF;
 
-
+	  
 }
 
 
@@ -1241,7 +1265,7 @@ esp_err_t pca9536_read_register(uint8_t reg_addr, uint8_t *data) {
     i2c_master_stop(cmd);
     esp_err_t err = i2c_master_cmd_begin(I2C_MASTER_PORT, cmd, 1000 / portTICK_PERIOD_MS);
     i2c_cmd_link_delete(cmd);
-    Test[29] = err;
+//    Test[29] = err;
     return err;
 }
 

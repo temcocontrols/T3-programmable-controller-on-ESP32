@@ -7,7 +7,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6609
+#define SOFTREV     6706
 
 
 #define		SW_OFF 	 0
@@ -23,7 +23,22 @@ typedef	struct
 }STR_Task_Test;
 extern STR_Task_Test task_test;
 
+typedef	struct
+{	
+	uint8_t  CT_channel[6];
+	uint8_t  en_power[24];
+	uint32_t energy[24];     /* charge kWh*1000: accumulate when CT current > 0 */
+	uint32_t dis_energy[24]; /* discharge kWh*1000: accumulate when CT current < 0 */
+	int16_t  power[24];  /* signed W: sign follows CT current direction */
+	uint8_t battery[7];
+	uint16_t battery_sum;
+	uint8_t flag_bms_comm;
+	uint8_t flag_48V_exist;
+}STR_PLC;
 
+extern STR_PLC plc_power;
+void calculate_plc_power(void);
+void plc_power_sync_acc(void);  /* power[] → energy accumulator after NVS load / Modbus write */
 
 #define UIP_HEAD 6
 // must change library if change it
@@ -81,7 +96,7 @@ typedef struct
 	U8_T uart_stopbit[3];
 //	U8_T network_ID[3]; // 3 RS485 port
 	U16_T zigbee_module_id;
-	U8_T dead_master_for_PLC;;
+	U8_T RMC1232_led_Test;
 	U8_T disable_tstat10_display;  // display icons and scrolling string
 	U8_T enabled_Display_HomeScreen;
 	//lcdconfig display_lcd;
@@ -169,7 +184,7 @@ typedef	enum
 #define MINI_NANO   		8
 #define MINI_TSTAT10 		9
 #define MINI_T10P	 		11
-#define MINI_VAV	 		10   // no used
+#define MINI_BMS	 		10  
 #define MINI_TINY_11I		12
 #define	PROJECT_FAN_MODULE 	13
 #define	PROJECT_POWER_METER 14
@@ -188,7 +203,7 @@ typedef	enum
 #define PROJECT_LSW_SENSOR	27
 #define PROJECT_LORA_GATEWAY	28
 
-#define PROJECT_RMC1216_32I	29
+#define PROJECT_RMC1232		29
 
 #define MAX_MINI_TYPE 		30
 

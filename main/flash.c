@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "nvs.h"
@@ -16,10 +17,12 @@
 #include "esp_partition.h"
 #include "esp_system.h"
 #include <string.h>
+#include <stdlib.h>
 #include "ud_str.h"
 #include "user_data.h"
 #include "driver/uart.h"
 #include "scan.h"
+#include "rtc_value_backup.h"
 
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
@@ -34,11 +37,18 @@ extern const uint8 Var_label[12][9];
 
 extern uint16_t input_cal[16];
 extern uint8_t co2_data_screenArea[3];
+extern uint16 rmc_cuv;
+extern uint16 rmc_cov;
+extern uint16 rmc_stack;
+extern uint16 rmc_oc_chg;
+extern uint16 rmc_oc_dsg;
 
 extern uint16_t count_lcd_time_off_delay;
 extern uint8_t com_config_back[3];
 
 extern uint16_t current_page;
+extern uint8_t flag_flash_covered;
+extern uint32_t flash_trendlog_num[MAX_MONITORS * 2];
 extern char sntp_server[30];
 
 #if LSW_ON_OFF
@@ -49,48 +59,92 @@ extern uint16_t LSW_off_time;
 extern uint32_t  high_spd_counter_tempbuf[32/*HI_COMMON_CHANNEL*/];
 
 #define POINT_INFO_ADDR	0
-// if old parition, storage size is 0x20000, point info is too long, change lengh to 0x11000, trendlog length to 0xf000
-#define POINT_INFO_LEN 	0x16000  // 0X10000
-#define TRENDLOG_ADDR	0x16000	 // 0X10000
-#define TRENDLOG_LEN	0xA000	 // 0X10000
-#define MAX_TREND_PAGE 	TRENDLOG_LEN / 0x1000    // 10	// max page is 10, 16 * 4k = 40k
+// 如果旧的bootloader，或者partition是错的，参照4M芯片的分区
 
-#define SPI_FLASH_SEC_SIZE 4096
+#define SPI_FLASH_SEC_SIZE 4096  // 0X1000
 
-// if use new parition.cvs,storage size is 0x40000, point length is 0x20000, trendlog length is 0x20000 
-#define POINT_INFO_LEN_NEW 	0x20000
-#define TRENDLOG_ADDR_NEW	0x20000
-#define MAX_TREND_PAGE_NEW 	TRENDLOG_ADDR_NEW / 0x1000    // 32	// max page is 32, 32 * 4k = 128K
+// 4MB flash: storage at 0x300000, size 0x100000 (last 1MB)
+// if 4M chip, storage size is 0x100000, point length is 0x80000, trendlog length is 0x80000
+#define STORAGE_SIZE_4MB      0x100000
+#define POINT_INFO_LEN_4MB    0x80000 // 128k point info
+#define TRENDLOG_LEN_4MB      (STORAGE_SIZE_4MB - POINT_INFO_LEN_4MB)
+#define TRENDLOG_ADDR_4MB     POINT_INFO_LEN_4MB
+#define MAX_TREND_PAGE_4MB    (TRENDLOG_LEN_4MB / SPI_FLASH_SEC_SIZE)  // 128 pages, 128k trendlog
 
-// 16MB flash: storage at 0x800000, size 0x80000 (last 8MB)
-// if 16M,storage size is 0x800000, point length is 0x10000, trendlog length is 0x70000 
+
+// 8MB flash: storage at 0x400000, size 0x400000 (last 4MB)
+// if 8M chip, storage size is 0x400000, point length is 0x100000, trendlog length is 0x300000
+#define STORAGE_SIZE_8MB      0x400000
+#define POINT_INFO_LEN_8MB    0x100000
+#define TRENDLOG_LEN_8MB      (STORAGE_SIZE_8MB - POINT_INFO_LEN_8MB)
+#define TRENDLOG_ADDR_8MB     POINT_INFO_LEN_8MB
+#define MAX_TREND_PAGE_8MB    (TRENDLOG_LEN_8MB / SPI_FLASH_SEC_SIZE)  // 768 pages, 3MB trendlog
+
+
+// 16MB flash: storage at 0x800000, size 0x800000 (last 8MB)
+// if 16M chip, storage size is 0x800000, point length is 0x100000, trendlog length is 0x700000
 #define STORAGE_SIZE_16MB      0x800000
-#define POINT_INFO_LEN_16MB     0x100000
-#define TRENDLOG_ADDR_16MB     0x700000
-#define MAX_TREND_PAGE_16MB    (0x700000 / SPI_FLASH_SEC_SIZE)  // 256 * 7 pages, 7MB trendlog
+#define POINT_INFO_LEN_16MB    0x100000
+#define TRENDLOG_LEN_16MB      (STORAGE_SIZE_16MB - POINT_INFO_LEN_16MB)
+#define TRENDLOG_ADDR_16MB     POINT_INFO_LEN_16MB
+#define MAX_TREND_PAGE_16MB    (TRENDLOG_LEN_16MB / SPI_FLASH_SEC_SIZE)  // 1792 pages, 7MB trendlog
 
 static uint32_t get_point_info_erase_len(size_t partition_size)
 {
-	if (partition_size == 0x20000) {Test[20] = 2;
-		return POINT_INFO_LEN;
+	if (partition_size == 0x100000) {Test[20] = 4;
+		return POINT_INFO_LEN_4MB;
 	}
-	if (partition_size == 0x40000) {Test[20] = 4;
-		return POINT_INFO_LEN_NEW;
-	}Test[20] = 20;
-	return POINT_INFO_LEN_16MB;
+	else if (partition_size == 0x400000) {Test[20] = 8;
+		return POINT_INFO_LEN_8MB;
+	}
+	else if (partition_size == 0x800000) {Test[20] = 16;
+		return POINT_INFO_LEN_16MB;
+	}
+	else
+	{
+		Test[20] = 22;
+		return POINT_INFO_LEN_4MB;
+	}
 }
 
 static void get_trendlog_layout(size_t partition_size, uint32_t *addr, uint16_t *max_page)
 {
-	if (partition_size == 0x20000) {Test[21] = 2;
-		*addr = TRENDLOG_ADDR;
-		*max_page = MAX_TREND_PAGE;
-	} else if (partition_size == 0x40000) {Test[21] = 4;
-		*addr = TRENDLOG_ADDR_NEW;
-		*max_page = MAX_TREND_PAGE_NEW;
-	} else {Test[21] = 20;
+	if (partition_size == 0x100000) {Test[21] = 4;
+		*addr = TRENDLOG_ADDR_4MB;
+		*max_page = MAX_TREND_PAGE_4MB;
+	} else if (partition_size == 0x400000) {Test[21] = 8;
+		*addr = TRENDLOG_ADDR_8MB;
+		*max_page = MAX_TREND_PAGE_8MB;
+	} else if (partition_size == 0x800000){Test[21] = 16;
 		*addr = TRENDLOG_ADDR_16MB;
-		*max_page = MAX_TREND_PAGE_16MB;
+		*max_page = (uint16_t)((partition_size - *addr) / SPI_FLASH_SEC_SIZE);
+	}
+	else // oldest chip
+	{Test[21] = 22;
+		*addr = TRENDLOG_ADDR_4MB;
+		*max_page = MAX_TREND_PAGE_4MB;	
+	}
+}
+
+uint16_t max_trend_page ;//= MAX_TREND_PAGE;
+
+uint16_t get_max_trend_page(void)
+{
+	return max_trend_page;
+}
+
+static void update_max_trend_page(void)
+{
+	const esp_partition_t *partition = esp_partition_find_first(
+		ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+	if (partition != NULL) {
+		uint32_t trendlog_addr;
+		uint16_t trend_page_count;
+
+		get_trendlog_layout(partition->size, &trendlog_addr, &trend_page_count);
+		max_trend_page = trend_page_count;
+		Test[22]++;
+		Test[23] = max_trend_page;
 	}
 }
 
@@ -486,6 +540,60 @@ esp_err_t read_default_from_flash(void)
 	len = 4*32;
 	err = nvs_get_blob(my_handle, FLASH_SPD_CNT, &high_spd_counter_tempbuf, &len);
 
+	len = PLC_POWER_NVS_SIZE;
+	err = nvs_get_blob(my_handle, FLASH_PLC_POWER, &plc_power, &len);
+	/* accept legacy blob without dis_energy[] */
+	if(err == ESP_OK && len >= PLC_POWER_NVS_SIZE_V1)
+	{
+		uint8_t i;
+		if(len < PLC_POWER_NVS_SIZE)
+		{
+			for(i = 0; i < 24; i++)
+				plc_power.dis_energy[i] = 0;
+		}
+		else
+		{
+			/* previous build stored discharge as signed negative; keep magnitude */
+			for(i = 0; i < 24; i++)
+			{
+				int32_t d = (int32_t)plc_power.dis_energy[i];
+				if(d < 0)
+					plc_power.dis_energy[i] = (uint32_t)(-d);
+			}
+		}
+		plc_power_sync_acc(); /* restore energy integrator so energy[] keeps accumulating */
+	}
+
+	err = nvs_get_u16(my_handle, FLASH_RMC_CUV, &rmc_cuv);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		rmc_cuv = 2550;
+		nvs_set_u16(my_handle, FLASH_RMC_CUV, rmc_cuv);
+	}
+	err = nvs_get_u16(my_handle, FLASH_RMC_COV, &rmc_cov);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		rmc_cov = 3600;
+		nvs_set_u16(my_handle, FLASH_RMC_COV, rmc_cov);
+	}
+	err = nvs_get_u16(my_handle, FLASH_RMC_SHUTDOWN, &rmc_stack);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		rmc_stack = 2500;
+		nvs_set_u16(my_handle, FLASH_RMC_SHUTDOWN, rmc_stack);
+	}
+	err = nvs_get_u16(my_handle, FLASH_RMC_OC_CHG, &rmc_oc_chg);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		rmc_oc_chg = 3000;
+		nvs_set_u16(my_handle, FLASH_RMC_OC_CHG, rmc_oc_chg);
+	}
+	err = nvs_get_u16(my_handle, FLASH_RMC_OC_DSG, &rmc_oc_dsg);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		rmc_oc_dsg = 4000;
+		nvs_set_u16(my_handle, FLASH_RMC_OC_DSG, rmc_oc_dsg);
+	}
 
 	len = 7;
 	err = nvs_get_blob(my_handle, FLASH_LCD_CONFIG, &lcddisplay, &len);
@@ -693,6 +801,19 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u16(my_handle, FLASH_CURRENT_TLG_PAGE, current_page);
 	}
 
+	len = sizeof(flash_trendlog_num);
+	err = nvs_get_blob(my_handle, FLASH_TRENDLOG_NUM, flash_trendlog_num, &len);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		memset(flash_trendlog_num, 0, sizeof(flash_trendlog_num));
+		nvs_set_blob(my_handle, FLASH_TRENDLOG_NUM, flash_trendlog_num, sizeof(flash_trendlog_num));
+	}
+
+	update_max_trend_page();
+	if (current_page >= max_trend_page) {
+		flag_flash_covered = 1;
+	}
+
 
 	err = nvs_get_u16(my_handle, FLASH_READ_POINT_TIMER, &READ_POINT_TIMER_FROM_EEP);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
@@ -825,6 +946,49 @@ void Save_SPD_CNT(void)
 	save_block(FLASH_BLOCK_SPD);
 }
 
+void Save_PLC_Power(void)
+{
+	save_block(FLASH_BLOCK_PLC_POWER);
+}
+
+/* Persist accumulating energy periodically (same cadence idea as Store_Pulse_Counter) */
+void Store_PLC_Power(uint8_t flag)
+{
+	static uint32_t old_energy[24];
+	static uint32_t old_dis_energy[24];
+	static uint8_t inited;
+	uint8_t i;
+	uint8_t changed = 0;
+
+	if(!inited)
+	{
+		for(i = 0; i < 24; i++)
+		{
+			old_energy[i] = plc_power.energy[i];
+			old_dis_energy[i] = plc_power.dis_energy[i];
+		}
+		inited = 1;
+		if(flag == 0)
+			return;
+	}
+
+	for(i = 0; i < 24; i++)
+	{
+		if(old_energy[i] != plc_power.energy[i])
+		{
+			old_energy[i] = plc_power.energy[i];
+			changed = 1;
+		}
+		if(old_dis_energy[i] != plc_power.dis_energy[i])
+		{
+			old_dis_energy[i] = plc_power.dis_energy[i];
+			changed = 1;
+		}
+	}
+	if(changed || flag == 1)
+		Save_PLC_Power();
+}
+
 
 void save_LSW_ON_OFF_TIME(uint8_t index,uint16_t time)
 {
@@ -832,6 +996,21 @@ void save_LSW_ON_OFF_TIME(uint8_t index,uint16_t time)
 		save_uint16_to_flash(FLASH_LSW_ONTIME,time);
 	else if(index == 1)
 		save_uint16_to_flash(FLASH_LSW_OFFTIME,time);
+}
+
+void save_flash_trendlog_num(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) return;
+
+	err = nvs_set_blob(my_handle, FLASH_TRENDLOG_NUM, flash_trendlog_num, sizeof(flash_trendlog_num));
+	if (err == ESP_OK) {
+		nvs_commit(my_handle);
+	}
+	nvs_close(my_handle);
 }
 
 void clear_currnet_page(void)
@@ -965,7 +1144,10 @@ void Flash_Inital(void)
 			break;
 		case GRP_POINT:
 			baseAddr += len;
-			len = sizeof(Str_grp_element_new) * MAX_ELEMENTS_NEW;
+			/* Payload is one group_data_new. Layout spacing must stay the historical
+			 * U16-truncated value of sizeof(Str_grp_element_new)*MAX_ELEMENTS_NEW
+			 * (0x8200) so SUB_DB/TBL/TEMCOVAR addresses remain compatible. */
+			len = (U16_T)(sizeof(Str_grp_element_new) * MAX_ELEMENTS_NEW);
 			break;
 		/*case TEMCOVAR:
 			baseAddr += len;
@@ -994,12 +1176,12 @@ void Flash_Inital(void)
 		//write_page_en[loop] = 0;
 	}
 
-	// 把后面添加的TEMCO_VAR，添加到后面，避免把之前的flash弄乱
+	/* TEMCOVAR is appended after the packed layout so older images stay compatible */
 	baseAddr += len;
 	len = sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS;
 	Flash_Position[TEMCOVAR].addr = baseAddr;
 	Flash_Position[TEMCOVAR].len = len;
-
+	Flash_Position[TEMCOVAR].valid = 1;
 
 	for(loop = 0;loop < MAX_PRGS;loop++)
 		programs[loop].real_byte = 0;
@@ -1431,6 +1613,11 @@ esp_err_t save_block(uint8_t key)
 		err = nvs_set_blob(my_handle, FLASH_MSV, (const void*)(&msv_data), sizeof(multiple_struct) * MAX_MSV * STR_MSV_MULTIPLE_COUNT);
 		if (err != ESP_OK) return err;
 		break;
+	case FLASH_BLOCK_PLC_POWER:
+		/* CT_channel[6] + en_power[24] + power[24] at head of STR_PLC */
+		err = nvs_set_blob(my_handle, FLASH_PLC_POWER, (const void*)(&plc_power), PLC_POWER_NVS_SIZE);
+		if (err != ESP_OK) return err;
+		break;
 	default:
 		break;
 	}
@@ -1454,159 +1641,250 @@ typedef struct
 }STR_flag_flash;
 
 
+/* Live RAM payload for one Flash_Position table. Layout len stays reserved; *len is bytes to program. */
+static int point_payload_src(uint8_t loop, const uint8_t **src, uint32_t *len)
+{
+	if(Flash_Position[loop].valid != 1)
+		return 0;
+
+	*src = NULL;
+	*len = Flash_Position[loop].len;
+
+	switch(loop)
+	{
+	case OUT:
+#if NEW_IO
+		*src = (const uint8_t *)new_outputs;
+		*len = (uint32_t)max_outputs * sizeof(Str_out_point);
+#else
+		*src = (const uint8_t *)&outputs;
+		*len = sizeof(Str_out_point) * MAX_OUTS;
+#endif
+		break;
+	case IN:
+#if NEW_IO
+		*src = (const uint8_t *)new_inputs;
+		*len = (uint32_t)max_inputs * sizeof(Str_in_point);
+#else
+		*src = (const uint8_t *)&inputs;
+		*len = sizeof(Str_in_point) * MAX_INS;
+#endif
+		break;
+	case VAR:
+#if NEW_IO
+		*src = (const uint8_t *)new_vars;
+		*len = (uint32_t)max_vars * sizeof(Str_variable_point);
+#else
+		*src = (const uint8_t *)&vars;
+		*len = sizeof(Str_variable_point) * MAX_VARS;
+#endif
+		break;
+	case CON:
+		*src = (const uint8_t *)&controllers;
+		*len = sizeof(Str_controller_point) * MAX_CONS;
+		break;
+	case WRT:
+		*src = (const uint8_t *)&weekly_routines;
+		*len = sizeof(Str_weekly_routine_point) * MAX_WR;
+		break;
+	case AR:
+		*src = (const uint8_t *)&annual_routines;
+		*len = sizeof(Str_annual_routine_point) * MAX_AR;
+		break;
+	case PRG:
+		*src = (const uint8_t *)&programs;
+		*len = sizeof(Str_program_point) * MAX_PRGS;
+		break;
+	case TBL:
+		*src = (const uint8_t *)&custom_tab;
+		*len = sizeof(Str_table_point) * MAX_TBLS;
+		break;
+	case AMON:
+		*src = (const uint8_t *)&monitors;
+		*len = sizeof(Str_monitor_point) * MAX_MONITORS;
+		break;
+	case GRP:
+		*src = (const uint8_t *)&control_groups;
+		*len = sizeof(Control_group_point) * MAX_GRPS;
+		break;
+	case ALARMM:
+		*src = (const uint8_t *)&alarms;
+		*len = sizeof(Alarm_point) * MAX_ALARMS;
+		break;
+	case PRG_CODE:
+		*src = (const uint8_t *)&prg_code;
+		*len = (uint32_t)MAX_CODE * CODE_ELEMENT * MAX_PRGS;
+		break;
+	case UNIT:
+		*src = (const uint8_t *)&digi_units;
+		*len = sizeof(Units_element) * MAX_DIG_UNIT;
+		break;
+	case USER_NAME:
+		*src = (const uint8_t *)&passwords;
+		*len = sizeof(Password_point) * MAX_PASSW;
+		break;
+	case WR_TIME:
+		*src = (const uint8_t *)&wr_times;
+		*len = sizeof(Wr_one_day) * 9 * MAX_WR;
+		break;
+	case AR_DATA:
+		*src = (const uint8_t *)&ar_dates;
+		*len = 46 * sizeof(S8_T) * MAX_AR;
+		break;
+	case GRP_POINT:
+		*src = (const uint8_t *)&group_data_new;
+		*len = sizeof(Str_grp_element_new);
+		break;
+	case TEMCOVAR:
+		*src = (const uint8_t *)&pvars;
+		*len = sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS;
+		break;
+	case SUB_DB:
+		*src = (const uint8_t *)&scan_db;
+		*len = sizeof(SCAN_DB) * SUB_NO;
+		break;
+	default:
+		return 0;
+	}
+
+	return (*src != NULL && *len != 0);
+}
+
+static void overlay_payload(uint8_t *sector, uint32_t sector_off,
+	uint32_t table_addr, const uint8_t *src, uint32_t src_len)
+{
+	uint32_t sector_end = sector_off + SPI_FLASH_SEC_SIZE;
+	uint32_t table_end = table_addr + src_len;
+	uint32_t start = (sector_off > table_addr) ? sector_off : table_addr;
+	uint32_t end = (sector_end < table_end) ? sector_end : table_end;
+
+	if(src == NULL || start >= end)
+		return;
+	memcpy(sector + (start - sector_off), src + (start - table_addr), end - start);
+}
+
+/*
+ * save_point_info diagnostics (read via Test[] / Modbus):
+ *   Test[16]  enter count — proves new sector path ran (not whole-region erase)
+ *   Test[17]  sectors skipped (memcmp equal) — should be large after Monitor write
+ *   Test[18]  sectors erased+written — should be small (only changed 4KB pages)
+ *   Test[19]  last result: 0=OK, 1=IO null, 2=NO_MEM, 3=read fail, 4=erase fail, 5=write fail
+ *   Test[24]  last programmed sector index (offset/4096)
+ *   Test[25]  blank 0xFF payloads skipped in read_point_info (wipe detected safely)
+ */
 esp_err_t save_point_info(uint8_t point_type)
 {
-	STR_flag_flash ptr_flash;
-	uint8_t err=0xff;
+	esp_err_t err = ESP_OK;
 	uint16_t loop;
-	//  step 1: Ѱ���û�flash id
-//	return ESP_OK;
+	uint32_t used_end = 0;
+	uint32_t erase_cap;
+	uint32_t sector_off;
+	uint8_t *buf_new = NULL;
+	uint8_t *buf_old = NULL;
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
 
 	assert(partition != NULL);
+	(void)point_type;
 
-	err = esp_partition_erase_range(partition, POINT_INFO_ADDR, get_point_info_erase_len(partition->size));
-	if(err!=0)
+	Test[16]++;
+	Test[19] = 0;
+
+#if NEW_IO
+	/* Never program point-info if IO buffers are missing. */
+	if(new_outputs == NULL || new_inputs == NULL || new_vars == NULL)
 	{
-		return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
+		Test[19] = 1;
+		return ESP_ERR_INVALID_STATE;
+	}
+#endif
+
+	erase_cap = get_point_info_erase_len(partition->size);
+	for(loop = 0; loop < MAX_POINT_TYPE; loop++)
+	{
+		const uint8_t *src;
+		uint32_t len;
+		uint32_t end;
+
+		if(!point_payload_src((uint8_t)loop, &src, &len))
+			continue;
+		end = Flash_Position[loop].addr + len;
+		if(end > used_end)
+			used_end = end;
 	}
 
-
-	//debug_info(" erase ok");
-	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
+	used_end = (used_end + SPI_FLASH_SEC_SIZE - 1) & ~(uint32_t)(SPI_FLASH_SEC_SIZE - 1);
+	if(used_end > erase_cap)
+		used_end = erase_cap;
+	if(used_end == 0)
 	{
-		//if(loop == point_type)
+		rtc_value_backup_flush();
+		return ESP_OK;
+	}
+
+	buf_new = (uint8_t *)heap_caps_malloc(SPI_FLASH_SEC_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+	buf_old = (uint8_t *)heap_caps_malloc(SPI_FLASH_SEC_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+	if(buf_new == NULL || buf_old == NULL)
+	{
+		free(buf_new);
+		free(buf_old);
+		Test[19] = 2; /* no erase happened — data preserved */
+		return ESP_ERR_NO_MEM;
+	}
+
+	/* Erase only 4KB sectors whose contents actually changed.
+	 * Whole-region erase (128KB–1MB) plus a reboot/WDT left storage as 0xFF. */
+	for(sector_off = POINT_INFO_ADDR; sector_off < used_end; sector_off += SPI_FLASH_SEC_SIZE)
+	{
+		memset(buf_new, 0xFF, SPI_FLASH_SEC_SIZE);
+		for(loop = 0; loop < MAX_POINT_TYPE; loop++)
 		{
-			uint8_t *tempbuf = NULL;
-			ptr_flash.table = loop;
-			ptr_flash.len = Flash_Position[loop].len;
+			const uint8_t *src;
+			uint32_t len;
 
-#if NEW_IO
-			if(loop == OUT)
-			{
-				if(new_outputs != NULL)
-				{
-					tempbuf = (uint8_t *)new_outputs;
-					Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
-				}
-			}
-			else if(loop == IN)
-			{
-				if(new_inputs != NULL)
-				{
-					tempbuf = (uint8_t *)new_inputs;
-					Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
-				}
-			}
-			else if(loop == VAR)
-			{
-				if(new_vars != NULL)
-				{
-					tempbuf = (uint8_t *)new_vars;
-					Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
-				}
-			}
-			else
-				tempbuf = (uint8_t*)malloc(ptr_flash.len);
-#else
-			tempbuf = (uint8_t*)malloc(ptr_flash.len);
-#endif
-			switch(loop)
-			{
-#if !NEW_IO
-			case OUT:
-				memcpy(tempbuf,&outputs,sizeof(Str_out_point) * MAX_OUTS);
-				break;
-			case IN:
-				memcpy(tempbuf,&inputs,sizeof(Str_in_point) * MAX_INS);
-				break;
-			case VAR:
-				memcpy(tempbuf,&vars,sizeof(Str_variable_point) * MAX_VARS);
-				break;
-#endif
-			case CON:
-				memcpy(tempbuf,&controllers,sizeof(Str_controller_point) * MAX_CONS);
-				break;
-
-			case WRT:
-				memcpy(tempbuf,&weekly_routines,sizeof(Str_weekly_routine_point) * MAX_WR);
-				break;
-			case AR:
-				memcpy(tempbuf,&annual_routines,sizeof(Str_annual_routine_point) * MAX_AR);
-				break;
-			case PRG:
-				memcpy(tempbuf,&programs,sizeof(Str_program_point) * MAX_PRGS);
-				break;
-	#if 1
-			case TBL:
-				memcpy(tempbuf,&custom_tab,sizeof(Str_table_point) * MAX_TBLS);
-				break;
-		/*	case TZ:
-				memcpy(&tempbuf,&totalizers,sizeof(Str_totalizer_point) * MAX_TOTALIZERS);
-				break;	*/
-			case AMON:
-				memcpy(tempbuf,&monitors,sizeof(Str_monitor_point) * MAX_MONITORS);
-				break;
-		case GRP:
-				memcpy(tempbuf,&control_groups,sizeof(Control_group_point) * MAX_GRPS);
-				break;
-	/*			case ARRAY:
-				memcpy(&tempbuf,&arrays,sizeof(Str_array_point) * MAX_ARRAYS);
-				break;
-			case ALARMM:
-	//				memcpy(&tempbuf,&alarms,sizeof(Alarm_point) * MAX_ALARMS);
-				break;
-				case ALARM_SET:
-				memcpy(tempbuf,&alarms_set,sizeof(Alarm_set_point) * MAX_ALARMS_SET);
-				break;*/
-			case PRG_CODE: //prg_code[MAX_PRGS][MAX_CODE * CODE_ELEMENT];
-				memcpy(tempbuf,&prg_code,MAX_CODE * CODE_ELEMENT * MAX_PRGS);
-				break;
-			case UNIT:
-				memcpy(tempbuf,&digi_units,sizeof(Units_element) * MAX_DIG_UNIT);
-				break;
-			case USER_NAME:
-				memcpy(tempbuf,&passwords,sizeof(Password_point) * MAX_PASSW);
-				break;
-			case WR_TIME:
-				memcpy(tempbuf,&wr_times,sizeof(Wr_one_day) * 9 * MAX_WR);
-				break;
-			case AR_DATA:
-				memcpy(tempbuf,&ar_dates,46 * sizeof(S8_T) * MAX_AR);
-				break;
-
-			case GRP_POINT:
-				memcpy(tempbuf,&group_data_new,sizeof(Str_grp_element_new));
-				break;
-			case TEMCOVAR:
-				memcpy(tempbuf,&pvars, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
-				break;
-			case SUB_DB:
-				memcpy(tempbuf,&scan_db,sizeof(SCAN_DB) * SUB_NO);
-				break;
-	#endif
-			default:
-				break;
-
-			}
-
-		// step 3�������Ҫ������û�����
-			if(Flash_Position[loop].valid == 1)
-			{
-				err = esp_partition_write(partition, Flash_Position[loop].addr,tempbuf,Flash_Position[loop].len);
-				//debug_info("write ...");
-
-			}
-#if NEW_IO
-		if((loop != OUT) && (loop != IN) && (loop != VAR))
-			free(tempbuf);
-#else
-		free(tempbuf);
-#endif
-
+			if(!point_payload_src((uint8_t)loop, &src, &len))
+				continue;
+			overlay_payload(buf_new, sector_off, Flash_Position[loop].addr, src, len);
 		}
-	   //debug_info("user  flash write success");
+
+		err = esp_partition_read(partition, sector_off, buf_old, SPI_FLASH_SEC_SIZE);
+		if(err != ESP_OK)
+		{
+			Test[19] = 3;
+			Test[24] = (uint16_t)(sector_off / SPI_FLASH_SEC_SIZE);
+			break;
+		}
+		if(memcmp(buf_new, buf_old, SPI_FLASH_SEC_SIZE) == 0)
+		{
+			Test[17]++; /* unchanged sector — no erase */
+			continue;
+		}
+
+		err = esp_partition_erase_range(partition, sector_off, SPI_FLASH_SEC_SIZE);
+		if(err != ESP_OK)
+		{
+			Test[19] = 4;
+			Test[24] = (uint16_t)(sector_off / SPI_FLASH_SEC_SIZE);
+			break;
+		}
+		err = esp_partition_write(partition, sector_off, buf_new, SPI_FLASH_SEC_SIZE);
+		if(err != ESP_OK)
+		{
+			Test[19] = 5;
+			Test[24] = (uint16_t)(sector_off / SPI_FLASH_SEC_SIZE);
+			break;
+		}
+		Test[18]++; /* programmed one 4KB sector */
+		Test[24] = (uint16_t)(sector_off / SPI_FLASH_SEC_SIZE);
+		/* Let idle/WDT run between sector programs. */
+		vTaskDelay(1);
 	}
+
+	free(buf_new);
+	free(buf_old);
+	if(err != ESP_OK)
+		return err;
+	Test[19] = 0;
+	rtc_value_backup_flush();
 	return ESP_OK;
 }
 
@@ -2104,169 +2382,170 @@ void Initial_points(uint8_t point_type)
 	}
 }
 
+static int flash_payload_is_blank(const uint8_t *buf, uint32_t len)
+{
+	uint32_t i;
+	uint32_t n;
+
+	if(buf == NULL || len == 0)
+		return 1;
+
+	/* Legacy empty marker used by older images */
+	if(len >= 3 && buf[0] == 0x04 && buf[1] == 0x04 && buf[2] == 0x04)
+		return 1;
+
+	/* Erased NOR flash is 0xFF. Sample head — enough to reject wiped point tables. */
+	n = (len < 16) ? len : 16;
+	for(i = 0; i < n; i++)
+	{
+		if(buf[i] != 0xFF)
+			return 0;
+	}
+	return 1;
+}
+
 void read_point_info(void)
 {
-	// Find the partition map in the partition table
 	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
 	assert(partition != NULL);
-	//STR_flag_flash ptr_flash;
-	//U16_T base_addr;
-	U8_T loop,i;
-	U8_T page;
-	uint8_t  err = 0xff;
+	U8_T loop;
+	esp_err_t err;
 	uint8_t *tempbuf = NULL;
+	uint32_t read_len;
 
-	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
+	for(loop = 0; loop < MAX_POINT_TYPE; loop++)
 	{
-
 		if(Flash_Position[loop].valid == 0)
 			continue;
 
-#if NEW_IO
+		read_len = Flash_Position[loop].len;
 
+#if NEW_IO
 		if(loop == OUT)
 		{
-			if(new_outputs != NULL)
-			{
-				tempbuf = (uint8_t *)new_outputs;
-				Flash_Position[loop].len = max_outputs *sizeof(Str_out_point);
-			}
+			if(new_outputs == NULL)
+				continue;
+			/* Payload size only — do not shrink Flash_Position layout len. */
+			read_len = (uint32_t)max_outputs * sizeof(Str_out_point);
 		}
 		else if(loop == IN)
 		{
-			if(new_inputs != NULL)
-			{
-				tempbuf = (uint8_t *)new_inputs;
-				Flash_Position[loop].len = max_inputs *sizeof(Str_in_point);
-			}
+			if(new_inputs == NULL)
+				continue;
+			read_len = (uint32_t)max_inputs * sizeof(Str_in_point);
 		}
 		else if(loop == VAR)
 		{
-			if(new_vars != NULL)
-			{
-				tempbuf = (uint8_t *)new_vars;
-				Flash_Position[loop].len = max_vars *sizeof(Str_variable_point);
-			}
+			if(new_vars == NULL)
+				continue;
+			read_len = (uint32_t)max_vars * sizeof(Str_variable_point);
 		}
-		else
-		{
-			tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
-
-		}
+		else if(loop == GRP_POINT)
+			read_len = sizeof(Str_grp_element_new);
+		else if(loop == ALARMM)
+			read_len = sizeof(Alarm_point) * MAX_ALARMS;
 #else
-		tempbuf = (uint8_t*)malloc(Flash_Position[loop].len);
+		if(loop == GRP_POINT)
+			read_len = sizeof(Str_grp_element_new);
+		else if(loop == ALARMM)
+			read_len = sizeof(Alarm_point) * MAX_ALARMS;
 #endif
 
-		err = esp_partition_read(partition, Flash_Position[loop].addr, tempbuf, Flash_Position[loop].len);
+		tempbuf = (uint8_t *)malloc(read_len);
+		if(tempbuf == NULL)
+			continue;
+
+		err = esp_partition_read(partition, Flash_Position[loop].addr, tempbuf, read_len);
+		if(err != ESP_OK)
+		{
+			free(tempbuf);
+			continue;
+		}
+
+		/* Erased Flash is 0xFF. Do not clobber init_panel() defaults with 0xFF garbage. */
+		if(flash_payload_is_blank(tempbuf, read_len))
+		{
+			Test[25]++; /* wiped/blank sector detected; defaults kept */
+			free(tempbuf);
+			continue;
+		}
 
 		switch(loop)
 		{
-
 		case OUT:
-#if !NEW_IO
-			memcpy(&outputs,tempbuf,sizeof(Str_out_point) * MAX_OUTS);
+#if NEW_IO
+			memcpy(new_outputs, tempbuf, read_len);
+#else
+			memcpy(&outputs, tempbuf, sizeof(Str_out_point) * MAX_OUTS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(OUT);
-			}
-
 			break;
 		case IN:
-#if !NEW_IO
-			memcpy(&inputs,tempbuf,sizeof(Str_in_point) * MAX_INS);
+#if NEW_IO
+			memcpy(new_inputs, tempbuf, read_len);
+#else
+			memcpy(&inputs, tempbuf, sizeof(Str_in_point) * MAX_INS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(IN);
-
-			}
-
 			break;
 		case VAR:
-#if !NEW_IO
-			memcpy(&vars,tempbuf,sizeof(Str_variable_point) * MAX_VARS);
+#if NEW_IO
+			memcpy(new_vars, tempbuf, read_len);
+#else
+			memcpy(&vars, tempbuf, sizeof(Str_variable_point) * MAX_VARS);
 #endif
-			// if initial status
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(VAR);
-			}
 			break;
-
 		case CON:
-			memcpy(&controllers,tempbuf,sizeof(Str_controller_point) * MAX_CONS);
+			memcpy(&controllers, tempbuf, sizeof(Str_controller_point) * MAX_CONS);
 			break;
 		case WRT:
-			memcpy(&weekly_routines,tempbuf,sizeof(Str_weekly_routine_point) * MAX_WR);
+			memcpy(&weekly_routines, tempbuf, sizeof(Str_weekly_routine_point) * MAX_WR);
 			break;
 		case AR:
-			memcpy(&annual_routines,tempbuf,sizeof(Str_annual_routine_point) * MAX_AR);
+			memcpy(&annual_routines, tempbuf, sizeof(Str_annual_routine_point) * MAX_AR);
 			break;
 		case PRG:
-			memcpy(&programs,tempbuf,sizeof(Str_program_point) * MAX_PRGS);
+			memcpy(&programs, tempbuf, sizeof(Str_program_point) * MAX_PRGS);
 			break;
 		case TBL:
-			memcpy(&custom_tab,tempbuf,sizeof(Str_table_point) * MAX_TBLS);
+			memcpy(&custom_tab, tempbuf, sizeof(Str_table_point) * MAX_TBLS);
 			break;
-	/*	case TZ:
-			memcpy(&totalizers,tempbuf,sizeof(Str_totalizer_point) * MAX_TOTALIZERS);
-			break;	*/
 		case AMON:
-			memcpy(&monitors,tempbuf,sizeof(Str_monitor_point) * MAX_MONITORS);
+			memcpy(&monitors, tempbuf, sizeof(Str_monitor_point) * MAX_MONITORS);
 			break;
 		case GRP:
-			memcpy(&control_groups,tempbuf,sizeof(Control_group_point) * MAX_GRPS);
+			memcpy(&control_groups, tempbuf, sizeof(Control_group_point) * MAX_GRPS);
 			break;
-/*			case ARRAY:
-			memcpy(&arrays,&tempbuf,sizeof(Str_array_point) * MAX_ARRAYS);
-			break; */
 		case ALARMM:
-			memcpy(&alarms,tempbuf,sizeof(Alarm_point) * MAX_ALARMS);
+			memcpy(&alarms, tempbuf, sizeof(Alarm_point) * MAX_ALARMS);
 			break;
-		/*case ALARM_SET:
-			memcpy(&alarms_set,tempbuf,sizeof(Alarm_set_point) * MAX_ALARMS_SET);
-			break;*/
 		case PRG_CODE:
-			memcpy(&prg_code,tempbuf,MAX_PRGS * MAX_CODE * CODE_ELEMENT);
+			memcpy(&prg_code, tempbuf, MAX_PRGS * MAX_CODE * CODE_ELEMENT);
 			break;
 		case UNIT:
-			memcpy(&digi_units,tempbuf,sizeof(Units_element) * MAX_DIG_UNIT);
+			memcpy(&digi_units, tempbuf, sizeof(Units_element) * MAX_DIG_UNIT);
 			break;
 		case USER_NAME:
-			memcpy(&passwords,tempbuf,sizeof(Password_point) * MAX_PASSW);
+			memcpy(&passwords, tempbuf, sizeof(Password_point) * MAX_PASSW);
 			break;
 		case WR_TIME:
-			memcpy(&wr_times,tempbuf,sizeof(Wr_one_day) * 9 * MAX_WR);
-
+			memcpy(&wr_times, tempbuf, sizeof(Wr_one_day) * 9 * MAX_WR);
 			break;
 		case AR_DATA:
-			memcpy(&ar_dates,tempbuf,46 * sizeof(S8_T) * MAX_AR);
+			memcpy(&ar_dates, tempbuf, 46 * sizeof(S8_T) * MAX_AR);
 			break;
 		case SUB_DB:
-			memcpy(&scan_db,tempbuf,sizeof(SCAN_DB) * SUB_NO);
+			memcpy(&scan_db, tempbuf, sizeof(SCAN_DB) * SUB_NO);
 			break;
 		case GRP_POINT:
-			memcpy(&group_data_new,tempbuf,sizeof(Str_grp_element_new));
+			memcpy(&group_data_new, tempbuf, sizeof(Str_grp_element_new));
 			break;
 		case TEMCOVAR:
-			memcpy(&pvars,tempbuf,sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
+			memcpy(&pvars, tempbuf, sizeof(Str_TemcoVar_point) * MAX_TEMCOVARS);
 			break;
 		default:
 			break;
-
-			}
-
-
-#if NEW_IO
-		if((loop != OUT) && (loop != IN) && (loop != VAR)){
-
-			free(tempbuf);
 		}
-#else
-		free(tempbuf);
-#endif
 
+		free(tempbuf);
 	}
 
 	update_all_pvars();
@@ -2274,108 +2553,73 @@ void read_point_info(void)
 
 #if 1//TRENDLOG
 
-// SPI_FLASH_SEC_SIZE = 4k
-uint16_t max_trend_page = MAX_TREND_PAGE;
-uint16_t get_max_trend_page(void)
-{
-	return max_trend_page;
-}
-
-
 uint16_t current_page;  //
 //uint16_t total_page;
 extern uint8_t flag_flash_covered;
 esp_err_t save_trendlog(void)
 {
-	STR_flag_flash ptr_flash;
-	uint8_t err=0xff;
-	uint16_t loop;
-	//  step 1: Ѱ���û�flash id
-	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA,ESP_PARTITION_SUBTYPE_ANY, "storage");
+	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
 	assert(partition != NULL);
+	Test[45]++;
 
-//	sprintf(debug_array,"save_trendlog current_page = %d \r",current_page);
-//	debug_info(debug_array);
-	{
-		uint32_t trendlog_addr;
-		uint16_t trend_page_count;
+	uint32_t trendlog_addr;
+	uint16_t trend_page_count;
+	get_trendlog_layout(partition->size, &trendlog_addr, &trend_page_count);
+	max_trend_page = trend_page_count;
 
-		get_trendlog_layout(partition->size, &trendlog_addr, &trend_page_count);
-		max_trend_page = trend_page_count;
-		err = esp_partition_erase_range(partition,
-			trendlog_addr + (current_page % trend_page_count) * SPI_FLASH_SEC_SIZE,
-			SPI_FLASH_SEC_SIZE);
-	}
-	if(err != 0)
-	{//debug_info("erase error");
+	uint32_t page_offset = trendlog_addr +
+		(current_page % trend_page_count) * SPI_FLASH_SEC_SIZE;
 
-	 return err;//ESP_LOGI(TAG, "user  flash erase range ----%d",err);
-	}
-	//else
-		//debug_info("erase ok");
-	{
-		uint32_t trendlog_addr;
-		uint16_t trend_page_count;
-
-		get_trendlog_layout(partition->size, &trendlog_addr, &trend_page_count);
-		err = esp_partition_write(partition,
-			trendlog_addr + (current_page % trend_page_count) * SPI_FLASH_SEC_SIZE,
-			write_mon_point_buf_to_flash, SPI_FLASH_SEC_SIZE);
+	esp_err_t err = esp_partition_erase_range(partition, page_offset, SPI_FLASH_SEC_SIZE);
+	if (err != ESP_OK) {
+		Test[46]++;
+		return err;
 	}
 
-   if(err != 0)
-   {//debug_info("flash write error");
-	   return err ;
-   }
-   //else
-	  // debug_info("flash write ok");
-   // save current_page
+	err = esp_partition_write(partition, page_offset, write_mon_point_buf_to_flash,
+		SPI_FLASH_SEC_SIZE);
+	if (err != ESP_OK) {
+		Test[47]++;
+		return err;
+	}
 
-   current_page++;
-   /*if(current_page >= MAX_TREND_PAGE)
-   {
-	   current_page = 0;
-	   flag_flash_covered = 1;
-   }*/
+	current_page++;
+	if (current_page >= trend_page_count) {
+		flag_flash_covered = 1;
+	}
 
-   save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE,current_page);
+	save_uint16_to_flash(FLASH_CURRENT_TLG_PAGE, current_page);
+	save_flash_trendlog_num();
 	return ESP_OK;
 }
 
 
-esp_err_t read_trendlog(uint16_t page_total,uint8_t seg)
+esp_err_t read_trendlog(uint16_t page_total, uint8_t seg)
 {
-	// Find the partition map in the partition table
-	const esp_partition_t *partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
-//	sprintf(debug_array,"read_trendlog page = %d, seg = %d\r",page,seg);
-//	debug_info(debug_array);
+	const esp_partition_t *partition = esp_partition_find_first(
+		ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
 	assert(partition != NULL);
-	//STR_flag_flash ptr_flash;
-	//U16_T base_addr;
-	U8_T loop,i;
-	uint8_t  err = 0xff;
 
-	// 400(read packet length)
-	// bacnet trasfer length is defined 400 by us
-	// total 11 packets, 400 * 10 + 96 = 4096
-	uint8_t page;
+	uint32_t trendlog_addr;
+	uint16_t trend_page_count;
+	uint16_t page;
+	esp_err_t err = ESP_FAIL;
 
-	{
-		uint32_t trendlog_addr;
-		uint16_t trend_page_count;
+	get_trendlog_layout(partition->size, &trendlog_addr, &trend_page_count);
+	max_trend_page = trend_page_count;
+	page = page_total % trend_page_count;
 
-		get_trendlog_layout(partition->size, &trendlog_addr, &trend_page_count);
-		max_trend_page = trend_page_count;
-		page = page_total % trend_page_count;
-		if(seg < 10)
-			err = esp_partition_read(partition, trendlog_addr + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 400);
-		else if(seg == 10)
-			err = esp_partition_read(partition, trendlog_addr + page * SPI_FLASH_SEC_SIZE + seg * 400, &read_mon_point_buf_from_flash, 96);
-		else
-			err = 1;
+	if (seg < 10) {
+		err = esp_partition_read(partition,
+			trendlog_addr + (uint32_t)page * SPI_FLASH_SEC_SIZE + seg * 400,
+			&read_mon_point_buf_from_flash, 400);
+	} else if (seg == 10) {
+		err = esp_partition_read(partition,
+			trendlog_addr + (uint32_t)page * SPI_FLASH_SEC_SIZE + seg * 400,
+			&read_mon_point_buf_from_flash, 96);
 	}
-	return err;
 
+	return err;
 }
 
 

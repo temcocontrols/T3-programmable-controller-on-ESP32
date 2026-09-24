@@ -13,6 +13,8 @@
 #define MAX_CHANNELS 8
 #define NUM_SAMPLES 10
 #define THRESHOLD 	10 // threshold value
+#define SELECT_DC   0
+#define SELECT_AC   1
 
 uint32_t measurementBuffer[MAX_CHANNELS][NUM_SAMPLES] = {0};
 uint8_t sampleIndex[MAX_CHANNELS] = {0};
@@ -441,6 +443,8 @@ void multiMeterTask(void *pvParameters) {
     uint32_t multiMeterChannelvalue;
     //uint32_t measuredValue;
     uint8_t tempBuffer[20]; // Temporary buffer to store received data
+    uint8_t mode_to_send;
+    uint8_t acdc_to_send;
 
     meter.mode = MEASUREMENT_MODE_MANUAL;
 
@@ -527,16 +531,23 @@ void multiMeterTask(void *pvParameters) {
 
         vTaskDelay(pdMS_TO_TICKS(10));
 
+        ptr = put_io_buf(VAR, 0);
+        mode_to_send = (uint8_t)(ptr.pvar->value / 1000);
+
         // select DC/AC, prepare to send to slave
         ptr = put_io_buf(VAR, 4);
-        i2c_send_buf[0] = (uint8_t)(ptr.pvar->value / 1000);
+        acdc_to_send = (uint8_t)(ptr.pvar->value / 1000);
+        if (mode_to_send == MODE_DC_VOLTAGE_MEASUREMENT)
+            acdc_to_send = SELECT_DC;
+        else if (mode_to_send == MODE_AC_VOLTAGE_MEASUREMENT)
+            acdc_to_send = SELECT_AC;
+        i2c_send_buf[0] = acdc_to_send;
         stm_i2c_write(12, i2c_send_buf, 1);
 
         vTaskDelay(pdMS_TO_TICKS(10));
 
         // Measure function, prepare to send to slave
-        ptr = put_io_buf(VAR, 0);
-        i2c_send_buf[0] = (uint8_t)(ptr.pvar->value / 1000);
+        i2c_send_buf[0] = mode_to_send;
         stm_i2c_write(11, i2c_send_buf, 1);
 
 

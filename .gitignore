@@ -4,3 +4,5 @@ build
 /main/T3Controller/.devcontainer
 /main/T3Controller/.vscode
 managed_components
+dependencies.lock
+STM32/Multimeter/OBJ/

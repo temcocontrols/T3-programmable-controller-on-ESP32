@@ -17,6 +17,7 @@ typedef enum
 	FLASH_BLOCK_SNTP,
 	FLASH_BLOCK_SPD,
 	FLASH_BLOCK_MSV,
+	FLASH_BLOCK_PLC_POWER,
 }E_BLOCK;
 
 
@@ -33,6 +34,15 @@ typedef enum
 #define FLASH_SNTP			"Email_SNTP"
 #define FLASH_SPD_CNT		"SPD_CNT"
 #define FLASH_MSV			"MSV"
+/* CT_channel[6] + en_power[24] + energy[24] + dis_energy[24] — see STR_PLC head in define.h */
+#define FLASH_PLC_POWER		"PLC_POWER"
+#define PLC_POWER_NVS_SIZE_V1	(6U + 24U + 24U * 4U)			/* legacy: no dis_energy */
+#define PLC_POWER_NVS_SIZE	(PLC_POWER_NVS_SIZE_V1 + 24U * 4U)	/* + dis_energy[24] */
+#define FLASH_RMC_CUV		"RMC_CUV"
+#define FLASH_RMC_COV		"RMC_COV"
+#define FLASH_RMC_SHUTDOWN	"RMC_SHUT"
+#define FLASH_RMC_OC_CHG	"RMC_OC_CHG"
+#define FLASH_RMC_OC_DSG	"RMC_OC_DSG"
 
 
 
@@ -106,7 +116,8 @@ typedef enum
 #define FLASH_IN14_CAL		"IN14_CAL"
 
 #define FLASH_ICON_CONFIG	"ICON_CONFIG"
-#define FLASH_LCD_TIME_OFF_DELAY		"LCD_TOFF"
+#define FLASH_DISABLE_T10_DIS  "DISABLE_T10_DIS"
+#define FLASH_LCD_TIME_OFF_DELAY	"LCD_TOFF"
 #define FLASH_FIX_COM_CONFIG	"COM_CONFIG"
 #define FLASH_WRITE_FLASH	"WRT_FLASH"
 
@@ -114,10 +125,15 @@ typedef enum
 #define FLASH_LSW_OFFTIME	"LSW_OFF_T"
 
 
+#define FLASH_CO2_SA1		"CO2_SA1" //co2_data_screenArea[1]
+#define FLASH_CO2_SA2		"CO2_SA2" //co2_data_screenArea[1]
+#define FLASH_CO2_SA3		"CO2_SA3" //co2_data_screenArea[1]
+
 
 
 
 #define FLASH_CURRENT_TLG_PAGE	"TLG_PAGE"
+#define FLASH_TRENDLOG_NUM	"TLG_NUM"
 
 
 
@@ -176,8 +192,14 @@ extern esp_err_t read_blob_info(const char* key, const void* pValue, size_t leng
 extern esp_err_t save_blob_info(const char* key, const void* pValue, size_t length);
 extern esp_err_t save_int16_to_flash(const char* key, int16_t value);
 extern void clear_count_reboot(void);
+void save_flash_trendlog_num(void);
 
 void Save_SPD_CNT(void);
+void Save_PLC_Power(void);
+void Store_PLC_Power(uint8_t flag);
+void plc_power_sync_acc(void);
+void update_pvar(uint8_t index, int32_t value);
+void update_all_pvars(void);
 
 esp_err_t Save_Ethernet_Info(void);
 esp_err_t Save_Lcd_config(void);
@@ -185,4 +207,5 @@ esp_err_t Save_Lcd_config(void);
 extern void Flash_Inital(void);
 extern void read_point_info(void);
 extern void apply_io_count_change(uint8_t point_type, uint8_t new_count);
+
 #endif
