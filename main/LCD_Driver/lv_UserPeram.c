@@ -29,6 +29,8 @@
 #include "modbus.h"
 #include "user_data.h"
 #include "sntp_app.h"
+#include "store.h"
+#include "i2c_task.h"
 
 
 #include "rtc.h"
@@ -54,6 +56,8 @@ Str_points_ptr Humidity_AmbientDataPt;
 Str_points_ptr Temperature_SetpointDataPt;
 Str_points_ptr FanModePt;
 Str_points_ptr SysModePt;
+Str_points_ptr Co2_IndoorDataPt;
+Str_points_ptr Tvoc_IndoorDataPt;
 
 /* Cache for last known time to avoid unnecessary UI updates */
 static int8_t last_hour   = -1;
@@ -160,6 +164,8 @@ void lv_Init_UserParameters( void )
     Temperature_SetpointDataPt = put_io_buf(VAR,0);
     FanModePt = put_io_buf(VAR, 2);
     SysModePt = put_io_buf(VAR, 1);
+    Co2_IndoorDataPt = put_io_buf(IN, 2);
+    Tvoc_IndoorDataPt = put_io_buf(IN, 3);
     FanMode_On_Val = 0; // Default to 1 hour // TODO: Need to read actual value from flash or data point if persisted
 }
 
@@ -297,7 +303,7 @@ static void lv_refresh_HomeScreen_Data(void)
     if((active_humidity_pt.pin != NULL) && (Humidity_InVal != active_humidity_pt.pin->value))
     {
         Humidity_InVal = active_humidity_pt.pin->value;
-        ui_update_humidity(active_humidity_pt.pin->value);
+        ui_update_humidity((uint8_t)(active_humidity_pt.pin->value / 1000));
     }
 
     if(s_last_show_outdoor_temperature != s_show_outdoor_temperature)
@@ -374,21 +380,61 @@ static void lv_refresh_HomeScreen_Data(void)
         };
 
         static uint32_t last_mode = UINT32_MAX;
-
         uint32_t mode = (uint32_t)(SysModePt.pvar->value / 1000);
 
         if (mode != last_mode)
         {
             char running_text[24];
+            const char *mode_txt = (mode < 4U) ? running_modes[mode] : "Unknown";
 
-            lv_snprintf(running_text,
-                        sizeof(running_text),
-                        "Mode: %s",
-                        mode < 4U ? running_modes[mode] : "Unknown");
-
+            lv_snprintf(running_text, sizeof(running_text), "Mode: %s", mode_txt);
             lv_label_set_text(ui_RunningModeLabel, running_text);
-
             last_mode = mode;
+        }
+    }
+
+    if (Modbus.mini_type == MINI_TSTAT11)
+    {
+        static int32_t last_co2 = -1;
+        static int32_t last_tvoc = -1;
+        static uint16_t last_occ_down = 0xFFFF;
+        static uint8_t last_occ_on = 0xFF;
+        char info_text[20];
+        int32_t co2_ppm = 0;
+        int32_t tvoc_ppb = 0;
+        uint16_t occ_down = occ_trigger.count_down;
+        uint8_t occ_on = (occ_trigger.alarmOn != 0) || (occ_down > 0);
+
+        if ((Co2_IndoorDataPt.pin != NULL) && (Co2_IndoorDataPt.pin->value > 0))
+            co2_ppm = Co2_IndoorDataPt.pin->value / 1000;
+        if ((Tvoc_IndoorDataPt.pin != NULL) && (Tvoc_IndoorDataPt.pin->value > 0))
+            tvoc_ppb = Tvoc_IndoorDataPt.pin->value / 1000;
+
+        if (UI_OBJ_READY(ui_Co2Label) && (co2_ppm != last_co2))
+        {
+            if(co2_ppm == 0)
+                lv_snprintf(info_text, sizeof(info_text), "CO2    --");
+            else
+                lv_snprintf(info_text, sizeof(info_text), "CO2  %4ld", (long)co2_ppm);
+            lv_label_set_text(ui_Co2Label, info_text);
+            last_co2 = co2_ppm;
+        }
+        if (UI_OBJ_READY(ui_TvocLabel) && (tvoc_ppb != last_tvoc))
+        {
+            lv_snprintf(info_text, sizeof(info_text), "TVOC %4ld", (long)tvoc_ppb);
+            lv_label_set_text(ui_TvocLabel, info_text);
+            last_tvoc = tvoc_ppb;
+        }
+        if (UI_OBJ_READY(ui_OccTimerLabel) &&
+            ((occ_down != last_occ_down) || (occ_on != last_occ_on)))
+        {
+            if (occ_on && (occ_down > 0))
+                lv_snprintf(info_text, sizeof(info_text), "Occ  %3u s", (unsigned)occ_down);
+            else
+                lv_snprintf(info_text, sizeof(info_text), "Occ  Unocc");
+            lv_label_set_text(ui_OccTimerLabel, info_text);
+            last_occ_down = occ_down;
+            last_occ_on = occ_on;
         }
     }
     /* Consume one-shot activity counters so a stale startup value cannot leave

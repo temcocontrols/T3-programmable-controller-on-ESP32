@@ -359,8 +359,11 @@ static void setup_reg_data()
  //   if(Modbus.p == PROJECT_FAN_MODULE)
 //        Modbus.product_model = 97;//62;//
  //   else
-        Modbus.product_model = 88;
-    Modbus.hardRev = 2;
+        /* Keep flash/production values. Serial is also not reset here. */
+        if(Modbus.product_model == 0)
+            Modbus.product_model = 88;
+        if(Modbus.hardRev == 0)
+            Modbus.hardRev = 2;
    // Modbus.readyToUpdate = 0;
 
   /*  coil_reg_params.coil0 = 1;
@@ -1884,7 +1887,14 @@ uint16_t read_tstat10_data_by_block(uint16_t addr)
     }
     else if(addr == MODBUS_OCCUPID)
     {
-        ptr = put_io_buf(IN,11);
+        if(Modbus.mini_type == MINI_TSTAT11)
+        {
+            ptr = put_io_buf(IN,4);
+        }
+        else
+        {
+            ptr = put_io_buf(IN,11);
+        }
         return ptr.pin->control;
     }
     else if(addr == MODBUS_CO2)
@@ -2047,6 +2057,22 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 					update_flash = 0;
 			}
 			save_uint8_to_flash(FLASH_SN_WRITE,SNWriteflag);
+		}
+		else if(address == PRODUCT_MODEL)
+		{
+			if(*(bufadd + 5) != 0)
+			{
+				Modbus.product_model = *(bufadd + 5);
+				save_uint8_to_flash(FLASH_PRODUCT_MODEL, Modbus.product_model);
+			}
+		}
+		else if(address == HARDWARE_REV)
+		{
+			if(*(bufadd + 5) != 0)
+			{
+				Modbus.hardRev = *(bufadd + 5);
+				save_uint8_to_flash(FLASH_HARDWARE_REV, Modbus.hardRev);
+			}
 		}
 		if(address >= MODBUS_WIFI_START && address < MODBUS_WIREGUARD_ENABLE)
 		{

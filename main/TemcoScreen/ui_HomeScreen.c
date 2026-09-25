@@ -52,6 +52,9 @@ lv_obj_t * ui_Roller1 = NULL;
 lv_obj_t * ui_StartFanBtn = NULL;
 lv_obj_t * ui_Label29 = NULL;
 lv_obj_t * ui_ModeBtn = NULL;
+lv_obj_t * ui_Co2Label = NULL;
+lv_obj_t * ui_TvocLabel = NULL;
+lv_obj_t * ui_OccTimerLabel = NULL;
 lv_obj_t * ui_Label30 = NULL;
 lv_obj_t * ui_SysModePanel = NULL;
 lv_obj_t * ui_HeatModeBtn = NULL;
@@ -787,6 +790,30 @@ void ui_HomeScreen_screen_init(void)
     lv_label_set_text(ui_Label30, "Mode");
     lv_obj_set_style_text_font(ui_Label30, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    ui_OccTimerLabel = lv_label_create(ui_HomeScreen);
+    lv_obj_set_width(ui_OccTimerLabel, 90);
+    lv_label_set_text(ui_OccTimerLabel, "Occ   --");
+    lv_obj_set_style_text_color(ui_OccTimerLabel, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_OccTimerLabel, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_OccTimerLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_align_to(ui_OccTimerLabel, ui_ModeBtn, LV_ALIGN_OUT_TOP_LEFT, 2, -4);
+
+    ui_Co2Label = lv_label_create(ui_HomeScreen);
+    lv_obj_set_width(ui_Co2Label, 90);
+    lv_label_set_text(ui_Co2Label, "CO2   --");
+    lv_obj_set_style_text_color(ui_Co2Label, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Co2Label, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_Co2Label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_align_to(ui_Co2Label, ui_OccTimerLabel, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+
+    ui_TvocLabel = lv_label_create(ui_HomeScreen);
+    lv_obj_set_width(ui_TvocLabel, 90);
+    lv_label_set_text(ui_TvocLabel, "TVOC  --");
+    lv_obj_set_style_text_color(ui_TvocLabel, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_TvocLabel, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_TvocLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_align_to(ui_TvocLabel, ui_Co2Label, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+
     ui_SysModePanel = lv_obj_create(ui_HomeScreen);
     lv_obj_set_width(ui_SysModePanel, 240);
     lv_obj_set_height(ui_SysModePanel, 250);
@@ -1085,6 +1112,9 @@ void ui_HomeScreen_screen_destroy(void)
     ui_StartFanBtn = NULL;
     ui_Label29 = NULL;
     ui_ModeBtn = NULL;
+    ui_Co2Label = NULL;
+    ui_TvocLabel = NULL;
+    ui_OccTimerLabel = NULL;
     ui_Label30 = NULL;
     ui_SysModePanel = NULL;
     ui_HeatModeBtn = NULL;

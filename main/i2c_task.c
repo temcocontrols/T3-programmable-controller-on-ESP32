@@ -578,6 +578,52 @@ uint32_t iaq_baseline;
 uint8_t flag_voc_init;
 uint8_t count_voc_int;
 
+static int32_t tstat11_hum_buf[5];
+static uint8_t tstat11_hum_count;
+static uint8_t tstat11_hum_pos;
+static int32_t tstat11_hum_last = -1;
+
+static void tstat11_write_humidity(int32_t milli_rh)
+{
+	Str_points_ptr ptr;
+	int32_t pre_value;
+	int32_t sum = 0;
+	uint8_t i;
+
+	if((milli_rh < 0) || (milli_rh > 100000))
+		return;
+
+	if((tstat11_hum_last >= 0) && (tstat11_hum_count >= 5))
+	{
+		if((milli_rh - tstat11_hum_last > 20000) || (tstat11_hum_last - milli_rh > 20000))
+			return;
+	}
+
+	tstat11_hum_buf[tstat11_hum_pos] = milli_rh;
+	tstat11_hum_pos++;
+	if(tstat11_hum_pos >= 5)
+		tstat11_hum_pos = 0;
+	if(tstat11_hum_count < 5)
+		tstat11_hum_count++;
+
+	for(i = 0; i < tstat11_hum_count; i++)
+		sum += tstat11_hum_buf[i];
+	pre_value = sum / tstat11_hum_count;
+	tstat11_hum_last = pre_value;
+
+	ptr = put_io_buf(IN, 1);
+	if(!ptr.pin->calibration_sign)
+		pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+	else
+		pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+	if(pre_value < 0)
+		pre_value = 0;
+	else if(pre_value > 100000)
+		pre_value = 100000;
+	ptr.pin->value = pre_value;
+	g_sensors.humidity = (int16_t)(pre_value / 100);
+}
+
 void VOC_Initial(void) 	// SGP30
 {
 	int16_t ret;
@@ -979,9 +1025,25 @@ void i2c_sensor_task(void *arg)
         	uint16 temp_co2;
         	int32_t pre_value = 0;
 
-			scd4x_start_periodic_measurement();
+			if(Modbus.mini_type == MINI_TSTAT11)
+			{
+				if(g_sensors.co2 == 0)
+					scd4x_start_periodic_measurement();
+			}
+			else
+				scd4x_start_periodic_measurement();
 			vTaskDelay(100 / portTICK_PERIOD_MS);
-			ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
+			if(Modbus.mini_type == MINI_TSTAT11)
+			{
+				uint16_t data_ready = 0;
+				ret = scd4x_get_data_ready_status(&data_ready);
+				if((ret != 0) || ((data_ready & 0x07FF) == 0))
+					ret = ESP_FAIL;
+				else
+					ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
+			}
+			else
+				ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
 			if(ret != ESP_OK)
 			{
 				// ESP_LOGE(TAG, "SCD4X read failed");
@@ -1038,13 +1100,20 @@ void i2c_sensor_task(void *arg)
 					pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 				ptr.pin->value = pre_value;
 
-				ptr = put_io_buf(IN,1);
-				pre_value = g_sensors.humidity*100;
-				if( !ptr.pin->calibration_sign )
-					pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				if(Modbus.mini_type == MINI_TSTAT11)
+				{
+					tstat11_write_humidity(sht4x_hum);
+				}
 				else
-					pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
-				ptr.pin->value = pre_value;
+				{
+					ptr = put_io_buf(IN,1);
+					pre_value = g_sensors.humidity*100;
+					if( !ptr.pin->calibration_sign )
+						pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+					else
+						pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+					ptr.pin->value = pre_value;
+				}
 
 			}
         }
@@ -1138,7 +1207,6 @@ void i2c_sensor_task(void *arg)
 				}
 			}
 
-
 			// Persist the current baseline every hour
 			if (++baseline_time % 3600 == 3599)
 			{
@@ -1198,24 +1266,28 @@ void i2c_sensor_task(void *arg)
 				} else {count_err = 0;
 					//CO2_get_value(co2,temperature / 100,humidity / 100);
 
-					if((hum_sensor_type != 1) && (hum_sensor_type != 2) )
+					g_sensors.co2_temp = temperature;
+					g_sensors.co2_humi = humidity;
+					if((Modbus.mini_type != MINI_TSTAT11)
+						&& (Modbus.mini_type != PROJECT_LSW_SENSOR)
+						&& (Modbus.mini_type != PROJECT_TRANSDUCER)
+						&& (hum_sensor_type != 1)
+						&& (hum_sensor_type != 2))
 					{
 						g_sensors.temperature = temperature / 100;
-						g_sensors.humidity = humidity/ 100;
-
+						g_sensors.humidity = humidity / 100;
+						ptr = put_io_buf(IN,0);
+						ptr.pin->value = g_sensors.temperature * 100;
+						ptr = put_io_buf(IN,1);
+						ptr.pin->value = g_sensors.humidity * 100;
 					}
-					ptr = put_io_buf(IN,0);
-					ptr.pin->value = g_sensors.temperature * 100;
-					ptr = put_io_buf(IN,1);
-					ptr.pin->value = g_sensors.humidity * 100;
 					g_sensors.co2 = co2;
 
 					ptr = put_io_buf(IN,2);
 					ptr.pin->value = g_sensors.co2 * 1000;
 				}
-				if(count_err > 10)
+				if((Modbus.mini_type != MINI_TSTAT11) && (count_err > 10))
 				{
-
 					co2_present = 0;
 				}
 

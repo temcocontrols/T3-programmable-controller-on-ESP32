@@ -2728,6 +2728,11 @@ void Timer_task(void *pvParameters)
 #endif
 		}
 
+		if(Modbus.mini_type == MINI_TSTAT11)
+		{
+			tstat11_occ_update();
+		}
+
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
 		{
 			run_time = run_time + 1;

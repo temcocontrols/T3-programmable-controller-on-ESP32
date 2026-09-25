@@ -22,6 +22,7 @@
 #include "driver/uart.h"
 #include "scan.h"
 #include "WireGuard_App.h"
+#include "store.h"
 
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
@@ -204,6 +205,21 @@ esp_err_t read_default_from_flash(void)
 	{
 		Modbus.serialNum[3] = 0;
 		nvs_set_u8(my_handle, FLASH_SERIAL_NUM4, Modbus.serialNum[3]);
+	}
+
+	/* Same persist as Tstat10 serial number. */
+	err = nvs_get_u8(my_handle, FLASH_PRODUCT_MODEL, &Modbus.product_model);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.product_model = 88;
+		nvs_set_u8(my_handle, FLASH_PRODUCT_MODEL, Modbus.product_model);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_HARDWARE_REV, &Modbus.hardRev);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.hardRev = 2;
+		nvs_set_u8(my_handle, FLASH_HARDWARE_REV, Modbus.hardRev);
 	}
 
 	err = nvs_get_u8(my_handle, FLASH_INSTANCE1, &temp[0]);
@@ -643,6 +659,22 @@ esp_err_t read_default_from_flash(void)
 	{
 		Modbus.LCD_time_off_delay = 255;
 		//nvs_set_u8(my_handle, FLASH_LCD_TIME_OFF_DELAY, Modbus.LCD_time_off_delay);
+	}
+
+	if(Modbus.mini_type == MINI_TSTAT11)
+	{
+		err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, &occ_trigger.timer);
+		if((err == ESP_ERR_NVS_NOT_FOUND) || (occ_trigger.timer == 0))
+		{
+			occ_trigger.timer = 300;
+			nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
+		}
+		err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, &occ_trigger.trigger);
+		if(err == ESP_ERR_NVS_NOT_FOUND)
+		{
+			occ_trigger.trigger = 1;
+			nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, occ_trigger.trigger);
+		}
 	}
 
 	err = nvs_get_u16(my_handle, FLASH_CURRENT_TLG_PAGE, &current_page);
