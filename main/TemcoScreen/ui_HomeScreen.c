@@ -800,19 +800,21 @@ void ui_HomeScreen_screen_init(void)
 
     ui_Co2Label = lv_label_create(ui_HomeScreen);
     lv_obj_set_width(ui_Co2Label, 90);
-    lv_label_set_text(ui_Co2Label, "CO2   --");
+    lv_label_set_text(ui_Co2Label, "");
     lv_obj_set_style_text_color(ui_Co2Label, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Co2Label, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_Co2Label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_align_to(ui_Co2Label, ui_OccTimerLabel, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+    lv_obj_add_flag(ui_Co2Label, LV_OBJ_FLAG_HIDDEN);
 
     ui_TvocLabel = lv_label_create(ui_HomeScreen);
     lv_obj_set_width(ui_TvocLabel, 90);
-    lv_label_set_text(ui_TvocLabel, "TVOC  --");
+    lv_label_set_text(ui_TvocLabel, "");
     lv_obj_set_style_text_color(ui_TvocLabel, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_TvocLabel, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_TvocLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_align_to(ui_TvocLabel, ui_Co2Label, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+    lv_obj_align_to(ui_TvocLabel, ui_OccTimerLabel, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+    lv_obj_add_flag(ui_TvocLabel, LV_OBJ_FLAG_HIDDEN);
 
     ui_SysModePanel = lv_obj_create(ui_HomeScreen);
     lv_obj_set_width(ui_SysModePanel, 240);

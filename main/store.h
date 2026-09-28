@@ -15,6 +15,7 @@ typedef struct
 } trigger_t;
 
 extern trigger_t occ_trigger;
+extern uint8_t tstat11_occ_live;
 
 //extern Str_in_point   inputs[];
 

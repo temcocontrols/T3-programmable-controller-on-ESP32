@@ -20,6 +20,7 @@ trigger_t occ_trigger = {
 	.alarmOn = 0,
 	.count_down = 0,
 };
+uint8_t tstat11_occ_live = 0;
 
 /* ESP32-S3 schematic net IO4. Occupancy PIR on Tstat11. */
 #define TSTAT11_OCC_GPIO		    GPIO_NUM_4
@@ -69,16 +70,18 @@ void tstat11_occ_init(void)
 		occ_trigger.timer = TSTAT11_OCC_DEFAULT_TIMER;
 	}
 	g_sensors.occ = 0;
+	tstat11_occ_live = 0;
 	tstat11_occ_write_in4(0);
 }
 
 void tstat11_occ_update(void)
 {
 	static uint8_t inited = 0;
-	static uint16_t ms_acc = 0;
-	static uint8_t last_pin = 0;
+	static uint32_t ms_acc = 0;
+	static TickType_t last_tick = 0;
 	uint8_t occupied_pin;
 	uint16_t occupied_level;
+	TickType_t now;
 
 	if(Modbus.mini_type != MINI_TSTAT11)
 	{
@@ -89,13 +92,15 @@ void tstat11_occ_update(void)
 	{
 		tstat11_occ_init();
 		inited = 1;
+		last_tick = xTaskGetTickCount();
 	}
 
 	occupied_level = (occ_trigger.trigger != 0) ? 1 : 0;
 	occupied_pin = (gpio_get_level(TSTAT11_OCC_GPIO) != 0) ? 1 : 0;
+	now = xTaskGetTickCount();
 
-	/* Reset hold timer on a new trigger, then let it count down each second. */
-	if((occupied_pin == occupied_level) && (last_pin != occupied_level))
+	/* Any occupancy detect reloads the hold timer. Count down only after it clears. */
+	if(occupied_pin == occupied_level)
 	{
 		if(occ_trigger.timer == 0)
 		{
@@ -104,30 +109,39 @@ void tstat11_occ_update(void)
 		occ_trigger.alarmOn = 1;
 		occ_trigger.count_down = occ_trigger.timer;
 		g_sensors.occ = 1;
+		tstat11_occ_live = 1;
 		tstat11_occ_write_in4(1);
+		ms_acc = 0;
+		last_tick = now;
+		return;
 	}
-	last_pin = occupied_pin;
 
-	ms_acc += 10;
+	tstat11_occ_live = 0;
+
+	ms_acc += (uint32_t)(now - last_tick) * portTICK_PERIOD_MS;
+	last_tick = now;
 	if(ms_acc < 1000)
 	{
 		return;
 	}
-	ms_acc = 0;
 
-	if(occ_trigger.count_down > 0)
+	while(ms_acc >= 1000)
 	{
-		occ_trigger.count_down--;
-		if(occ_trigger.count_down == 0)
+		ms_acc -= 1000;
+		if(occ_trigger.count_down > 0)
 		{
-			occ_trigger.alarmOn = 0;
-			g_sensors.occ = 0;
-			tstat11_occ_write_in4(0);
-		}
-		else
-		{
-			g_sensors.occ = 1;
-			tstat11_occ_write_in4(1);
+			occ_trigger.count_down--;
+			if(occ_trigger.count_down == 0)
+			{
+				occ_trigger.alarmOn = 0;
+				g_sensors.occ = 0;
+				tstat11_occ_write_in4(0);
+			}
+			else
+			{
+				g_sensors.occ = 1;
+				tstat11_occ_write_in4(1);
+			}
 		}
 	}
 }

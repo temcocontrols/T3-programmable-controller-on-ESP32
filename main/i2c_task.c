@@ -1046,12 +1046,10 @@ void i2c_sensor_task(void *arg)
 				ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
 			if(ret != ESP_OK)
 			{
-				// ESP_LOGE(TAG, "SCD4X read failed");
 				Test[20]++;
 			}
 			else
 			{
-				// ESP_LOGI(TAG, "SCD4X read co2: %d, temp: %d, hum: %d", temp_co2, temp_tmp, temp_hum);
 				if(temp_co2 < 100 || temp_co2 > 3000)
 				{
 
@@ -1073,7 +1071,6 @@ void i2c_sensor_task(void *arg)
 						pre_value += -1000L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 
 					ptr.pin->value = pre_value;
-					//scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
 				}
 			}
 			ret = sht4x_measure_blocking_read(&sht4x_temp, &sht4x_hum);
@@ -1260,9 +1257,7 @@ void i2c_sensor_task(void *arg)
 				}
 				uint8_t error = scd4x_read_measurement(&co2, &temperature, &humidity);
 				if (error) { count_err++;
-						//printf("Error executing scd4x_read_measurement(): %i\n", error);
 				} else if (co2 == 0) {
-					 // printf("Invalid sample detected, skipping.\n");
 				} else {count_err = 0;
 					//CO2_get_value(co2,temperature / 100,humidity / 100);
 

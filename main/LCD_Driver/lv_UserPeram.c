@@ -399,42 +399,89 @@ static void lv_refresh_HomeScreen_Data(void)
         static int32_t last_tvoc = -1;
         static uint16_t last_occ_down = 0xFFFF;
         static uint8_t last_occ_on = 0xFF;
+        static uint8_t last_occ_live = 0xFF;
         char info_text[20];
         int32_t co2_ppm = 0;
         int32_t tvoc_ppb = 0;
         uint16_t occ_down = occ_trigger.count_down;
-        uint8_t occ_on = (occ_trigger.alarmOn != 0) || (occ_down > 0);
+        uint8_t occ_live = (tstat11_occ_live != 0);
+        uint8_t occ_on = occ_live || (occ_trigger.alarmOn != 0) || (occ_down > 0);
 
         if ((Co2_IndoorDataPt.pin != NULL) && (Co2_IndoorDataPt.pin->value > 0))
             co2_ppm = Co2_IndoorDataPt.pin->value / 1000;
         if ((Tvoc_IndoorDataPt.pin != NULL) && (Tvoc_IndoorDataPt.pin->value > 0))
             tvoc_ppb = Tvoc_IndoorDataPt.pin->value / 1000;
 
-        if (UI_OBJ_READY(ui_Co2Label) && (co2_ppm != last_co2))
+        static uint8_t have_co2 = 0;
+        static uint8_t have_tvoc = 0;
+        static uint8_t last_have_co2 = 0xFF;
+        static uint8_t last_have_tvoc = 0xFF;
+        uint8_t need_layout;
+
+        if (co2_ppm > 0)
+            have_co2 = 1;
+        if (tvoc_ppb > 0)
+            have_tvoc = 1;
+
+        if (have_co2 && (co2_ppm > 0) && UI_OBJ_READY(ui_Co2Label) && (co2_ppm != last_co2))
         {
-            if(co2_ppm == 0)
-                lv_snprintf(info_text, sizeof(info_text), "CO2    --");
-            else
-                lv_snprintf(info_text, sizeof(info_text), "CO2  %4ld", (long)co2_ppm);
+            lv_snprintf(info_text, sizeof(info_text), "CO2  %4ld", (long)co2_ppm);
             lv_label_set_text(ui_Co2Label, info_text);
             last_co2 = co2_ppm;
         }
-        if (UI_OBJ_READY(ui_TvocLabel) && (tvoc_ppb != last_tvoc))
+        if (have_tvoc && (tvoc_ppb > 0) && UI_OBJ_READY(ui_TvocLabel) && (tvoc_ppb != last_tvoc))
         {
             lv_snprintf(info_text, sizeof(info_text), "TVOC %4ld", (long)tvoc_ppb);
             lv_label_set_text(ui_TvocLabel, info_text);
             last_tvoc = tvoc_ppb;
         }
-        if (UI_OBJ_READY(ui_OccTimerLabel) &&
-            ((occ_down != last_occ_down) || (occ_on != last_occ_on)))
+
+        need_layout = (have_co2 != last_have_co2) || (have_tvoc != last_have_tvoc);
+        if (have_co2 && UI_OBJ_READY(ui_Co2Label) && lv_obj_has_flag(ui_Co2Label, LV_OBJ_FLAG_HIDDEN))
+            need_layout = 1;
+        if (have_tvoc && UI_OBJ_READY(ui_TvocLabel) && lv_obj_has_flag(ui_TvocLabel, LV_OBJ_FLAG_HIDDEN))
+            need_layout = 1;
+
+        if (need_layout)
         {
-            if (occ_on && (occ_down > 0))
+            if (have_co2 && UI_OBJ_READY(ui_Co2Label))
+            {
+                lv_obj_clear_flag(ui_Co2Label, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_align_to(ui_Co2Label, ui_OccTimerLabel, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+            }
+            else if (UI_OBJ_READY(ui_Co2Label))
+            {
+                lv_obj_add_flag(ui_Co2Label, LV_OBJ_FLAG_HIDDEN);
+            }
+
+            if (have_tvoc && UI_OBJ_READY(ui_TvocLabel))
+            {
+                lv_obj_clear_flag(ui_TvocLabel, LV_OBJ_FLAG_HIDDEN);
+                if (have_co2 && UI_OBJ_READY(ui_Co2Label))
+                    lv_obj_align_to(ui_TvocLabel, ui_Co2Label, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+                else
+                    lv_obj_align_to(ui_TvocLabel, ui_OccTimerLabel, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+            }
+            else if (UI_OBJ_READY(ui_TvocLabel))
+            {
+                lv_obj_add_flag(ui_TvocLabel, LV_OBJ_FLAG_HIDDEN);
+            }
+            last_have_co2 = have_co2;
+            last_have_tvoc = have_tvoc;
+        }
+        if (UI_OBJ_READY(ui_OccTimerLabel) &&
+            ((occ_down != last_occ_down) || (occ_on != last_occ_on) || (occ_live != last_occ_live)))
+        {
+            if (occ_live)
+                lv_snprintf(info_text, sizeof(info_text), "Occ  Occupied");
+            else if (occ_on && (occ_down > 0))
                 lv_snprintf(info_text, sizeof(info_text), "Occ  %3u s", (unsigned)occ_down);
             else
                 lv_snprintf(info_text, sizeof(info_text), "Occ  Unocc");
             lv_label_set_text(ui_OccTimerLabel, info_text);
             last_occ_down = occ_down;
             last_occ_on = occ_on;
+            last_occ_live = occ_live;
         }
     }
     /* Consume one-shot activity counters so a stale startup value cannot leave
