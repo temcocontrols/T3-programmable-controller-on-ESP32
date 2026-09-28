@@ -563,6 +563,28 @@ esp_err_t read_default_from_flash(void)
 		}
 		plc_power_sync_acc(); /* restore energy integrator so energy[] keeps accumulating */
 	}
+	/* any CT_channel == 0 → default IN15..IN20 and clear that CT's energy */
+	{
+		uint8_t i;
+		static const uint8_t ct_default[6] = { 15, 16, 17, 18, 19, 20 };
+
+		for(i = 0; i < 6; i++)
+		{
+			if(plc_power.CT_channel[i] == 0)
+			{
+				uint8_t v;
+				plc_power.CT_channel[i] = ct_default[i];
+				for(v = 0; v < 4; v++)
+				{
+					uint8_t index = v * 6 + i;
+					plc_power.energy[index] = 0;
+					plc_power.dis_energy[index] = 0;
+					plc_power.power[index] = 0;
+				}
+			}
+		}
+		plc_power_sync_acc();
+	}
 
 	err = nvs_get_u16(my_handle, FLASH_RMC_CUV, &rmc_cuv);
 	if(err == ESP_ERR_NVS_NOT_FOUND)

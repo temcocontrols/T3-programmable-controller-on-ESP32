@@ -7,7 +7,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6707
+#define SOFTREV     6708
 
 
 #define		SW_OFF 	 0
@@ -27,9 +27,9 @@ typedef	struct
 {	
 	uint8_t  CT_channel[6];
 	uint8_t  en_power[24];
-	uint32_t energy[24];     /* charge kWh*1000: accumulate when power > 0 */
-	uint32_t dis_energy[24]; /* discharge kWh*1000: accumulate when power < 0 */
-	int16_t  power[24];  /* signed W: V * I */
+	uint32_t energy[24];     /* charge kWh*1000: accumulate when current > 0 */
+	uint32_t dis_energy[24]; /* discharge kWh*1000: accumulate when current < 0 */
+	int16_t  power[24];  /* |V*I| in W; Modbus shows magnitude, no sign */
 	uint8_t battery[7];
 	uint16_t battery_sum;
 	uint8_t flag_bms_comm;

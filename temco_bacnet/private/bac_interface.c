@@ -365,13 +365,13 @@ char* get_label(uint8_t type,uint8_t num)
 	}
 #endif	
 	
-#if BAC_PROPRIETARY
+
 	if(type == TEMCOAV)
 	{
 		return get_TemcoAV_label(num);
 
 	}
-#endif
+
 	return NULL;
 }
 
@@ -749,12 +749,12 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		case CALENDAR:			
 			return annual_routines[i].value ? 1 : 0;
 		//break;	
-//#if BAC_PROPRIETARY
+
 		case TEMCOAV:
 		{			
 			return get_TemcoAVS_value(i);
 		}
-//#endif
+
 		
 #if ARM_TSTAT_WIFI
 				case MSV:

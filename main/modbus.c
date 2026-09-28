@@ -103,10 +103,13 @@ uint8_t count_change_uart2 = 0;
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
 
-STR_PLC plc_power = { .flag_48V_exist = 1 };
+STR_PLC plc_power = {
+	.flag_48V_exist = 1,
+	.CT_channel = { 15, 16, 17, 18, 19, 20 },
+};
 /* internal accumulators: (W * 1000) * seconds; energy = kWh * 1000 = acc / 3600000 */
-static uint64_t plc_energy_acc[24];     /* charge (P > 0) → MODBUS_ENERGY1 */
-static uint64_t plc_dis_energy_acc[24]; /* discharge (P < 0) → MODBUS_DIS_ENERGY1 */
+static uint64_t plc_energy_acc[24];     /* charge (I > 0) → MODBUS_ENERGY1 */
+static uint64_t plc_dis_energy_acc[24]; /* discharge (I < 0) → MODBUS_DIS_ENERGY1 */
 uint16 rmc_cuv = 2550;		/* POWER_CELL_UV_MV default */
 uint16 rmc_cov = 3600;		/* POWER_CELL_OV_MV default */
 uint16 rmc_stack = 2500;	/* POWER_SHUTDOWN_CELL_MV default */
@@ -125,9 +128,9 @@ void plc_power_sync_acc(void)
 	}
 }
 
-/* Accumulate energy: power[v*6+ct] in kWh*1000 (0.001 kWh resolution)
+/* Accumulate energy: power[v*6+ct] is |V*I| in W (Modbus unsigned)
  * vol1..4 = IN9..IN12; CT_channel[ct]: 0=unused, n=INn (1..24, exclude 9..12)
- * en_power==0 clears that channel energy */
+ * +I → energy, -I → dis_energy; en_power==0 clears that channel */
 void calculate_plc_power(void)
 {
 	uint8_t v, ct;
@@ -206,7 +209,7 @@ void calculate_plc_power(void)
 		if(ch == 0 || ch > 24 || (ch >= 9 && ch <= 12))
 			continue;
 		ptr = put_io_buf(IN, ch - 1);
-		/* keep CT sign: positive/negative power follows current direction */
+		/* keep CT sign: +I → energy, -I → dis_energy; power is |V*I| */
 		cur[ct] = (ptr.pin->value);
 	}
 
@@ -225,8 +228,9 @@ void calculate_plc_power(void)
 			}
 			else
 			{
-				/* power = V * I (signed); energy/dis_energy follow power sign */
-				int64_t p_x1000 = ((int64_t)vol[v] * cur[ct]) / 1000; /* W*1000 */
+				/* power = |V * I|; energy/dis_energy follow current direction */
+				int64_t p_signed = ((int64_t)vol[v] * cur[ct]) / 1000; /* W*1000 */
+				int64_t p_x1000 = (p_signed < 0) ? -p_signed : p_signed;
 				int32_t p_w;
 				{
 					if(index == 0)
@@ -234,21 +238,18 @@ void calculate_plc_power(void)
 						Test[41] = vol[v] / 1000;
 						Test[42] = cur[ct] / 1000;
 					}
-					p_w = (int32_t)(p_x1000 / 1000); /* W */
+					p_w = (int32_t)(p_x1000 / 1000); /* W, magnitude */
 					if(p_w > 32767)
 						p_w = 32767;
-					else if(p_w < -32768)
-						p_w = -32768;
 					plc_power.power[index] = (int16_t)p_w;
 				}
-				if(p_x1000 != 0)
+				if(p_x1000 != 0 && cur[ct] != 0)
 				{
-					uint64_t mag = (p_x1000 < 0) ? (uint64_t)(-p_x1000) : (uint64_t)p_x1000;
-					uint64_t dE = mag * dt_ms / 1000;
-					if(p_x1000 > 0)
-						plc_energy_acc[index] += dE;      /* +P → ENERGY */
+					uint64_t dE = (uint64_t)p_x1000 * dt_ms / 1000;
+					if(cur[ct] > 0)
+						plc_energy_acc[index] += dE;      /* +I → ENERGY */
 					else
-						plc_dis_energy_acc[index] += dE;  /* -P → DIS_ENERGY */
+						plc_dis_energy_acc[index] += dE;  /* -I → DIS_ENERGY */
 				}
 				/* kWh*1000 = (W*1000 * s) / 3,600,000 */
 				plc_power.energy[index] = (uint32_t)(plc_energy_acc[index] / 3600000ULL);
@@ -1426,8 +1427,10 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		else if(address >= MODBUS_POWER1 && address <= MODBUS_POWER24)
 		{
 			U16_T index = address - MODBUS_POWER1;
-			temp1 = plc_power.power[index] >> 8;
-			temp2 = plc_power.power[index];
+			int16_t pw_s = plc_power.power[index];
+			uint16_t pw = (pw_s < 0) ? (uint16_t)(-pw_s) : (uint16_t)pw_s;
+			temp1 = (U8_T)(pw >> 8);
+			temp2 = (U8_T)pw;
 		}
 		else if(address >= MODBUS_BATTERY1 && address <= MODBUS_BATTERY7)
 		{
@@ -2693,7 +2696,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				else if(Modbus.mini_type == PROJECT_RMC1216)
 					Set_Object_Name("T3-RMC1216");
 				else if(Modbus.mini_type == PROJECT_RMC1232)
-					Set_Object_Name("T3-RMC1216_32I");
+					Set_Object_Name("T3-RMC1232");
 				else if(Modbus.mini_type == PROJECT_NG3)
 					Set_Object_Name("T3-NEWNG2-ESP");
 				else if(Modbus.mini_type == PROJECT_LIGHT_PWM)
@@ -2855,10 +2858,30 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
       else if(address >= MODBUS_CT1_CHANNEL && address <= MODBUS_CT6_CHANNEL)
       {
     	  uint8_t ch = *(bufadd + 5);
-    	  /* 0 = unused; 1..8 / 13..24 valid; 9..12 reserved for voltage */
+    	  static const uint8_t ct_default[6] = { 15, 16, 17, 18, 19, 20 };
+    	  /* 0 = reset to default IN15..IN20; 1..8 / 13..24 valid; 9..12 reserved */
     	  if(ch == 0 || (ch <= 24 && (ch < 9 || ch > 12)))
     	  {
-    		  plc_power.CT_channel[address - MODBUS_CT1_CHANNEL] = ch;
+    		  uint8_t ct = (uint8_t)(address - MODBUS_CT1_CHANNEL);
+    		  if(ch == 0)
+    		  {
+    			  uint8_t v;
+    			  plc_power.CT_channel[ct] = ct_default[ct];
+    			  /* reset CT: clear energy on all 4 voltages for this CT */
+    			  for(v = 0; v < 4; v++)
+    			  {
+    				  uint8_t index = v * 6 + ct;
+    				  plc_energy_acc[index] = 0;
+    				  plc_dis_energy_acc[index] = 0;
+    				  plc_power.energy[index] = 0;
+    				  plc_power.dis_energy[index] = 0;
+    				  plc_power.power[index] = 0;
+    			  }
+    		  }
+    		  else
+    		  {
+    			  plc_power.CT_channel[ct] = ch;
+    		  }
     		  Save_PLC_Power();
     	  }
       }
