@@ -77,6 +77,8 @@ int32_t SysModeVal = 0;
 static wifi_scan_ui_state_t wifi_scan_ui_state = WIFI_SCAN_UI_IDLE;
 static TaskHandle_t s_wifi_scan_task = NULL;
 static char s_wifi_scan_list[WIFI_SCAN_LIST_MAX];
+static TickType_t s_wifi_scan_tick = 0;
+static uint8_t s_wifi_enable_scan_wait = 0;
 static bool isScreenChanged = false;
 
 static bool isTimeUpdated = false;
@@ -678,6 +680,30 @@ static wifi_ap_record_t wifi_ap_info[WIFI_SCAN_MAX_AP];
 
 extern TaskHandle_t main_task_handle[];
 
+#define WIFI_SCAN_CACHE_MS  20000
+
+static uint8_t wifi_scan_has_ssids(void)
+{
+    if(s_wifi_scan_list[0] == '\0')
+        return 0;
+    if(strncmp(s_wifi_scan_list, "No networks", 11) == 0)
+        return 0;
+    if(strncmp(s_wifi_scan_list, "Scanning", 8) == 0)
+        return 0;
+    if(strncmp(s_wifi_scan_list, "WiFi Disabled", 13) == 0)
+        return 0;
+    if(strncmp(s_wifi_scan_list, "Scan failed", 11) == 0)
+        return 0;
+    return 1;
+}
+
+static uint8_t wifi_scan_cache_fresh(void)
+{
+    if(!wifi_scan_has_ssids())
+        return 0;
+    return (((xTaskGetTickCount() - s_wifi_scan_tick) * portTICK_PERIOD_MS) < WIFI_SCAN_CACHE_MS);
+}
+
 static void wifi_scan_worker(void *arg)
 {
     (void)arg;
@@ -691,16 +717,20 @@ static void wifi_scan_worker(void *arg)
     }
     esp_err_t err = wifi_scan_networks(wifi_ap_info, &ap_count, WIFI_SCAN_MAX_AP);
     if(err != ESP_OK) {
-        wifi_scan_ui_state = WIFI_SCAN_UI_FAILED;
+        wifi_scan_ui_state = wifi_scan_has_ssids() ? WIFI_SCAN_UI_READY : WIFI_SCAN_UI_FAILED;
     }
     else if(ap_count == 0U) {
-        snprintf(s_wifi_scan_list, sizeof(s_wifi_scan_list), "No networks found");
+        if(!wifi_scan_has_ssids())
+            snprintf(s_wifi_scan_list, sizeof(s_wifi_scan_list), "No networks found");
         wifi_scan_ui_state = WIFI_SCAN_UI_READY;
     }
     else {
         wifi_build_ssid_list(wifi_ap_info, ap_count, s_wifi_scan_list, sizeof(s_wifi_scan_list));
         if(s_wifi_scan_list[0] == '\0') {
             snprintf(s_wifi_scan_list, sizeof(s_wifi_scan_list), "No networks found");
+        }
+        else {
+            s_wifi_scan_tick = xTaskGetTickCount();
         }
         wifi_scan_ui_state = WIFI_SCAN_UI_READY;
     }
@@ -714,7 +744,23 @@ static void wifi_scan_request_on_screen_enter(void)
 {
     wifi_mode_t mode;
 
+    if(SSID_Info.MANUEL_EN != 1) {
+        if(UI_OBJ_READY(ui_Dropdown2))
+            lv_dropdown_set_options(ui_Dropdown2, "WiFi Disabled");
+        wifi_scan_ui_state = WIFI_SCAN_UI_IDLE;
+        return;
+    }
+
     if(s_wifi_scan_task != NULL) {
+        return;
+    }
+
+    if(wifi_scan_cache_fresh()) {
+        if(UI_OBJ_READY(ui_Dropdown2)) {
+            lv_dropdown_set_options(ui_Dropdown2, s_wifi_scan_list);
+            wifi_dropdown_select_saved_ssid();
+        }
+        wifi_scan_ui_state = WIFI_SCAN_UI_IDLE;
         return;
     }
 
@@ -724,7 +770,6 @@ static void wifi_scan_request_on_screen_enter(void)
         return;
     }
 
-    s_wifi_scan_list[0] = '\0';
     wifi_scan_ui_state = WIFI_SCAN_UI_PENDING;
     lv_dropdown_set_options(ui_Dropdown2, "Scanning...");
 
@@ -775,6 +820,17 @@ static void lv_refresh_WifiConfig_Data(void)
         }
 
         wifi_scan_request_on_screen_enter();
+    }
+    else if(s_wifi_enable_scan_wait && (SSID_Info.MANUEL_EN == 1))
+    {
+        wifi_mode_t mode;
+
+        if((esp_wifi_get_mode(&mode) == ESP_OK) &&
+           ((mode == WIFI_MODE_STA) || (mode == WIFI_MODE_APSTA)))
+        {
+            s_wifi_enable_scan_wait = 0;
+            wifi_scan_request_on_screen_enter();
+        }
     }
     else if(wifi_scan_ui_state == WIFI_SCAN_UI_READY || wifi_scan_ui_state == WIFI_SCAN_UI_FAILED)
     {
@@ -2288,24 +2344,27 @@ void Event_Cb_SetSetpointValue(lv_event_t * e)
  */
 void Event_Cb_WifiEn(lv_event_t * e)
 {
-    ESP_LOGI(TAG, "WiFi Enable Switch toggled");
-    if(SSID_Info.MANUEL_EN == 1)
+    uint8_t enabled = lv_obj_has_state(ui_WifiEnSw, LV_STATE_CHECKED) ? 1 : 0;
+
+    (void)e;
+    ESP_LOGI(TAG, "WiFi Enable Switch %s", enabled ? "on" : "off");
+
+    SSID_Info.MANUEL_EN = enabled;
+    save_block(FLASH_BLOCK1_SSID);
+    connect_wifi_non_blocking();
+
+    if(enabled)
     {
-        // Disable manual WiFi config
-        ESP_LOGI(TAG, "WiFi manual configuration disabled");
-        SSID_Info.MANUEL_EN = 0;
-        lv_obj_clear_state(ui_WifiEnSw, LV_STATE_CHECKED);
+        s_wifi_enable_scan_wait = 1;
+        if(UI_OBJ_READY(ui_Dropdown2))
+            lv_dropdown_set_options(ui_Dropdown2, "Scanning...");
     }
     else
     {
-        // Enable manual WiFi config
-        ESP_LOGI(TAG, "WiFi manual configuration enabled");
-        SSID_Info.MANUEL_EN = 1;
-        lv_obj_add_state(ui_WifiEnSw, LV_STATE_CHECKED);
+        s_wifi_enable_scan_wait = 0;
+        if(UI_OBJ_READY(ui_Dropdown2))
+            lv_dropdown_set_options(ui_Dropdown2, "WiFi Disabled");
     }
-
-    save_block(FLASH_BLOCK1_SSID);
-    connect_wifi_non_blocking();
 }
 
 /**
