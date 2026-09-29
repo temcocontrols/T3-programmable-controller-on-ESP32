@@ -257,9 +257,9 @@ void DisplayMenuScreen(void)
 		disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, THIRD_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
 		disp_null_icon(ICON_XDOTS, ICON_YDOTS, 0, FOURTH_ICON_POS ,ICON_POS,TSTAT8_BACK_COLOR, TSTAT8_BACK_COLOR);
 	}
-	else if(Modbus.disable_tstat10_display == 3)  // for AL_BTN, show PM2.5
+	else if(Modbus.disable_tstat10_display == 3)  
 	{
-		if(Modbus.mini_type == PROJECT_AIRLAB)
+		if(Modbus.mini_type == PROJECT_AIRLAB)// for AL_BTN, show PM2.5
 		{
 			if(flag_pm25 == 0)
 			{
@@ -270,6 +270,12 @@ void DisplayMenuScreen(void)
 			display_pm25n( disp_pm25_number_25);
 
 		}
+		else if(Modbus.mini_type == MINI_TSTAT10) // only disable scrolling bar
+		{	
+			disp_str(FORM15X30, 0,TIME_POS,"            ",TSTAT8_CH_COLOR,TSTAT8_MENU_COLOR);					
+			display_icon();
+			display_fan();
+		} 
 	}
 		{
 			uint8 type,num;
@@ -704,13 +710,11 @@ void MenuIdle_keycope(uint16 key_value)
 				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
-//					if (vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
-					{
 						uint8 len;
-						len = check_msv_data_len(disp_index - 1);
+						len = check_msv_data_len(ptr.pvar->range - 101);
 						for (i = 0; i < len; i++)
 						{
-							if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
+							if (ptr.pvar->value / 1000 == msv_data[ptr.pvar->range - 101][i].msv_value)
 							{
 								temp_value = i;
 								break;
@@ -719,21 +723,13 @@ void MenuIdle_keycope(uint16 key_value)
 
 						for (i = temp_value; i < 7; i++)
 						{
-							if(strlen(msv_data[disp_index - 1][i + 1].msv_name) != 0
-								&& msv_data[disp_index - 1][i + 1].msv_name[0] != 0xff)
+							if(strlen(msv_data[ptr.pvar->range - 101][i + 1].msv_name) != 0
+								&& msv_data[ptr.pvar->range - 101][i + 1].msv_name[0] != 0xff)
 							{
-								ptr.pvar->value = msv_data[disp_index - 1][i + 1].msv_value * 1000;
+								ptr.pvar->value = msv_data[ptr.pvar->range - 101][i + 1].msv_value * 1000;
 								break;
 							}
 						}
-					}
-//					else
-//					{
-//						if(vars[disp_index - 1].value < STR_MSV_MULTIPLE_COUNT * 1000)
-//							vars[disp_index - 1].value = vars[disp_index - 1].value + 1000;
-//						else
-//							vars[disp_index - 1].value = 0;
-//					}
 				}
 				else
 				{
@@ -746,7 +742,6 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 					else
 					{
-						Test[27]++;
 						if(ptr.pvar->value < 999 * ChangeValue)
 							ptr.pvar->value = ptr.pvar->value + ChangeValue;
 						else
@@ -821,10 +816,10 @@ void MenuIdle_keycope(uint16 key_value)
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					char len;
-					len = check_msv_data_len(disp_index - 1);
+					len = check_msv_data_len(ptr.pvar->range - 101);
 					for (i = 0; i < len; i++)
 					{
-						if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
+						if (ptr.pvar->value / 1000 == msv_data[ptr.pvar->range - 101][i].msv_value)
 						{
 							temp_value = i;
 							break;
@@ -833,10 +828,10 @@ void MenuIdle_keycope(uint16 key_value)
 
 					for (i = temp_value; i < 7; i++)
 					{
-						if(strlen(msv_data[disp_index - 1][i + 1].msv_name) != 0
-							&& msv_data[disp_index - 1][i + 1].msv_name[0] != 0xff)
+						if(strlen(msv_data[ptr.pvar->range - 101][i + 1].msv_name) != 0
+							&& msv_data[ptr.pvar->range - 101][i + 1].msv_name[0] != 0xff)
 						{
-							ptr.pvar->value = msv_data[disp_index - 1][i + 1].msv_value * 1000;
+							ptr.pvar->value = msv_data[ptr.pvar->range - 101][i + 1].msv_value * 1000;
 							break;
 						}
 					}
@@ -927,14 +922,12 @@ void MenuIdle_keycope(uint16 key_value)
 				}
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
-					//if(vars[disp_index - 1].range == 101)  //�ж�range �ǲ��Ƕ�̬���ǵĻ� ������̬��ֵ;
-					{
 						// check the lenght of msv_data
 						char len;
-						len = check_msv_data_len(disp_index - 1);
+						len = check_msv_data_len(ptr.pvar->range - 101);
 							for (i = 0; i < len; i++)
 							{
-									if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
+									if (ptr.pvar->value / 1000 == msv_data[ptr.pvar->range - 101][i].msv_value)
 									{
 											temp_value = i;
 											break;
@@ -943,20 +936,12 @@ void MenuIdle_keycope(uint16 key_value)
 
 							for (i = temp_value; i > 0; i--)
 							{
-									if (strlen(msv_data[disp_index - 1][i - 1].msv_name) != 0)
+									if (strlen(msv_data[ptr.pvar->range - 101][i - 1].msv_name) != 0)
 									{
-										ptr.pvar->value = msv_data[disp_index - 1][i - 1].msv_value * 1000;
+										ptr.pvar->value = msv_data[ptr.pvar->range - 101][i - 1].msv_value * 1000;
 										break;
 									}
 							}
-					}
-//					else
-//					{
-//						if(vars[disp_index - 1].value > 1000)
-//							vars[disp_index - 1].value = vars[disp_index - 1].value - 1000;
-//						else
-//							vars[disp_index - 1].value = STR_MSV_MULTIPLE_COUNT * 1000;
-//					}
 				}
 				else
 				{
@@ -969,10 +954,7 @@ void MenuIdle_keycope(uint16 key_value)
 					}
 					else
 					{
-//					if(vars[disp_index - 1].value > 1000)
 						ptr.pvar->value = ptr.pvar->value - ChangeValue;
-//						else
-//							vars[disp_index - 1].value = 99 * 1000;
 					}
 				}
 			}
@@ -1045,10 +1027,10 @@ void MenuIdle_keycope(uint16 key_value)
 				if ((ptr.pvar->range >= 101) && (ptr.pvar->range <= 103))  // 101 102 103 	MSV range
 				{
 					char len;
-					len = check_msv_data_len(disp_index - 1);
+					len = check_msv_data_len(ptr.pvar->range - 101);
 					for (i = 0; i < len; i++)
 					{
-						if (ptr.pvar->value / 1000 == msv_data[disp_index - 1][i].msv_value)
+						if (ptr.pvar->value / 1000 == msv_data[ptr.pvar->range - 101][i].msv_value)
 						{
 							temp_value = i;
 							break;
@@ -1057,9 +1039,9 @@ void MenuIdle_keycope(uint16 key_value)
 
 					for (i = temp_value; i > 0; i--)
 					{
-						if (strlen(msv_data[disp_index - 1][i - 1].msv_name) != 0)
+						if (strlen(msv_data[ptr.pvar->range - 101][i - 1].msv_name) != 0)
 						{
-							ptr.pvar->value = msv_data[disp_index - 1][i - 1].msv_value * 1000;
+							ptr.pvar->value = msv_data[ptr.pvar->range - 101][i - 1].msv_value * 1000;
 							break;
 						}
 					}
