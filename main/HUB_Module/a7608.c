@@ -885,6 +885,32 @@ bool a7608_sim_slot_detected(a7608_sim_slot_t slot)
     return gpio_get_level(pin) == A7608_SIM_DET_INSERTED_LEVEL;
 }
 
+bool a7608_any_sim_slot_detected(void)
+{
+    return a7608_sim_slot_detected(A7608_SIM_SLOT_1) ||
+           a7608_sim_slot_detected(A7608_SIM_SLOT_2);
+}
+
+static void a7608_hub_wait_for_sim_insertion(void)
+{
+    if (a7608_any_sim_slot_detected()) {
+        a7608_refresh_sim_detect();
+        return;
+    }
+
+    ESP_LOGW(TAG, "No SIM detected on SIM1/SIM2; holding hub task until insertion");
+    while (!a7608_any_sim_slot_detected()) {
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+
+    a7608_refresh_sim_detect();
+    ESP_LOGI(TAG,
+             "SIM detected: sim1=%d sim2=%d active=%s; continuing hub startup",
+             a7608_status.sim1_present,
+             a7608_status.sim2_present,
+             a7608_sim_slot_name(a7608_status.active_sim_slot));
+}
+
 a7608_sim_slot_t a7608_get_active_sim_slot(void)
 {
     return a7608_status.active_sim_slot;
@@ -2612,6 +2638,8 @@ void a7608_hub_task(void *pvParameters)
         vTaskDelete(NULL);
         return;
     }
+
+    a7608_hub_wait_for_sim_insertion();
 
     a7608_startup_probe_mark_started();
 

@@ -10,7 +10,7 @@
 /* 定义此宏将把 Port 2 (Main RS485) 切换为 USB CDC 虚拟串口 */
 //#define USE_USB_CDC_MAIN
 
-#define SOFTREV     6602
+#define SOFTREV     6909
 
 
 #define		SW_OFF 	 0
@@ -44,7 +44,7 @@ typedef struct
 	U8_T PicVer;
 	U8_T update_status;
 	U8_T  base_addr;
-	U8_T  tcp_type;   /* 0 -- DHCP, 1-- STATIC */
+	U8_T  tcp_type;   /* 0 -- STATIC, 1 -- DHCP (matches ethernet_task / flash default) */
 	U8_T  ip_addr[4];
 	U8_T  subnet[4];
 	U8_T  getway[4];
@@ -189,10 +189,11 @@ typedef	enum
 #define PROJECT_CO2 		26
 #define PROJECT_LSW_SENSOR	27
 #define PROJECT_LORA_GATEWAY	28
-#define MINI_TSTAT11 		    29
+/* 29 = RMC1232 in master / TSTAT11 tree */
 #define PROJECT_HUB		        30
 #define PROJECT_WIREGUARD_GATEWAY PROJECT_HUB
-#define MAX_MINI_TYPE 		    30
+#define MINI_TSTAT11 		    31
+#define MAX_MINI_TYPE 		    31
 
 extern uint16 READ_POINT_TIMER;
 extern uint16 READ_POINT_TIMER_FROM_EEP;

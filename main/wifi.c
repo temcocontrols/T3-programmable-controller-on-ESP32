@@ -18,8 +18,37 @@
 #include "esp_netif.h"
 #include "esp_netif_ip_addr.h"
 #include "wifi_web_server.h"
+#include "modbus.h"
 
 static const char *TAG = "WIFI";
+
+static void wifi_set_dns_v4(esp_netif_t *netif, esp_netif_dns_type_t type, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+{
+    esp_netif_dns_info_t dns = {0};
+    dns.ip.type = ESP_IPADDR_TYPE_V4;
+    IP4_ADDR(&dns.ip.u_addr.ip4, a, b, c, d);
+    esp_netif_set_dns_info(netif, type, &dns);
+}
+
+void wifi_ensure_public_dns(bool replace_main)
+{
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif == NULL)
+        return;
+
+    esp_netif_dns_info_t main_dns = {0};
+    bool have_main = (esp_netif_get_dns_info(netif, ESP_NETIF_DNS_MAIN, &main_dns) == ESP_OK) &&
+                     (main_dns.ip.type == ESP_IPADDR_TYPE_V4) &&
+                     (main_dns.ip.u_addr.ip4.addr != 0);
+
+    if (replace_main || !have_main) {
+        wifi_set_dns_v4(netif, ESP_NETIF_DNS_MAIN, 8, 8, 8, 8);
+        ESP_LOGW(TAG, "DNS MAIN set to 8.8.8.8%s", replace_main ? " after lookup fail" : " (DHCP had none)");
+    }
+
+    wifi_set_dns_v4(netif, ESP_NETIF_DNS_BACKUP, 1, 1, 1, 1);
+    wifi_set_dns_v4(netif, ESP_NETIF_DNS_FALLBACK, 8, 8, 4, 4);
+}
 extern SemaphoreHandle_t CountHandle;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
@@ -100,9 +129,7 @@ static void wifi_event_handler(
             }
             esp_wifi_connect();
             ReconnectWithWifi = true;
-            SSID_Info.IP_Wifi_Status = WIFI_CONNECTED;
-            if(SSID_Info.IP_Auto_Manual == 1)
-                SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
+            /* Do not mark WIFI_NORMAL until GOT_IP (TSTAT11 behavior). */
             break;
 
         case WIFI_EVENT_SCAN_DONE:
@@ -127,6 +154,7 @@ static void wifi_event_handler(
             {
                 wifi_start_softap();
                 wifi_web_server_start();
+                ESP_LOGW(TAG, "STA failed; SoftAP config mode active (http://192.168.4.1)");
             }
             if (wifi_retry_count <= 10)
             {
@@ -164,19 +192,27 @@ static void wifi_event_handler(
 
                 ESP_LOGE(TAG, "IP: " IPSTR, IP2STR(&ip->ip));
 
+                wifi_ensure_public_dns(false);
+
                 wifi_retry_count = 0;
                 SSID_Info.IP_Wifi_Status = WIFI_NORMAL;
 
                 if (s_wifi_event_group)
                     xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 
+                /* Match TSTAT11: after STA has LAN IP, drop SoftAP so T3000
+                 * discovers/connects on the STA interface (not 192.168.4.1). */
                 wifi_web_server_stop();
-
-                wifi_mode_t mode;
-                esp_wifi_get_mode(&mode);
-                if (mode == WIFI_MODE_APSTA) {
-                    esp_wifi_set_mode(WIFI_MODE_STA);
+                {
+                    wifi_mode_t mode;
+                    esp_wifi_get_mode(&mode);
+                    if (mode == WIFI_MODE_APSTA) {
+                        esp_wifi_set_mode(WIFI_MODE_STA);
+                        ESP_LOGI(TAG, "STA got IP; SoftAP stopped (TSTAT11-compatible)");
+                    }
                 }
+
+                multicast_addr = Get_multicast_addr((unsigned char *)&SSID_Info.ip_addr);
 
                 break;
             }
@@ -324,12 +360,22 @@ void wifi_init_sta(void)
 
     }
 
-    if(SSID_Info.MANUEL_EN != 1)
+    esp_wifi_stop();
+
+    /*
+     * Match TSTAT11 WiFi bring-up:
+     * - No saved STA credentials (MANUEL_EN != 1): SoftAP T3_Admin only.
+     * - Credentials present: STA-only; SoftAP only on connect failure/timeout.
+     */
+    if (SSID_Info.MANUEL_EN != 1)
     {
         wifi_start_softap();
+        ReconnectWithWifi = false;
+        ESP_LOGI(TAG, "WiFi setup SoftAP ready: SSID=T3_Admin pass=T3_Admin url=http://192.168.4.1");
         esp_wifi_start();
         init_mdns_service();
         wifi_web_server_start();
+        wifi_initialized = true;
         return;
     }
 
@@ -421,10 +467,12 @@ void wifi_init_sta(void)
 	        debug_info("wifi failed - starting SoftAP");
 	        wifi_start_softap();
 	        wifi_web_server_start();
+	        ESP_LOGW(TAG, "STA failed; SoftAP config mode: http://192.168.4.1");
 	    } else {
 	        debug_info("wifi timeout - starting SoftAP");
 	        wifi_start_softap();
 	        wifi_web_server_start();
+	        ESP_LOGW(TAG, "STA timeout; SoftAP config mode: http://192.168.4.1");
 	    }
     }
 }

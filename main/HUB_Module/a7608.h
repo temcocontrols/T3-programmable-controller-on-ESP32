@@ -134,6 +134,7 @@ esp_err_t a7608_try_exit_data_mode(void);
 void a7608_clear_stale_ready(void);
 a7608_sim_slot_t a7608_get_active_sim_slot(void);
 bool a7608_sim_slot_detected(a7608_sim_slot_t slot);
+bool a7608_any_sim_slot_detected(void);
 bool a7608_other_sim_slot_detected(void);
 const char *a7608_sim_slot_name(a7608_sim_slot_t slot);
 a7608_sim_slot_t a7608_alternate_sim_slot(void);

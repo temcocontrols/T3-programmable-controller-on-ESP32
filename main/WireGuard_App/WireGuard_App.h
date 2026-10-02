@@ -77,8 +77,9 @@ esp_err_t wireguard_app_start_ping(void);
 /**
  * @brief WireGuard Gateway main task.
  *
- * This task initializes WiFi, synchronizes time, sets up the WireGuard interface,
- * waits for the peer to be up, starts a ping session to verify connectivity,
+ * This task waits for an AUTO underlay (WiFi or GSM), synchronizes time,
+ * sets up the WireGuard interface, waits for the peer to be up, starts a
+ * ping session to verify connectivity, and makes WireGuard the default route.
  */
 void wireguard_gateway_task(void *pvParameters);
 

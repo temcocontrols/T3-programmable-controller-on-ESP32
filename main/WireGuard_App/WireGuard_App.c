@@ -24,6 +24,7 @@
 #include <ping/ping_sock.h>
 #include "define.h"
 #include "flash.h"
+#include "hub_network_manager.h"
 #include "modbus.h"
 #include "sntp_app.h"
 #include "user_data.h"
@@ -36,6 +37,45 @@ static wireguard_config_t wg_config = ESP_WIREGUARD_CONFIG_DEFAULT();
 /** Event bit for WiFi connected with IP. */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
+
+/* AUTO underlay: use first ready path among WiFi and GSM (LTE PPPoS).
+ * T3000 WiFi/GSM selector is deferred; keep selection automatic for now.
+ */
+static bool wireguard_wifi_underlay_ready(void)
+{
+    return (s_wifi_event_group != NULL) &&
+           ((xEventGroupGetBits(s_wifi_event_group) & WIFI_CONNECTED_BIT) != 0);
+}
+
+static bool wireguard_gsm_underlay_ready(void)
+{
+    hub_network_manager_status_t status;
+
+    if (hub_network_manager_get_status(&status) != ESP_OK) {
+        return false;
+    }
+
+    return status.lte_connected && (status.lte_ip_addr[0] != '\0');
+}
+
+static bool wireguard_auto_underlay_ready(const char **underlay_name)
+{
+    if (wireguard_wifi_underlay_ready()) {
+        if (underlay_name != NULL) {
+            *underlay_name = "wifi";
+        }
+        return true;
+    }
+
+    if (wireguard_gsm_underlay_ready()) {
+        if (underlay_name != NULL) {
+            *underlay_name = "gsm";
+        }
+        return true;
+    }
+
+    return false;
+}
 
 static bool wireguard_buffer_has_text(uint8_t *buffer, size_t size)
 {
@@ -461,14 +501,17 @@ void wireguard_gateway_task(void *pvParameters)
 
     ESP_LOGI("wireguard_gateway_task", "Starting WireGuard Gateway initialization...");
 
-    /* Wait for wifi to be connected before initializing WireGuard */
-    ESP_LOGI(TAG, "Waiting for WiFi connection...");
+    /* AUTO underlay: wait for WiFi or GSM (LTE), whichever is ready first */
+    ESP_LOGI(TAG, "Waiting for AUTO underlay (WiFi or GSM)...");
     while (1)
     {
+        const char *underlay_name = NULL;
         vTaskDelay(1000 / portTICK_PERIOD_MS);
-        if (xEventGroupGetBits(s_wifi_event_group) & WIFI_CONNECTED_BIT)
+        if (wireguard_auto_underlay_ready(&underlay_name))
         {
-            ESP_LOGI(TAG, "WiFi is connected, proceeding with WireGuard setup.");
+            ESP_LOGI(TAG,
+                     "AUTO underlay ready (%s), proceeding with WireGuard setup.",
+                     underlay_name != NULL ? underlay_name : "unknown");
             break;
         }
     }

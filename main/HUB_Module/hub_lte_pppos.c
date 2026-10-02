@@ -2069,6 +2069,7 @@ static esp_err_t hub_lte_pppos_create_netif(void)
         return ret;
     }
     s_lte_ppp_handler_registered = true;
+    hub_network_manager_set_lte_netif(s_lte_ppp_netif);
     ESP_LOGI(TAG, "PPP status event handler registered for ESP_EVENT_ANY_ID");
     return ESP_OK;
 }
@@ -2247,6 +2248,7 @@ static esp_err_t hub_lte_pppos_destroy_runtime(void)
         s_lte_ip_handler_registered = false;
     }
     if (s_lte_ppp_netif != NULL) {
+        hub_network_manager_set_lte_netif(NULL);
         esp_netif_destroy(s_lte_ppp_netif);
         s_lte_ppp_netif = NULL;
     }

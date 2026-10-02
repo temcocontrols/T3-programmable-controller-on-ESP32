@@ -205,6 +205,14 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_SERIAL_NUM4, Modbus.serialNum[3]);
 	}
 
+	/* T3000 Product Type comes from this byte (88 = T3Controller). Same key as TSTAT11. */
+	err = nvs_get_u8(my_handle, FLASH_PRODUCT_MODEL, &Modbus.product_model);
+	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.product_model == 0)
+	{
+		Modbus.product_model = 88;
+		nvs_set_u8(my_handle, FLASH_PRODUCT_MODEL, Modbus.product_model);
+	}
+
 	err = nvs_get_u8(my_handle, FLASH_INSTANCE1, &temp[0]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{

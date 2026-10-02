@@ -873,7 +873,7 @@ void Sync_Panel_Info(void)
 	Setting_Info.reg.network_number = Modbus.network_number;
 	Setting_Info.reg.network_number_hi = Modbus.network_number >> 8;
 
-	Setting_Info.reg.panel_type = 88;
+	Setting_Info.reg.panel_type = Modbus.product_model;
 
 	Setting_Info.reg.pro_info.harware_rev = Modbus.hardRev;
 

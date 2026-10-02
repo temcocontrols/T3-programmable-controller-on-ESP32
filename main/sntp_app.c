@@ -18,6 +18,8 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -33,11 +35,12 @@
 #include "define.h"
 #include "wifi.h"
 #include "esp_sntp.h"
+#include "esp_netif.h"
 
 static const char *TAG = "sntp";
 
 /* ── Tunables ─────────────────────────────────────────────────────────────── */
-#define SNTP_RETRY_INTERVAL_SEC   30    /* seconds between re-init attempts    */
+#define SNTP_RETRY_INTERVAL_SEC   60    /* seconds between re-init attempts    */
 #define SNTP_MAX_RETRY_COUNT      10    /* retries before declaring timeout    */
 #define SNTP_RESYNC_INTERVAL_SEC  (24u * 3600u)  /* daily re-sync             */
 #define SNTP_MIN_VALID_YEAR       2024  /* reject timestamps older than this   */
@@ -63,6 +66,13 @@ void     Send_TimeSync_Broadcast(uint8_t protocol);
 /* ── Module-private state ─────────────────────────────────────────────────── */
 static uint32_t s_retry_tick  = 0;   /* seconds elapsed in current attempt   */
 static uint32_t s_resync_tick = 0;   /* seconds elapsed since last good sync */
+static uint8_t  s_fallback_sntp_index; /* next fallback when no custom server */
+
+static const char *const s_fallback_sntp_servers[] = {
+    "cn.pool.ntp.org",
+    "time.google.com",
+    "time.cloudflare.com",
+};
 
 /* ── Internal helpers ─────────────────────────────────────────────────────── */
 
@@ -86,6 +96,67 @@ static bool timestamp_is_sane(time_t ts)
     return true;
 }
 
+static const char *sntp_dns_err(int err)
+{
+    switch (err) {
+    case 0:          return "no result";
+    case EAI_NONAME: return "name not found";
+    case EAI_FAIL:   return "lookup failed";
+    case EAI_FAMILY: return "address family not supported";
+    case EAI_MEMORY: return "out of memory";
+    case TRY_AGAIN:  return "temporary failure";
+    default:         return "unknown";
+    }
+}
+
+static int sntp_lookup_host(const char *host)
+{
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        .ai_socktype = SOCK_DGRAM,
+    };
+    struct addrinfo *res = NULL;
+    int err = getaddrinfo(host, "123", &hints, &res);
+
+    if (err != 0 || res == NULL) {
+        ESP_LOGE(TAG, "DNS lookup failed for %s: %d (%s)", host, err, sntp_dns_err(err));
+        if (res != NULL)
+            freeaddrinfo(res);
+        return (err != 0) ? err : EAI_FAIL;
+    }
+
+    struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
+    ESP_LOGI(TAG, "NTP DNS %s -> %s", host, inet_ntoa(addr->sin_addr));
+    freeaddrinfo(res);
+    return 0;
+}
+
+static void sntp_log_dns_servers(void)
+{
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif == NULL)
+        return;
+
+    for (int i = ESP_NETIF_DNS_MAIN; i <= ESP_NETIF_DNS_FALLBACK; i++) {
+        esp_netif_dns_info_t dns = {0};
+        if (esp_netif_get_dns_info(netif, i, &dns) != ESP_OK)
+            continue;
+        if (dns.ip.type != ESP_IPADDR_TYPE_V4 || dns.ip.u_addr.ip4.addr == 0)
+            continue;
+        ESP_LOGI(TAG, "DNS server %d: " IPSTR, i, IP2STR(&dns.ip.u_addr.ip4));
+    }
+}
+
+static void sntp_log_dns(const char *host)
+{
+    if (sntp_lookup_host(host) == 0)
+        return;
+
+    wifi_ensure_public_dns(true);
+    sntp_log_dns_servers();
+    sntp_lookup_host(host);
+}
+
 static void sntp_do_init(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
@@ -103,15 +174,24 @@ static void sntp_do_init(void)
     }
     else
     {
-        /* Default to pool.ntp.org if caller didn't set a server */
-        strncpy(sntp_server, "pool.ntp.org", sizeof(sntp_server));
+        /* No custom server: try cn.pool, then Cloudflare, then Google. */
+        const unsigned nservers = sizeof(s_fallback_sntp_servers) / sizeof(s_fallback_sntp_servers[0]);
+        const char *name = s_fallback_sntp_servers[s_fallback_sntp_index % nservers];
+        strncpy(sntp_server, name, sizeof(sntp_server) - 1);
         sntp_server[sizeof(sntp_server) - 1] = '\0';
-        ESP_LOGW(TAG, "No custom SNTP server configured; defaulting to '%s'", sntp_server);
+        ESP_LOGW(TAG, "No custom SNTP server configured; using '%s' (%u/%u)",
+                 sntp_server,
+                 (unsigned)(s_fallback_sntp_index % nservers) + 1,
+                 nservers);
+        s_fallback_sntp_index = (uint8_t)((s_fallback_sntp_index + 1) % nservers);
     }
     esp_sntp_setservername(0, sntp_server);
     esp_sntp_setservername(1, "cn.pool.ntp.org");
     esp_sntp_setservername(2, "time.cloudflare.com");  /* reliable anycast   */
     esp_sntp_setservername(3, "time.google.com");
+
+    sntp_log_dns_servers();
+    sntp_log_dns(sntp_server);
 
     esp_sntp_set_time_sync_notification_cb(time_sync_notification_cb);
 
@@ -164,6 +244,7 @@ void time_sync_notification_cb(struct timeval *tv)
 
     flag_Update_Sntp  = 1;
     Update_Sntp_Retry = 0;
+    s_fallback_sntp_index = 0;   /* next session starts at cn.pool.ntp.org */
     s_resync_tick     = 0;   /* reset 24-hour counter */
 
     sntp_stop_safe();        /* we drive re-sync from update_sntp(); stop polling */

@@ -8,6 +8,9 @@
 static const char *TAG = "hub_net_mgr";
 
 static hub_network_manager_status_t s_network_status;
+static esp_netif_t *s_eth_netif;
+static esp_netif_t *s_lte_netif;
+static esp_netif_t *s_applied_default_netif;
 
 static bool hub_network_manager_policy_is_valid(hub_network_policy_t policy)
 {
@@ -97,6 +100,39 @@ static void hub_network_manager_log_status(void)
              hub_network_manager_interface_name(s_network_status.active_interface));
 }
 
+static void hub_network_manager_apply_active_route(void)
+{
+    esp_netif_t *active_netif = NULL;
+
+    if (s_network_status.active_interface == HUB_NETWORK_INTERFACE_ETHERNET) {
+        active_netif = s_eth_netif;
+    } else if (s_network_status.active_interface == HUB_NETWORK_INTERFACE_LTE) {
+        active_netif = s_lte_netif;
+    }
+
+    if (active_netif == NULL) {
+        s_applied_default_netif = NULL;
+        return;
+    }
+    if (active_netif == s_applied_default_netif) {
+        return;
+    }
+
+    esp_err_t ret = esp_netif_set_default_netif(active_netif);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG,
+                 "[HUB][WAN] default route update failed: interface=%s error=%s",
+                 hub_network_manager_interface_name(s_network_status.active_interface),
+                 esp_err_to_name(ret));
+        return;
+    }
+
+    s_applied_default_netif = active_netif;
+    ESP_LOGI(TAG,
+             "[HUB][WAN] active interface=%s",
+             hub_network_manager_interface_name(s_network_status.active_interface));
+}
+
 static void hub_network_manager_refresh_active_interface(void)
 {
     hub_network_interface_t previous = s_network_status.active_interface;
@@ -108,6 +144,7 @@ static void hub_network_manager_refresh_active_interface(void)
                  hub_network_manager_interface_name(previous),
                  hub_network_manager_interface_name(s_network_status.active_interface));
     }
+    hub_network_manager_apply_active_route();
 }
 
 static void hub_network_manager_ensure_initialized(void)
@@ -120,6 +157,9 @@ static void hub_network_manager_ensure_initialized(void)
 esp_err_t hub_network_manager_init(void)
 {
     memset(&s_network_status, 0, sizeof(s_network_status));
+    s_eth_netif = NULL;
+    s_lte_netif = NULL;
+    s_applied_default_netif = NULL;
     s_network_status.initialized = true;
     s_network_status.policy = HUB_NET_POLICY_AUTO;
     s_network_status.active_interface = HUB_NETWORK_INTERFACE_NONE;
@@ -167,6 +207,20 @@ bool hub_network_manager_is_lte_allowed(void)
     return hub_network_manager_policy_allows_lte(s_network_status.policy);
 }
 
+void hub_network_manager_set_eth_netif(esp_netif_t *netif)
+{
+    hub_network_manager_ensure_initialized();
+    s_eth_netif = netif;
+    hub_network_manager_refresh_active_interface();
+}
+
+void hub_network_manager_set_lte_netif(esp_netif_t *netif)
+{
+    hub_network_manager_ensure_initialized();
+    s_lte_netif = netif;
+    hub_network_manager_refresh_active_interface();
+}
+
 void hub_network_manager_set_eth_status(bool link_up, bool has_ip)
 {
     hub_network_manager_ensure_initialized();
@@ -195,6 +249,11 @@ void hub_network_manager_set_lte_status(bool connected, const char *ip_addr)
     hub_network_manager_copy_string(s_network_status.lte_ip_addr,
                                     sizeof(s_network_status.lte_ip_addr),
                                     new_ip_addr);
+    if (changed && connected) {
+        ESP_LOGI(TAG, "[HUB][WAN] LTE PPP ready");
+    } else if (changed) {
+        ESP_LOGW(TAG, "[HUB][WAN] LTE PPP unavailable");
+    }
     hub_network_manager_refresh_active_interface();
     if (changed) {
         hub_network_manager_log_status();

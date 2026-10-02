@@ -13,6 +13,7 @@
 #include "hub_w5500.h"
 #include "define.h"
 #include "wifi.h"
+#include "esp_netif.h"
 #include "esp_netif_ip_addr.h"
 #include "flash.h"
 
@@ -83,10 +84,45 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "Ethernet Link Up");
 #endif
         debug_info("Ethernet Link Up");
-        //ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
-        //         mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+        if (Modbus.mini_type == PROJECT_HUB) {
+            uint8_t mr = 0, versionr = 0, phycfg = 0;
+            esp_err_t reg_ret = hub_w5500_read_common_regs(&mr, &versionr, &phycfg);
+            if (reg_ret == ESP_OK) {
+                ESP_LOGI(TAG,
+                         "W5500 on link: VERSIONR=0x%02x PHYCFGR=0x%02x LNK=%d (need VERSIONR=0x04 LNK=1)",
+                         versionr, phycfg, (phycfg & 0x01) ? 1 : 0);
+                if (versionr != 0x04 || (phycfg & 0x01) == 0) {
+                    ESP_LOGW(TAG, "W5500 link looks fake/bad SPI — ETH DHCP will not get an IP");
+                }
+            } else {
+                ESP_LOGW(TAG, "W5500 reg read failed on link up: %s — check SPI/CS/RST",
+                         esp_err_to_name(reg_ret));
+            }
+        }
         hub_network_manager_set_eth_status(true, false);
         Modbus.ethernet_status = ETHERNET_EVENT_CONNECTED;
+        /* Restart DHCP when link comes up (DHCP mode), or publish static IP. */
+        {
+            esp_netif_t *eth_netif = esp_netif_get_handle_from_ifkey("ETH_DEF");
+            bool use_static = (Modbus.tcp_type == 0) &&
+                ((Modbus.ip_addr[0] | Modbus.ip_addr[1] | Modbus.ip_addr[2] | Modbus.ip_addr[3]) != 0);
+
+            if (eth_netif != NULL && use_static) {
+                esp_netif_ip_info_t ip_info = {0};
+                if (esp_netif_get_ip_info(eth_netif, &ip_info) == ESP_OK && ip_info.ip.addr != 0) {
+                    ESP_LOGI(TAG, "Ethernet static IP active: " IPSTR, IP2STR(&ip_info.ip));
+                    Modbus.ethernet_status = 4;
+                    hub_network_manager_set_eth_status(true, true);
+                }
+            } else if (eth_netif != NULL) {
+                esp_err_t dhcpc_ret = esp_netif_dhcpc_start(eth_netif);
+                if (dhcpc_ret == ESP_OK || dhcpc_ret == ESP_ERR_INVALID_STATE) {
+                    ESP_LOGI(TAG, "Ethernet DHCP client (re)started on link up");
+                } else {
+                    ESP_LOGW(TAG, "Ethernet DHCP start failed: %s", esp_err_to_name(dhcpc_ret));
+                }
+            }
+        }
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGW(TAG, "Ethernet Link Down");
@@ -576,64 +612,84 @@ esp_err_t ethernet_init(void)
         return ESP_FAIL;
     }
     ESP_LOGI(TAG, "eth_netif created: %p", eth_netif);
+    if (Modbus.mini_type == PROJECT_HUB) {
+        hub_network_manager_set_eth_netif(eth_netif);
+    }
 
-    // check dhcp mode or static mode
-    if(Modbus.tcp_type == 0)  // static mode
+    /* tcp_type: 0 = STATIC, 1 = DHCP. Static with 0.0.0.0 falls back to DHCP. */
     {
-        Test[2]++;
+        bool use_static = (Modbus.tcp_type == 0) &&
+            ((Modbus.ip_addr[0] | Modbus.ip_addr[1] | Modbus.ip_addr[2] | Modbus.ip_addr[3]) != 0);
 
-        esp_netif_dhcpc_stop(eth_netif);
+        ESP_LOGI(TAG, "Ethernet IP mode: tcp_type=%u -> %s",
+                 Modbus.tcp_type, use_static ? "STATIC" : "DHCP");
 
-        esp_netif_ip_info_t ip_info  = {0};
-
-        ip_info.ip.addr = ESP_IP4TOADDR(
-            Modbus.ip_addr[0],Modbus.ip_addr[1],
-            Modbus.ip_addr[2],Modbus.ip_addr[3]);
-
-        ip_info.netmask.addr = ESP_IP4TOADDR(
-            Modbus.subnet[0], Modbus.subnet[1],
-            Modbus.subnet[2], Modbus.subnet[3]);
-
-        ip_info.gw.addr = ESP_IP4TOADDR(
-            Modbus.getway[0],Modbus.getway[1],
-            Modbus.getway[2],Modbus.getway[3]);
-
-        esp_netif_set_ip_info(eth_netif, &ip_info);
-
-        ESP_LOGI(TAG, "Ethernet static IP configured: ip=" IPSTR " mask=" IPSTR " gw=" IPSTR,
-             IP2STR(&ip_info.ip), IP2STR(&ip_info.netmask), IP2STR(&ip_info.gw));
-
-        debug_info("tcpip_adapter_set_ip_info() finished^^^^^^^^");
-
-#if 1//DNS
-        esp_netif_dns_info_t dns_info = {0};
-
-        if(ip_info.gw.addr != 0)
+        if (use_static)
         {
-            IP4_ADDR(&dns_info.ip.u_addr.ip4,
+            Test[2]++;
+
+            esp_netif_dhcpc_stop(eth_netif);
+
+            esp_netif_ip_info_t ip_info  = {0};
+
+            ip_info.ip.addr = ESP_IP4TOADDR(
+                Modbus.ip_addr[0],Modbus.ip_addr[1],
+                Modbus.ip_addr[2],Modbus.ip_addr[3]);
+
+            ip_info.netmask.addr = ESP_IP4TOADDR(
+                Modbus.subnet[0], Modbus.subnet[1],
+                Modbus.subnet[2], Modbus.subnet[3]);
+
+            ip_info.gw.addr = ESP_IP4TOADDR(
                 Modbus.getway[0],Modbus.getway[1],
                 Modbus.getway[2],Modbus.getway[3]);
 
-            dns_info.ip.type = IPADDR_TYPE_V4;
+            esp_netif_set_ip_info(eth_netif, &ip_info);
 
-            esp_netif_set_dns_info(
-                eth_netif,
-                ESP_NETIF_DNS_MAIN,
-                &dns_info);
+            ESP_LOGI(TAG, "Ethernet static IP configured: ip=" IPSTR " mask=" IPSTR " gw=" IPSTR,
+                 IP2STR(&ip_info.ip), IP2STR(&ip_info.netmask), IP2STR(&ip_info.gw));
 
-            IP4_ADDR(&dns_info.ip.u_addr.ip4,8,8,8,8);
-            esp_netif_set_dns_info(
-                eth_netif,
-                ESP_NETIF_DNS_BACKUP,
-                &dns_info);
+            debug_info("tcpip_adapter_set_ip_info() finished^^^^^^^^");
 
-            IP4_ADDR(&dns_info.ip.u_addr.ip4,8,8,4,4);
-            esp_netif_set_dns_info(
-                eth_netif,
-                ESP_NETIF_DNS_FALLBACK,
-                &dns_info);
-        }
+#if 1//DNS
+            esp_netif_dns_info_t dns_info = {0};
+
+            if(ip_info.gw.addr != 0)
+            {
+                IP4_ADDR(&dns_info.ip.u_addr.ip4,
+                    Modbus.getway[0],Modbus.getway[1],
+                    Modbus.getway[2],Modbus.getway[3]);
+
+                dns_info.ip.type = IPADDR_TYPE_V4;
+
+                esp_netif_set_dns_info(
+                    eth_netif,
+                    ESP_NETIF_DNS_MAIN,
+                    &dns_info);
+
+                IP4_ADDR(&dns_info.ip.u_addr.ip4,8,8,8,8);
+                esp_netif_set_dns_info(
+                    eth_netif,
+                    ESP_NETIF_DNS_BACKUP,
+                    &dns_info);
+
+                IP4_ADDR(&dns_info.ip.u_addr.ip4,8,8,4,4);
+                esp_netif_set_dns_info(
+                    eth_netif,
+                    ESP_NETIF_DNS_FALLBACK,
+                    &dns_info);
+            }
 #endif
+        }
+        else
+        {
+            esp_err_t dhcpc_ret = esp_netif_dhcpc_start(eth_netif);
+            if (dhcpc_ret == ESP_OK || dhcpc_ret == ESP_ERR_INVALID_STATE) {
+                ESP_LOGI(TAG, "Ethernet DHCP client started");
+            } else {
+                ESP_LOGW(TAG, "Ethernet DHCP client start failed: %s", esp_err_to_name(dhcpc_ret));
+            }
+        }
     }
 
     ret = esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);

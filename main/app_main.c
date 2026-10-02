@@ -233,13 +233,22 @@ void UdpData(unsigned char type)
    //modbus address
    Scan_Infor.address = Modbus.address;//laddress;//(unsigned short int)Modbus.address;
 
-   //Ip
-   if(Modbus.ethernet_status == 4)
+   // Prefer WiFi STA IP for T3000 when STA is up (matches TSTAT11 LAN path).
+   // Only advertise Ethernet IP when WiFi is not available.
+   if ((SSID_Info.IP_Wifi_Status == WIFI_NORMAL) &&
+       ((SSID_Info.ip_addr[0] | SSID_Info.ip_addr[1] | SSID_Info.ip_addr[2] | SSID_Info.ip_addr[3]) != 0))
    {
-      Scan_Infor.ipaddr[0] = Modbus.ip_addr[0];//(unsigned short int)SSID_Info.ip_addr[0];
-      Scan_Infor.ipaddr[1] = Modbus.ip_addr[1];//(unsigned short int)SSID_Info.ip_addr[1];
-      Scan_Infor.ipaddr[2] = Modbus.ip_addr[2];//(unsigned short int)SSID_Info.ip_addr[2];
-      Scan_Infor.ipaddr[3] = Modbus.ip_addr[3];//(unsigned short int)SSID_Info.ip_addr[3];
+      Scan_Infor.ipaddr[0] = SSID_Info.ip_addr[0];
+      Scan_Infor.ipaddr[1] = SSID_Info.ip_addr[1];
+      Scan_Infor.ipaddr[2] = SSID_Info.ip_addr[2];
+      Scan_Infor.ipaddr[3] = SSID_Info.ip_addr[3];
+   }
+   else if(Modbus.ethernet_status == 4)
+   {
+      Scan_Infor.ipaddr[0] = Modbus.ip_addr[0];
+      Scan_Infor.ipaddr[1] = Modbus.ip_addr[1];
+      Scan_Infor.ipaddr[2] = Modbus.ip_addr[2];
+      Scan_Infor.ipaddr[3] = Modbus.ip_addr[3];
    }
    else
    {
@@ -264,7 +273,7 @@ void UdpData(unsigned char type)
    Scan_Infor.bootloader = 0;  // 0 - app, 1 - bootloader, 2 - wrong bootloader
 
    Scan_Infor.BAC_port = 47808;//SSID_Info.bacnet_port;//((Modbus.Bip_port & 0x00ff) << 8) + (Modbus.Bip_port >> 8);  //
-   Scan_Infor.zigbee_exist = 0; // 0 - inexsit, 1 - exist
+   Scan_Infor.zigbee_exist = 0; // match TSTAT11 (T3000 EPsize/hardware_info)
    Scan_Infor.subnet_protocal = 0;
    Scan_Infor.master_sn[0] = 0;
    Scan_Infor.master_sn[1] = 0;
@@ -4611,8 +4620,20 @@ static void hub_lte_process_task(void *pvParameters)
 	bool start_called = false;
 
 	ESP_LOGI(TCP_TASK_TAG, "Hub LTE process task started");
+	bool sim_wait_logged = false;
 	while (1) {
 		if (Modbus.mini_type == PROJECT_HUB) {
+			if (!a7608_any_sim_slot_detected()) {
+				if (!sim_wait_logged) {
+					ESP_LOGI(TCP_TASK_TAG,
+							 "Hub LTE idle: no SIM detected; waiting for insertion");
+					sim_wait_logged = true;
+				}
+				vTaskDelay(pdMS_TO_TICKS(1000));
+				continue;
+			}
+			sim_wait_logged = false;
+
 			if (!start_called) {
 				hub_lte_pppos_preflight_t preflight;
 				memset(&preflight, 0, sizeof(preflight));
@@ -4669,11 +4690,12 @@ void app_main()
 	Set_Device_Stage(DEVICE_STAGE_INIT);
 	Bacnet_Initial_Data();
 	read_default_from_flash();
+	/* Force Hub identity before Bacnet init (TSTAT11 forces MINI_TSTAT11 similarly). */
+	Modbus.mini_type = PROJECT_HUB;
+	save_uint8_to_flash(FLASH_MINI_TYPE, Modbus.mini_type);
 	initial_HSP();
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
-
-	Modbus.mini_type = PROJECT_HUB;
 
 	if(Modbus.mini_type == PROJECT_HUB)
 	{

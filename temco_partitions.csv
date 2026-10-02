@@ -11,7 +11,7 @@ phy_init, data, phy,      0x1B000,  0x1000
 
 # for flash directly without bootloader - app - 6 MB, OTA- 1 MB(N/A)
 factory,  app,  factory,  0x20000,  0x600000
-ota_0,    app,  ota_0,    0x620000, 0x100000
+#ota_0,    app,  ota_0,    0x620000, 0x100000
 
 matter,   data, nvs,      0x720000, 0x40000
  # ~256 KB (important for matter)

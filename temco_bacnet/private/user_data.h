@@ -261,15 +261,17 @@ typedef union
     {
 		/* WireGuard configuration */
 		U8_T wireguard_enable;
-		U8_T wireguard_private_key[64];
-		U8_T wireguard_peer_public_key[64];
-		U8_T wireguard_preshared_key[64];
+		/* 66 bytes = 33 Modbus regs x 2 chars; matches T3000 Str_Wireguard_point */
+		U8_T wireguard_private_key[66];
+		U8_T wireguard_peer_public_key[66];
+		U8_T wireguard_preshared_key[66];
 		U8_T wireguard_local_ip[4];
 		/* Netmask is fixed to 255.255.255.0 */
 		U16_T wireguard_port;  /* Both local and peer use same port */
 		U8_T wireguard_peer_ip[4];
 		/* Keepalive is fixed to 25 seconds */
 		/* Ping address is fixed to 10.0.0.1 */
+		U8_T reserved[191];
     }reg;
 }Str_Wireguard_point;
 
