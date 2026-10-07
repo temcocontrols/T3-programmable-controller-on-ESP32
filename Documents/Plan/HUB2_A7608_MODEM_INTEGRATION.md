@@ -12,7 +12,7 @@ Source plan: `HUB2_A7608_Modem_Integration_Plan.docx`
 
 Integrate the **A7608E-H 4G/GNSS modem** into the HUB2 project. The ESP32-S3 will control the modem with AT commands and provide SIM detection, LTE registration, signal status, cellular data connection, GNSS location, and basic remote communication.
 
-The A7608 modem scope is now parked as Pending Verification, including GNSS. The active prototype focus has moved to W5500 Ethernet bring-up, static/DHCP IP validation, and preserving existing Modbus TCP/BACnet/IP behavior. Full 4G-to-Ethernet routing is a separate high-risk phase because it requires PPP, NAT, and IP forwarding.
+A7608 modem communication, SIM, cellular IP, reconnection, and socket verify are complete (2026-10). GNSS hardware and formal power-rail measurement remain open. W5500 Ethernet + T3000-over-Ethernet connect are also complete. Full 4G-to-Ethernet routing is a separate high-risk phase because it requires PPP, NAT, and IP forwarding.
 
 ---
 
@@ -215,7 +215,7 @@ Recommended status items:
 
 ## W5500 And Ethernet Switch Verification
 
-Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hardware switch unless VLAN, port isolation, or per-port status is later required. This is the current active workstream now that A7608 is parked as Pending Verification.
+Treat W5500 as the ESP32 Ethernet interface. Treat RTL8309N as an unmanaged hardware switch unless VLAN, port isolation, or per-port status is later required. W5500 bring-up and T3000-over-Ethernet connect are complete; A7608 remains Pending Verification. Next Ethernet item: multi-port switch check.
 
 Firmware boundary: keep W5500-specific SPI/MAC/PHY setup in `main/hub_w5500.c` and `main/hub_w5500.h`. `main/ethernet_task.c` should only keep the common Ethernet netif, event handlers, IP/DNS handling, and the `PROJECT_HUB` call into `hub_w5500_install()`.
 
@@ -243,12 +243,12 @@ Current HUB2 W5500 pin map:
 
 | Phase | Focus | Deliverable |
 |-------|-------|-------------|
-| Phase 1 | A7608 hardware bring-up | Pending Verification: pin map, power sequence, 115200 AT bridge log, SIM READY log, power test, issue list |
-| Phase 2 | A7608 driver | Pending Verification: `a7608.c/.h`, AT framework, modem state machine, transparent AT debug task, status refresh validation, GNSS helpers |
-| Phase 3 | Cellular data | Pending Verification: LTE data connection, TCP/MQTT/HTTP test, reconnect and recovery |
-| Phase 4 | W5500 Ethernet bring-up | Current: HUB2 board config, W5500 init, link/IP logs, DHCP/static IP validation |
-| Phase 5 | Ethernet protocol verification | W5500, RTL8309N switch behavior, Modbus TCP, BACnet/IP |
-| Phase 6 | Stability test | 24 to 72 hour run, weak signal, SIM, antenna, Ethernet, power recovery |
+| Phase 1 | A7608 hardware bring-up | **Complete** (2026-10): pin map, AT UART, SIM — except formal power-rail scope (HUB2-002 still Open) |
+| Phase 2 | A7608 driver | **Complete** (2026-10): `a7608` / PPPoS path, AT framework, state to CONNECTED. GNSS hardware (HUB2-012) still Open |
+| Phase 3 | Cellular data | **Complete** (2026-10): cellular IP, socket verify, modem reconnection / recovery |
+| Phase 4 | W5500 Ethernet bring-up | **Complete:** HUB2 board config, W5500 init, link/IP (static + DHCP on router) |
+| Phase 5 | Ethernet protocol verification | **Partial complete:** T3000 discovers/connects Hub over Ethernet on router LAN (HUB2-024). Open: RTL8309N multi-port (HUB2-025) |
+| Phase 6 | Stability test | Open: 24 to 72 hour run, weak signal, SIM, antenna, Ethernet, power recovery |
 
 ---
 

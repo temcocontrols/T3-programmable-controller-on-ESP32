@@ -275,6 +275,29 @@ typedef union
     }reg;
 }Str_Wireguard_point;
 
+/* Hub GSM/LTE live status — packed; aligned with Modbus 2251-2300 (modbus.h MODBUS_GSM_*). */
+typedef union
+{
+	uint8_t all[400];
+	struct
+	{
+		U8_T modem_state;       /* 2251 a7608_state_t */
+		U8_T ppp_state;         /* 2252 hub_ppp_state_t */
+		U8_T flags;             /* 2253 GSM_FLAG_* */
+		U8_T active_sim;        /* 2254 0=none, 1=SIM1, 2=SIM2 */
+		U8_T csq;               /* 2255 0-31, 99=unknown */
+		S8_T rssi_dbm;          /* 2256 signed dBm; 0 if invalid */
+		U8_T creg_stat;         /* 2257 */
+		U8_T cereg_stat;        /* 2258 */
+		U8_T ip[4];             /* 2259-2262 PPP/cellular IPv4 */
+		U16_T status_age_s;     /* 2263 seconds since last refresh */
+		U16_T last_error;       /* 2264 low 16 bits of esp_err_t */
+		U8_T operator_name[32]; /* 2265-2280, 2 chars per register */
+		U8_T apn[32];           /* 2281-2296, 2 chars per register */
+		U8_T reserved[320];     /* 2297-2300 + pad to 400 bytes */
+	} reg;
+} Str_Gsm_status_point;
+
 typedef	union
 {
 	uint8_t all[400];
@@ -446,6 +469,7 @@ extern EXT_RAM_BSS_ATTR Password_point			 			passwords[ MAX_PASSW ];
 extern Str_Email_point Email_Setting;
 
 extern EXT_RAM_BSS_ATTR Str_Wireguard_point wireguard_point;
+extern EXT_RAM_BSS_ATTR Str_Gsm_status_point gsm_status_point;
 
 extern EXT_RAM_BSS_ATTR Str_variable_point		 		 vars[MAX_VARS];
 extern EXT_RAM_BSS_ATTR Str_controller_point 	 			 controllers[MAX_CONS];

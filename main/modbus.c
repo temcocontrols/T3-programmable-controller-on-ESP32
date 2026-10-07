@@ -26,6 +26,7 @@
 #include "co2.h"
 #include "LcdTheme.h"
 #include "WireGuard_App.h"
+#include "hub_gsm_status.h"
 #include "Mqtt_Handler.h"
 
 
@@ -1242,6 +1243,13 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             else if((address >= MODBUS_WIREGUARD_ENABLE)&& (address <= MODBUS_WIREGUARD_END))
             {
                 temp = wireguard_read_by_block(address);
+                temp1 = (temp >> 8) & 0xFF;
+                temp2 = temp & 0xFF;
+            }
+            else if((address >= MODBUS_GSM_MODEM_STATE)&& (address <= MODBUS_GSM_END)
+            		&& (Modbus.mini_type == PROJECT_HUB))
+            {
+                temp = gsm_status_read_by_block(address);
                 temp1 = (temp >> 8) & 0xFF;
                 temp2 = temp & 0xFF;
             }

@@ -146,6 +146,7 @@ typedef enum
 	READ_MSV_COMMAND           = 42,
 	READ_EMAIL_ALARM           = 43,
 	READ_WIREGUARD_CFG         = 44,
+	READ_GSM_STATUS            = 45,
 
 	READ_JSON_SCREEN           = 86,
 	READ_JSON_ITEM             = 87,

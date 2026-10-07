@@ -30,9 +30,8 @@ static void wifi_set_dns_v4(esp_netif_t *netif, esp_netif_dns_type_t type, uint8
     esp_netif_set_dns_info(netif, type, &dns);
 }
 
-void wifi_ensure_public_dns(bool replace_main)
+static void netif_ensure_public_dns(esp_netif_t *netif, const char *ifkey, bool replace_main)
 {
-    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     if (netif == NULL)
         return;
 
@@ -43,11 +42,22 @@ void wifi_ensure_public_dns(bool replace_main)
 
     if (replace_main || !have_main) {
         wifi_set_dns_v4(netif, ESP_NETIF_DNS_MAIN, 8, 8, 8, 8);
-        ESP_LOGW(TAG, "DNS MAIN set to 8.8.8.8%s", replace_main ? " after lookup fail" : " (DHCP had none)");
+        ESP_LOGW(TAG, "DNS MAIN on %s set to 8.8.8.8%s", ifkey,
+                 replace_main ? " after lookup fail" : " (DHCP had none)");
     }
 
     wifi_set_dns_v4(netif, ESP_NETIF_DNS_BACKUP, 1, 1, 1, 1);
     wifi_set_dns_v4(netif, ESP_NETIF_DNS_FALLBACK, 8, 8, 4, 4);
+}
+
+void wifi_ensure_public_dns(bool replace_main)
+{
+    static const char *const ifkeys[] = { "WIFI_STA_DEF", "ETH_DEF" };
+
+    for (unsigned i = 0; i < sizeof(ifkeys) / sizeof(ifkeys[0]); i++) {
+        esp_netif_t *netif = esp_netif_get_handle_from_ifkey(ifkeys[i]);
+        netif_ensure_public_dns(netif, ifkeys[i], replace_main);
+    }
 }
 extern SemaphoreHandle_t CountHandle;
 #define WIFI_CONNECTED_BIT BIT0

@@ -255,6 +255,30 @@ enum {
 
 	MODBUS_WIREGUARD_END = 2250,
 /******** WIREGUARD END ************************/
+
+/******** GSM / LTE STATUS START (Hub A7608 + PPPOS) ************************/
+	/* Layout matches Str_Gsm_status_point (Hub BACnet private transfer) */
+	MODBUS_GSM_MODEM_STATE = 2251,   /* a7608_state_t */
+	MODBUS_GSM_PPP_STATE = 2252,     /* hub_ppp_state_t */
+	MODBUS_GSM_FLAGS = 2253,         /* GSM_FLAG_* bitfield */
+	MODBUS_GSM_ACTIVE_SIM = 2254,    /* 0=none, 1=SIM1, 2=SIM2 */
+	MODBUS_GSM_CSQ = 2255,           /* 0-31, 99=unknown */
+	MODBUS_GSM_RSSI_DBM = 2256,      /* signed dBm as int16 */
+	MODBUS_GSM_CREG = 2257,
+	MODBUS_GSM_CEREG = 2258,
+	MODBUS_GSM_IP1 = 2259,
+	MODBUS_GSM_IP2,
+	MODBUS_GSM_IP3,
+	MODBUS_GSM_IP4,
+	MODBUS_GSM_STATUS_AGE_S = 2263,  /* seconds since last modem status refresh */
+	MODBUS_GSM_LAST_ERROR = 2264,    /* low 16 bits of last esp_err_t */
+	MODBUS_GSM_OPERATOR_START = 2265, /* 2265-2280: 32 chars, 2 per register */
+	MODBUS_GSM_OPERATOR_END = 2280,
+	MODBUS_GSM_APN_START = 2281,      /* 2281-2296: 32 chars, 2 per register */
+	MODBUS_GSM_APN_END = 2296,
+	MODBUS_GSM_END = 2300,
+/******** GSM / LTE STATUS END ************************/
+
 	MODBUS_TASK_TEST = 4000,
 
     MODBUS_TEST_1 = 7000,

@@ -233,29 +233,13 @@ void UdpData(unsigned char type)
    //modbus address
    Scan_Infor.address = Modbus.address;//laddress;//(unsigned short int)Modbus.address;
 
-   // Prefer WiFi STA IP for T3000 when STA is up (matches TSTAT11 LAN path).
-   // Only advertise Ethernet IP when WiFi is not available.
-   if ((SSID_Info.IP_Wifi_Status == WIFI_NORMAL) &&
-       ((SSID_Info.ip_addr[0] | SSID_Info.ip_addr[1] | SSID_Info.ip_addr[2] | SSID_Info.ip_addr[3]) != 0))
    {
-      Scan_Infor.ipaddr[0] = SSID_Info.ip_addr[0];
-      Scan_Infor.ipaddr[1] = SSID_Info.ip_addr[1];
-      Scan_Infor.ipaddr[2] = SSID_Info.ip_addr[2];
-      Scan_Infor.ipaddr[3] = SSID_Info.ip_addr[3];
-   }
-   else if(Modbus.ethernet_status == 4)
-   {
-      Scan_Infor.ipaddr[0] = Modbus.ip_addr[0];
-      Scan_Infor.ipaddr[1] = Modbus.ip_addr[1];
-      Scan_Infor.ipaddr[2] = Modbus.ip_addr[2];
-      Scan_Infor.ipaddr[3] = Modbus.ip_addr[3];
-   }
-   else
-   {
-      Scan_Infor.ipaddr[0] = SSID_Info.ip_addr[0];
-      Scan_Infor.ipaddr[1] = SSID_Info.ip_addr[1];
-      Scan_Infor.ipaddr[2] = SSID_Info.ip_addr[2];
-      Scan_Infor.ipaddr[3] = SSID_Info.ip_addr[3];
+      uint8_t advertised_ip[4] = {0};
+      get_advertised_ip_bytes(advertised_ip);
+      Scan_Infor.ipaddr[0] = advertised_ip[0];
+      Scan_Infor.ipaddr[1] = advertised_ip[1];
+      Scan_Infor.ipaddr[2] = advertised_ip[2];
+      Scan_Infor.ipaddr[3] = advertised_ip[3];
    }
 
    //port
@@ -295,16 +279,42 @@ void Set_icon_config(U8_T icon_config)
 	Modbus.icon_config = icon_config;
 }
 
+void get_advertised_ip_bytes(uint8_t ip[4])
+{
+	if (ip == NULL)
+		return;
+
+	if (wireguard_app_is_ready() &&
+	    ((wireguard_point.reg.wireguard_local_ip[0] |
+	      wireguard_point.reg.wireguard_local_ip[1] |
+	      wireguard_point.reg.wireguard_local_ip[2] |
+	      wireguard_point.reg.wireguard_local_ip[3]) != 0))
+	{
+		memcpy(ip, wireguard_point.reg.wireguard_local_ip, 4);
+		return;
+	}
+
+	if ((SSID_Info.IP_Wifi_Status == WIFI_NORMAL) &&
+	    ((SSID_Info.ip_addr[0] | SSID_Info.ip_addr[1] | SSID_Info.ip_addr[2] | SSID_Info.ip_addr[3]) != 0))
+	{
+		memcpy(ip, SSID_Info.ip_addr, 4);
+		return;
+	}
+
+	if (Modbus.ethernet_status == 4)
+	{
+		memcpy(ip, Modbus.ip_addr, 4);
+		return;
+	}
+
+	memcpy(ip, SSID_Info.ip_addr, 4);
+}
+
 uint32_t get_ip_addr(void)
 {
-	if(Modbus.ethernet_status == 4) // wifi is disconnected
-	{
-		return ((uint32_t)Modbus.ip_addr[3] << 24) + ((uint32_t)Modbus.ip_addr[2] << 16) + ((uint16_t)Modbus.ip_addr[1] << 8) + Modbus.ip_addr[0];
-	}
-	else
-	{
-		return ((uint32_t)SSID_Info.ip_addr[3] << 24) + ((uint32_t)SSID_Info.ip_addr[2] << 16) + ((uint16_t)SSID_Info.ip_addr[1] << 8) + SSID_Info.ip_addr[0];
-	}
+	uint8_t ip[4] = {0};
+	get_advertised_ip_bytes(ip);
+	return ((uint32_t)ip[3] << 24) + ((uint32_t)ip[2] << 16) + ((uint16_t)ip[1] << 8) + ip[0];
 }
 
 EXT_RAM_BSS_ATTR uint8_t PDUBuffer_BIP[MAX_APDU];
@@ -320,6 +330,23 @@ uint16_t Get_bip_len(void)
 
 int bip_sock;
 struct sockaddr_in6 bip_source_addr; // Large enough for both IPv4 or IPv6
+
+static void wg_diag_sock_ip(const struct sockaddr_in6 *sa, char *out, size_t out_len, uint16_t *port)
+{
+	if ((out == NULL) || (out_len == 0) || (sa == NULL))
+		return;
+	out[0] = '\0';
+	if (sa->sin6_family == PF_INET) {
+		const struct sockaddr_in *sa4 = (const struct sockaddr_in *)sa;
+		inet_ntoa_r(sa4->sin_addr.s_addr, out, out_len - 1);
+		if (port != NULL)
+			*port = ntohs(sa4->sin_port);
+	} else if (sa->sin6_family == PF_INET6) {
+		inet6_ntoa_r(sa->sin6_addr, out, out_len - 1);
+		if (port != NULL)
+			*port = ntohs(sa->sin6_port);
+	}
+}
 
 void Send_MSTP_to_BIPsocket(uint8_t * buf,uint16_t len)
 {
@@ -479,24 +506,18 @@ static void bip_task(void *pvParameters)
             bip_Data = PDUBuffer_BIP;
             // Error occurred during receiving
             if (len < 0) {
-              // ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
+               ESP_LOGE(UDP_TASK_TAG, "bip47808 recv failed errno=%d", errno);
                break;
             }
             // Data received
             else
             {
+            	uint16_t bip_src_port = 0;
             	ether_rx += len;
-               // Get the sender's ip address as string
-               if (bip_source_addr.sin6_family == PF_INET) {
-                  inet_ntoa_r(((struct sockaddr_in *)&bip_source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-                 // ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
-               } else if (bip_source_addr.sin6_family == PF_INET6) {
-                  inet6_ntoa_r(bip_source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-                 // ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
-               }
-
-               //memcpy(&BIP_src_addr[0],&bip_source_addr.sin6_flowinfo,4);
-               //memcpy(&BIP_src_addr[4],&bip_source_addr.sin6_port,2);
+               wg_diag_sock_ip(&bip_source_addr, addr_str, sizeof(addr_str), &bip_src_port);
+               ESP_LOGI(UDP_TASK_TAG, "bip47808 rx %d from %s:%u wg=%d first=%02x",
+                        len, addr_str, bip_src_port, (int)wireguard_app_is_ready(),
+                        (len > 0) ? (uint8_t)PDUBuffer_BIP[0] : 0);
 
                pdu_len = datalink_receive(&src, &PDUBuffer_BIP[0], sizeof(PDUBuffer_BIP), 0,BAC_IP);
                {
@@ -505,11 +526,21 @@ static void bip_task(void *pvParameters)
 						npdu_handler(&src, &PDUBuffer_BIP[0], pdu_len, BAC_IP);
 						if(bip_send_len > 0)
 						{
-							sendto(bip_sock, (uint8_t *)&bip_send_buf, bip_send_len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
+							int sent = sendto(bip_sock, (uint8_t *)&bip_send_buf, bip_send_len, 0, (struct sockaddr *)&bip_source_addr, sizeof(bip_source_addr));
+							ESP_LOGI(UDP_TASK_TAG, "bip47808 tx %d to %s:%u ret=%d errno=%d",
+							         bip_send_len, addr_str, bip_src_port, sent, (sent < 0) ? errno : 0);
 
 							bip_send_len = 0;
 							memset(bip_send_buf,0,MAX_MPDU_IP);
 						}
+						else
+						{
+							ESP_LOGI(UDP_TASK_TAG, "bip47808 pdu=%u no reply", (unsigned)pdu_len);
+						}
+					}
+					else
+					{
+						ESP_LOGI(UDP_TASK_TAG, "bip47808 datalink_receive pdu=0");
 					}
 				}
 
@@ -627,17 +658,25 @@ static void udp_scan_task(void *pvParameters)
 			else
 				flag_boardcast = 0;
 
+			/* WG peer is a different subnet; broadcast leaves on Wi-Fi and never
+			 * reaches 10.0.0.1. Keep INADDR_ANY so LAN scan is unchanged. */
+			if (wireguard_app_is_ready())
+				flag_boardcast = 0;
+
             flagLED_ether_rx = 1;
             // Error occurred during receiving
             if (len < 0) {//debug_info("udp1234 recv error\r\n");
-               //ESP_LOGE(UDP_TASK_TAG, "recvfrom failed: errno %d", errno);
+               ESP_LOGE(UDP_TASK_TAG, "udp1234 recv failed errno=%d", errno);
                break;
             }
             // Data received
             else
             {//debug_info("udp1234 recv ok\r\n");
+            	uint16_t scan_src_port = 0;
+            	char scan_dest_str[32] = {0};
+            	int scan_sent = -2;
             	ether_rx += len;
-               // Get the sender's ip address as string
+               wg_diag_sock_ip(&source_addr, addr_str, sizeof(addr_str), &scan_src_port);
                if (source_addr.sin6_family == PF_INET) {
             	   if(flag_boardcast == 1)
 				 {
@@ -645,30 +684,33 @@ static void udp_scan_task(void *pvParameters)
 					sDestAddr.sin_len = sizeof(sDestAddr);
 					sDestAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
 					sDestAddr.sin_port = htons(src_port);
+					strncpy(scan_dest_str, "255.255.255.255", sizeof(scan_dest_str) - 1);
 				 }
             	 else
-            		 inet_ntoa_r(((struct sockaddr_in *)&source_addr)->sin_addr.s_addr, addr_str, sizeof(addr_str) - 1);
-                  //ESP_LOGI(UDP_TASK_TAG, "IPV4 receive data");
+            		strncpy(scan_dest_str, addr_str, sizeof(scan_dest_str) - 1);
                } else if (source_addr.sin6_family == PF_INET6) {
-                  inet6_ntoa_r(source_addr.sin6_addr, addr_str, sizeof(addr_str) - 1);
-                  //ESP_LOGI(UDP_TASK_TAG, "IPV6 receive data");
+                  strncpy(scan_dest_str, addr_str, sizeof(scan_dest_str) - 1);
                }
 
-               //rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
-              // ESP_LOGI(UDP_TASK_TAG, "Received %d bytes from %s:", len, addr_str);
-              // ESP_LOG_BUFFER_HEX(UDP_TASK_TAG, rx_buffer, len);
+               ESP_LOGI(UDP_TASK_TAG, "udp1234 rx %d cmd=0x%02x from %s:%u wg=%d bc=%d",
+                        len, (len > 0) ? (uint8_t)rx_buffer[0] : 0, addr_str, scan_src_port,
+                        (int)wireguard_app_is_ready(), flag_boardcast);
                if(rx_buffer[0] == 0x64)
                {
                   UdpData(0);
                   if(flag_boardcast == 1)
                   {
-					  sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0,  (struct sockaddr *)&sDestAddr, sizeof(sDestAddr));
+					  scan_sent = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0,  (struct sockaddr *)&sDestAddr, sizeof(sDestAddr));
                   }
                   else
                   {
-                  //ESP_LOGI(UDP_TASK_TAG, "receive data buffer[0] = 0x64");
-                	  sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
+                	  scan_sent = sendto(sock, (uint8_t *)&Scan_Infor, sizeof(STR_SCAN_CMD), 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
                   }
+                  ESP_LOGI(UDP_TASK_TAG,
+                           "udp1234 cmd=0x64 dest=%s send=%d errno=%d adv=%u.%u.%u.%u",
+                           scan_dest_str, scan_sent, (scan_sent < 0) ? errno : 0,
+                           (unsigned)Scan_Infor.ipaddr[0], (unsigned)Scan_Infor.ipaddr[1],
+                           (unsigned)Scan_Infor.ipaddr[2], (unsigned)Scan_Infor.ipaddr[3]);
 
 
   				//serialnumber 4 bytes
@@ -877,140 +919,188 @@ extern SemaphoreHandle_t xSem_comport[3];
 
 U16_T modbus_send_len;
 u8 modbus_send_buf[500];
-int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
+
+/* TCP may coalesce several Modbus ADUs; send must push the full reply. */
+static int tcp_send_all(int sock, const uint8_t *buf, int len)
 {
-	memset(modbus_send_buf,0,500);
-	modbus_send_len = 0;
-	if (len == 5)
-	{
-		//ESP_LOGI(TCP_TASK_TAG, "Receive: %02x %02x %02x %02x %02x.", rx_buffer[0], rx_buffer[1], rx_buffer[2], rx_buffer[3], rx_buffer[4]);
-	}
+	int sent_total = 0;
 
-	//ESP_LOG_BUFFER_HEX(TCP_TASK_TAG, rx_buffer, len);
-
+	while (sent_total < len)
 	{
-		if( (rx_buffer[0] == 0xee) && (rx_buffer[1] == 0x10) &&
-			(rx_buffer[2] == 0x00) && (rx_buffer[3] == 0x00) &&
-			(rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
-			(rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00) )
+		int n = send(sock, buf + sent_total, len - sent_total, 0);
+		if (n < 0)
 		{
-			if(Modbus.mini_type == PROJECT_CO2)
-			 {
-				 flag_updating = 1;
-				 delay_ms(2000);
-			 }
-			start_fw_update();
-		}
-	}
-
-	if( (rx_buffer[6]== Modbus.address) || ((rx_buffer[6]==255) && (rx_buffer[7]!=0x19)))
-	{
-		responseModbusCmd(WIFI, (uint8_t *)rx_buffer, len ,modbus_send_buf,&modbus_send_len,0);
-		if(modbus_send_len > 0)
-		{
-			int err = send(sock, (uint8_t *)&modbus_send_buf, modbus_send_len, 0);
-
-			if (err < 0)
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
 			{
-				return -1;
-				//ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
-				//break;
+				vTaskDelay(1 / portTICK_PERIOD_MS);
+				continue;
 			}
-			else
+			ESP_LOGE(TCP_TASK_TAG, "tcp send fail n=%d/%d errno=%d", sent_total, len, errno);
+			return -1;
+		}
+		if (n == 0)
+		{
+			ESP_LOGE(TCP_TASK_TAG, "tcp send returned 0 at %d/%d", sent_total, len);
+			return -1;
+		}
+		sent_total += n;
+	}
+	return sent_total;
+}
+
+static int Modbus_Tcp_one(uint16_t len, int sock, U8_T *rx_buffer)
+{
+	memset(modbus_send_buf, 0, 500);
+	modbus_send_len = 0;
+
+	if ((rx_buffer[0] == 0xee) && (rx_buffer[1] == 0x10) &&
+	    (rx_buffer[2] == 0x00) && (rx_buffer[3] == 0x00) &&
+	    (rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
+	    (rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00))
+	{
+		if (Modbus.mini_type == PROJECT_CO2)
+		{
+			flag_updating = 1;
+			delay_ms(2000);
+		}
+		start_fw_update();
+	}
+
+	if ((rx_buffer[6] == Modbus.address) || ((rx_buffer[6] == 255) && (rx_buffer[7] != 0x19)))
+	{
+		responseModbusCmd(WIFI, (uint8_t *)rx_buffer, len, modbus_send_buf, &modbus_send_len, 0);
+		if (modbus_send_len > 0)
+		{
+			int err = tcp_send_all(sock, modbus_send_buf, modbus_send_len);
+			if (err < 0)
+				return -1;
 			flagLED_ether_tx = 1;
 			return err;
 		}
+		return 0;
 	}
-	else
+
+	/* transfer data to sub ,TCP TO RS485 */
 	{
-		// transfer data to sub ,TCP TO RS485
 		U8_T header[6];
 		U8_T i;
 		U16_T send_len;
 
-		if((rx_buffer[UIP_HEAD] == 0x00) ||
-		((rx_buffer[UIP_HEAD + 1] != READ_VARIABLES)
-		&& (rx_buffer[UIP_HEAD + 1] != WRITE_VARIABLES)
-		&& (rx_buffer[UIP_HEAD + 1] != MULTIPLE_WRITE)
-		&& (rx_buffer[UIP_HEAD + 1] != CHECKONLINE)
-		&& (rx_buffer[UIP_HEAD + 1] != READ_COIL)
-		&& (rx_buffer[UIP_HEAD + 1] != READ_DIS_INPUT)
-		&& (rx_buffer[UIP_HEAD + 1] != READ_INPUT)
-		&& (rx_buffer[UIP_HEAD + 1] != WRITE_COIL)
-		&& (rx_buffer[UIP_HEAD + 1] != WRITE_MULTI_COIL)
-		&& (rx_buffer[UIP_HEAD + 1] != CHECKONLINE_WIHTCOM)
-		&& (rx_buffer[UIP_HEAD + 1] != TEMCO_MODBUS)
-		))
+		if ((rx_buffer[UIP_HEAD] == 0x00) ||
+		    ((rx_buffer[UIP_HEAD + 1] != READ_VARIABLES)
+		     && (rx_buffer[UIP_HEAD + 1] != WRITE_VARIABLES)
+		     && (rx_buffer[UIP_HEAD + 1] != MULTIPLE_WRITE)
+		     && (rx_buffer[UIP_HEAD + 1] != CHECKONLINE)
+		     && (rx_buffer[UIP_HEAD + 1] != READ_COIL)
+		     && (rx_buffer[UIP_HEAD + 1] != READ_DIS_INPUT)
+		     && (rx_buffer[UIP_HEAD + 1] != READ_INPUT)
+		     && (rx_buffer[UIP_HEAD + 1] != WRITE_COIL)
+		     && (rx_buffer[UIP_HEAD + 1] != WRITE_MULTI_COIL)
+		     && (rx_buffer[UIP_HEAD + 1] != CHECKONLINE_WIHTCOM)
+		     && (rx_buffer[UIP_HEAD + 1] != TEMCO_MODBUS)))
 		{
 			return 0;
 		}
-		if((rx_buffer[UIP_HEAD + 1] == MULTIPLE_WRITE) && ((len - UIP_HEAD) != (rx_buffer[UIP_HEAD + 6] + 7)))
+		if ((rx_buffer[UIP_HEAD + 1] == MULTIPLE_WRITE) &&
+		    ((len - UIP_HEAD) != (rx_buffer[UIP_HEAD + 6] + 7)))
 		{
 			return 0;
 		}
 
-		if(Modbus.com_config[0] == MODBUS_MASTER)
+		if (Modbus.com_config[0] == MODBUS_MASTER)
 			Modbus.sub_port = 0;
-		else if(Modbus.com_config[2] == MODBUS_MASTER)
+		else if (Modbus.com_config[2] == MODBUS_MASTER)
 			Modbus.sub_port = 2;
 		else
-		{
 			return 0;
-		}
 
-		for(i = 0;i <  sub_no ;i++)
+		for (i = 0; i < sub_no; i++)
 		{
-			if(rx_buffer[UIP_HEAD] == uart0_sub_addr[i])
+			if (rx_buffer[UIP_HEAD] == uart0_sub_addr[i])
 			{
-				 Modbus.sub_port = 0;
-				 continue;
+				Modbus.sub_port = 0;
+				continue;
 			}
-			else if(rx_buffer[UIP_HEAD] == uart2_sub_addr[i])
+			else if (rx_buffer[UIP_HEAD] == uart2_sub_addr[i])
 			{
 				Modbus.sub_port = 2;
 				continue;
 			}
 		}
 
-		if((rx_buffer[UIP_HEAD + 1] == READ_DIS_INPUT) || (rx_buffer[UIP_HEAD + 1] == READ_COIL))
-			send_len = (rx_buffer[UIP_HEAD + 5] + 7) / 8 + 3; // (buf[5] + 7) / 8 + 5;
-		else if((rx_buffer[UIP_HEAD + 1] == READ_VARIABLES) || (rx_buffer[UIP_HEAD + 1] == READ_INPUT))
+		if ((rx_buffer[UIP_HEAD + 1] == READ_DIS_INPUT) || (rx_buffer[UIP_HEAD + 1] == READ_COIL))
+			send_len = (rx_buffer[UIP_HEAD + 5] + 7) / 8 + 3;
+		else if ((rx_buffer[UIP_HEAD + 1] == READ_VARIABLES) || (rx_buffer[UIP_HEAD + 1] == READ_INPUT))
 			send_len = rx_buffer[UIP_HEAD + 5] * 2 + 3;
 		else
 			send_len = 8;
 
-		Set_transaction_ID(header, ((U16_T)rx_buffer[0] << 8) | rx_buffer[1],send_len);
-
-		//vTaskSuspend(&main_task_handle[5]);
+		Set_transaction_ID(header, ((U16_T)rx_buffer[0] << 8) | rx_buffer[1], send_len);
 
 		flag_suspend_scan = 1;
 		suspend_scan_count = 0;
-		//if(xSemaphoreTake(xSem_comport,0))
+		Response_TCPIP_To_SUB(rx_buffer + UIP_HEAD, len - UIP_HEAD, Modbus.sub_port, header);
+		if (modbus_send_len > 0)
 		{
-			//if(Test[35] == 100)
-			Response_TCPIP_To_SUB(rx_buffer + UIP_HEAD,len - UIP_HEAD,Modbus.sub_port,header);
-			if(modbus_send_len > 0)
+			int err = tcp_send_all(sock, modbus_send_buf, modbus_send_len);
+			if (err < 0)
 			{
-				int err = send(sock, (uint8_t *)&modbus_send_buf, modbus_send_len, 0);
-
-				if (err < 0) {Test[46]++;
-					//ESP_LOGE(TCP_TASK_TAG, "Error occurred during sending: errno %d", errno);
-					//break;
-				}
-				else
-					flagLED_ether_tx = 1;
-
-				//xSemaphoreGive(xSem_comport);
-				return err;
+				Test[46]++;
+				return -1;
 			}
-			//xSemaphoreGive(xSem_comport);
+			flagLED_ether_tx = 1;
+			return err;
 		}
-		//vTaskResume(&main_task_handle[5]);
-
-
 		return 0;
 	}
-	return 0;
+}
+
+int Modbus_Tcp(uint16_t len, int sock, U8_T *rx_buffer)
+{
+	uint16_t offset = 0;
+	int frames = 0;
+	int last_ok = 0;
+
+	/* One TCP read may contain several Modbus ADUs (common over WG). */
+	while ((offset + UIP_HEAD) <= len)
+	{
+		uint16_t mbap_len = ((uint16_t)rx_buffer[offset + 4] << 8) | rx_buffer[offset + 5];
+		uint16_t frame_len;
+
+		if (mbap_len < 2)
+		{
+			ESP_LOGW(TCP_TASK_TAG, "modbus bad mbap_len=%u at off=%u total=%u",
+			         mbap_len, offset, len);
+			break;
+		}
+		frame_len = UIP_HEAD + mbap_len;
+		if ((offset + frame_len) > len)
+		{
+			ESP_LOGW(TCP_TASK_TAG, "modbus short frame need=%u have=%u off=%u",
+			         frame_len, (unsigned)(len - offset), offset);
+			break;
+		}
+
+		frames++;
+		last_ok = Modbus_Tcp_one(frame_len, sock, &rx_buffer[offset]);
+		if (last_ok < 0)
+		{
+			ESP_LOGE(TCP_TASK_TAG, "modbus frame %d/%u fail off=%u flen=%u",
+			         frames, len, offset, frame_len);
+			return -1;
+		}
+		offset = (uint16_t)(offset + frame_len);
+	}
+
+	if (frames > 1)
+	{
+		ESP_LOGI(TCP_TASK_TAG, "modbus handled %d frames in %u-byte tcp read", frames, len);
+	}
+	else if (frames == 0 && len > 0)
+	{
+		ESP_LOGW(TCP_TASK_TAG, "modbus no complete frame in %u bytes", len);
+	}
+	return last_ok;
 }
 
 
@@ -1098,22 +1188,25 @@ void tcp_server_handle(void *args, int task_index)
 	//	debug_print("TASK _BIT clear failed",task_index);
 	//}
 
-	int keepAlive = 1; // 閿熸枻鎷烽敓鏂ゆ嫹keepalive閿熸枻鎷烽敓鏂ゆ嫹
-	int keepIdle = 10; // 閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹閿燂拷10閿熸枻鎷烽敓鏂ゆ嫹娌￠敓鏂ゆ嫹閿熻娇鐚存嫹閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹,閿熸枻鎷烽敓鏂ゆ嫹閿熸暀鏂ゆ嫹閿燂拷
-	int keepInterval = 4; // 鎺㈤敓鏂ゆ嫹鏃堕敓鏂ゆ嫹閿熸枻鎷烽敓鏂ゆ嫹鏃堕敓鏂ゆ嫹閿熸枻鎷蜂负5 閿熸枻鎷�
-	int keepCount = 1; // 鎺㈤敓瑙ｅ皾閿熺殕鐨勮揪鎷烽敓鏂ゆ嫹.閿熸枻鎷烽敓鏂ゆ嫹閿燂拷1閿熸枻鎷锋帰閿熸枻鎷烽敓鏂ゆ嫹閿熸枻鎷风洀閿熸枻鎷烽敓鎺ワ讣鎷烽敓锟�,閿熸枻鎷烽敓锟�2閿熻娇鐨勮鎷烽敓鍔嚖鎷�.
+	int keepAlive = 1;
+	/* LAN used aggressive keepalive; WG RTT/jitter falsely RST's quiet sessions. */
+	int keepIdle = wireguard_app_is_ready() ? 60 : 10;
+	int keepInterval = wireguard_app_is_ready() ? 10 : 4;
+	int keepCount = wireguard_app_is_ready() ? 3 : 1;
 
 	setsockopt(remoteInfo.sock,SOL_SOCKET,SO_KEEPALIVE,	(void *)&keepAlive,		sizeof(keepAlive));
 	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPIDLE,	(void *)&keepIdle,		sizeof(keepIdle));
 	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPINTVL,(void *)&keepInterval, 	sizeof(keepInterval));
 	setsockopt(remoteInfo.sock,IPPROTO_TCP,TCP_KEEPCNT,	(void *)&keepCount, 	sizeof(keepCount));
+	{
+		int nodelay = 1;
+		setsockopt(remoteInfo.sock, IPPROTO_TCP, TCP_NODELAY, (void *)&nodelay, sizeof(nodelay));
+	}
 
-    //struct timeval tv_out;
-    //tv_out.tv_sec = 20;
-    //tv_out.tv_usec = 0;
-	//setsockopt(remoteInfo.sock, SOL_SOCKET, SO_RCVTIMEO, &tv_out, sizeof(tv_out));
-
-	char len;
+	int len;
+	ESP_LOGI(TCP_TASK_TAG, "tcp%d start %s:%d sock=%d wg=%d ka=%d/%d/%d",
+	         task_index, remoteInfo.remoteIp, remoteInfo.remotePort, remoteInfo.sock,
+	         (int)wireguard_app_is_ready(), keepIdle, keepInterval, keepCount);
 	for(;;)
 	{
 		if(task_index == 6)
@@ -1138,13 +1231,17 @@ void tcp_server_handle(void *args, int task_index)
         //}
 		if (ret > 0)
 		{
-			len = recv(remoteInfo.sock, rx_buffer[task_index], sizeof(rx_buffer) - 1, 0);
+			len = recv(remoteInfo.sock, rx_buffer[task_index], sizeof(rx_buffer[task_index]), 0);
 
 			if(len > 0)
 			{flagLED_ether_rx = 1;ether_rx += len;
+				ESP_LOGI(TCP_TASK_TAG, "tcp%d recv %d from %s:%d first=%02x",
+				         task_index, len, remoteInfo.remoteIp, remoteInfo.remotePort,
+				         (uint8_t)rx_buffer[task_index][0]);
 				ret = Modbus_Tcp(len,remoteInfo.sock,rx_buffer[task_index]);
 				if(ret < 0)
 				{
+					ESP_LOGE(TCP_TASK_TAG, "tcp%d Modbus_Tcp ret=%d", task_index, ret);
 					debug_print("Modbus_Tcp ret < 0 error! ",task_index);
 					break;
 				}
@@ -1152,24 +1249,31 @@ void tcp_server_handle(void *args, int task_index)
 			}
 			else if(len == 0)
 			{
+				ESP_LOGW(TCP_TASK_TAG, "tcp%d closed by %s:%d",
+				         task_index, remoteInfo.remoteIp, remoteInfo.remotePort);
 				debug_print("Connection closed",task_index);
 				break;
 			}
 			else
 			{
+				ESP_LOGW(TCP_TASK_TAG, "tcp%d lost %s:%d errno=%d",
+				         task_index, remoteInfo.remoteIp, remoteInfo.remotePort, errno);
 				debug_print("Connection lost",task_index);
 				break;
 			}
 		}
 		else
 		{
+			ESP_LOGW(TCP_TASK_TAG, "tcp%d Read Timeout %s:%d",
+			         task_index, remoteInfo.remoteIp, remoteInfo.remotePort);
 			debug_print("Read Timeout ",task_index);
             break;
 		}
 
-		vTaskDelay(50 / portTICK_PERIOD_MS);
+		/* Do not delay between Modbus polls when WG is up — T3000 short timeouts. */
+		if (!wireguard_app_is_ready())
+			vTaskDelay(50 / portTICK_PERIOD_MS);
 		taskYIELD();
-		//xQueueGiveMutexRecursive(sem_tcp_server);
 	}
 	if (remoteInfo.sock != -1)
 	{
@@ -1383,8 +1487,9 @@ static void tcp_server_task(void *pvParameters)
 					remoteInfo.sa_familyType = PF_INET6;
 				}
 				remoteInfo.remotePort = ntohs(sourceAddr.sin6_port);
-				//sprintf(debug_buffer,"ip:%s,port:%d ,sock:%d connected\r",remoteInfo.remoteIp,remoteInfo.remotePort,remoteInfo.sock);
-				//debug_info(debug_buffer);
+				ESP_LOGI(TCP_TASK_TAG, "accept %s:%d sock=%d wg=%d",
+				         remoteInfo.remoteIp, remoteInfo.remotePort, remoteInfo.sock,
+				         (int)wireguard_app_is_ready());
 
 
 				uxBits = xEventGroupWaitBits(network_EventHandle,TASK1_BIT|TASK2_BIT|TASK3_BIT|TASK4_BIT|TASK5_BIT|TASK6_BIT|TASK7_BIT,false,false,portMAX_DELAY);
@@ -4855,11 +4960,11 @@ void app_main()
  	xTaskCreate(Timer_task,"timer_task",6000, NULL, 13, &main_task_handle[13]);
 #endif
 
-	/* WireGuard Gateway initialization: only requires WiFi, modbus, and flash */
+	/* WireGuard manager: starts gateway task only when Modbus enable is set */
 	if(Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
 	{
-		ESP_LOGI("app_main", "Initializing WireGuard Gateway...");
-		xTaskCreate(wireguard_gateway_task, "wireguard_gw", 4096, NULL, tskIDLE_PRIORITY + 2, &main_task_handle[18]);
+		ESP_LOGI("app_main", "Starting WireGuard manager (gateway task only if enable=1)...");
+		xTaskCreate(wireguard_manager_task, "wireguard_mgr", 3072, NULL, tskIDLE_PRIORITY + 2, &main_task_handle[18]);
 	}
 
 //	xTaskCreate(smtp_client_task, "smtp_client_task", 2048, NULL, 5, NULL);

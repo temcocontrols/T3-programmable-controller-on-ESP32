@@ -161,6 +161,8 @@ typedef enum {
 		 READ_SCHEDULE_FLAG	= 41,
 		 READ_MSV_COMMAND = 42,
 		 READ_EMAIL_ALARM          = 43,
+		 READ_WIREGUARD_CFG        = 44,
+		 READ_GSM_STATUS           = 45,
 
 		 WRITEOUTPUT_T3000         = 100+OUT+1,  /* write outputs          */
 		 WRITEINPUT_T3000          = 100+IN+1,   /* write inputs           */

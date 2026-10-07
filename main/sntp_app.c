@@ -40,7 +40,7 @@
 static const char *TAG = "sntp";
 
 /* ── Tunables ─────────────────────────────────────────────────────────────── */
-#define SNTP_RETRY_INTERVAL_SEC   60    /* seconds between re-init attempts    */
+#define SNTP_RETRY_INTERVAL_SEC   20    /* seconds between re-init attempts    */
 #define SNTP_MAX_RETRY_COUNT      10    /* retries before declaring timeout    */
 #define SNTP_RESYNC_INTERVAL_SEC  (24u * 3600u)  /* daily re-sync             */
 #define SNTP_MIN_VALID_YEAR       2024  /* reject timestamps older than this   */
@@ -69,12 +69,27 @@ static uint32_t s_resync_tick = 0;   /* seconds elapsed since last good sync */
 static uint8_t  s_fallback_sntp_index; /* next fallback when no custom server */
 
 static const char *const s_fallback_sntp_servers[] = {
-    "cn.pool.ntp.org",
     "time.google.com",
     "time.cloudflare.com",
+    "pool.ntp.org",
 };
 
+/* Used when hostname DNS fails (common when router blocks UDP/53 to public DNS). */
+static const char *const s_fallback_sntp_ips[] = {
+    "216.239.35.4",     /* time.google.com */
+    "162.159.200.123",  /* time.cloudflare.com */
+    "129.6.15.28",      /* time.nist.gov */
+};
+
+static bool s_use_ip_ntp; /* once set, skip all further hostname DNS for NTP */
+
 /* ── Internal helpers ─────────────────────────────────────────────────────── */
+
+static bool sntp_host_is_ipv4(const char *host)
+{
+    struct in_addr addr;
+    return (host != NULL) && (host[0] != '\0') && (inet_aton(host, &addr) != 0);
+}
 
 static void sntp_stop_safe(void)
 {
@@ -133,32 +148,85 @@ static int sntp_lookup_host(const char *host)
 
 static void sntp_log_dns_servers(void)
 {
-    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    if (netif == NULL)
-        return;
-
-    for (int i = ESP_NETIF_DNS_MAIN; i <= ESP_NETIF_DNS_FALLBACK; i++) {
-        esp_netif_dns_info_t dns = {0};
-        if (esp_netif_get_dns_info(netif, i, &dns) != ESP_OK)
+    static const char *const ifkeys[] = { "WIFI_STA_DEF", "ETH_DEF" };
+    for (unsigned k = 0; k < sizeof(ifkeys) / sizeof(ifkeys[0]); k++) {
+        esp_netif_t *netif = esp_netif_get_handle_from_ifkey(ifkeys[k]);
+        if (netif == NULL)
             continue;
-        if (dns.ip.type != ESP_IPADDR_TYPE_V4 || dns.ip.u_addr.ip4.addr == 0)
-            continue;
-        ESP_LOGI(TAG, "DNS server %d: " IPSTR, i, IP2STR(&dns.ip.u_addr.ip4));
+        for (int i = ESP_NETIF_DNS_MAIN; i <= ESP_NETIF_DNS_FALLBACK; i++) {
+            esp_netif_dns_info_t dns = {0};
+            if (esp_netif_get_dns_info(netif, i, &dns) != ESP_OK)
+                continue;
+            if (dns.ip.type != ESP_IPADDR_TYPE_V4 || dns.ip.u_addr.ip4.addr == 0)
+                continue;
+            ESP_LOGI(TAG, "DNS %s %d: " IPSTR, ifkeys[k], i, IP2STR(&dns.ip.u_addr.ip4));
+        }
     }
+}
+
+static void sntp_pick_ipv4_server(void)
+{
+    const unsigned nips = sizeof(s_fallback_sntp_ips) / sizeof(s_fallback_sntp_ips[0]);
+    const char *ip = s_fallback_sntp_ips[s_fallback_sntp_index % nips];
+
+    strncpy(sntp_server, ip, sizeof(sntp_server) - 1);
+    sntp_server[sizeof(sntp_server) - 1] = '\0';
+    s_fallback_sntp_index = (uint8_t)((s_fallback_sntp_index + 1) % nips);
+}
+
+static void sntp_apply_server_slots(void)
+{
+    if (s_use_ip_ntp) {
+        const unsigned nips = sizeof(s_fallback_sntp_ips) / sizeof(s_fallback_sntp_ips[0]);
+
+        for (int i = 0; i < 4; i++) {
+            esp_sntp_setservername((uint8_t)i,
+                                  s_fallback_sntp_ips[(s_fallback_sntp_index + (unsigned)i) % nips]);
+        }
+        if (sntp_host_is_ipv4(sntp_server) ||
+            (Modbus.en_sntp == 5 && sntp_server[0] != '\0')) {
+            esp_sntp_setservername(0, sntp_server);
+        }
+        ESP_LOGI(TAG, "NTP using IPv4 (no DNS): %s", sntp_server);
+        return;
+    }
+
+    esp_sntp_setservername(0, sntp_server);
+    esp_sntp_setservername(1, "time.google.com");
+    esp_sntp_setservername(2, "time.cloudflare.com");
+    esp_sntp_setservername(3, "pool.ntp.org");
 }
 
 static void sntp_log_dns(const char *host)
 {
+    if (s_use_ip_ntp || sntp_host_is_ipv4(host))
+        return;
+
     if (sntp_lookup_host(host) == 0)
         return;
 
     wifi_ensure_public_dns(true);
     sntp_log_dns_servers();
-    sntp_lookup_host(host);
+
+    /*
+     * Hostname DNS failed even after public DNS push. Do not try another
+     * hostname (each getaddrinfo can block ~20 s). Switch to IPv4 NTP only.
+     */
+    s_use_ip_ntp = true;
+    if (Modbus.en_sntp != 5) {
+        sntp_pick_ipv4_server();
+        ESP_LOGW(TAG, "DNS failed for NTP hostnames — switching to IPv4 '%s'", sntp_server);
+    } else {
+        ESP_LOGW(TAG, "DNS failed for custom NTP host '%s' — later retries use IPv4 fallbacks",
+                 host);
+        sntp_pick_ipv4_server();
+    }
 }
 
 static void sntp_do_init(void)
 {
+    esp_log_level_set(TAG, ESP_LOG_WARN);
+
     ESP_LOGI(TAG, "Initializing SNTP");
     sntpc_Conns_State = SNTP_STATE_INITIAL;
     debug_info((char *)"SNTP INTIAL");
@@ -168,13 +236,17 @@ static void sntp_do_init(void)
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
     /* Slot 0: caller-supplied server (sntp_server[] set before calling us) */
-    if(Modbus.en_sntp == 5 && sntp_server[0] != '\0')
+    if (Modbus.en_sntp == 5 && sntp_server[0] != '\0' && !s_use_ip_ntp)
     {
         ESP_LOGI(TAG, "Using custom SNTP server from Modbus config: '%s'", sntp_server);
     }
+    else if (s_use_ip_ntp)
+    {
+        sntp_pick_ipv4_server();
+        ESP_LOGI(TAG, "Using IPv4 NTP server '%s'", sntp_server);
+    }
     else
     {
-        /* No custom server: try cn.pool, then Cloudflare, then Google. */
         const unsigned nservers = sizeof(s_fallback_sntp_servers) / sizeof(s_fallback_sntp_servers[0]);
         const char *name = s_fallback_sntp_servers[s_fallback_sntp_index % nservers];
         strncpy(sntp_server, name, sizeof(sntp_server) - 1);
@@ -185,13 +257,10 @@ static void sntp_do_init(void)
                  nservers);
         s_fallback_sntp_index = (uint8_t)((s_fallback_sntp_index + 1) % nservers);
     }
-    esp_sntp_setservername(0, sntp_server);
-    esp_sntp_setservername(1, "cn.pool.ntp.org");
-    esp_sntp_setservername(2, "time.cloudflare.com");  /* reliable anycast   */
-    esp_sntp_setservername(3, "time.google.com");
 
     sntp_log_dns_servers();
     sntp_log_dns(sntp_server);
+    sntp_apply_server_slots();
 
     esp_sntp_set_time_sync_notification_cb(time_sync_notification_cb);
 
@@ -244,7 +313,8 @@ void time_sync_notification_cb(struct timeval *tv)
 
     flag_Update_Sntp  = 1;
     Update_Sntp_Retry = 0;
-    s_fallback_sntp_index = 0;   /* next session starts at cn.pool.ntp.org */
+    s_fallback_sntp_index = 0;   /* next session starts at first fallback */
+    s_use_ip_ntp      = false; /* allow hostname again after a good sync */
     s_resync_tick     = 0;   /* reset 24-hour counter */
 
     sntp_stop_safe();        /* we drive re-sync from update_sntp(); stop polling */
@@ -300,8 +370,8 @@ void update_sntp(void)
     if (Modbus.en_sntp < 2)
         return;
 
-    /* Guard: do nothing if Wi-Fi isn't ready or PC sync is active */
-    if (SSID_Info.IP_Wifi_Status != WIFI_NORMAL)
+    /* Guard: need IP on Wi-Fi or Ethernet */
+    if (SSID_Info.IP_Wifi_Status != WIFI_NORMAL && Modbus.ethernet_status != 4)
         return;
     if (Setting_Info.reg.en_time_sync_with_pc != 0)
         return;
@@ -309,6 +379,7 @@ void update_sntp(void)
     static bool first_call = true;
     if (first_call)
     {
+        esp_log_level_set(TAG, ESP_LOG_WARN);
         s_retry_tick = SNTP_RETRY_INTERVAL_SEC;  /* trigger immediate sync on first call */
         first_call = false;
     }

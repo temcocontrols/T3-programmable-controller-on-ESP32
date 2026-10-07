@@ -59,6 +59,7 @@ idf_component_register(		SRCS
 							"co2.c"
 							"lora.c"
 							"HUB_Module/a7608.c"
+							"HUB_Module/hub_gsm_status.c"
 							"LcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"

@@ -352,13 +352,15 @@ esp_err_t read_default_from_flash(void)
 	nvs_get_u8(my_handle, FLASH_EN_TIME_SYNC_PC, &Modbus.en_time_sync_with_pc);
 	if(Modbus.en_time_sync_with_pc == 255)
 	{
-		Modbus.en_time_sync_with_pc = 1;
+		/* Default: time server (same choice UI as other devices). User may switch to PC sync. */
+		Modbus.en_time_sync_with_pc = 0;
 		nvs_set_u8(my_handle, FLASH_EN_TIME_SYNC_PC, Modbus.en_time_sync_with_pc);
 	}
 	nvs_get_u8(my_handle, FLASH_EN_SNTP, &Modbus.en_sntp);
 	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.en_sntp == 0 || Modbus.en_sntp > 5)
 	{
-		Modbus.en_sntp = 1;
+		/* Default: timeserver1 (en_sntp >= 2 enables SNTP). */
+		Modbus.en_sntp = 2;
 		nvs_set_u8(my_handle, FLASH_EN_SNTP, Modbus.en_sntp);
 	}
 
@@ -735,7 +737,10 @@ esp_err_t save_wireguard_config_to_flash(void)
 	esp_err_t err;
 
 	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-	if (err != ESP_OK) return err;
+	if (err != ESP_OK) {
+		wireguard_app_request_reload();
+		return err;
+	}
 
 	// Save enable flag
 	err = nvs_set_u8(my_handle, FLASH_WIREGUARD_ENABLE, wireguard_point.reg.wireguard_enable);
@@ -774,6 +779,7 @@ esp_err_t save_wireguard_config_to_flash(void)
 
 done:
 	nvs_close(my_handle);
+	wireguard_app_request_reload();
 	return err;
 }
 

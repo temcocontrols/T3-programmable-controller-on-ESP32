@@ -64,6 +64,8 @@ uint16_t read_airlab_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t read_lightswitch_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t read_co2_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t wireguard_read_by_block(uint16_t addr) { (void)addr; return 0; }
+uint16_t gsm_status_read_by_block(uint16_t addr) { (void)addr; return 0; }
+void hub_gsm_status_refresh(void) {}
 
 // Str_points_ptr put_io_buf(Point_type_equate type, uint8 point)
 // {

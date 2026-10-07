@@ -83,6 +83,7 @@ void check_SD_PnP(void);
 void clear_currnet_page(void);
 void Save_Email_Setting(void);
 esp_err_t save_wireguard_config_to_flash(void);
+void hub_gsm_status_refresh(void);
 void Save_MSV(void);
 
 #if ARM_TSTAT_WIFI
@@ -2173,6 +2174,11 @@ void handler_private_transfer(
 
 			case READ_WIREGUARD_CFG:
 				ptr = (uint8_t *)&wireguard_point;
+				break;
+
+			case READ_GSM_STATUS:
+				hub_gsm_status_refresh();
+				ptr = (uint8_t *)&gsm_status_point;
 				break;
 
 			default:

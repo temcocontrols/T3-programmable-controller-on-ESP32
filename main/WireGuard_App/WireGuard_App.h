@@ -17,6 +17,7 @@
 #ifndef WIREGUARD_APP_H
 #define WIREGUARD_APP_H
 
+#include <stdbool.h>
 #include <esp_err.h>
 #include <esp_wireguard.h>
 
@@ -58,6 +59,8 @@ void wireguard_write_by_block(uint16_t addr, uint8_t HeadLen, uint8_t *pData);
  * @return ESP_OK if peer is up, otherwise error code.
  */
 esp_err_t wireguard_app_peer_is_up(wireguard_ctx_t *ctx);
+bool wireguard_app_is_ready(void);
+void wireguard_app_request_reload(void);
 
 /**
  * @brief Set the WireGuard interface as the default route.
@@ -80,8 +83,16 @@ esp_err_t wireguard_app_start_ping(void);
  * This task waits for an AUTO underlay (WiFi or GSM), synchronizes time,
  * sets up the WireGuard interface, waits for the peer to be up, starts a
  * ping session to verify connectivity, and makes WireGuard the default route.
+ * Started only while Modbus wireguard_enable is non-zero; exits (self-deletes)
+ * when enable is cleared.
  */
 void wireguard_gateway_task(void *pvParameters);
+
+/**
+ * @brief Lightweight manager: creates/deletes wireguard_gateway_task based on
+ *        wireguard_enable (Modbus / flash). Always safe to run on Hub.
+ */
+void wireguard_manager_task(void *pvParameters);
 
 #ifdef __cplusplus
 }
