@@ -37,6 +37,7 @@ void ui_HolidayCalenderScreen_screen_init(void)
 {
     ui_HolidayCalenderScreen = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_HolidayCalenderScreen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    ui_set_screen_background(ui_HolidayCalenderScreen);
 
     ui_ChangeConfigTitle9 = lv_obj_create(ui_HolidayCalenderScreen);
     lv_obj_set_width(ui_ChangeConfigTitle9, 450);

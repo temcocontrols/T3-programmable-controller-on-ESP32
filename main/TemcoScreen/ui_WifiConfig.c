@@ -104,6 +104,7 @@ void ui_WifiConfig_screen_init(void)
 {
     ui_WifiConfig = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_WifiConfig, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    ui_set_screen_background(ui_WifiConfig);
 
     ui_ChangeConfigTitle6 = lv_obj_create(ui_WifiConfig);
     lv_obj_set_width(ui_ChangeConfigTitle6, 450);

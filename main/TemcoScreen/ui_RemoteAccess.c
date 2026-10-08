@@ -99,6 +99,7 @@ void ui_WireGuardScreen_screen_init(void)
     char local[20], peer[20], port[8];
     ui_WireGuardScreen = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_WireGuardScreen, LV_OBJ_FLAG_SCROLLABLE);
+    ui_set_screen_background(ui_WireGuardScreen);
     remote_title(ui_WireGuardScreen, "WireGuard Settings");
     wg_enable=lv_switch_create(ui_WireGuardScreen);
     lv_obj_align(wg_enable,LV_ALIGN_TOP_MID,-20,48);
@@ -154,6 +155,7 @@ void ui_DdnsScreen_screen_init(void)
 {
     ui_DdnsScreen = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_DdnsScreen, LV_OBJ_FLAG_SCROLLABLE);
+    ui_set_screen_background(ui_DdnsScreen);
     remote_title(ui_DdnsScreen, "DDNS Settings");
     ddns_enable = lv_switch_create(ui_DdnsScreen);
     lv_obj_align(ddns_enable, LV_ALIGN_TOP_MID, 80, 75);

@@ -232,6 +232,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_remove_flag(ui_HomeScreen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_color(ui_HomeScreen, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_HomeScreen, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_set_screen_background(ui_HomeScreen);
 
     ui_RunTime = lv_textarea_create(ui_HomeScreen);
     lv_obj_set_width(ui_RunTime, 100);

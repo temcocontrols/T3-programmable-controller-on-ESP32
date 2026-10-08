@@ -140,6 +140,8 @@ void _ui_spinbox_step(lv_obj_t * target, int val)
 void _ui_switch_theme(int val)
 ;
 
+void ui_set_screen_background(lv_obj_t * scr);
+
 
 
 #ifdef __cplusplus

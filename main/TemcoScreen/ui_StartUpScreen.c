@@ -32,6 +32,7 @@ void ui_StartUpScreen_screen_init(void)
     lv_obj_remove_flag(ui_StartUpScreen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_color(ui_StartUpScreen, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_StartUpScreen, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_set_screen_background(ui_StartUpScreen);
 
     ui_Label1 = lv_label_create(ui_StartUpScreen);
     lv_obj_set_width(ui_Label1, LV_SIZE_CONTENT);   /// 1

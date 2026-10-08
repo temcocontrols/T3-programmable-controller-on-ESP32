@@ -75,6 +75,7 @@ LV_IMG_DECLARE(ui_img_output_40_png);    // assets/icons8-output-40.png
 LV_IMG_DECLARE(ui_img_control_panel_40_png);    // assets/icons8-control-panel-40.png
 LV_IMG_DECLARE(ui_img_calendar_40_png);    // assets/icons8-event-accepted-tentatively-40 (1).png
 LV_IMG_DECLARE(ui_img_backsmallarrow_png);    // assets/BackSmallArrow.png
+LV_IMG_DECLARE(ui_img_background);            // TemcoScreen/ui_img_background.c
 
 // FONTS
 LV_FONT_DECLARE(ui_font_Arial80);

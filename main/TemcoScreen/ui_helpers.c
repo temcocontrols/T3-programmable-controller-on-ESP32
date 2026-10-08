@@ -351,4 +351,20 @@ void _ui_switch_theme(int val)
 #endif
 }
 
+void ui_set_screen_background(lv_obj_t * scr)
+{
+    if(scr == NULL) return;
+
+    lv_display_t * disp = lv_obj_get_display(scr);
+    if(disp) {
+        lv_obj_set_size(scr, lv_display_get_horizontal_resolution(disp),
+                        lv_display_get_vertical_resolution(disp));
+    }
+
+    lv_obj_set_style_pad_all(scr, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(scr, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_image_src(scr, &ui_img_background, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_image_opa(scr, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+}
+
 

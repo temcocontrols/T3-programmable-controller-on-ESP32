@@ -182,6 +182,7 @@ void ui_MainMenu_screen_init(void)
     ui_MainMenu = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_MainMenu, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_border_side(ui_MainMenu, LV_BORDER_SIDE_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_set_screen_background(ui_MainMenu);
 
     ui_ChangeConfigTitle4 = lv_obj_create(ui_MainMenu);
     lv_obj_set_width(ui_ChangeConfigTitle4, 450);

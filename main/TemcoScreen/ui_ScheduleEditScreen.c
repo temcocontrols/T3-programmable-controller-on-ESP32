@@ -171,6 +171,7 @@ void ui_ScheduleEditScreen_screen_init(void)
 {
     ui_ScheduleEditScreen = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_ScheduleEditScreen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    ui_set_screen_background(ui_ScheduleEditScreen);
 
     ui_ChangeConfigTitle8 = lv_obj_create(ui_ScheduleEditScreen);
     lv_obj_set_width(ui_ChangeConfigTitle8, 450);

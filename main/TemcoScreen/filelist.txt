@@ -29,4 +29,5 @@ ui_img_output_40_png.c
 ui_img_control_panel_40_png.c
 ui_img_calendar_40_png.c
 ui_img_backsmallarrow_png.c
+ui_img_background.c
 fonts/ui_font_Arial80.c

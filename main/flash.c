@@ -426,7 +426,7 @@ esp_err_t read_default_from_flash(void)
 	else
 	{
 		if(Modbus.mini_type != PROJECT_MPPT){
-			if(count_reboot >= 3)
+			if(count_reboot >= 5)
 			{ // reboot
 				nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
 				start_fw_update();
