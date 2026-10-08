@@ -95,7 +95,7 @@ static void sntp_stop_safe(void)
 {
     if (esp_sntp_enabled()) {
         esp_sntp_stop();
-        debug_info((char *)"SNTP STOP");
+        ESP_LOGI(TAG, "SNTP STOP");
     }
 }
 
@@ -229,7 +229,7 @@ static void sntp_do_init(void)
 
     ESP_LOGI(TAG, "Initializing SNTP");
     sntpc_Conns_State = SNTP_STATE_INITIAL;
-    debug_info((char *)"SNTP INTIAL");
+    ESP_LOGI(TAG, "SNTP INTIAL");
 
     sntp_stop_safe();
 
@@ -402,7 +402,7 @@ void update_sntp(void)
             if (Update_Sntp_Retry < SNTP_MAX_RETRY_COUNT) {
                 Update_Sntp_Retry++;
                 ESP_LOGW(TAG, "NTP retry %d/%d", Update_Sntp_Retry, SNTP_MAX_RETRY_COUNT);
-                debug_info((char *)"sntp_select_time_server");
+                ESP_LOGI(TAG, "sntp_select_time_server");
                 sntp_select_time_server(Modbus.en_sntp);
             } else {
                 /* All retries exhausted */

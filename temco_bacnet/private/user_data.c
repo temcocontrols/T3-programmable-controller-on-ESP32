@@ -182,6 +182,8 @@ EXT_RAM_BSS_ATTR Str_monitor_point					backup_monitors[MAX_MONITORS];// _at_ 0x2
 
 EXT_RAM_BSS_ATTR Str_Wireguard_point wireguard_point;
 EXT_RAM_BSS_ATTR Str_Gsm_status_point gsm_status_point;
+EXT_RAM_BSS_ATTR Str_Mqtt_point mqtt_point;
+EXT_RAM_BSS_ATTR Str_Snmp_point snmp_point;
 
 Str_Email_point Email_Setting;
 //uint32_t  count_max_time[MAX_MONITORS];

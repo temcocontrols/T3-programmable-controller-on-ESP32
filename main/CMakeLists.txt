@@ -60,6 +60,7 @@ idf_component_register(		SRCS
 							"lora.c"
 							"HUB_Module/a7608.c"
 							"HUB_Module/hub_gsm_status.c"
+							"HUB_Module/hub_snmp.c"
 							"LcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"
@@ -112,6 +113,7 @@ idf_component_register(		SRCS
 						temco_IO_control
 						temco_bacnet
 						esp_wireguard
+						snmp_agent
 			PRIV_REQUIRES espressif__esp_modem
 							)
 

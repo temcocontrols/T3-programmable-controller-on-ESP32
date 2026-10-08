@@ -297,6 +297,45 @@ typedef union
 	} reg;
 } Str_Gsm_status_point;
 
+/* Hub MQTT client config — Modbus 2301-2450; BACnet READ/WRITE_MQTT_CFG 46/146. */
+typedef union
+{
+	uint8_t all[400];
+	struct
+	{
+		U8_T enable;            /* 2301 */
+		U8_T connected;         /* 2302 RO */
+		U16_T port;             /* 2303 default 1883 */
+		char broker[64];        /* 2304-2335 */
+		char username[32];      /* 2336-2351 */
+		char password[32];      /* 2352-2367 */
+		char client_id[32];     /* 2368-2383 */
+		char pub_topic[64];     /* 2384-2415 */
+		char sub_topic[64];     /* 2416-2447 */
+		U8_T reserved[108];
+	} reg;
+} Str_Mqtt_point;
+
+/* Hub SNMP agent config — Modbus 2451-2550; BACnet READ/WRITE_SNMP_CFG 47/147. */
+typedef union
+{
+	uint8_t all[400];
+	struct
+	{
+		U8_T enable;            /* 2451 */
+		U8_T running;           /* 2452 RO */
+		U16_T port;             /* 2453 default 161 */
+		char ro_community[32];  /* 2454-2469 */
+		char rw_community[32];  /* 2470-2485 */
+		U8_T trap_dest_ip[4];   /* 2486-2489 */
+		U16_T trap_dest_port;   /* 2490 default 162 */
+		char sys_name[32];      /* 2491-2506 */
+		char sys_location[32];  /* 2507-2522 */
+		char sys_contact[32];   /* 2523-2538 */
+		U8_T reserved[230];
+	} reg;
+} Str_Snmp_point;
+
 typedef	union
 {
 	uint8_t all[400];
@@ -469,6 +508,8 @@ extern Str_Email_point Email_Setting;
 
 extern EXT_RAM_BSS_ATTR Str_Wireguard_point wireguard_point;
 extern EXT_RAM_BSS_ATTR Str_Gsm_status_point gsm_status_point;
+extern EXT_RAM_BSS_ATTR Str_Mqtt_point mqtt_point;
+extern EXT_RAM_BSS_ATTR Str_Snmp_point snmp_point;
 void get_advertised_ip_bytes(uint8_t ip[4]);
 
 extern EXT_RAM_BSS_ATTR Str_variable_point		 		 vars[MAX_VARS + 12];

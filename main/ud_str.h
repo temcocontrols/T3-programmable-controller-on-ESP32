@@ -163,6 +163,8 @@ typedef enum {
 		 READ_EMAIL_ALARM          = 43,
 		 READ_WIREGUARD_CFG        = 44,
 		 READ_GSM_STATUS           = 45,
+		 READ_MQTT_CFG             = 46,
+		 READ_SNMP_CFG             = 47,
 
 		 WRITEOUTPUT_T3000         = 100+OUT+1,  /* write outputs          */
 		 WRITEINPUT_T3000          = 100+IN+1,   /* write inputs           */
@@ -189,6 +191,9 @@ typedef enum {
 		 WRITEREMOTEPOINT		   = 140,			/* write remote point */
 		 WRITE_MSV_COMMAND 		= 142,
 		 WRITE_EMAIL_ALARM           = 143,
+		 WRITE_WIREGUARD_CFG         = 144,
+		 WRITE_MQTT_CFG              = 146,
+		 WRITE_SNMP_CFG              = 147,
 
 
 //		 SEND_TIME_SYNC				= 150,    // no used

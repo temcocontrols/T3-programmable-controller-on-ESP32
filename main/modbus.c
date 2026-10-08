@@ -28,6 +28,8 @@
 #include "WireGuard_App.h"
 #include "hub_gsm_status.h"
 #include "Mqtt_Handler.h"
+#include "hub_snmp.h"
+#include "Mqtt_Handler.h"
 
 
 extern SemaphoreHandle_t xSem_comport[3];
@@ -1253,6 +1255,19 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
                 temp1 = (temp >> 8) & 0xFF;
                 temp2 = temp & 0xFF;
             }
+            else if((address >= MODBUS_MQTT_ENABLE) && (address <= MODBUS_MQTT_END))
+            {
+                temp = mqtt_config_read_by_block(address);
+                temp1 = (temp >> 8) & 0xFF;
+                temp2 = temp & 0xFF;
+            }
+            else if((address >= MODBUS_SNMP_ENABLE) && (address <= MODBUS_SNMP_END)
+            		&& (Modbus.mini_type == PROJECT_HUB))
+            {
+                temp = snmp_config_read_by_block(address);
+                temp1 = (temp >> 8) & 0xFF;
+                temp2 = temp & 0xFF;
+            }
             else if(address >= MODBUS_NG2_TEMP1 && address <= MODBUS_NG2_HUM3)
             {
                 U16_T temp;
@@ -2048,6 +2063,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		{
 			wireguard_write_by_block(temp_i,0,bufadd);
 		}
+		else if(temp_i >= MODBUS_MQTT_ENABLE && temp_i <= MODBUS_MQTT_END)
+		{
+			mqtt_config_write_by_block(temp_i, 0, bufadd);
+		}
+		else if(temp_i >= MODBUS_SNMP_ENABLE && temp_i <= MODBUS_SNMP_END
+			&& (Modbus.mini_type == PROJECT_HUB))
+		{
+			snmp_config_write_by_block(temp_i, 0, bufadd);
+		}
 
 		/******************* write IN OUT by block start ******************************************/
 		else if(temp_i  >= MODBUS_USER_BLOCK_FIRST && temp_i  <= MODBUS_USER_BLOCK_LAST)
@@ -2129,6 +2153,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		else if(address >= MODBUS_WIREGUARD_ENABLE && address <= MODBUS_WIREGUARD_END)
 		{
 			wireguard_write_by_block(address,0,bufadd);
+		}
+		else if(address >= MODBUS_MQTT_ENABLE && address <= MODBUS_MQTT_END)
+		{
+			mqtt_config_write_by_block(address, 0, bufadd);
+		}
+		else if(address >= MODBUS_SNMP_ENABLE && address <= MODBUS_SNMP_END
+			&& (Modbus.mini_type == PROJECT_HUB))
+		{
+			snmp_config_write_by_block(address, 0, bufadd);
 		}
 		if(address >= MODBUS_TSTAT10_START && address <= MODBUS_TSTAT10_END)
 		{
@@ -2218,7 +2251,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		else if(address == MODBUS_ENABLE_MQTT)
 		{
 			Modbus.enable_mqtt = *(bufadd + 5);
+			mqtt_point.reg.enable = Modbus.enable_mqtt ? 1 : 0;
 			save_uint8_to_flash( FLASH_ENABLE_MQTT, Modbus.enable_mqtt);
+			save_mqtt_config_to_flash();
 			if(Modbus.enable_mqtt)
 				Mqtt_Handler_Init();
 			else

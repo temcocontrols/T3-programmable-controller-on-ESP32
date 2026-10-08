@@ -147,6 +147,8 @@ typedef enum
 	READ_EMAIL_ALARM           = 43,
 	READ_WIREGUARD_CFG         = 44,
 	READ_GSM_STATUS            = 45,
+	READ_MQTT_CFG              = 46,
+	READ_SNMP_CFG              = 47,
 
 	READ_JSON_SCREEN           = 86,
 	READ_JSON_ITEM             = 87,
@@ -193,6 +195,8 @@ typedef enum
 	WRITE_MSV_COMMAND          = 142,
 	WRITE_EMAIL_ALARM          = 143,
 	WRITE_WIREGUARD_CFG        = 144,
+	WRITE_MQTT_CFG             = 146,
+	WRITE_SNMP_CFG             = 147,
 
 	WRITE_JSON_SCREEN          = 186,
 	WRITE_JSON_ITEM            = 187,

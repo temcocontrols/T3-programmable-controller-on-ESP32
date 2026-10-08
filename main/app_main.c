@@ -72,6 +72,7 @@
 #include "hub_module.h"
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
+#include "hub_snmp.h"
 
 //#include "lowPower.h"
 
@@ -4864,6 +4865,12 @@ void app_main()
 #endif
 
 	Mqtt_Handler_Init();
+
+	/* SNMP agent: wait for WiFi/LTE underlay inside hub_snmp task; enable via snmp_point.enable */
+	if (Modbus.mini_type == PROJECT_HUB) {
+		ESP_LOGI("app_main", "Starting Hub SNMP...");
+		hub_snmp_init();
+	}
 
     if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
