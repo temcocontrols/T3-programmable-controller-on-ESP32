@@ -333,29 +333,29 @@ void processMeasurementFunction(MultiMeter *meter, uint8_t *tempBuffer) {
 
     } else if (tempBuffer[6] == FUNCTION_CAPACITANCE) {
         if (tempBuffer[4] == RANGE_22_000NF) {
-            ptr.pvar->value *= 10; // 22.000nF range
-            measuredValue *= 10;
+            ptr.pvar->value = (ptr.pvar->value + 500) / 1000; // 22.000nF range
+            measuredValue = (measuredValue + 500) / 1000;
         } else if (tempBuffer[4] == RANGE_220_00NF) {
-            ptr.pvar->value *= 100; // 220.00nF range
-            measuredValue *= 100;
+            ptr.pvar->value = (ptr.pvar->value + 50) / 100; // 220.00nF range
+            measuredValue = (measuredValue + 50) / 100;
         } else if (tempBuffer[4] == RANGE_2_2000UF) {
-            ptr.pvar->value *= 1000; // 2.2000uF range
-            measuredValue *= 1000;
+            ptr.pvar->value = (ptr.pvar->value + 5) / 10; // 2.2000uF range
+            measuredValue = (measuredValue + 5) / 10;
         } else if (tempBuffer[4] == RANGE_22_000UF) {
-            ptr.pvar->value *= 10000; // 22.000uF range
-            measuredValue *= 10000;
+            ptr.pvar->value *= 1; // 22.000uF range
+            measuredValue *= 1;
         } else if (tempBuffer[4] == RANGE_220_00UF) {
-            ptr.pvar->value *= 100000; // 220.00uF range
-            measuredValue *= 100000;
+            ptr.pvar->value *= 10; // 220.00uF range
+            measuredValue *= 10;
         } else if (tempBuffer[4] == RANGE_2_2000MF) {
-            ptr.pvar->value *= 1000000; // 2.2000mF range
-            measuredValue *= 1000000;
+            ptr.pvar->value *= 100; // 2.2000mF range
+            measuredValue *= 100;
         } else if (tempBuffer[4] == RANGE_22_000MF) {
-            ptr.pvar->value *= 10000000; // 22.000mF range
-            measuredValue *= 10000000;
+            ptr.pvar->value *= 1000; // 22.000mF range
+            measuredValue *= 1000;
         } else if (tempBuffer[4] == RANGE_220_00MF) {
-            ptr.pvar->value *= 100000000; // 220.00mF range
-            measuredValue *= 100000000;
+            ptr.pvar->value *= 10000; // 220.00mF range
+            measuredValue *= 10000;
         }
     } else if (tempBuffer[6] == FUNCTION_FREQUENCY) {
 
