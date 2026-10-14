@@ -1,0 +1,7 @@
+{
+  "host": "192.168.0.3",
+  "port": 5432,
+  "database": "postgres",
+  "username": "lijun",
+  "project": "multiMeter"
+}

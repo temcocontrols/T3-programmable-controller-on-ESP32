@@ -6,3 +6,6 @@ build
 managed_components
 dependencies.lock
 STM32/Multimeter/OBJ/
+.vscode/settings.json
+STM32/Multimeter/USER/Tstat10_Top.uvguix.Administrator
+STM32/Multimeter/USER/Tstat10_Top.uvoptx
