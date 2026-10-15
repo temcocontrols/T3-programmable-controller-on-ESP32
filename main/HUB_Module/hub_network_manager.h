@@ -12,6 +12,15 @@ extern "C" {
 
 #define HUB_NETWORK_MANAGER_IP_ADDR_LEN 40
 
+/*
+ * Force default alignment. Callers often include this after Temco headers that
+ * leave #pragma pack(1) active (define.h / user_data.h). A packed view of this
+ * struct misreads lte_connected / lte_ip_addr and breaks MQTT/WG GSM underlay
+ * while SNMP (which includes this header first) still works.
+ */
+#pragma pack(push)
+#pragma pack()
+
 typedef enum {
     HUB_NETWORK_INTERFACE_NONE = 0,
     HUB_NETWORK_INTERFACE_ETHERNET,
@@ -35,6 +44,8 @@ typedef struct {
     char lte_ip_addr[HUB_NETWORK_MANAGER_IP_ADDR_LEN];
     hub_network_interface_t active_interface;
 } hub_network_manager_status_t;
+
+#pragma pack(pop)
 
 esp_err_t hub_network_manager_init(void);
 esp_err_t hub_network_manager_set_policy(hub_network_policy_t policy);

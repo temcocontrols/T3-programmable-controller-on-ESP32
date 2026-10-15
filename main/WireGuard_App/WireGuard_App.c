@@ -22,9 +22,9 @@
 #include <lwip/netdb.h>
 #include <lwip/inet.h>
 #include <ping/ping_sock.h>
+#include "hub_network_manager.h" /* before define.h/user_data.h (#pragma pack(1)) */
 #include "define.h"
 #include "flash.h"
-#include "hub_network_manager.h"
 #include "modbus.h"
 #include "rtc.h"
 #include "sntp_app.h"
@@ -576,36 +576,60 @@ void wireguard_gateway_task(void *pvParameters)
             continue;
         }
 
-        /* Need a valid clock for handshake — SNTP is only one way to get it.
-         * If system/RTC time is already OK (PC sync, prior NTP, etc.), start WG. */
+        /* WireGuard handshake needs a sane clock. If unset, start default SNTP. */
         {
             time_t now = 0;
             struct tm t;
             int sys_year;
             bool time_ok;
+            static bool s_sntp_kicked;
+            static uint8_t s_sntp_wait_sec;
 
             time(&now);
             gmtime_r(&now, &t);
             sys_year = t.tm_year + 1900;
             time_ok = (sys_year >= 2024) || (rtc_date.year >= 2024);
 
-            if (!time_ok && SNTPC_GetState() != SNTP_STATE_GET_DONE) {
-                if (SNTPC_GetState() == SNTP_STATE_TIMEOUT) {
-                    ESP_LOGW(TAG, "SNTP timed out — starting WireGuard anyway (handshake may fail)");
-                } else {
-                    static uint8_t s_sntp_wait_sec;
-
-                    if (!started) {
-                        s_sntp_wait_sec++;
-                        if (s_sntp_wait_sec == 1 || (s_sntp_wait_sec % 10) == 0)
-                            ESP_LOGI(TAG, "Waiting for time (sys=%d rtc=%d)... (%u/60 s)",
-                                     sys_year, (int)rtc_date.year, (unsigned)s_sntp_wait_sec);
-                    }
-                    if (s_sntp_wait_sec < 60)
-                        continue;
-                    ESP_LOGW(TAG, "Time wait cap (60 s) — starting WireGuard (handshake may fail until time is set)");
+            if (time_ok || (SNTPC_GetState() == SNTP_STATE_GET_DONE)) {
+                s_sntp_kicked = false;
+                s_sntp_wait_sec = 0;
+            } else {
+                if (!s_sntp_kicked) {
+                    ESP_LOGI(TAG,
+                             "No valid time (sys=%d rtc=%d) — starting default SNTP",
+                             sys_year,
+                             (int)rtc_date.year);
+                    /* sntp_start_default(): Hub→IPv4/LTE-safe; other devices→hostname NTP. */
+                    sntp_start_default();
+                    s_sntp_kicked = true;
                     s_sntp_wait_sec = 0;
                 }
+
+                if (SNTPC_GetState() == SNTP_STATE_TIMEOUT) {
+                    ESP_LOGW(TAG, "Default SNTP timed out — retrying");
+                    s_sntp_kicked = false;
+                    s_sntp_wait_sec = 0;
+                    continue;
+                }
+
+                if (!started) {
+                    s_sntp_wait_sec++;
+                    if ((s_sntp_wait_sec == 1) || ((s_sntp_wait_sec % 10) == 0)) {
+                        ESP_LOGI(TAG,
+                                 "Waiting for SNTP time (sys=%d rtc=%d state=%u)... (%u/90 s)",
+                                 sys_year,
+                                 (int)rtc_date.year,
+                                 (unsigned)SNTPC_GetState(),
+                                 (unsigned)s_sntp_wait_sec);
+                    }
+                }
+                if (s_sntp_wait_sec < 90) {
+                    continue;
+                }
+                ESP_LOGW(TAG, "SNTP wait cap (90 s) — retrying default SNTP before WireGuard");
+                s_sntp_kicked = false;
+                s_sntp_wait_sec = 0;
+                continue;
             }
         }
 
@@ -647,12 +671,20 @@ void wireguard_gateway_task(void *pvParameters)
         if (started && !s_wireguard_ready) {
             if (wireguard_app_peer_is_up(&wg_ctx) == ESP_OK) {
                 ESP_LOGI(TAG, "WireGuard peer is up");
+                if (wireguard_app_set_default(&wg_ctx) != ESP_OK) {
+                    ESP_LOGW(TAG, "Failed to set WireGuard as default route");
+                } else {
+                    ESP_LOGI(TAG, "WireGuard set as default route");
+                }
                 if (wireguard_app_start_ping() != ESP_OK)
                     ESP_LOGW(TAG, "Ping initialization failed");
                 s_wireguard_ready = true;
             } else {
                 ESP_LOGI(TAG, "Waiting for WireGuard peer...");
             }
+        } else if (started && s_wireguard_ready) {
+            /* Re-assert after hub_net_mgr may restore underlay default. */
+            (void)wireguard_app_set_default(&wg_ctx);
         }
     }
 }

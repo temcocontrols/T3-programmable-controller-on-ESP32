@@ -5,6 +5,9 @@
 
 #include "esp_log.h"
 
+/* Avoid circular include with WireGuard_App.h (it includes this header). */
+bool wireguard_app_is_ready(void);
+
 static const char *TAG = "hub_net_mgr";
 
 static hub_network_manager_status_t s_network_status;
@@ -103,6 +106,11 @@ static void hub_network_manager_log_status(void)
 static void hub_network_manager_apply_active_route(void)
 {
     esp_netif_t *active_netif = NULL;
+
+    /* Overlay tunnel owns the default route once the peer is up. */
+    if (wireguard_app_is_ready()) {
+        return;
+    }
 
     if (s_network_status.active_interface == HUB_NETWORK_INTERFACE_ETHERNET) {
         active_netif = s_eth_netif;

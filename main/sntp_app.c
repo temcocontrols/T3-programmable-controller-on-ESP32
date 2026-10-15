@@ -31,6 +31,7 @@
 #include "esp_sleep.h"
 #include "nvs_flash.h"
 #include "sntp_app.h"
+#include "hub_network_manager.h" /* before pack(1) Temco headers */
 #include "user_data.h"
 #include "define.h"
 #include "wifi.h"
@@ -348,6 +349,54 @@ void sntp_select_time_server(uint8_t type)
     sntp_do_init();
 }
 
+void sntp_start_default(void)
+{
+    if (Modbus.en_sntp < 2) {
+        Modbus.en_sntp = 2;
+    }
+    Setting_Info.reg.en_time_sync_with_pc = 0;
+    flag_Update_Sntp = 0;
+    Update_Sntp_Retry = 0;
+    s_retry_tick = 0;
+    sntpc_Conns_State = SNTP_STATE_INITIAL;
+    s_fallback_sntp_index = 0;
+
+    /* Hub/LTE: prefer IPv4 NTP (DNS often broken on cellular). Other devices keep hostname defaults. */
+    if (Modbus.mini_type == PROJECT_HUB) {
+        s_use_ip_ntp = true;
+        strncpy(sntp_server, s_fallback_sntp_ips[0], sizeof(sntp_server) - 1);
+        sntp_server[sizeof(sntp_server) - 1] = '\0';
+        ESP_LOGI(TAG, "Starting default SNTP (Hub/IPv4): %s", sntp_server);
+    } else {
+        s_use_ip_ntp = false;
+        strncpy(sntp_server, s_fallback_sntp_servers[0], sizeof(sntp_server) - 1);
+        sntp_server[sizeof(sntp_server) - 1] = '\0';
+        ESP_LOGI(TAG, "Starting default SNTP: %s", sntp_server);
+    }
+    sntp_do_init();
+}
+
+static bool sntp_underlay_ready(void)
+{
+    if (SSID_Info.IP_Wifi_Status == WIFI_NORMAL) {
+        return true;
+    }
+    if (Modbus.ethernet_status == 4) {
+        return true;
+    }
+
+    /* LTE PPPoS underlay exists only on Hub — never query GSM path on other devices. */
+    if (Modbus.mini_type != PROJECT_HUB) {
+        return false;
+    }
+
+    hub_network_manager_status_t net;
+    if (hub_network_manager_get_status(&net) != ESP_OK) {
+        return false;
+    }
+    return net.lte_connected && (net.lte_ip_addr[0] != '\0');
+}
+
 /*
  * update_sntp()
  * Call every 1 second.  Drives retry logic and daily re-sync.
@@ -360,7 +409,7 @@ void sntp_select_time_server(uint8_t type)
  */
 void update_sntp(void)
 {
-    /* WireGuard gateway: force NTP on, disable PC time-sync */
+    /* WireGuard gateway / Hub: force NTP on, disable PC time-sync */
     if (Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
     {
         Modbus.en_sntp = 2;
@@ -370,8 +419,8 @@ void update_sntp(void)
     if (Modbus.en_sntp < 2)
         return;
 
-    /* Guard: need IP on Wi-Fi or Ethernet */
-    if (SSID_Info.IP_Wifi_Status != WIFI_NORMAL && Modbus.ethernet_status != 4)
+    /* Guard: Wi-Fi / Ethernet; LTE only when mini_type == PROJECT_HUB */
+    if (!sntp_underlay_ready())
         return;
     if (Setting_Info.reg.en_time_sync_with_pc != 0)
         return;

@@ -5,6 +5,7 @@
 
 #include "Mqtt_Handler.h"
 #include "mqtt_client.h"
+#include "hub_network_manager.h" /* before define.h/user_data.h (#pragma pack(1)) */
 #include "user_data.h"
 #include "esp_log.h"
 #include "esp_event.h"
@@ -18,7 +19,6 @@
 #include "define.h"
 #include "handlers.h"
 #include "modbus.h"
-#include "hub_network_manager.h"
 
 extern EventGroupHandle_t s_wifi_event_group;
 extern TaskHandle_t main_task_handle[20];
@@ -51,6 +51,7 @@ static bool mqtt_wifi_ready(void)
 	       ((xEventGroupGetBits(s_wifi_event_group) & WIFI_CONNECTED_BIT) != 0);
 }
 
+/* Same criteria as hub_snmp_gsm_ready(). */
 static bool mqtt_gsm_ready(void)
 {
 	hub_network_manager_status_t status;
@@ -76,6 +77,59 @@ static bool mqtt_auto_underlay_ready(const char **underlay_name)
 		return true;
 	}
 	return false;
+}
+
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
+static void mqtt_build_broker_uri(void);
+
+static void mqtt_stop_client(void)
+{
+	if (s_mqtt_client == NULL) {
+		return;
+	}
+	esp_mqtt_client_unregister_event(s_mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler);
+	esp_mqtt_client_stop(s_mqtt_client);
+	esp_mqtt_client_destroy(s_mqtt_client);
+	s_mqtt_client = NULL;
+	s_connected = false;
+	mqtt_point.reg.connected = 0;
+}
+
+static bool mqtt_start_client(void)
+{
+	mqtt_build_broker_uri();
+	ESP_LOGI(TAG, "Initializing MQTT client uri=%s", s_broker_uri);
+
+	esp_mqtt_client_config_t mqtt_cfg = {0};
+	mqtt_cfg.broker.address.uri = s_broker_uri;
+	if (mqtt_point.reg.client_id[0] != '\0') {
+		mqtt_cfg.credentials.client_id = mqtt_point.reg.client_id;
+	}
+	if (mqtt_point.reg.username[0] != '\0') {
+		mqtt_cfg.credentials.username = mqtt_point.reg.username;
+		mqtt_cfg.credentials.authentication.password = mqtt_point.reg.password;
+	}
+
+	s_mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+	if (s_mqtt_client == NULL) {
+		ESP_LOGE(TAG, "Failed to initialize MQTT client");
+		return false;
+	}
+
+	esp_err_t err = esp_mqtt_client_register_event(s_mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "Failed to register MQTT event handler: %s", esp_err_to_name(err));
+		mqtt_stop_client();
+		return false;
+	}
+
+	err = esp_mqtt_client_start(s_mqtt_client);
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "Failed to start MQTT client: %s", esp_err_to_name(err));
+		mqtt_stop_client();
+		return false;
+	}
+	return true;
 }
 
 static const char *mqtt_pub_topic(void)
@@ -312,64 +366,58 @@ bool Mqtt_Handler_Send_COV(const struct BACnet_COV_Data *cov_data)
 void Mqtt_HandlerTask(void *pvParameters)
 {
 	const char *underlay = NULL;
-	(void)pvParameters;
+	uint8_t wait_log = 0;
+	bool client_started = false;
 
-	ESP_LOGI(TAG, "Waiting for WAN (WiFi or GSM)...");
+	(void)pvParameters;
+	ESP_LOGI(TAG, "MQTT task started (enable=%u)", (unsigned)mqtt_point.reg.enable);
+
 	while (!mqtt_task_exit) {
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-		if (mqtt_auto_underlay_ready(&underlay)) {
+		vTaskDelay(pdMS_TO_TICKS(200));
+
+		if (mqtt_point.reg.enable == 0 && Modbus.enable_mqtt == 0) {
+			if (client_started) {
+				ESP_LOGI(TAG, "MQTT disabled — stopping client");
+				mqtt_stop_client();
+				client_started = false;
+			}
+			continue;
+		}
+
+		if (!mqtt_auto_underlay_ready(&underlay)) {
+			if (client_started) {
+				ESP_LOGW(TAG, "Underlay lost — stopping MQTT");
+				mqtt_stop_client();
+				client_started = false;
+			} else if ((++wait_log % 25) == 1) {
+				hub_network_manager_status_t st = {0};
+				(void)hub_network_manager_get_status(&st);
+				ESP_LOGI(TAG,
+				         "Waiting for WAN (WiFi or GSM)... wifi=%d lte=%d ip=%s active=%d usable=%d en=%u/%u",
+				         mqtt_wifi_ready() ? 1 : 0,
+				         st.lte_connected ? 1 : 0,
+				         st.lte_ip_addr[0] ? st.lte_ip_addr : "-",
+				         (int)st.active_interface,
+				         hub_network_manager_has_usable_network() ? 1 : 0,
+				         (unsigned)mqtt_point.reg.enable,
+				         (unsigned)Modbus.enable_mqtt);
+			}
+			continue;
+		}
+
+		if (!client_started) {
 			ESP_LOGI(TAG, "AUTO underlay ready (%s), starting MQTT", underlay ? underlay : "?");
-			break;
+			if (mqtt_start_client()) {
+				client_started = true;
+				wait_log = 0;
+			} else {
+				ESP_LOGW(TAG, "MQTT start failed — retry in 2s");
+				vTaskDelay(pdMS_TO_TICKS(2000));
+			}
 		}
 	}
-	if (mqtt_task_exit) {
-		goto exit_task;
-	}
 
-	mqtt_build_broker_uri();
-	ESP_LOGI(TAG, "Initializing MQTT client uri=%s", s_broker_uri);
-
-	esp_mqtt_client_config_t mqtt_cfg = {0};
-	mqtt_cfg.broker.address.uri = s_broker_uri;
-	if (mqtt_point.reg.client_id[0] != '\0') {
-		mqtt_cfg.credentials.client_id = mqtt_point.reg.client_id;
-	}
-	if (mqtt_point.reg.username[0] != '\0') {
-		mqtt_cfg.credentials.username = mqtt_point.reg.username;
-		mqtt_cfg.credentials.authentication.password = mqtt_point.reg.password;
-	}
-
-	s_mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
-	if (s_mqtt_client == NULL) {
-		ESP_LOGE(TAG, "Failed to initialize MQTT client");
-		goto exit_task;
-	}
-
-	esp_err_t err = esp_mqtt_client_register_event(s_mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-	if (err != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to register MQTT event handler: %s", esp_err_to_name(err));
-		goto exit_task;
-	}
-
-	err = esp_mqtt_client_start(s_mqtt_client);
-	if (err != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to start MQTT client: %s", esp_err_to_name(err));
-	}
-
-	while (mqtt_task_exit == false) {
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
-
-	if (s_mqtt_client) {
-		esp_mqtt_client_unregister_event(s_mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler);
-		esp_mqtt_client_stop(s_mqtt_client);
-		esp_mqtt_client_destroy(s_mqtt_client);
-		s_mqtt_client = NULL;
-	}
-
-exit_task:
-	s_connected = false;
-	mqtt_point.reg.connected = 0;
+	mqtt_stop_client();
 	main_task_handle[19] = NULL;
 	ESP_LOGI(TAG, "MQTT task exiting");
 	vTaskDelete(NULL);
@@ -398,7 +446,13 @@ void Mqtt_Handler_Init(void)
 	}
 
 	mqtt_task_exit = false;
-	xTaskCreate(Mqtt_HandlerTask, "mqtt_handler", 4096, NULL, tskIDLE_PRIORITY + 2, &main_task_handle[19]);
+	/* Stack must cover esp_mqtt + TLS-less TCP; priority aligned with hub_snmp. */
+	BaseType_t ok = xTaskCreate(Mqtt_HandlerTask, "mqtt_handler", 8192, NULL,
+	                            5, &main_task_handle[19]);
+	if (ok != pdPASS) {
+		ESP_LOGE(TAG, "Failed to create mqtt_handler task");
+		main_task_handle[19] = NULL;
+	}
 }
 
 void Mqtt_Handler_Apply_Config(void)
