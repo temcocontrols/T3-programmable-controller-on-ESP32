@@ -81,6 +81,7 @@ typedef struct {
 
 #define IPPROTO_IP 0
 #define IPPROTO_TCP 6
+#define TCP_NODELAY 1
 #define IPPROTO_IPV6 41
 
 #define SOCK_DGRAM 2

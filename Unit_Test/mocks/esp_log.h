@@ -8,6 +8,7 @@
 #define ESP_LOGI(tag, format, ...) printf("[INFO] [%s] " format "\n", tag, ##__VA_ARGS__)
 #define ESP_LOGD(tag, format, ...) printf("[DEBUG] [%s] " format "\n", tag, ##__VA_ARGS__)
 #define ESP_LOGV(tag, format, ...) printf("[VERBOSE] [%s] " format "\n", tag, ##__VA_ARGS__)
+#define ESP_LOG_LEVEL(level, tag, format, ...) ESP_LOGI(tag, format, ##__VA_ARGS__)
 
 #define esp_log_write(...) (void)0
 
