@@ -181,6 +181,9 @@ EXT_RAM_BSS_ATTR Str_monitor_point					backup_monitors[MAX_MONITORS];// _at_ 0x2
 
 
 EXT_RAM_BSS_ATTR Str_Wireguard_point wireguard_point;
+EXT_RAM_BSS_ATTR Str_Gsm_status_point gsm_status_point;
+EXT_RAM_BSS_ATTR Str_Mqtt_point mqtt_point;
+EXT_RAM_BSS_ATTR Str_Snmp_point snmp_point;
 
 Str_Email_point Email_Setting;
 //uint32_t  count_max_time[MAX_MONITORS];
@@ -873,7 +876,7 @@ void Sync_Panel_Info(void)
 	Setting_Info.reg.network_number = Modbus.network_number;
 	Setting_Info.reg.network_number_hi = Modbus.network_number >> 8;
 
-	Setting_Info.reg.panel_type = 88;
+	Setting_Info.reg.panel_type = Modbus.product_model;
 
 	Setting_Info.reg.pro_info.harware_rev = Modbus.hardRev;
 

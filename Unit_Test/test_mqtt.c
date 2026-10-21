@@ -52,7 +52,7 @@ void test_mqtt_send_cov_real_value(void) {
     bool success = Mqtt_Handler_Send_COV(&cov);
     TEST_ASSERT_TRUE(success);
     TEST_ASSERT_EQUAL_INT(1, publish_called_count);
-    TEST_ASSERT_EQUAL_STRING("temco/cov/tstat11/device_1028/Analog Input_2", last_published_topic);
+    TEST_ASSERT_EQUAL_STRING("temco/test/hub/pub/cov/device_1028/Analog Input_2", last_published_topic);
 
     // Verify JSON payload
     cJSON *root = cJSON_Parse(last_published_data);
@@ -99,7 +99,7 @@ void test_mqtt_send_cov_boolean_value(void) {
     bool success = Mqtt_Handler_Send_COV(&cov);
     TEST_ASSERT_TRUE(success);
     TEST_ASSERT_EQUAL_INT(1, publish_called_count);
-    TEST_ASSERT_EQUAL_STRING("temco/cov/tstat11/device_1028/Binary Input_1", last_published_topic);
+    TEST_ASSERT_EQUAL_STRING("temco/test/hub/pub/cov/device_1028/Binary Input_1", last_published_topic);
 
     // Verify JSON payload
     cJSON *root = cJSON_Parse(last_published_data);

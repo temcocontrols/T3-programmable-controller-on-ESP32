@@ -45,6 +45,8 @@ typedef enum {
 esp_err_t esp_ping_get_profile(esp_ping_handle_t hdl, esp_ping_profile_t profile_type, void *out_val, uint32_t val_len);
 esp_err_t esp_ping_new_session(const esp_ping_config_t *config, const esp_ping_callbacks_t *cbs, esp_ping_handle_t *ping_hdl);
 esp_err_t esp_ping_start(esp_ping_handle_t ping_hdl);
+esp_err_t esp_ping_stop(esp_ping_handle_t ping_hdl);
+esp_err_t esp_ping_delete_session(esp_ping_handle_t ping_hdl);
 
 #ifdef __cplusplus
 }

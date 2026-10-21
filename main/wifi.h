@@ -42,6 +42,7 @@ extern char debug_array[100];
 
 extern STR_SSID	SSID_Info;
 extern void wifi_init_sta();
+void wifi_ensure_public_dns(bool replace_main);
 extern void debug_info(char *string);
 extern void debug_print(char *string,char task_index);
 extern void wifi_task(void *pvParameters);

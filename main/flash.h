@@ -46,6 +46,7 @@ typedef enum
 #define FLASH_SERIAL_NUM2	"SERIAL_NUM_2"
 #define FLASH_SERIAL_NUM3	"SERIAL_NUM_3"
 #define FLASH_SERIAL_NUM4	"SERIAL_NUM_4"
+#define FLASH_PRODUCT_MODEL	"PRODUCT_MODEL"
 #define FLASH_RESUME_PACKAGE "RESUME_PACKAGE"
 #define FLASH_BOOTLOADER    "BOOTLOADER"
 #define FLASH_COUNT_REBOOT	"COUNT_REBOOT"
@@ -133,6 +134,8 @@ typedef enum
 
 
 #define FLASH_ENABLE_MQTT        "MQTT_EN"
+#define FLASH_MQTT_BLOB          "MQTT_CFG"
+#define FLASH_SNMP_BLOB          "SNMP_CFG"
 #define FLASH_ENABLE_DEBUG
 
 
@@ -196,6 +199,10 @@ esp_err_t Save_Lcd_config(void);
 
 esp_err_t save_wireguard_config_to_flash(void);
 esp_err_t load_wireguard_config_from_flash(void);
+esp_err_t save_mqtt_config_to_flash(void);
+esp_err_t load_mqtt_config_from_flash(void);
+esp_err_t save_snmp_config_to_flash(void);
+esp_err_t load_snmp_config_from_flash(void);
 
 extern void Flash_Inital(void);
 extern void read_point_info(void);

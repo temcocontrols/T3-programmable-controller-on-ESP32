@@ -261,17 +261,81 @@ typedef union
     {
 		/* WireGuard configuration */
 		U8_T wireguard_enable;
-		U8_T wireguard_private_key[64];
-		U8_T wireguard_peer_public_key[64];
-		U8_T wireguard_preshared_key[64];
+		/* 66 bytes = 33 Modbus regs x 2 chars; matches T3000 Str_Wireguard_point */
+		U8_T wireguard_private_key[66];
+		U8_T wireguard_peer_public_key[66];
+		U8_T wireguard_preshared_key[66];
 		U8_T wireguard_local_ip[4];
 		/* Netmask is fixed to 255.255.255.0 */
 		U16_T wireguard_port;  /* Both local and peer use same port */
 		U8_T wireguard_peer_ip[4];
 		/* Keepalive is fixed to 25 seconds */
 		/* Ping address is fixed to 10.0.0.1 */
+		U8_T reserved[191];
     }reg;
 }Str_Wireguard_point;
+
+/* Hub GSM/LTE live status — packed; aligned with Modbus 2251-2300 (modbus.h MODBUS_GSM_*). */
+typedef union
+{
+	uint8_t all[400];
+	struct
+	{
+		U8_T modem_state;       /* 2251 a7608_state_t */
+		U8_T ppp_state;         /* 2252 hub_ppp_state_t */
+		U8_T flags;             /* 2253 GSM_FLAG_* */
+		U8_T active_sim;        /* 2254 0=none, 1=SIM1, 2=SIM2 */
+		U8_T csq;               /* 2255 0-31, 99=unknown */
+		S8_T rssi_dbm;          /* 2256 signed dBm; 0 if invalid */
+		U8_T creg_stat;         /* 2257 */
+		U8_T cereg_stat;        /* 2258 */
+		U8_T ip[4];             /* 2259-2262 PPP/cellular IPv4 */
+		U16_T status_age_s;     /* 2263 seconds since last refresh */
+		U16_T last_error;       /* 2264 low 16 bits of esp_err_t */
+		U8_T operator_name[32]; /* 2265-2280, 2 chars per register */
+		U8_T apn[32];           /* 2281-2296, 2 chars per register */
+		U8_T reserved[320];     /* 2297-2300 + pad to 400 bytes */
+	} reg;
+} Str_Gsm_status_point;
+
+/* Hub MQTT client config — Modbus 2301-2450; BACnet READ/WRITE_MQTT_CFG 46/146. */
+typedef union
+{
+	uint8_t all[400];
+	struct
+	{
+		U8_T enable;            /* 2301 */
+		U8_T connected;         /* 2302 RO */
+		U16_T port;             /* 2303 default 1883 */
+		char broker[64];        /* 2304-2335 */
+		char username[32];      /* 2336-2351 */
+		char password[32];      /* 2352-2367 */
+		char client_id[32];     /* 2368-2383 */
+		char pub_topic[64];     /* 2384-2415 */
+		char sub_topic[64];     /* 2416-2447 */
+		U8_T reserved[108];
+	} reg;
+} Str_Mqtt_point;
+
+/* Hub SNMP agent config — Modbus 2451-2550; BACnet READ/WRITE_SNMP_CFG 47/147. */
+typedef union
+{
+	uint8_t all[400];
+	struct
+	{
+		U8_T enable;            /* 2451 */
+		U8_T running;           /* 2452 RO */
+		U16_T port;             /* 2453 default 161 */
+		char ro_community[32];  /* 2454-2469 */
+		char rw_community[32];  /* 2470-2485 */
+		U8_T trap_dest_ip[4];   /* 2486-2489 */
+		U16_T trap_dest_port;   /* 2490 default 162 */
+		char sys_name[32];      /* 2491-2506 */
+		char sys_location[32];  /* 2507-2522 */
+		char sys_contact[32];   /* 2523-2538 */
+		U8_T reserved[230];
+	} reg;
+} Str_Snmp_point;
 
 typedef	union
 {
@@ -444,6 +508,9 @@ extern EXT_RAM_BSS_ATTR Password_point			 			passwords[ MAX_PASSW ];
 extern Str_Email_point Email_Setting;
 
 extern EXT_RAM_BSS_ATTR Str_Wireguard_point wireguard_point;
+extern EXT_RAM_BSS_ATTR Str_Gsm_status_point gsm_status_point;
+extern EXT_RAM_BSS_ATTR Str_Mqtt_point mqtt_point;
+extern EXT_RAM_BSS_ATTR Str_Snmp_point snmp_point;
 
 extern EXT_RAM_BSS_ATTR Str_variable_point		 		 vars[MAX_VARS];
 extern EXT_RAM_BSS_ATTR Str_controller_point 	 			 controllers[MAX_CONS];

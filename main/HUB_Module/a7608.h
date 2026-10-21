@@ -1,0 +1,183 @@
+#ifndef A7608_H
+#define A7608_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "driver/gpio.h"
+#include "driver/uart.h"
+#include "esp_err.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define A7608_DEFAULT_UART_NUM             UART_NUM_1
+#define A7608_DEFAULT_BAUD_RATE            115200
+#define A7608_DEFAULT_RX_BUFFER_SIZE       2048
+
+#define A7608_DEFAULT_MODEM_TX_PIN         GPIO_NUM_17
+#define A7608_DEFAULT_MODEM_RX_PIN         GPIO_NUM_18
+#define A7608_DEFAULT_PWRKEY_PIN           GPIO_NUM_15
+#define A7608_DEFAULT_RESET_PIN            GPIO_NUM_16
+#define A7608_DEFAULT_RING_PIN             GPIO_NUM_6
+#define A7608_DEFAULT_DTR_PIN              GPIO_NUM_7
+#define A7608_DEFAULT_SIM_SEL_PIN          GPIO_NUM_8
+#define A7608_DEFAULT_SIM1_DET_PIN         GPIO_NUM_5
+#define A7608_DEFAULT_SIM2_DET_PIN         GPIO_NUM_21
+
+#define A7608_HARD_RESET_PULSE_MS          2600U
+#define A7608_HARD_RESET_QUIET_MS          8000U
+#define A7608_SIM1_SELECT_LEVEL            0
+#define A7608_SIM2_SELECT_LEVEL            1
+#define A7608_SIM_DET_INSERTED_LEVEL       1
+
+typedef enum {
+    A7608_SIM_SLOT_NONE = 0,
+    A7608_SIM_SLOT_1,
+    A7608_SIM_SLOT_2,
+} a7608_sim_slot_t;
+
+#define A7608_OPERATOR_LEN                 32
+#define A7608_APN_LEN                      64
+#define A7608_IMSI_LEN                     20
+#define A7608_IP_ADDR_LEN                  40
+#define A7608_LAST_ERROR_LEN               64
+#define A7608_GNSS_UTC_LEN                 24
+#define A7608_GNSS_COORD_LEN               20
+
+typedef enum {
+    A7608_STATE_OFF = 0,
+    A7608_STATE_BOOTING,
+    A7608_STATE_AT_READY,
+    A7608_STATE_SIM_READY,
+    A7608_STATE_REGISTERED,
+    A7608_STATE_ATTACHED,
+    A7608_STATE_CONNECTED,
+    A7608_STATE_ERROR,
+} a7608_state_t;
+
+typedef enum
+{
+    A7608_SERVICE_RUNNING = 0,
+    A7608_SERVICE_PAUSE_REQUESTED,
+    A7608_SERVICE_PAUSED,
+    A7608_SERVICE_RESUME_REQUESTED,
+    A7608_SERVICE_ERROR,
+} a7608_service_state_t;
+
+typedef struct {
+    uart_port_t uart_num;
+    int baud_rate;
+    int rx_buffer_size;
+
+    gpio_num_t modem_tx_pin;
+    gpio_num_t modem_rx_pin;
+    gpio_num_t pwrkey_pin;
+    gpio_num_t reset_pin;
+    gpio_num_t ring_pin;
+    gpio_num_t dtr_pin;
+    gpio_num_t sim_sel_pin;
+    gpio_num_t sim1_det_pin;
+    gpio_num_t sim2_det_pin;
+
+    int pwrkey_active_level;
+    int reset_active_level;
+    int dtr_active_level;
+
+    bool reset_uart_driver;
+    bool configure_control_pins;
+} a7608_config_t;
+
+typedef struct {
+    a7608_state_t state;
+    bool at_ready;
+    bool sim_ready;
+    bool sim1_present;
+    bool sim2_present;
+    a7608_sim_slot_t active_sim_slot;
+    bool registered_home;
+    bool registered_roaming;
+    bool attached;
+    bool connected;
+    bool status_valid;
+    bool rssi_valid;
+    int csq;
+    int rssi_dbm;
+    int creg_stat;
+    int cereg_stat;
+    int cfun;
+    uint32_t last_refresh_tick;
+    uint32_t status_age_ms;
+    esp_err_t last_refresh_result;
+    char operator_name[A7608_OPERATOR_LEN];
+    char apn[A7608_APN_LEN];
+    char ip_addr[A7608_IP_ADDR_LEN];
+    bool gnss_powered;
+    bool gnss_fix;
+    char gnss_utc[A7608_GNSS_UTC_LEN];
+    char gnss_latitude[A7608_GNSS_COORD_LEN];
+    char gnss_ns;
+    char gnss_longitude[A7608_GNSS_COORD_LEN];
+    char gnss_ew;
+    char last_error[A7608_LAST_ERROR_LEN];
+} a7608_status_t;
+
+void a7608_get_default_config(a7608_config_t *config);
+esp_err_t a7608_init(const a7608_config_t *config);
+esp_err_t a7608_deinit(void);
+
+esp_err_t a7608_power_on(uint32_t pulse_ms, uint32_t boot_wait_ms);
+esp_err_t a7608_hard_reset(uint32_t pulse_ms, uint32_t boot_wait_ms);
+esp_err_t a7608_try_exit_data_mode(void);
+void a7608_clear_stale_ready(void);
+a7608_sim_slot_t a7608_get_active_sim_slot(void);
+bool a7608_sim_slot_detected(a7608_sim_slot_t slot);
+bool a7608_any_sim_slot_detected(void);
+bool a7608_other_sim_slot_detected(void);
+const char *a7608_sim_slot_name(a7608_sim_slot_t slot);
+a7608_sim_slot_t a7608_alternate_sim_slot(void);
+esp_err_t a7608_switch_sim_slot(a7608_sim_slot_t slot);
+esp_err_t a7608_set_dtr(bool active);
+esp_err_t a7608_set_dtr_level(int level);
+int a7608_get_dtr_level(void);
+
+esp_err_t a7608_send_command(const char *cmd,
+                             const char *expected,
+                             uint32_t timeout_ms,
+                             char *response,
+                             size_t response_len);
+esp_err_t a7608_probe(void);
+esp_err_t a7608_check_sim_ready(bool *sim_ready);
+esp_err_t a7608_refresh_status(void);
+esp_err_t a7608_refresh_status_ex(bool include_operator);
+esp_err_t a7608_read_pdp_apn(char *apn, size_t apn_len);
+esp_err_t a7608_read_imsi(char *imsi, size_t imsi_len);
+uint32_t a7608_status_age_ms(void);
+bool a7608_status_is_fresh(uint32_t max_age_ms);
+bool a7608_status_is_registered(void);
+void a7608_startup_probe_init_in_progress(void);
+bool a7608_startup_probe_started(void);
+bool a7608_startup_probe_complete(void);
+esp_err_t a7608_startup_probe_result(void);
+esp_err_t a7608_gnss_enable(void);
+esp_err_t a7608_gnss_disable(void);
+esp_err_t a7608_refresh_gnss(void);
+
+void a7608_hub_task(void *pvParameters);
+
+const a7608_status_t *a7608_get_status(void);
+const char *a7608_state_name(a7608_state_t state);
+esp_err_t a7608_request_pause(void);
+esp_err_t a7608_request_resume(void);
+bool a7608_is_pause_requested(void);
+bool a7608_is_paused(void);
+a7608_service_state_t a7608_get_service_state(void);
+const char *a7608_service_state_name(a7608_service_state_t state);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

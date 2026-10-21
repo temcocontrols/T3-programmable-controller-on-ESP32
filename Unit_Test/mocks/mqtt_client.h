@@ -55,6 +55,13 @@ typedef struct {
             const char* uri;
         } address;
     } broker;
+    struct {
+        const char* username;
+        const char* client_id;
+        struct {
+            const char* password;
+        } authentication;
+    } credentials;
 } esp_mqtt_client_config_t;
 
 static inline esp_mqtt_client_handle_t esp_mqtt_client_init(const esp_mqtt_client_config_t* config) { (void)config; return (esp_mqtt_client_handle_t)1; }

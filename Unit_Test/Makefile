@@ -58,6 +58,7 @@ INC = -Iunity \
       -Imocks \
       -Imocks/freertos \
       -I../main \
+      -I../main/HUB_Module \
       -I../main/LCD_Driver \
       -I../main/TemcoScreen \
       -I../main/Mqtt_Handler \

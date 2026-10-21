@@ -26,6 +26,8 @@ extern char     sntp_server[30];
 /* ── Public functions ─────────────────────────────────────────────────────── */
 void    update_sntp(void);                        /* call every 1 s            */
 void    sntp_select_time_server(uint8_t type);    /* trigger a (re)start       */
+/** Start SNTP with built-in default servers (IPv4-first for LTE/no-DNS). */
+void    sntp_start_default(void);
 uint8_t SNTPC_GetState(void);                     /* returns sntpc_Conns_State */
 void    Send_TimeSync_Broadcast(uint8_t protocol);/* broadcast time to peers   */
 
