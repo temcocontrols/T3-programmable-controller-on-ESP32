@@ -4,7 +4,7 @@ Updated after the user supplied Maurice's five original files and authorized the
 - Original documents copied unchanged to reference/ and SHA256 verified against supplied files.
 - Confirmed existing NAS table, login and sequence USAGE. No schema changes.
 - Inspected the INSERT/UPDATE trigger; additional restrictions apply only to doubao.
-- One authorized task inserted in a transaction with a cooperative advisory lock and duplicate check: 444, exact project multiMeter, title 调试新版本硬件、测试电压测量, status new, owner null.
+- One authorized task inserted in a transaction with a cooperative advisory lock and duplicate check: 444, exact project multiMeter, English task summary: Debug the new hardware revision and test voltage measurement, status new, owner null. The database title retains the original user-provided wording; this documentation change does not update the shared database.
 - No acceptance thresholds invented; description/command repeat the user's task. No debug view assumed.
 - config.json now uses the database-confirmed multiMeter value.
 - Windows DPAPI-encrypted credential created outside Git at %LOCALAPPDATA%\Temco\TaskBoard\lijun.credential.xml. No plaintext credential stored in project files.

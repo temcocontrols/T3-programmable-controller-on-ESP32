@@ -6,7 +6,7 @@ Active source: main/multiMeter.c; another implementation lives in STM32/Multimet
 ## Database and first task
 
 NAS 192.168.0.3:5432; database postgres; login lijun. Exact project: multiMeter.
-Task **444 — 调试新版本硬件、测试电压测量** was created with user authorization, status new, owner null.
+Task **444 — Debug the new hardware revision and test voltage measurement** was created with user authorization, status new, owner null.
 No task claim, firmware changes or hardware tests were performed.
 
 Maurice's originals are in reference/ (copied unchanged and hash-verified). The top-level documents adapt them to the existing NAS. NEVER execute the original bootstrap CREATE SCHEMA/TABLE/INDEX commands here.

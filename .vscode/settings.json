@@ -4,5 +4,5 @@
     "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.8.7\\python.exe",
     "idf.currentSetup": "D:\\esp_idf\\.espressif\\v5.5.3\\esp-idf",
     "idf.flashType": "UART",
-    "idf.portWin": "COM11"
+    "idf.port": "COM11"
 }
