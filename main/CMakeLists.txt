@@ -60,7 +60,7 @@ idf_component_register(		SRCS
 							"HUB_Module/a7608.c"
 							"HUB_Module/hub_gsm_status.c"
 							"HUB_Module/hub_snmp.c"
-							"LcdTheme.c"
+							"lcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
@@ -111,6 +111,7 @@ idf_component_register(		SRCS
 						spi_flash
 						temco_IO_control
 						temco_bacnet
+						temco_dynamic_display
 						esp_wireguard
 						snmp_agent
 			PRIV_REQUIRES espressif__esp_modem

@@ -8,6 +8,7 @@
 #include "hub_network_manager.h"
 #include "hub_snmp.h"
 #include "hub_w5500.h"
+#include "dynamic_display_api.h"
 #include "esp_event.h"
 #include "bacnet.h"
 #include "cov.h"
@@ -108,6 +109,9 @@ void clear_scan_db(void) {}
 void LcdThemeMarkForUpdate(void) {}
 void change_panel_number_in_code(U8_T old, U8_T new_panel) { (void)old; (void)new_panel; }
 void start_fw_update(void) {}
+esp_err_t dynamic_display_api_start(void) { return ESP_OK; }
+void dynamic_display_api_stop(void) {}
+esp_err_t dynamic_display_reset_to_defaults(void) { return ESP_OK; }
 int PCF_SetDateTime(PCF_DateTime *dt) { (void)dt; return 0; }
 void update_timers(void) {}
 BACNET_BINARY_PV Binary_Output_Present_Value(uint32_t instance) { (void)instance; return (BACNET_BINARY_PV)0; }

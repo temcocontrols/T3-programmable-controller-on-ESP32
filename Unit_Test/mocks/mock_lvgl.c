@@ -9,6 +9,7 @@ static lv_calendar_date_t dummy_date = {0};
 
 const lv_font_t lv_font_montserrat_10 = {0};
 const lv_font_t lv_font_montserrat_12 = {0};
+const lv_font_t lv_font_montserrat_14 = {0};
 const lv_font_t lv_font_montserrat_16 = {0};
 const lv_font_t lv_font_montserrat_18 = {0};
 const lv_font_t lv_font_montserrat_20 = {0};
@@ -28,6 +29,9 @@ void lv_display_set_color_format(lv_display_t *disp, int fmt) { (void)disp; (voi
 void lv_display_set_flush_cb(lv_display_t *disp, void (*flush_cb)(lv_display_t *, const lv_area_t *, uint8_t *)) { (void)disp; (void)flush_cb; }
 void lv_display_set_default(lv_display_t *disp) { (void)disp; }
 lv_display_t *lv_display_get_default(void) { return dummy_disp; }
+lv_display_t *lv_obj_get_display(const lv_obj_t *obj) { (void)obj; return dummy_disp; }
+int32_t lv_display_get_horizontal_resolution(const lv_display_t *disp) { (void)disp; return 480; }
+int32_t lv_display_get_vertical_resolution(const lv_display_t *disp) { (void)disp; return 320; }
 
 lv_indev_t *lv_indev_create(void) { return dummy_indev; }
 void lv_indev_set_type(lv_indev_t *indev, int type) { (void)indev; (void)type; }
@@ -40,6 +44,7 @@ lv_obj_t *lv_obj_create(lv_obj_t *parent) { dummy_obj.parent = parent; return &d
 void lv_obj_del(lv_obj_t *obj) { (void)obj; }
 bool lv_obj_is_valid(const lv_obj_t *obj) { return obj != NULL; }
 void lv_obj_align(lv_obj_t *obj, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs) { (void)obj; (void)align; (void)x_ofs; (void)y_ofs; }
+void lv_obj_align_to(lv_obj_t *obj, const lv_obj_t *base, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs) { (void)obj; (void)base; (void)align; (void)x_ofs; (void)y_ofs; }
 void lv_obj_center(lv_obj_t *obj) { (void)obj; }
 void lv_obj_set_size(lv_obj_t *obj, lv_coord_t w, lv_coord_t h) { (void)obj; (void)w; (void)h; }
 void lv_obj_set_width(lv_obj_t *obj, lv_coord_t w) { (void)obj; (void)w; }
@@ -69,6 +74,8 @@ void lv_obj_set_style_pad_row(lv_obj_t *obj, lv_coord_t value, uint32_t selector
 void lv_obj_set_style_radius(lv_obj_t *obj, lv_coord_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
 void lv_obj_set_style_bg_color(lv_obj_t *obj, lv_color_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
 void lv_obj_set_style_bg_opa(lv_obj_t *obj, int value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
+void lv_obj_set_style_bg_image_src(lv_obj_t *obj, const void *src, uint32_t selector) { (void)obj; (void)src; (void)selector; }
+void lv_obj_set_style_bg_image_opa(lv_obj_t *obj, int value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
 void lv_obj_set_style_border_color(lv_obj_t *obj, lv_color_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
 void lv_obj_set_style_border_width(lv_obj_t *obj, lv_coord_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
 void lv_obj_set_style_border_opa(lv_obj_t *obj, int value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
@@ -130,6 +137,7 @@ int32_t lv_bar_get_value(const lv_obj_t *obj) { (void)obj; return 0; }
 
 lv_obj_t *lv_dropdown_create(lv_obj_t *parent) { dummy_obj.parent = parent; return &dummy_obj; }
 void lv_dropdown_set_options(lv_obj_t *obj, const char *options) { (void)obj; (void)options; }
+const char *lv_dropdown_get_options(const lv_obj_t *obj) { (void)obj; return ""; }
 void lv_dropdown_set_selected(lv_obj_t *obj, uint16_t sel_opt) { (void)obj; (void)sel_opt; }
 uint16_t lv_dropdown_get_selected(const lv_obj_t *obj) { (void)obj; return 0; }
 void lv_dropdown_get_selected_str(const lv_obj_t *obj, char *buf, uint32_t buf_size) { (void)obj; if(buf && buf_size > 0) buf[0] = '\0'; }
@@ -167,6 +175,7 @@ void lv_table_get_selected_cell(const lv_obj_t *obj, uint32_t *row, uint32_t *co
 lv_obj_t *lv_calendar_create(lv_obj_t *parent) { dummy_obj.parent = parent; return &dummy_obj; }
 void lv_calendar_set_today_date(lv_obj_t *obj, uint16_t year, uint8_t month, uint8_t day) { (void)obj; (void)year; (void)month; (void)day; }
 void lv_calendar_set_showed_date(lv_obj_t *obj, uint16_t year, uint8_t month) { (void)obj; (void)year; (void)month; }
+void lv_calendar_set_highlighted_dates(lv_obj_t *obj, lv_calendar_date_t highlighted[], size_t date_num) { (void)obj; (void)highlighted; (void)date_num; }
 lv_result_t lv_calendar_get_pressed_date(const lv_obj_t *obj, lv_calendar_date_t *date) { (void)obj; if(date) *date = dummy_date; return LV_RES_OK; }
 lv_obj_t *lv_calendar_header_arrow_create(lv_obj_t *parent) { dummy_obj.parent = parent; return &dummy_obj; }
 
@@ -224,6 +233,10 @@ const uint8_t *lv_font_get_bitmap_fmt_txt(const lv_font_t *font, uint32_t unicod
 bool lv_font_get_glyph_dsc_fmt_txt(const lv_font_t *font, void *dsc_out, uint32_t unicode_letter, uint32_t next_letter) { (void)font; (void)dsc_out; (void)unicode_letter; (void)next_letter; return false; }
 
 void lv_obj_set_style_text_decor(lv_obj_t *obj, int value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
+void lv_obj_set_style_transform_angle(lv_obj_t *obj, int32_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
+void lv_obj_set_style_transform_scale(lv_obj_t *obj, int32_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
+void lv_obj_set_style_transform_pivot_x(lv_obj_t *obj, lv_coord_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
+void lv_obj_set_style_transform_pivot_y(lv_obj_t *obj, lv_coord_t value, uint32_t selector) { (void)obj; (void)value; (void)selector; }
 
 void lv_spinbox_increment(lv_obj_t *obj) { (void)obj; }
 void lv_spinbox_decrement(lv_obj_t *obj) { (void)obj; }

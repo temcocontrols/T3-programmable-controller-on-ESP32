@@ -183,17 +183,19 @@ static esp_err_t scan_get_handler(httpd_req_t *req)
         ap_count = 10;
     }
 
-    if (wifi_scan_networks(ap_info, &ap_count, WIFI_SCAN_MAX_AP) != ESP_OK) {
+    wifi_ap_record_t *ap_info = malloc(sizeof(wifi_ap_record_t) * (ap_count > 0 ? ap_count : 1));
+    if (!ap_info) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
 
-    if (ap_count > 10) {
-        ap_count = 10;
+    if (ap_count > 0) {
+        esp_wifi_scan_get_ap_records(&ap_count, ap_info);
     }
 
     char *buf = malloc(1024);
     if (!buf) {
+        free(ap_info);
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -210,6 +212,8 @@ static esp_err_t scan_get_handler(httpd_req_t *req)
     }
     snprintf(buf + offset, 1024 - offset, "]}");
     ESP_LOGI(TAG, "WiFi scan returning %d networks", listed);
+
+    free(ap_info);
 
     httpd_resp_set_type(req, "application/json");
     esp_err_t res = httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);

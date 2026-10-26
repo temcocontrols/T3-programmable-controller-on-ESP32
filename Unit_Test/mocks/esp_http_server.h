@@ -26,10 +26,12 @@ typedef struct {
 typedef struct {
     int server_port;
     int max_uri_handlers;
+    int max_open_sockets;
+    int backlog_conn;
     bool lru_purge_enable;
 } httpd_config_t;
 
-#define HTTPD_DEFAULT_CONFIG() (httpd_config_t){.server_port=80, .max_uri_handlers=8, .lru_purge_enable=false}
+#define HTTPD_DEFAULT_CONFIG() (httpd_config_t){.server_port=80, .max_uri_handlers=8, .max_open_sockets=7, .backlog_conn=5, .lru_purge_enable=false}
 
 /* Methods used by wifi_web_server.c */
 esp_err_t httpd_start(httpd_handle_t *handle, const httpd_config_t *config);

@@ -63,6 +63,7 @@ INC = -Iunity \
       -I../main/TemcoScreen \
       -I../main/Mqtt_Handler \
       -I../main/WireGuard_App \
+      -I../components/temco_dynamic_display/include \
       -I../temco_IO_control/include \
       -I../temco_bacnet/include \
       -I../temco_bacnet/private
@@ -99,7 +100,6 @@ MAIN_SRCS = app_main.c \
             modbus.c \
             Mqtt_Handler/Mqtt_Handler.c \
             i2c_task.c \
-            ota.c \
             wifi.c \
             wifi_web_server.c \
             sgp30_featureset.c \
