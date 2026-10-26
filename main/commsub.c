@@ -76,6 +76,7 @@ void Comm_Tstat_Initial_Data(void)
 	else if(Modbus.mini_type == PROJECT_LORA_GATEWAY) {base_in = 32;		base_out = 0;}
 	else if(Modbus.mini_type == MINI_NANO) 		{	base_in = 0;		base_out = 0;}
 	else if(Modbus.mini_type == PROJECT_LIGHT_PWM) 		{	base_in = 0;		base_out = 4;}
+	//else if(Modbus.mini_type == PROJECT_HUM || Modbus.mini_type == PROJECT_CO2) 		{	base_in = 0;		base_out = 3;}
 	base_var = 0;
 
 

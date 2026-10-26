@@ -236,6 +236,9 @@ enum {
 	MODBUS_BMS_COMM,
 	MODBUS_48V_EXIST,
 	MODBUS_BMS_CURRENT, //1115
+	MODBUS_BMS_RST_COUNT,		/* 1116 BMS_HW_RST count, read-only */
+	MODBUS_BMS_RST_TIME,		/* 1117 seconds since last BMS_HW_RST, read-only */
+	MODBUS_BMS_RST_INTERVAL,	/* 1118 minutes; min 10, default 60; write 0 = reset BMS once */
 	
 	MODBUS_TEMP1 = 1200,
 	MODBUS_HUM1 = 1201,

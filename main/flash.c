@@ -42,6 +42,7 @@ extern uint16 rmc_cov;
 extern uint16 rmc_stack;
 extern uint16 rmc_oc_chg;
 extern uint16 rmc_oc_dsg;
+extern uint16 rmc_bms_rst_min;
 
 extern uint16_t count_lcd_time_off_delay;
 extern uint8_t com_config_back[3];
@@ -615,6 +616,17 @@ esp_err_t read_default_from_flash(void)
 	{
 		rmc_oc_dsg = 4000;
 		nvs_set_u16(my_handle, FLASH_RMC_OC_DSG, rmc_oc_dsg);
+	}
+	err = nvs_get_u16(my_handle, FLASH_RMC_BMS_RST_MIN, &rmc_bms_rst_min);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		rmc_bms_rst_min = 60;
+		nvs_set_u16(my_handle, FLASH_RMC_BMS_RST_MIN, rmc_bms_rst_min);
+	}
+	else if(rmc_bms_rst_min < 10)
+	{
+		rmc_bms_rst_min = 10;
+		nvs_set_u16(my_handle, FLASH_RMC_BMS_RST_MIN, rmc_bms_rst_min);
 	}
 
 	len = 7;

@@ -43,6 +43,7 @@ typedef enum
 #define FLASH_RMC_SHUTDOWN	"RMC_SHUT"
 #define FLASH_RMC_OC_CHG	"RMC_OC_CHG"
 #define FLASH_RMC_OC_DSG	"RMC_OC_DSG"
+#define FLASH_RMC_BMS_RST_MIN	"RMC_RST_MIN"	/* minutes, min 10, default 60 */
 
 
 

@@ -52,6 +52,7 @@ void control_output(void);
 int32_t swap_double( int32_t dat );
 int16_t swap_word( int16_t dat );
 uint32_t get_input_value_by_range(uint8_t range, uint16_t raw);
+uint32_t get_input_value_by_range_45K(uint16_t raw);
 Str_points_ptr put_io_buf(Point_type_equate type, uint8 point);
 
 

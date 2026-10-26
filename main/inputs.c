@@ -258,6 +258,47 @@ uint32_t get_input_value_by_range( uint8_t range, uint16_t raw )
 	return 0;
 }
 
+/* 10k Type2, 45k pull-up to 3.3V, NTC to GND.
+ * counts = 4095 * R / (45000 + R), every 5 DegC from -40 to 120. */
+#define NO_TABLE_RANGES_45K  32
+static const uint16_t def_tab_10k_45k[33] = {
+	3611, 3453, 3264, 3043, 2797, 2532, 2258, 1985, /* -40 .. -5 */
+	1722, 1477, 1256, 1060, 890, 745, 622, 519,     /*   0 .. 35 */
+	433, 362, 303, 255, 214, 181, 153, 130,         /*  40 .. 75 */
+	111, 95, 82, 70, 61, 53, 46, 40, 35             /*  80 .. 120 */
+};
+
+uint32_t get_input_value_by_range_45K( uint16_t raw )
+{
+	uint16_t i;
+	S32_T delta;
+	S32_T val;
+	const uint16_t *def_tbl = def_tab_10k_45k;
+
+	if( raw >= def_tbl[0] )
+		return (uint32_t)(-40000L);
+	if( raw <= def_tbl[NO_TABLE_RANGES_45K] )
+		return 120000L;
+
+	for( i = 0; i < NO_TABLE_RANGES_45K; i++ )
+	{
+		if( ( raw <= def_tbl[i] ) && ( raw >= def_tbl[i + 1] ) )
+		{
+			delta = (S32_T)def_tbl[i] - (S32_T)def_tbl[i + 1];
+			if( delta )
+			{
+				/* 5.000 DegC per step, same unit as R10K_40_120DegC (x1000) */
+				val = (S32_T)( def_tbl[i] - raw ) * 5000;
+				val /= delta;
+				val += (S32_T)i * 5000;
+				val += -40000L;
+				return (uint32_t)val;
+			}
+		}
+	}
+	return 0;
+}
+
 
 float test_match_custom( S16_T range, S16_T raw )
 {   /* custom tables */

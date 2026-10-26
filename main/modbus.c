@@ -115,6 +115,10 @@ uint16 rmc_cov = 3600;		/* POWER_CELL_OV_MV default */
 uint16 rmc_stack = 2500;	/* POWER_SHUTDOWN_CELL_MV default */
 uint16 rmc_oc_chg = 3000;	/* POWER_OC_CHG_MA default */
 uint16 rmc_oc_dsg = 4000;	/* POWER_OC_DSG_MA default */
+uint16 rmc_bms_rst_min = 60;	/* BMS comm-fail HW reset interval, minutes, min 10 */
+uint16 rmc_bms_rst_count;	/* from STM i2c [116..117] */
+uint16 rmc_bms_rst_time_sec;	/* from STM i2c [118..119], seconds */
+volatile uint8_t rmc_bms_rst_now;	/* one I2C frame of 0: reset BMS, keep interval */
 
 /* Keep integrators in sync so energy survives reboot and keeps accumulating */
 void plc_power_sync_acc(void)
@@ -1486,6 +1490,21 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 			temp1 = rmc_oc_dsg >> 8;
 			temp2 = rmc_oc_dsg;
 		}
+		else if(address == MODBUS_BMS_RST_COUNT)
+		{
+			temp1 = rmc_bms_rst_count >> 8;
+			temp2 = rmc_bms_rst_count;
+		}
+		else if(address == MODBUS_BMS_RST_TIME)
+		{
+			temp1 = rmc_bms_rst_time_sec >> 8;
+			temp2 = rmc_bms_rst_time_sec;
+		}
+		else if(address == MODBUS_BMS_RST_INTERVAL)
+		{
+			temp1 = rmc_bms_rst_min >> 8;
+			temp2 = rmc_bms_rst_min;
+		}
 		else if(address == MODBUS_BMS_CURRENT)
 		{
 			if(Modbus.mini_type == MINI_BMS)
@@ -2660,7 +2679,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 				count_gIdentify = 0;
 			}
 			if(*(bufadd + 5) == 88) // reset to defautl
-			{Test[14]++;
+			{
 				set_default_parameters();
 			}
 			if(*(bufadd + 5) == 111)	 // reboot
@@ -2983,6 +3002,19 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		  {
 			  extern volatile uint8_t mini_bms_prot_apply;
 			  mini_bms_prot_apply = 1;
+		  }
+	  }
+	  else if(address == MODBUS_BMS_RST_INTERVAL)
+	  {
+		  uint16 v = (uint16)(*(bufadd + 5) + 256 * *(bufadd + 4));
+		  if(v == 0)
+			  rmc_bms_rst_now = 1;	/* STM resets once; stored interval stays */
+		  else
+		  {
+			  if(v < 10)
+				  v = 10;
+			  rmc_bms_rst_min = v;
+			  save_uint16_to_flash(FLASH_RMC_BMS_RST_MIN, rmc_bms_rst_min);
 		  }
 	  }
       else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)

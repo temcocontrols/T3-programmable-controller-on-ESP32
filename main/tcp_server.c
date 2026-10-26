@@ -33,6 +33,9 @@
 #include "modbus.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
+#include "driver/adc.h"
+#include "driver/rtc_io.h"
+#include "soc/rtc_io_reg.h"
 #include "wifi.h"
 #include "ethernet_task.h"
 #include "flash.h"
@@ -3401,6 +3404,10 @@ extern uint16 rmc_cov;
 extern uint16 rmc_stack;
 extern uint16 rmc_oc_chg;
 extern uint16 rmc_oc_dsg;
+extern uint16 rmc_bms_rst_min;
+extern uint16 rmc_bms_rst_count;
+extern uint16 rmc_bms_rst_time_sec;
+extern volatile uint8_t rmc_bms_rst_now;
 
 void reboot_sub_chip(void)
 {
@@ -3531,57 +3538,76 @@ void i2c_master_task(void *pvParameters)
 		ptr = put_io_buf(IN,33);
 		ptr.pin->range = R10K_40_120DegC;
 		memcpy(ptr.pin->label,"TEMP1",strlen("TEMP1"));
+		memcpy(ptr.pin->description,"1st TEMPERATURE",strlen("1st TEMPERATURE"));
 		ptr = put_io_buf(IN,34);
 		ptr.pin->range = Humidty;
 		memcpy(ptr.pin->label,"HUM1",strlen("HUM1"));
+		memcpy(ptr.pin->description,"1st HUMIDITY",strlen("1st HUMIDITY"));
 		ptr = put_io_buf(IN,35);
 		ptr.pin->range = R10K_40_120DegC;
 		memcpy(ptr.pin->label,"TEMP2",strlen("TEMP2"));
+		memcpy(ptr.pin->description,"2nd TEMPERATURE",strlen("2nd TEMPERATURE"));
 		ptr = put_io_buf(IN,36);
 		ptr.pin->range = Humidty;
 		memcpy(ptr.pin->label,"HUM2",strlen("HUM2"));
+		memcpy(ptr.pin->description,"2nd HUMIDITY",strlen("2nd HUMIDITY"));
 		ptr = put_io_buf(IN,37);
 		ptr.pin->range = V0_5;
-		memcpy(ptr.pin->label,"BAT",strlen("BAT"));
+		memcpy(ptr.pin->label,"BAT_SUM",strlen("BAT_SUM"));
+		memcpy(ptr.pin->description,"TOTAL VOLTAGE",strlen("TOTAL VOLTAGE"));
 		ptr = put_io_buf(IN,38); // current
 		ptr.pin->range = I0_20ma;
 		memcpy(ptr.pin->label,"CURRENT",strlen("CURRENT"));
+		memcpy(ptr.pin->description,"BMS CURRENT",strlen("BMS CURRENT"));
 		ptr = put_io_buf(IN,39); // cuv_threshold_mv
 		ptr.pin->range = V0_5;
-		memcpy(ptr.pin->label,"CUVT",strlen("CUVT"));
+		memcpy(ptr.pin->description,"CUV_THRESHOLD",strlen("CUV_THRESHOLD"));
 		ptr = put_io_buf(IN,40); // cov_threshold_mv
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"COVT",strlen("COVT"));
+		memcpy(ptr.pin->description,"COV_THRESHOLD",strlen("COV_THRESHOLD"));
 		ptr = put_io_buf(IN,32); // internal temperature
 		ptr.pin->range = R10K_40_120DegC;
-		memcpy(ptr.pin->label,"Int_T",strlen("Int_T"));
-		
+		memcpy(ptr.pin->label,"BMS_T1",strlen("BMS_T1"));
+		memcpy(ptr.pin->description,"BMS TEMPERATURE",strlen("BMS TEMPERATURE"));
 		// IN42-IN48
 		ptr = put_io_buf(IN,41); 
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"BAT1",strlen("BAT1"));
+		memcpy(ptr.pin->description,"VOLTAGE OF BAT1",strlen("VOLTAGE OF BAT1"));
 		ptr = put_io_buf(IN,42); 
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"BAT2",strlen("BAT2"));
+		memcpy(ptr.pin->description,"VOLTAGE OF BAT2",strlen("VOLTAGE OF BAT2"));
 		ptr = put_io_buf(IN,43); 
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"BAT3",strlen("BAT3"));
+		memcpy(ptr.pin->description,"VOLTAGE OF BAT3",strlen("VOLTAGE OF BAT3"));
 		ptr = put_io_buf(IN,44); 
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"BAT4",strlen("BAT4"));
+		memcpy(ptr.pin->description,"VOLTAGE OF BAT4",strlen("VOLTAGE OF BAT4"));
 		ptr = put_io_buf(IN,45); 
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"BAT5",strlen("BAT5"));
+		memcpy(ptr.pin->description,"VOLTAGE OF BAT5",strlen("VOLTAGE OF BAT5"));
 		ptr = put_io_buf(IN,46); 
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"BAT6",strlen("BAT6"));
+		memcpy(ptr.pin->description,"VOLTAGE OF BAT6",strlen("VOLTAGE OF BAT6"));
 		ptr = put_io_buf(IN,47); 
 		ptr.pin->range = V0_5;
 		memcpy(ptr.pin->label,"BAT7",strlen("BAT7"));
+		memcpy(ptr.pin->description,"VOLTAGE OF BAT7",strlen("VOLTAGE OF BAT7"));
 		ptr = put_io_buf(IN,48);
 		ptr.pin->digital_analog = 0;
 		ptr.pin->range = ALARM_NORMAL;
-		memcpy(ptr.pin->label,"BMS_LIVE",strlen("BMS_LIVE"));	
+		memcpy(ptr.pin->label,"BMS_LIVE",strlen("BMS_LIVE"));
+		memcpy(ptr.pin->description,"BMS STATUS",strlen("BMS STATUS"));	
+		ptr = put_io_buf(IN,49); // internal temperature
+		ptr.pin->range = R10K_40_120DegC;
+		memcpy(ptr.pin->label,"BMS_T2",strlen("BMS_T2"));
+		
 		
 	}
 	if(Modbus.mini_type == PROJECT_NG3)
@@ -4049,6 +4075,20 @@ void i2c_master_task(void *pvParameters)
 						i2c_send_buf[75] = rmc_oc_chg;
 						i2c_send_buf[76] = rmc_oc_dsg >> 8;
 						i2c_send_buf[77] = rmc_oc_dsg;
+						/* 0 for one frame = reset BMS now; otherwise the stored interval */
+						if(rmc_bms_rst_now)
+						{
+							rmc_bms_rst_now = 0;
+							i2c_send_buf[78] = 0;
+							i2c_send_buf[79] = 0;
+						}
+						else
+						{
+							if(rmc_bms_rst_min < 10)
+								rmc_bms_rst_min = 10;
+							i2c_send_buf[78] = rmc_bms_rst_min >> 8;
+							i2c_send_buf[79] = rmc_bms_rst_min;
+						}
 					}
 					else if(Modbus.mini_type == MINI_TSTAT10)
 					{
@@ -4176,7 +4216,7 @@ void i2c_master_task(void *pvParameters)
 							u16 crc_check = 0;
 							
 							if(Modbus.mini_type == PROJECT_RMC1232)
-								read_i2c_len = 120;
+								read_i2c_len = 122; /* payload 120 + CRC; count/time at [116..119] */
 							else
 								read_i2c_len = 114;
 							
@@ -4330,6 +4370,8 @@ void i2c_master_task(void *pvParameters)
 										ptr = put_io_buf(IN,48); // BMS ON/OFF
 										ptr.pin->control = i2c_rcv_buf[115];
 										plc_power.flag_bms_comm = i2c_rcv_buf[115];
+										rmc_bms_rst_count = (uint16)((i2c_rcv_buf[116] << 8) | i2c_rcv_buf[117]);
+										rmc_bms_rst_time_sec = (uint16)((i2c_rcv_buf[118] << 8) | i2c_rcv_buf[119]);
 										/* No BMS comm → assume 48V present */
 										if(plc_power.flag_bms_comm == 0)
 											plc_power.flag_48V_exist = 1;
@@ -5157,8 +5199,8 @@ static void convert_rmc1232_AHKC_Hall(void)
 	{
 		if(i == 8 || i == 9 || i == 10 || i == 11)
 			continue;
-		
-		ptr = put_io_buf(IN, i);		
+
+		ptr = put_io_buf(IN, i);
 		if(ptr.pin->range == AHKC_Hall)
 		{
 			if(ptr.pin->auto_manual == 0)
@@ -5175,6 +5217,87 @@ static void convert_rmc1232_AHKC_Hall(void)
 			}
 		}
 	}
+}
+
+/* IO33 = ADC1_CH5, 10k thermistor for RMC1232 internal temp (IN49).
+ * adc1_config_channel_atten() forces analog/float and clears pull-up;
+ * restore RTC input + internal pull-up so NTC-to-GND can be biased. */
+#define RMC1232_TEMP_GPIO			GPIO_NUM_33
+#define RMC1232_TEMP_ADC_CH			ADC1_CHANNEL_5
+#define RMC1232_TEMP_ADC_SAMPLES	64
+/* IIR: y += (x - y) / 8, about 8s at the 1s control loop */
+
+static void rmc1232_temp_io_enable_pullup(void)
+{
+	rtc_gpio_set_direction(RMC1232_TEMP_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
+	rtc_gpio_pullup_en(RMC1232_TEMP_GPIO);
+	rtc_gpio_pulldown_dis(RMC1232_TEMP_GPIO);
+	/* GPIO33 = XTAL_32K_N: force RUE in case driver path cleared it */
+	SET_PERI_REG_MASK(RTC_IO_XTAL_32K_PAD_REG, RTC_IO_X32N_RUE);
+	CLEAR_PERI_REG_MASK(RTC_IO_XTAL_32K_PAD_REG, RTC_IO_X32N_RDE);
+}
+
+static void rmc1232_update_internal_temp(void)
+{
+	Str_points_ptr ptr;
+	uint16 adc_10k;
+	uint32_t sum;
+	uint8_t i;
+	static uint8_t adc_inited;
+	int raw;
+
+	if(Modbus.mini_type != PROJECT_RMC1232)
+		return;
+
+	if(!adc_inited)
+	{
+		adc1_config_width(ADC_WIDTH_BIT_12);
+		adc1_config_channel_atten(RMC1232_TEMP_ADC_CH, ADC_ATTEN_DB_11);
+		rmc1232_temp_io_enable_pullup();
+		adc_inited = 1;
+	}
+
+	/* one burst, drop min/max, then slow IIR so a noisy sample cannot jump the temp */
+	{
+		uint16_t v;
+		uint16_t vmin = 0xFFFF;
+		uint16_t vmax = 0;
+		static uint32_t adc_acc;
+		static uint8_t adc_seeded;
+
+		sum = 0;
+		for(i = 0; i < RMC1232_TEMP_ADC_SAMPLES; i++)
+		{
+			raw = adc1_get_raw(RMC1232_TEMP_ADC_CH);
+			if(raw < 0)
+				raw = 0;
+			v = (uint16_t)raw;
+			sum += v;
+			if(v < vmin)
+				vmin = v;
+			if(v > vmax)
+				vmax = v;
+		}
+		sum -= vmin;
+		sum -= vmax;
+		v = (uint16_t)(sum / (RMC1232_TEMP_ADC_SAMPLES - 2));
+		if(!adc_seeded)
+		{
+			adc_acc = (uint32_t)v << 3;
+			adc_seeded = 1;
+		}
+		else
+			adc_acc = adc_acc - (adc_acc >> 3) + v;
+		adc_10k = (uint16)((adc_acc + 4) >> 3);
+	}
+
+	ptr = put_io_buf(IN,49);
+	if(ptr.pin->auto_manual == 0)
+		ptr.pin->value = get_input_value_by_range_45K( adc_10k );
+	Test[32] = adc_10k;
+	Test[33] = ptr.pin->value / 100;
+	/* bit0=RUE set? non-zero means pull-up reg enabled */
+	//Test[36] = (REG_READ(RTC_IO_XTAL_32K_PAD_REG) & RTC_IO_X32N_RUE) ? 1 : 0;
 }
 
 void Bacnet_Control(void *pvParameters)
@@ -5306,6 +5429,7 @@ void Bacnet_Control(void *pvParameters)
 				 * after convert it becomes ±A so power can be signed */
 				convert_rmc1232_AHKC_Hall();
 				calculate_plc_power();
+				rmc1232_update_internal_temp();
 			}
 		}
 

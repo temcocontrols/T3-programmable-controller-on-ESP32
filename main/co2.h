@@ -23,8 +23,8 @@
 #define LITTLE_ENDIAN
 
 
-#define CHANNEL_HUM		0
-#define CHANNEL_TEMP	1
+#define CHANNEL_HUM		1
+#define CHANNEL_TEMP	0
 #define CHANNEL_CO2		2
 #define CHANNEL_PRE		3
 
