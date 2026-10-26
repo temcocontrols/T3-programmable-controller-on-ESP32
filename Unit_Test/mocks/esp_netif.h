@@ -58,11 +58,14 @@ typedef enum {
 
 int esp_netif_init(void);
 esp_netif_t esp_netif_create_default_wifi_sta(void);
+esp_netif_t esp_netif_create_default_wifi_ap(void);
 esp_netif_t esp_netif_get_handle_from_ifkey(const char* if_key);
 int esp_netif_dhcpc_stop(esp_netif_t esp_netif);
 int esp_netif_dhcpc_start(esp_netif_t esp_netif);
 int esp_netif_set_ip_info(esp_netif_t esp_netif, const esp_netif_ip_info_t* ip_info);
+int esp_netif_get_ip_info(esp_netif_t esp_netif, esp_netif_ip_info_t* ip_info);
 int esp_netif_set_dns_info(esp_netif_t esp_netif, esp_netif_dns_type_t type, esp_netif_dns_info_t* dns);
+int esp_netif_get_dns_info(esp_netif_t esp_netif, esp_netif_dns_type_t type, esp_netif_dns_info_t* dns);
 
 typedef struct {
     int dummy;

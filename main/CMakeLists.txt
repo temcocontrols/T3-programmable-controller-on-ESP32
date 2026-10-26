@@ -10,6 +10,10 @@ idf_component_register(		SRCS
 							"sensirion_common.c"
 							"sgp30.c"
 							"ethernet_task.c"
+							"HUB_Module/hub_module.c"
+							"HUB_Module/hub_lte_pppos.c"
+							"HUB_Module/hub_network_manager.c"
+							"HUB_Module/hub_w5500.c"
 							"flash.c"
 							"pro_info.c"
 #							"scd40.c"
@@ -53,7 +57,10 @@ idf_component_register(		SRCS
 						#	"lowPower.c"
 							"co2.c"
 							"lora.c"
-							"lcdTheme.c"
+							"HUB_Module/a7608.c"
+							"HUB_Module/hub_gsm_status.c"
+							"HUB_Module/hub_snmp.c"
+							"LcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
@@ -61,23 +68,60 @@ idf_component_register(		SRCS
 							"LCD_Driver/lcd_task.c"
 							"LCD_Driver/touch_drv.c"
 							"LCD_Driver/lv_UserPeram.c"
+							"usb_cdc.c"
 							"WireGuard_App/WireGuard_App.c"
 							"wifi_web_server.c"
 
 						#	EMBED_TXTFILES server_root_cert.pem esp_logo.png
 #							EMBED_TXTFILES ${project_dir}/server_certs/smtp2go.crt
 			INCLUDE_DIRS "."
+							"HUB_Module"
 							"LCD_Driver"
 							"TemcoScreen"
 							"Mqtt_Handler"
 							"WireGuard_App"
+			REQUIRES app_update
+						driver
+						esp_adc
+						esp_app_format
+						esp_driver_gpio
+						esp_driver_i2c
+						esp_driver_ledc
+						esp_driver_pcnt
+						esp_driver_rmt
+						esp_driver_spi
+						esp_driver_uart
+						esp_driver_usb_serial_jtag
+						esp_eth
+						esp_event
+						esp_http_client
+						esp_http_server
+						esp_https_ota
+						json
+						mqtt
+						esp_netif
+						esp_partition
+						esp_rom
+						esp_timer
+						esp_wifi
+						heap
+						lwip
+						mbedtls
+						nvs_flash
+						spi_flash
+						temco_IO_control
+						temco_bacnet
+						esp_wireguard
+						snmp_agent
+			PRIV_REQUIRES espressif__esp_modem
 							)
 
 # Auto-include all .c files from TemcoScreen subdirectory
 file(GLOB TEMCO_SCREEN_SOURCES "TemcoScreen/*.c")
 target_sources(${COMPONENT_LIB} PRIVATE ${TEMCO_SCREEN_SOURCES})
 
-set(COMPONENT_ADD_INCLUDEDIRS ".")
+#                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)
+set(COMPONENT_ADD_INCLUDEDIRS "." "HUB_Module")
 
 target_link_libraries(${COMPONENT_TARGET} "-u pro_info")
 

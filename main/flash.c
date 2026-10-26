@@ -13,7 +13,6 @@
 #include "bacnet.h"
 #include "esp_log.h"
 
-#include "unity.h"
 #include "esp_partition.h"
 #include "esp_system.h"
 #include <string.h>
@@ -207,9 +206,9 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_SERIAL_NUM4, Modbus.serialNum[3]);
 	}
 
-	/* Same persist as Tstat10 serial number. */
+	/* T3000 Product Type comes from this byte (88 = T3Controller). Same key as TSTAT11. */
 	err = nvs_get_u8(my_handle, FLASH_PRODUCT_MODEL, &Modbus.product_model);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
+	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.product_model == 0)
 	{
 		Modbus.product_model = 88;
 		nvs_set_u8(my_handle, FLASH_PRODUCT_MODEL, Modbus.product_model);
@@ -361,13 +360,15 @@ esp_err_t read_default_from_flash(void)
 	nvs_get_u8(my_handle, FLASH_EN_TIME_SYNC_PC, &Modbus.en_time_sync_with_pc);
 	if(Modbus.en_time_sync_with_pc == 255)
 	{
-		Modbus.en_time_sync_with_pc = 1;
+		/* Default: time server (same choice UI as other devices). User may switch to PC sync. */
+		Modbus.en_time_sync_with_pc = 0;
 		nvs_set_u8(my_handle, FLASH_EN_TIME_SYNC_PC, Modbus.en_time_sync_with_pc);
 	}
 	nvs_get_u8(my_handle, FLASH_EN_SNTP, &Modbus.en_sntp);
 	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.en_sntp == 0 || Modbus.en_sntp > 5)
 	{
-		Modbus.en_sntp = 1;
+		/* Default: timeserver1 (en_sntp >= 2 enables SNTP). */
+		Modbus.en_sntp = 2;
 		nvs_set_u8(my_handle, FLASH_EN_SNTP, Modbus.en_sntp);
 	}
 
@@ -716,6 +717,9 @@ esp_err_t read_default_from_flash(void)
 	// Close
 	nvs_close(my_handle);
 
+	(void)load_mqtt_config_from_flash();
+	(void)load_snmp_config_from_flash();
+
 	Flash_Inital();
 
 	return ESP_OK;
@@ -760,7 +764,10 @@ esp_err_t save_wireguard_config_to_flash(void)
 	esp_err_t err;
 
 	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-	if (err != ESP_OK) return err;
+	if (err != ESP_OK) {
+		wireguard_app_request_reload();
+		return err;
+	}
 
 	// Save enable flag
 	err = nvs_set_u8(my_handle, FLASH_WIREGUARD_ENABLE, wireguard_point.reg.wireguard_enable);
@@ -799,6 +806,7 @@ esp_err_t save_wireguard_config_to_flash(void)
 
 done:
 	nvs_close(my_handle);
+	wireguard_app_request_reload();
 	return err;
 }
 
@@ -869,6 +877,142 @@ esp_err_t load_wireguard_config_from_flash(void)
 		memset(wireguard_point.reg.wireguard_peer_ip, 0, sizeof(wireguard_point.reg.wireguard_peer_ip));
 	}
 
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+static void mqtt_config_set_defaults(void)
+{
+	memset(&mqtt_point, 0, sizeof(mqtt_point));
+	mqtt_point.reg.enable = 0;
+	mqtt_point.reg.port = 1883;
+	strncpy(mqtt_point.reg.broker, "broker.hivemq.com", sizeof(mqtt_point.reg.broker) - 1);
+	strncpy(mqtt_point.reg.client_id, "temco_hub", sizeof(mqtt_point.reg.client_id) - 1);
+	strncpy(mqtt_point.reg.pub_topic, "temco/test/hub/pub", sizeof(mqtt_point.reg.pub_topic) - 1);
+	strncpy(mqtt_point.reg.sub_topic, "temco/test/hub/sub", sizeof(mqtt_point.reg.sub_topic) - 1);
+}
+
+static void snmp_config_set_defaults(void)
+{
+	memset(&snmp_point, 0, sizeof(snmp_point));
+	snmp_point.reg.enable = 0;
+	snmp_point.reg.port = 161;
+	snmp_point.reg.trap_dest_port = 162;
+	strncpy(snmp_point.reg.ro_community, "public", sizeof(snmp_point.reg.ro_community) - 1);
+	strncpy(snmp_point.reg.rw_community, "private", sizeof(snmp_point.reg.rw_community) - 1);
+	strncpy(snmp_point.reg.sys_name, "Temco Hub", sizeof(snmp_point.reg.sys_name) - 1);
+	strncpy(snmp_point.reg.sys_location, "Temco Controls", sizeof(snmp_point.reg.sys_location) - 1);
+	strncpy(snmp_point.reg.sys_contact, "support@temcocontrols.com", sizeof(snmp_point.reg.sys_contact) - 1);
+}
+
+esp_err_t save_mqtt_config_to_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	Modbus.enable_mqtt = mqtt_point.reg.enable ? 1 : 0;
+	err = nvs_set_u8(my_handle, FLASH_ENABLE_MQTT, Modbus.enable_mqtt);
+	if (err == ESP_OK) {
+		err = nvs_set_blob(my_handle, FLASH_MQTT_BLOB, mqtt_point.all, sizeof(mqtt_point.all));
+	}
+	if (err == ESP_OK) {
+		err = nvs_commit(my_handle);
+	}
+	nvs_close(my_handle);
+	return err;
+}
+
+esp_err_t load_mqtt_config_from_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+	size_t len = sizeof(mqtt_point.all);
+
+	mqtt_config_set_defaults();
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	err = nvs_get_blob(my_handle, FLASH_MQTT_BLOB, mqtt_point.all, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		mqtt_config_set_defaults();
+		nvs_get_u8(my_handle, FLASH_ENABLE_MQTT, &Modbus.enable_mqtt);
+		mqtt_point.reg.enable = Modbus.enable_mqtt ? 1 : 0;
+		nvs_set_blob(my_handle, FLASH_MQTT_BLOB, mqtt_point.all, sizeof(mqtt_point.all));
+		nvs_commit(my_handle);
+	} else if (err == ESP_OK) {
+		Modbus.enable_mqtt = mqtt_point.reg.enable ? 1 : 0;
+		if (mqtt_point.reg.port == 0) {
+			mqtt_point.reg.port = 1883;
+		}
+		if (mqtt_point.reg.broker[0] == '\0') {
+			strncpy(mqtt_point.reg.broker, "broker.hivemq.com", sizeof(mqtt_point.reg.broker) - 1);
+		}
+		if (mqtt_point.reg.pub_topic[0] == '\0') {
+			strncpy(mqtt_point.reg.pub_topic, "temco/test/hub/pub", sizeof(mqtt_point.reg.pub_topic) - 1);
+		}
+		if (mqtt_point.reg.sub_topic[0] == '\0') {
+			strncpy(mqtt_point.reg.sub_topic, "temco/test/hub/sub", sizeof(mqtt_point.reg.sub_topic) - 1);
+		}
+	}
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+esp_err_t save_snmp_config_to_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	err = nvs_set_blob(my_handle, FLASH_SNMP_BLOB, snmp_point.all, sizeof(snmp_point.all));
+	if (err == ESP_OK) {
+		err = nvs_commit(my_handle);
+	}
+	nvs_close(my_handle);
+	return err;
+}
+
+esp_err_t load_snmp_config_from_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+	size_t len = sizeof(snmp_point.all);
+
+	snmp_config_set_defaults();
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	err = nvs_get_blob(my_handle, FLASH_SNMP_BLOB, snmp_point.all, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		snmp_config_set_defaults();
+		nvs_set_blob(my_handle, FLASH_SNMP_BLOB, snmp_point.all, sizeof(snmp_point.all));
+		nvs_commit(my_handle);
+	} else if (err == ESP_OK) {
+		if (snmp_point.reg.port == 0) {
+			snmp_point.reg.port = 161;
+		}
+		if (snmp_point.reg.trap_dest_port == 0) {
+			snmp_point.reg.trap_dest_port = 162;
+		}
+		if (snmp_point.reg.ro_community[0] == '\0') {
+			strncpy(snmp_point.reg.ro_community, "public", sizeof(snmp_point.reg.ro_community) - 1);
+		}
+		if (snmp_point.reg.rw_community[0] == '\0') {
+			strncpy(snmp_point.reg.rw_community, "private", sizeof(snmp_point.reg.rw_community) - 1);
+		}
+	}
+	snmp_point.reg.running = 0;
 	nvs_close(my_handle);
 	return ESP_OK;
 }

@@ -1,6 +1,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
+#include "a7608.h"
+#include "hub_lte_pppos.h"
+#include "hub_module.h"
+#include "hub_network_manager.h"
+#include "hub_snmp.h"
+#include "hub_w5500.h"
 #include "esp_event.h"
 #include "bacnet.h"
 #include "cov.h"
@@ -64,6 +71,8 @@ uint16_t read_airlab_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t read_lightswitch_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t read_co2_by_block(uint16_t addr) { (void)addr; return 0; }
 uint16_t wireguard_read_by_block(uint16_t addr) { (void)addr; return 0; }
+uint16_t gsm_status_read_by_block(uint16_t addr) { (void)addr; return 0; }
+void hub_gsm_status_refresh(void) {}
 
 // Str_points_ptr put_io_buf(Point_type_equate type, uint8 point)
 // {
@@ -157,4 +166,61 @@ int send(int s, const void *dataptr, size_t size, int flags) { (void)s; (void)da
 int recv(int s, void *mem, size_t len, int flags) { (void)s; (void)mem; (void)len; (void)flags; return 0; }
 
 const char *SGP_DRV_VERSION_STR = "mock";
+
+/* Hub modules are not linked into the host test. These stubs keep the
+ * firmware call sites compiling without the modem, SNMP, or W5500 drivers. */
+bool a7608_any_sim_slot_detected(void) { return false; }
+void a7608_startup_probe_init_in_progress(void) {}
+void a7608_hub_task(void *pvParameters) { (void)pvParameters; }
+
+esp_err_t hub_lte_pppos_preflight_check(hub_lte_pppos_preflight_t *preflight)
+{
+    if (preflight) {
+        memset(preflight, 0, sizeof(*preflight));
+    }
+    return ESP_OK;
+}
+const char *hub_lte_pppos_preflight_reason(void) { return ""; }
+hub_ppp_state_t hub_lte_pppos_get_state(void) { return HUB_PPP_STATE_IDLE; }
+const char *hub_lte_pppos_state_name(hub_ppp_state_t state) { (void)state; return "idle"; }
+
+esp_err_t hub_module_init(void) { return ESP_OK; }
+esp_err_t hub_module_process(void) { return ESP_OK; }
+esp_err_t hub_module_start_lte(void) { return ESP_OK; }
+const char *hub_module_active_interface_name(void) { return "none"; }
+
+esp_err_t hub_network_manager_get_status(hub_network_manager_status_t *status)
+{
+    if (status) {
+        memset(status, 0, sizeof(*status));
+    }
+    return ESP_OK;
+}
+bool hub_network_manager_has_usable_network(void) { return false; }
+void hub_network_manager_set_eth_status(bool link_up, bool has_ip) { (void)link_up; (void)has_ip; }
+void hub_network_manager_set_eth_netif(esp_netif_t *netif) { (void)netif; }
+
+esp_err_t hub_snmp_init(void) { return ESP_OK; }
+esp_err_t hub_snmp_apply_config(void) { return ESP_OK; }
+bool hub_snmp_is_running(void) { return false; }
+uint16_t snmp_config_read_by_block(uint16_t addr) { (void)addr; return 0; }
+void snmp_config_write_by_block(uint16_t addr, uint8_t HeadLen, uint8_t *pData)
+{
+    (void)addr; (void)HeadLen; (void)pData;
+}
+
+esp_err_t hub_w5500_install(esp_eth_handle_t *eth_handle)
+{
+    if (eth_handle) {
+        *eth_handle = NULL;
+    }
+    return ESP_OK;
+}
+esp_err_t hub_w5500_read_common_regs(uint8_t *mr, uint8_t *versionr, uint8_t *phycfg)
+{
+    if (mr) *mr = 0;
+    if (versionr) *versionr = 0;
+    if (phycfg) *phycfg = 0;
+    return ESP_OK;
+}
 

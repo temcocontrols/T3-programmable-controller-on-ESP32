@@ -19,4 +19,4 @@ storage,  data, nvs,      0x760000, 0x20000
 # other data
 screen_data, data, spiffs, 0x780000, 0x100000
 
-# used till 0x880000.
+# used till 0x880000.

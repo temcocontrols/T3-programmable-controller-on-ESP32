@@ -88,14 +88,13 @@ void init_mdns_service(void)
 // Start SoftAP mode (SSID: T3_Admin, Password: T3_Admin)
 esp_err_t wifi_start_softap(void)
 {
-    wifi_mode_t mode;
-    if (esp_wifi_get_mode(&mode) == ESP_OK && (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA)) {
-        return ESP_OK; // SoftAP already running
-    }
-
     esp_netif_t *ap_netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
     if (!ap_netif) {
         ap_netif = esp_netif_create_default_wifi_ap();
+        if (ap_netif == NULL) {
+            ESP_LOGE(TAG, "Failed to create SoftAP netif");
+            return ESP_FAIL;
+        }
     }
 
     wifi_config_t wifi_ap_config = {
@@ -109,9 +108,19 @@ esp_err_t wifi_start_softap(void)
         },
     };
 
-    esp_wifi_set_mode(WIFI_MODE_APSTA);
-    esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config);
-    ESP_LOGI(TAG, "SoftAP started. SSID: T3_Admin, Password: T3_Admin");
+    /* Always re-apply SoftAP config (do not early-return) so T3_Admin stays correct */
+    esp_err_t ret = esp_wifi_set_mode(WIFI_MODE_APSTA);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_mode(APSTA) failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+    ret = esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_config(AP) failed: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    ESP_LOGI(TAG, "SoftAP started. SSID: T3_Admin, Password: T3_Admin, URL: http://192.168.4.1");
     return ESP_OK;
 }
 
@@ -147,8 +156,32 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 // GET /scan
 static esp_err_t scan_get_handler(httpd_req_t *req)
 {
-    wifi_ap_record_t ap_info[WIFI_SCAN_MAX_AP];
+    /* Same flow as tstat11-hub-integration (APSTA SoftAP already active) */
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    wifi_scan_config_t scan_config = {
+        .ssid = NULL,
+        .bssid = NULL,
+        .channel = 0,
+        .show_hidden = true
+    };
+
+    esp_err_t scan_err = esp_wifi_scan_start(&scan_config, true);
+    if (scan_err != ESP_OK) {
+        ESP_LOGW(TAG, "WiFi scan failed: %s; retrying", esp_err_to_name(scan_err));
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        scan_err = esp_wifi_scan_start(&scan_config, true);
+    }
+    if (scan_err != ESP_OK) {
+        ESP_LOGE(TAG, "WiFi scan failed after retry: %s", esp_err_to_name(scan_err));
+    }
+
     uint16_t ap_count = 0;
+    esp_wifi_scan_get_ap_num(&ap_count);
+    ESP_LOGI(TAG, "WiFi scan found %u APs", (unsigned)ap_count);
+    if (ap_count > 10) {
+        ap_count = 10;
+    }
 
     if (wifi_scan_networks(ap_info, &ap_count, WIFI_SCAN_MAX_AP) != ESP_OK) {
         httpd_resp_send_500(req);
@@ -166,10 +199,17 @@ static esp_err_t scan_get_handler(httpd_req_t *req)
     }
 
     int offset = snprintf(buf, 1024, "{\"networks\":[");
+    int listed = 0;
     for (int i = 0; i < ap_count; i++) {
-        offset += snprintf(buf + offset, 1024 - offset, "%s\"%s\"", (i == 0) ? "" : ",", (char*)ap_info[i].ssid);
+        if (ap_info[i].ssid[0] == '\0') {
+            continue;
+        }
+        offset += snprintf(buf + offset, 1024 - offset, "%s\"%s\"",
+                           (listed == 0) ? "" : ",", (char *)ap_info[i].ssid);
+        listed++;
     }
     snprintf(buf + offset, 1024 - offset, "]}");
+    ESP_LOGI(TAG, "WiFi scan returning %d networks", listed);
 
     httpd_resp_set_type(req, "application/json");
     esp_err_t res = httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);

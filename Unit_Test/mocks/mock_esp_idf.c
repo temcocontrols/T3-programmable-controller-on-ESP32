@@ -25,6 +25,8 @@
 #include "lwip/netdb.h"
 #include "ping/ping_sock.h"
 #include "esp_wireguard.h"
+#include "esp_http_server.h"
+#include "mdns.h"
 
 // mbedtls
 #include "mbedtls/net_sockets.h"
@@ -56,11 +58,29 @@ int esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records)
 // Netif
 int esp_netif_init(void) { return ESP_OK; }
 esp_netif_t esp_netif_create_default_wifi_sta(void) { return (esp_netif_t)1; }
+esp_netif_t esp_netif_create_default_wifi_ap(void) { return (esp_netif_t)1; }
 esp_netif_t esp_netif_get_handle_from_ifkey(const char* if_key) { (void)if_key; return (esp_netif_t)1; }
 int esp_netif_dhcpc_stop(esp_netif_t esp_netif) { (void)esp_netif; return ESP_OK; }
 int esp_netif_dhcpc_start(esp_netif_t esp_netif) { (void)esp_netif; return ESP_OK; }
 int esp_netif_set_ip_info(esp_netif_t esp_netif, const esp_netif_ip_info_t* ip_info) { (void)esp_netif; (void)ip_info; return ESP_OK; }
+int esp_netif_get_ip_info(esp_netif_t esp_netif, esp_netif_ip_info_t* ip_info)
+{
+    (void)esp_netif;
+    if (ip_info) {
+        memset(ip_info, 0, sizeof(*ip_info));
+    }
+    return ESP_OK;
+}
 int esp_netif_set_dns_info(esp_netif_t esp_netif, esp_netif_dns_type_t type, esp_netif_dns_info_t* dns) { (void)esp_netif; (void)type; (void)dns; return ESP_OK; }
+int esp_netif_get_dns_info(esp_netif_t esp_netif, esp_netif_dns_type_t type, esp_netif_dns_info_t* dns)
+{
+    (void)esp_netif;
+    (void)type;
+    if (dns) {
+        memset(dns, 0, sizeof(*dns));
+    }
+    return ESP_OK;
+}
 esp_netif_t esp_netif_new(const esp_netif_config_t *config) { (void)config; return (esp_netif_t)1; }
 esp_err_t esp_netif_attach(esp_netif_t esp_netif, void *glue) { (void)esp_netif; (void)glue; return ESP_OK; }
 int esp_event_handler_register(const char* event_base, int32_t event_id, void* event_handler, void* event_handler_arg) {
@@ -256,6 +276,23 @@ int ledc_update_duty(ledc_mode_t speed_mode, ledc_channel_t channel) { (void)spe
 
 // ROM
 void esp_rom_delay_us(uint32_t us) { (void)us; }
+
+// Minimal esp_http_server stubs
+esp_err_t httpd_start(httpd_handle_t *handle, const httpd_config_t *config) { (void)handle; (void)config; return ESP_OK; }
+esp_err_t httpd_stop(httpd_handle_t handle) { (void)handle; return ESP_OK; }
+esp_err_t httpd_register_uri_handler(httpd_handle_t handle, const httpd_uri_t *uri) { (void)handle; (void)uri; return ESP_OK; }
+esp_err_t httpd_resp_send(httpd_req_t *req, const char *buf, int len) { (void)req; (void)buf; (void)len; return ESP_OK; }
+esp_err_t httpd_resp_send_500(httpd_req_t *req) { (void)req; return ESP_OK; }
+esp_err_t httpd_resp_sendstr(httpd_req_t *req, const char *str) { (void)req; (void)str; return ESP_OK; }
+void httpd_resp_set_type(httpd_req_t *req, const char *type) { (void)req; (void)type; }
+int httpd_req_recv(httpd_req_t *req, char *buf, size_t buf_len) { (void)req; (void)buf; (void)buf_len; return 0; }
+// Minimal mdns stubs
+esp_err_t mdns_init(void) { return ESP_OK; }
+esp_err_t mdns_hostname_set(const char *hostname) { (void)hostname; return ESP_OK; }
+esp_err_t mdns_instance_name_set(const char *instance) { (void)instance; return ESP_OK; }
+esp_err_t mdns_service_add(const char *instance, const char *service, const char *proto, uint16_t port, const void *txt, uint8_t num_items) {
+    (void)instance; (void)service; (void)proto; (void)port; (void)txt; (void)num_items; return ESP_OK;
+}
 
 // mbedtls stubs
 void mbedtls_net_init(mbedtls_net_context *ctx) { if (ctx) ctx->fd = -1; }
@@ -467,8 +504,11 @@ const char *ipaddr_ntoa(const ip_addr_t *ipaddr) { (void)ipaddr; return "127.0.0
 esp_err_t esp_ping_get_profile(esp_ping_handle_t hdl, esp_ping_profile_t profile_type, void *out_val, uint32_t val_len) { (void)hdl; (void)profile_type; (void)out_val; (void)val_len; return ESP_OK; }
 esp_err_t esp_ping_new_session(const esp_ping_config_t *config, const esp_ping_callbacks_t *cbs, esp_ping_handle_t *ping_hdl) { (void)config; (void)cbs; if(ping_hdl) *ping_hdl = (esp_ping_handle_t)1; return ESP_OK; }
 esp_err_t esp_ping_start(esp_ping_handle_t ping_hdl) { (void)ping_hdl; return ESP_OK; }
+esp_err_t esp_ping_stop(esp_ping_handle_t ping_hdl) { (void)ping_hdl; return ESP_OK; }
+esp_err_t esp_ping_delete_session(esp_ping_handle_t ping_hdl) { (void)ping_hdl; return ESP_OK; }
 esp_err_t esp_wireguard_init(const wireguard_config_t *config, wireguard_ctx_t *ctx) { (void)config; (void)ctx; return ESP_OK; }
 esp_err_t esp_wireguard_connect(wireguard_ctx_t *ctx) { (void)ctx; return ESP_OK; }
+esp_err_t esp_wireguard_disconnect(wireguard_ctx_t *ctx) { (void)ctx; return ESP_OK; }
 esp_err_t esp_wireguard_set_default(wireguard_ctx_t *ctx) { (void)ctx; return ESP_OK; }
 esp_err_t esp_wireguardif_peer_is_up(wireguard_ctx_t *ctx) { (void)ctx; return ESP_OK; }
 

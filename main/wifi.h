@@ -47,6 +47,7 @@ extern STR_SSID	SSID_Info;
 esp_err_t wifi_scan_networks(wifi_ap_record_t *ap_list, uint16_t *ap_count, uint16_t max_ap);
 
 extern void wifi_init_sta();
+void wifi_ensure_public_dns(bool replace_main);
 extern void debug_info(char *string);
 extern void debug_print(char *string,char task_index);
 extern void wifi_task(void *pvParameters);

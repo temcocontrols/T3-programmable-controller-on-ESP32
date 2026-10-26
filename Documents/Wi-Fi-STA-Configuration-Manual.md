@@ -28,6 +28,12 @@ Important notes:
 
 ## 3. How the device enters Wi-Fi setup mode
 
+This setup page is only for Wi-Fi configuration. If your device is already connected to a Wi-Fi network, there is no need to configure it again, so the setup page will not be available.
+
+To access the Wi-Fi configuration page, make sure the device does not have an active Wi-Fi connection. In that case, the ESP will start its SoftAP. Connect your phone directly to the ESP's Wi-Fi, then open the setup page.
+
+For testing, if your device is already connected to Wi-Fi, change the configured Wi-Fi settings to an invalid SSID and password, or erase the saved Wi-Fi credentials. After rebooting, the ESP will not be able to connect to Wi-Fi, so it will automatically start the SoftAP for Wi-Fi configuration.
+
 If the controller does not have valid Wi-Fi credentials saved, or if it cannot connect to the saved network, it automatically starts a temporary setup access point.
 
 Default setup hotspot details:
@@ -41,6 +47,8 @@ This hotspot is used only for configuration.
 
 ### Step 1: Connect your phone or laptop to the controller setup hotspot
 
+![alt text](image.png)
+
 1. Open the Wi-Fi settings on your phone or laptop.
 2. Search for the network named T3_Admin.
 3. Connect to it using the password T3_Admin.
@@ -48,6 +56,8 @@ This hotspot is used only for configuration.
 You should now be connected to the controller's temporary setup network.
 
 ### Step 2: Open the configuration page
+
+![alt text](image-1.png)
 
 Open a browser and visit one of the following:
 
@@ -58,6 +68,8 @@ If the page does not open immediately, wait a few seconds and try again.
 
 ### Step 3: Select your home Wi-Fi network
 
+![alt text](image-2.png)
+
 On the configuration page:
 
 1. Click the Scan Wi-Fi button.
@@ -65,6 +77,8 @@ On the configuration page:
 3. Select your Wi-Fi network from the list.
 4. Enter the Wi-Fi password in the password field.
 5. Click Save & Connect.
+
+![alt text](image-3.png)
 
 ### Step 4: Wait for the device to connect
 
