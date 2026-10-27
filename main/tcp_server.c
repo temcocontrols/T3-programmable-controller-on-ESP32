@@ -4216,7 +4216,7 @@ void i2c_master_task(void *pvParameters)
 							u16 crc_check = 0;
 							
 							if(Modbus.mini_type == PROJECT_RMC1232)
-								read_i2c_len = 122; /* payload 120 + CRC; count/time at [116..119] */
+								read_i2c_len = 120; /* rev67.8 length; CRC at [118..119] */
 							else
 								read_i2c_len = 114;
 							
@@ -4371,7 +4371,8 @@ void i2c_master_task(void *pvParameters)
 										ptr.pin->control = i2c_rcv_buf[115];
 										plc_power.flag_bms_comm = i2c_rcv_buf[115];
 										rmc_bms_rst_count = (uint16)((i2c_rcv_buf[116] << 8) | i2c_rcv_buf[117]);
-										rmc_bms_rst_time_sec = (uint16)((i2c_rcv_buf[118] << 8) | i2c_rcv_buf[119]);
+										/* ARM i2c_tx_temp[4..5]; [118..119] is CRC of the 120-byte frame */
+										rmc_bms_rst_time_sec = (uint16)((i2c_rcv_buf[4] << 8) | i2c_rcv_buf[5]);
 										/* No BMS comm → assume 48V present */
 										if(plc_power.flag_bms_comm == 0)
 											plc_power.flag_48V_exist = 1;
@@ -5169,7 +5170,10 @@ static int32_t convert_neg_voltage_from_meas_mv(int32_t meas_mv)
 		/ (meas[4] - meas[3]);
 }
 
-/* After control_input(): rewrite IN9-IN11 from intermediate V0_5 reading to actual V */
+/* After control_input(): rewrite IN9-IN12 from intermediate reading to actual V.
+ * control_input() already added calibration on the raw sense (mV). Strip it
+ * before the scale, then add the same offset on the engineering value so
+ * calibration +5.00 shifts the displayed volts by 5.00. */
 static void convert_rmc1232_in9_in12(void)
 {
 	uint8_t i;
@@ -5177,15 +5181,21 @@ static void convert_rmc1232_in9_in12(void)
 
 	for(i = 8; i <= 11; i++)
 	{
+		int32_t cal;
+		int32_t meas;
+
 		ptr = put_io_buf(IN, i);
 		if(ptr.pin->auto_manual != 0)
 			continue;
+		cal = 100L * ((int32_t)ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+		if(ptr.pin->calibration_sign)
+			cal = -cal;
+		meas = ptr.pin->value - cal;
 		if(i < 11)
-			ptr.pin->value = convert_neg_voltage_from_meas_mv(ptr.pin->value);
-		if(i == 11)
-			ptr.pin->value = ptr.pin->value * 1000 / 141;
+			ptr.pin->value = convert_neg_voltage_from_meas_mv(meas) + cal;
+		else
+			ptr.pin->value = meas * 1000 / 141 + cal;
 	}
-		
 }
 
 /* conver sepcail range "AHKC_Hall" for PCL-RMC1232, 2.5±2V <-> ±200A*/

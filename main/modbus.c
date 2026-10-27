@@ -117,7 +117,7 @@ uint16 rmc_oc_chg = 3000;	/* POWER_OC_CHG_MA default */
 uint16 rmc_oc_dsg = 4000;	/* POWER_OC_DSG_MA default */
 uint16 rmc_bms_rst_min = 60;	/* BMS comm-fail HW reset interval, minutes, min 10 */
 uint16 rmc_bms_rst_count;	/* from STM i2c [116..117] */
-uint16 rmc_bms_rst_time_sec;	/* from STM i2c [118..119], seconds */
+uint16 rmc_bms_rst_time_sec;	/* from STM i2c_tx_temp[4..5], seconds */
 volatile uint8_t rmc_bms_rst_now;	/* one I2C frame of 0: reset BMS, keep interval */
 
 /* Keep integrators in sync so energy survives reboot and keeps accumulating */
