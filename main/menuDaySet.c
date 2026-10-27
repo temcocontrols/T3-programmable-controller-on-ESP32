@@ -115,7 +115,7 @@ void MenuDaySet_display(void)
 	uint8_t hour,min;
 	char j;
 	memset(temp_buffer, 0, 0);
-	blink_count = (blink_count ++) % 2;
+	blink_count = (blink_count + 1) % 2;
 
 	if(blink_count % 2  == 0)
 	{
@@ -257,7 +257,7 @@ void MenuTimeSet_display(void)
 	uint8_t hour,min;
 	char j;
 	memset(temp_buffer, 0, 0);
-	blink_count = (blink_count++) % 2;
+	blink_count = (blink_count + 1) % 2;
 
 	if(blink_count %2  == 0)
 	{
@@ -415,7 +415,7 @@ void MenuTimeChange_display(void)
 	uint8_t hour,min;
 	char j;
 	memset(temp_buffer, 0, 0);
-	blink_count = (blink_count++) % 2;
+	blink_count = (blink_count + 1) % 2;
 
 	if(blink_count % 2 == 0)
 	{

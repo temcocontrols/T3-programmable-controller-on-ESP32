@@ -989,9 +989,9 @@ static void param_table_fill_row(uint16_t i)
     if(s_param_table_type == PARAM_TABLE_INPUT)
     {
         memset(desc_buf, 0, sizeof(desc_buf));
-        memcpy(desc_buf, inputs[i].description, 21);
+        memcpy(desc_buf, inputs[i].description, sizeof(inputs[i].description));
         memset(label_buf, 0, sizeof(label_buf));
-        memcpy(label_buf, inputs[i].label, 9);
+        memcpy(label_buf, inputs[i].label, sizeof(inputs[i].label));
 
         lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
         lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
@@ -1011,9 +1011,9 @@ static void param_table_fill_row(uint16_t i)
     else if(s_param_table_type == PARAM_TABLE_OUTPUT)
     {
         memset(desc_buf, 0, sizeof(desc_buf));
-        memcpy(desc_buf, outputs[i].description, 21);
+        memcpy(desc_buf, outputs[i].description, sizeof(outputs[i].description));
         memset(label_buf, 0, sizeof(label_buf));
-        memcpy(label_buf, outputs[i].label, 9);
+        memcpy(label_buf, outputs[i].label, sizeof(outputs[i].label));
 
         lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
         lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
@@ -1035,9 +1035,9 @@ static void param_table_fill_row(uint16_t i)
     else
     {
         memset(desc_buf, 0, sizeof(desc_buf));
-        memcpy(desc_buf, vars[i].description, 21);
+        memcpy(desc_buf, vars[i].description, sizeof(vars[i].description));
         memset(label_buf, 0, sizeof(label_buf));
-        memcpy(label_buf, vars[i].label, 9);
+        memcpy(label_buf, vars[i].label, sizeof(vars[i].label));
 
         lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
         lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
@@ -1692,7 +1692,7 @@ static void lv_refresh_Protocols_Data(void)
         lv_textarea_set_text(ui_ModbusIdText, id_buf);
 
         char baud_buf[8];
-        sprintf(baud_buf, "%ld", get_baud_val_from_enum(Modbus.baudrate[0]));
+        sprintf(baud_buf, "%ld", (long)get_baud_val_from_enum(Modbus.baudrate[0]));
         lv_textarea_set_text(ui_BaudRateText, baud_buf);
 
         lv_textarea_set_text(ui_PanelNameText, panelname);
@@ -1969,7 +1969,9 @@ static void lv_refresh_Time_Data(void)
         {
             lv_dropdown_set_selected(ui_Dropdown5, Modbus.en_sntp - 2);
         }
-        memcpy(&selected_date, &rtc_date, sizeof(rtc_date));
+        selected_date.year = (int16_t)rtc_date.year;
+        selected_date.month = (int8_t)rtc_date.month;
+        selected_date.day = (int8_t)rtc_date.day;
         if(rtc_date.year < 2025) // Basic sanity check to avoid setting calendar to garbage date if RTC isn't set
         {
             rtc_date.year = 2026;

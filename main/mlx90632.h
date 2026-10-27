@@ -66,7 +66,7 @@
 #ifndef GENMASK
 #ifndef BITS_PER_LONG
 #warning "Using default BITS_PER_LONG value"
-#define BITS_PER_LONG 64 /**< Define how many bits per long your CPU has */
+#define BITS_PER_LONG 32 /**< ESP32 long is 32-bit; 64 makes GENMASK shift into UB */
 #endif
 #define GENMASK(h, l) \
     (((~0UL) << (l)) & (~0UL >> (BITS_PER_LONG - 1 - (h))))

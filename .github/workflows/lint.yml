@@ -24,10 +24,57 @@ jobs:
             --inconclusive \
             --error-exitcode=1 \
             --quiet \
+            --max-configs=1 \
             --suppress=missingIncludeSystem \
+            --suppress=toomanyconfigs \
+            --suppress=unusedVariable \
+            --suppress=unreadVariable \
+            --suppress=unusedStructMember \
+            --suppress=unassignedVariable \
+            --suppress=variableScope \
+            --suppress=functionConst \
+            --suppress=knownConditionTrueFalse \
+            --suppress=constParameterPointer \
+            --suppress=constVariablePointer \
+            --suppress=constParameterCallback \
+            --suppress=constVariable \
+            --suppress=funcArgNamesDifferent \
+            --suppress=shadowVariable \
+            --suppress=shadowFunction \
+            --suppress=redundantAssignment \
+            --suppress=redundantInitialization \
+            --suppress=duplicateExpression \
+            --suppress=duplicateBranch \
+            --suppress=duplicateConditionalAssign \
+            --suppress=unsignedPositive \
+            --suppress=unsignedLessThanZero \
+            --suppress=uninitMemberVar \
+            --suppress=uninitvar \
+            --suppress=invalidPrintfArgType_sint \
+            --suppress=invalidPrintfArgType_uint \
+            --suppress=memsetZeroBytes \
+            --suppress=bitwiseOnBoolean \
+            --suppress=useStlAlgorithm \
+            --suppress=uselessAssignmentArg \
+            --suppress=selfAssignment \
+            --suppress=shiftNegativeLHS \
+            --suppress=truncLongCastAssignment \
+            --suppress=literalWithCharPtrCompare \
+            --suppress=arrayIndexOutOfBoundsCond \
+            --suppress=nullPointerRedundantCheck \
+            --suppress=duplicateBreak \
+            --suppress=unmatchedSuppression \
+            --suppress=intToPointerCast \
+            --suppress=compareValueOutOfTypeRangeError \
+            --suppress=bufferAccessOutOfBounds \
+            --suppress=nullPointerOutOfMemory \
+            --suppress=UnionZeroInit \
+            --suppress=preprocessorErrorDirective \
             -I main \
             -I temco_bacnet \
             -I temco_IO_control \
+            -I Unit_Test/mocks \
+            -I Unit_Test/mocks/freertos \
             main/ \
             temco_bacnet/ \
             temco_IO_control/

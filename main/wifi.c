@@ -195,7 +195,9 @@ static void wifi_event_handler(
                 SSID_Info.getway[2] = esp_ip4_addr3(&ip->gw);
                 SSID_Info.getway[3] = esp_ip4_addr4(&ip->gw);
 
-                ESP_LOGE(TAG, "IP: " IPSTR, IP2STR(&ip->ip));
+                ESP_LOGE(TAG, "IP: " IPSTR,
+                         esp_ip4_addr1(&ip->ip), esp_ip4_addr2(&ip->ip),
+                         esp_ip4_addr3(&ip->ip), esp_ip4_addr4(&ip->ip));
 
                 wifi_ensure_public_dns(false);
 

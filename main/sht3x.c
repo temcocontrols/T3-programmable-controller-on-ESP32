@@ -207,11 +207,11 @@ etError SHT3X_GetTempAndHumiPolling(float         *temp,
                                     etRepeatab repeatab,
                                     uint8        timeout){
 //==============================================================================
+#if 0
   etError error;           // error code
   uint16    rawValueTemp;    // temperature raw value from sensor
   uint16    rawValueHumi;    // humidity raw value from sensor
 
-#if 0
   error  = SHT3X_StartWriteAccess();
  
   // if no error ...

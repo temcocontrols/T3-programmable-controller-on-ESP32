@@ -110,7 +110,9 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
             if (eth_netif != NULL && use_static) {
                 esp_netif_ip_info_t ip_info = {0};
                 if (esp_netif_get_ip_info(eth_netif, &ip_info) == ESP_OK && ip_info.ip.addr != 0) {
-                    ESP_LOGI(TAG, "Ethernet static IP active: " IPSTR, IP2STR(&ip_info.ip));
+                    ESP_LOGI(TAG, "Ethernet static IP active: " IPSTR,
+                             esp_ip4_addr1(&ip_info.ip), esp_ip4_addr2(&ip_info.ip),
+                             esp_ip4_addr3(&ip_info.ip), esp_ip4_addr4(&ip_info.ip));
                     Modbus.ethernet_status = 4;
                     hub_network_manager_set_eth_status(true, true);
                 }
@@ -178,9 +180,15 @@ static void got_ip_event_handler(void *arg,
     Modbus.getway[2] = esp_ip4_addr3(&ip_info->gw);
     Modbus.getway[3] = esp_ip4_addr4(&ip_info->gw);
 
-    ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
-    ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
-    ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
+    ESP_LOGI(TAG, "ETHIP:" IPSTR,
+             esp_ip4_addr1(&ip_info->ip), esp_ip4_addr2(&ip_info->ip),
+             esp_ip4_addr3(&ip_info->ip), esp_ip4_addr4(&ip_info->ip));
+    ESP_LOGI(TAG, "ETHMASK:" IPSTR,
+             esp_ip4_addr1(&ip_info->netmask), esp_ip4_addr2(&ip_info->netmask),
+             esp_ip4_addr3(&ip_info->netmask), esp_ip4_addr4(&ip_info->netmask));
+    ESP_LOGI(TAG, "ETHGW:" IPSTR,
+             esp_ip4_addr1(&ip_info->gw), esp_ip4_addr2(&ip_info->gw),
+             esp_ip4_addr3(&ip_info->gw), esp_ip4_addr4(&ip_info->gw));
 
     Modbus.ethernet_status = 4;  // GOT IP
     hub_network_manager_set_eth_status(true, true);
@@ -647,7 +655,12 @@ esp_err_t ethernet_init(void)
             esp_netif_set_ip_info(eth_netif, &ip_info);
 
             ESP_LOGI(TAG, "Ethernet static IP configured: ip=" IPSTR " mask=" IPSTR " gw=" IPSTR,
-                 IP2STR(&ip_info.ip), IP2STR(&ip_info.netmask), IP2STR(&ip_info.gw));
+                 esp_ip4_addr1(&ip_info.ip), esp_ip4_addr2(&ip_info.ip),
+                 esp_ip4_addr3(&ip_info.ip), esp_ip4_addr4(&ip_info.ip),
+                 esp_ip4_addr1(&ip_info.netmask), esp_ip4_addr2(&ip_info.netmask),
+                 esp_ip4_addr3(&ip_info.netmask), esp_ip4_addr4(&ip_info.netmask),
+                 esp_ip4_addr1(&ip_info.gw), esp_ip4_addr2(&ip_info.gw),
+                 esp_ip4_addr3(&ip_info.gw), esp_ip4_addr4(&ip_info.gw));
 
             debug_info("tcpip_adapter_set_ip_info() finished^^^^^^^^");
 

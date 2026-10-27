@@ -2019,7 +2019,7 @@ static void write_tstat10_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_
 	{
 //       vTaskSuspend(Handle_Menu);
         display_lcd.lcddisplay[StartAdd - MODBUS_LCD_CONFIG_FIRST] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
-        memcpy(Setting_Info.reg.display_lcd.lcddisplay,display_lcd.lcddisplay,sizeof(lcdconfig));
+        memcpy(&Setting_Info.reg.display_lcd, &display_lcd, sizeof(lcdconfig));
         // clear first screen
         /*disp_str(FORM15X30, 6,  32, " ",SCH_COLOR,TSTAT8_BACK_COLOR);
         disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
@@ -2573,7 +2573,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 
 uint16_t read_IO_reg(uint16_t addr)
 {
-    uint8_t sendbuf[2];
+    uint8_t sendbuf[2] = {0, 0};
     Str_points_ptr ptr;
     if((addr >= MODBUS_OUTPUT_FIRST && addr <= MODBUS_OUTPUT_LAST) ||
         (addr >= MODBUS_EXOUTPUT_FIRST && addr <= MODBUS_EXOUTPUT_LAST))

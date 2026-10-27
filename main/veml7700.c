@@ -30,6 +30,7 @@ bool mgos_veml7700_detect(struct mgos_i2c *bus) {
 struct mgos_veml7700 *mgos_veml7700_create(struct mgos_i2c *bus) {
   if (bus == NULL) return NULL;
   struct mgos_veml7700 *ctx = calloc(1, sizeof(struct mgos_veml7700));
+  if (ctx == NULL) return NULL;
   ctx->bus = bus;
   return ctx;
 }
@@ -43,7 +44,7 @@ int mgos_veml7700_read_reg(struct mgos_veml7700 *ctx, uint8_t reg) {
 
 bool mgos_veml7700_write_reg(struct mgos_veml7700 *ctx, uint8_t reg,
                              uint16_t val) {
-  if (ctx == NULL) return -1;
+  if (ctx == NULL) return false;
   uint16_t swapped_val = (((val & 0xff) << 8) | (val >> 8));
   return mgos_i2c_write_reg_w(ctx->bus, MGOS_VEML7700_ADDR, reg, swapped_val);
 }

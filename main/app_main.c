@@ -2511,6 +2511,7 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, S32_T value)
 		Point_Net point;
 		BACNET_PROPERTY_VALUE *list;
 			if (cov == NULL) {
+				return;
 		}
 
 		// check whether it is in network point table
@@ -3037,7 +3038,6 @@ void Update_Led(void)
 //	U8_T index,shift;
 //	U32_T tempvalue;
 	static U16_T pre_in[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	U8_T error_in = 0; // error of input raw value
 	U8_T pre_status = 0;
 	U8_T max_in = 0;
 	U8_T max_out = 0;
@@ -3078,11 +3078,13 @@ void Update_Led(void)
 
 	for(loop = 0;loop < max_in;loop++)
 	{
+		U8_T error_in;
 		pre_status = InputLed[loop];
 		if(input_raw[loop]  > pre_in[loop])
 			error_in = input_raw[loop]  - pre_in[loop];
 		else
 			error_in = pre_in[loop] - input_raw[loop];
+		(void)error_in;
 
 		ptr = put_io_buf(IN,loop);
 
