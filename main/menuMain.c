@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "flash.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 const char c_strBaudate[UART_BAUDRATE_MAX][7] =
 {
     "1200  ",   //0
@@ -258,5 +259,6 @@ void draw_tangle(uint8 xpos, uint16 ypos)
     disp_null_icon(2, yEndPos-2, 0, xpos,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
     disp_null_icon(2, yEndPos-2, 0, xpos+xEndPos+8,ypos+6,TSTAT8_CH_COLOR, TANGLE_COLOR);
 }
+#endif
 
 /* End of MenuMain.c */

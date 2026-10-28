@@ -2409,7 +2409,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		}
 		else if(address == MODBUS_MINI_TYPE)
 		{
-			if(*(bufadd + 5) <= MAX_MINI_TYPE && *(bufadd + 5) >= MINI_BIG_ARM)
+			if(*(bufadd + 5) <= MAX_MINI_TYPE && *(bufadd + 5) >= PROJECT_HUB)
 			{
 				Modbus.mini_type = *(bufadd + 5);
 				save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
@@ -2420,7 +2420,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			if(*(bufadd + 5) < 10 && *(bufadd + 5) >= 0)
 			{
 				Modbus.LcdTheme = *(bufadd + 5);
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 				LcdThemeMarkForUpdate();
+#endif
 				save_uint8_to_flash( FLASH_THEME_TYPE, Modbus.LcdTheme);
 			}
 		}

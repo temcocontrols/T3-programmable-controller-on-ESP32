@@ -4845,11 +4845,14 @@ void app_main()
 		LCD_Init();
 		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
+
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
     else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_AIRLAB)
 	{
 		Test_Array();
 		xTaskCreate(MenuTask,  "MenuTask", 4096, NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
 	}
+#endif
 
 	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
 	{
@@ -4879,11 +4882,12 @@ void app_main()
 		hub_snmp_init();
 	}
 
-    if(Modbus.mini_type == PROJECT_MPPT)
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
+
+	if(Modbus.mini_type == PROJECT_MPPT)
     	mppt_task_init();
     if(Modbus.mini_type == PROJECT_MULTIMETER_NEW)
     	hy3131_spi_init();
-
     // Check the Modbus mini_type and call uart_init(2) if necessary
     // for T3-BB-ESP, uart(2)初始化放在wifi初始化之后，否则初始失败
 	if (Modbus.mini_type == MINI_BIG_ARM)
@@ -4909,6 +4913,7 @@ void app_main()
     }
     // if(Modbus.mini_type == PROJECT_TSTAT9 || Modbus.mini_type == PROJECT_AIRLAB)
     //    xTaskCreate(Lcd_task,"lcd_task",2048, NULL, tskIDLE_PRIORITY + 4,&main_task_handle[6]);
+#endif
 
     if((Modbus.mini_type == PROJECT_FAN_MODULE) || (Modbus.mini_type == PROJECT_TRANSDUCER) || (Modbus.mini_type == PROJECT_POWER_METER)
     		|| (Modbus.mini_type == PROJECT_AIRLAB) || (Modbus.mini_type == PROJECT_LSW_SENSOR) || (Modbus.mini_type == MINI_TSTAT11))
@@ -4916,6 +4921,7 @@ void app_main()
        xTaskCreate(i2c_sensor_task,"i2c_task", 2048*2, NULL, 5, NULL);
 	}
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
     if(Modbus.mini_type == PROJECT_AIRLAB)
     {
     	Airlab_init(); // 初始化数据和任务
@@ -4928,6 +4934,7 @@ void app_main()
     	xTaskCreate(vPM25Task,"PM25Task",2048, NULL, tskIDLE_PRIORITY + 1,&main_task_handle[15]);
     }
     else
+#endif
     {
     	vStartScanTask(5);
     }
@@ -4954,7 +4961,7 @@ void app_main()
 	{
 		xTaskCreate(uart0_rx_task,"uart0_rx_task",6000, NULL, 11, &main_task_handle[9]);
 	}
-
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
     if(((Modbus.mini_type >= MINI_BIG_ARM) && (Modbus.mini_type <= MINI_NANO))
     	|| (Modbus.mini_type == PROJECT_RMC1216) || (Modbus.mini_type == PROJECT_NG2_NEW)
 		)
@@ -4962,7 +4969,7 @@ void app_main()
 	   xTaskCreate(Master2_Node_task,"mstp2_task",4096, NULL, 4, &main_task_handle[11]);
 	   xTaskCreate(uart2_rx_task,"uart2_rx_task",4096, NULL, 8, &main_task_handle[12]);
     }// ok
-
+#endif
     Set_Device_Stage(DEVICE_STAGE_RUNNING);
 
  #if 1
@@ -4974,7 +4981,7 @@ void app_main()
 #endif
 
 	/* WireGuard manager: starts gateway task only when Modbus enable is set */
-	if(Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY)
+	if(Modbus.mini_type == PROJECT_WIREGUARD_GATEWAY || Modbus.mini_type == MINI_TSTAT11)
 	{
 		ESP_LOGI("app_main", "Starting WireGuard manager (gateway task only if enable=1)...");
 		xTaskCreate(wireguard_manager_task, "wireguard_mgr", 3072, NULL, tskIDLE_PRIORITY + 2, &main_task_handle[18]);

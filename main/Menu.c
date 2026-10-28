@@ -10,7 +10,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #define	MenuSTACK_SIZE		portMINIMAL_STACK_SIZE//1024
 #define	ScrollingSTACK_SIZE	portMINIMAL_STACK_SIZE//1024
 #define	CursorSTACK_SIZE	portMINIMAL_STACK_SIZE//512
@@ -282,6 +282,10 @@ void exit_request_password(void)
 //	cursor_off();
 	menu_password = FALSE;
 }
+#else
+QueueHandle_t qKey = 0;
+uint16_t count_lcd_time_off_delay;
+#endif
 
 
 
