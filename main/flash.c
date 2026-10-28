@@ -21,6 +21,7 @@
 #include "driver/uart.h"
 #include "scan.h"
 #include "WireGuard_App.h"
+#include "store.h"
 
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
@@ -213,6 +214,13 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_PRODUCT_MODEL, Modbus.product_model);
 	}
 
+	err = nvs_get_u8(my_handle, FLASH_HARDWARE_REV, &Modbus.hardRev);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.hardRev = 2;
+		nvs_set_u8(my_handle, FLASH_HARDWARE_REV, Modbus.hardRev);
+	}
+
 	err = nvs_get_u8(my_handle, FLASH_INSTANCE1, &temp[0]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -302,9 +310,9 @@ esp_err_t read_default_from_flash(void)
 	com_config_back[2] = Modbus.com_config[2];
 
 	err = nvs_get_u8(my_handle, FLASH_MINI_TYPE, &Modbus.mini_type);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
+	if((err == ESP_ERR_NVS_NOT_FOUND) || (Modbus.mini_type < 30))
 	{
-		Modbus.mini_type = MINI_NANO;
+		Modbus.mini_type = MINI_TSTAT11;
 		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
 	}
 	err = nvs_get_u8(my_handle, FLASH_THEME_TYPE, &Modbus.LcdTheme);
@@ -419,7 +427,7 @@ esp_err_t read_default_from_flash(void)
 	else
 	{
 		if(Modbus.mini_type != PROJECT_MPPT){
-			if(count_reboot >= 3)
+			if(count_reboot >= 5)
 			{ // reboot
 				nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
 				start_fw_update();
@@ -652,6 +660,22 @@ esp_err_t read_default_from_flash(void)
 	{
 		Modbus.LCD_time_off_delay = 255;
 		//nvs_set_u8(my_handle, FLASH_LCD_TIME_OFF_DELAY, Modbus.LCD_time_off_delay);
+	}
+
+	if(Modbus.mini_type == MINI_TSTAT11)
+	{
+		err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, &occ_trigger.timer);
+		if((err == ESP_ERR_NVS_NOT_FOUND) || (occ_trigger.timer == 0))
+		{
+			occ_trigger.timer = 300;
+			nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
+		}
+		err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, &occ_trigger.trigger);
+		if(err == ESP_ERR_NVS_NOT_FOUND)
+		{
+			occ_trigger.trigger = 1;
+			nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, occ_trigger.trigger);
+		}
 	}
 
 	err = nvs_get_u16(my_handle, FLASH_CURRENT_TLG_PAGE, &current_page);
@@ -1041,7 +1065,7 @@ void Flash_Inital(void)
 			baseAddr += len;
 #if NEW_IO
 			if(max_vars <= MAX_VARS)
-				len = sizeof(Str_variable_point) * max_vars;
+				len = sizeof(Str_variable_point) * MAX_VARS;
 			else
 				len = sizeof(Str_variable_point) * max_vars;
 #else
@@ -1900,9 +1924,8 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"P_size",strlen("P_size"));
 		}
 
-		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
+		if(Modbus.mini_type == MINI_TSTAT10)
 		{
-
 			ptr = put_io_buf(IN,8);
 			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
 			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
@@ -1924,7 +1947,6 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"TVOC",strlen("TVOC"));
 			ptr.pin->range = TVOC_PPB;
 
-
 			ptr = put_io_buf(IN,11);
 			memcpy(ptr.pin->description,"OCCUPIED SENSOR",strlen("OCCUPIED SENSOR"));
 			memcpy(ptr.pin->label,"OCC   ",strlen("OCC   "));
@@ -1938,6 +1960,41 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"LUX",strlen("LUX"));
 		}
 
+		if(Modbus.mini_type == MINI_TSTAT11)
+		{
+			ptr = put_io_buf(IN,0);
+			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
+			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
+			ptr.pin->digital_analog = 1;
+			ptr.pin->range = R10K_40_120DegC;
+
+			ptr = put_io_buf(IN,1);
+			memcpy(ptr.pin->description,"HUMIDITY",strlen("HUMIDITY"));
+			memcpy(ptr.pin->label,"HUM",strlen("HUM"));
+			ptr.pin->range = Humidty;
+
+			ptr = put_io_buf(IN,2);
+			memcpy(ptr.pin->description,"CO2 ",strlen("CO2 "));
+			memcpy(ptr.pin->label,"CO2",strlen("CO2"));
+			ptr.pin->range = CO2_PPM;
+
+			ptr = put_io_buf(IN,3);
+			memcpy(ptr.pin->description,"TVOC",strlen("TVOC"));
+			memcpy(ptr.pin->label,"TVOC",strlen("TVOC"));
+			ptr.pin->range = TVOC_PPB;
+
+			ptr = put_io_buf(IN,4);
+			memcpy(ptr.pin->description,"OCCUPIED SENSOR",strlen("OCCUPIED SENSOR"));
+			memcpy(ptr.pin->label,"OCC   ",strlen("OCC   "));
+			ptr.pin->digital_analog = 0;
+			if(ptr.pin->range == 0)
+				ptr.pin->range = UNOCCUPIED_OCCUPIED;
+
+			ptr = put_io_buf(IN,5);
+			if(ptr.pin->range == 0)
+				ptr.pin->range = LUX;
+			memcpy(ptr.pin->label,"LUX",strlen("LUX"));
+		}
 	}
 	else if(point_type == VAR)
 	{
@@ -1980,8 +2037,25 @@ void Initial_points(uint8_t point_type)
 
 			Get_AVS();
 		}
-
 	}
+}
+
+/* Factory-programmed empty is 0x04; complete flash erase is 0xFF. */
+static int points_flash_is_blank(const uint8_t *buf)
+{
+	if(buf == NULL)
+	{
+		return 1;
+	}
+	if(buf[0] == 0x04 && buf[1] == 0x04 && buf[2] == 0x04)
+	{
+		return 1;
+	}
+	if(buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF)
+	{
+		return 1;
+	}
+	return 0;
 }
 
 void read_point_info(void)
@@ -1995,12 +2069,27 @@ void read_point_info(void)
 	U8_T page;
 	uint8_t  err = 0xff;
 	uint8_t *tempbuf = NULL;
+	uint8_t apply_defaults = 0;
 
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
 
 		if(Flash_Position[loop].valid == 0)
 			continue;
+
+		{
+			uint8_t hdr[3] = {0, 0, 0};
+			if(esp_partition_read(partition, Flash_Position[loop].addr, hdr, sizeof(hdr)) == ESP_OK &&
+			   points_flash_is_blank(hdr))
+			{
+				if((loop == OUT) || (loop == IN) || (loop == VAR))
+				{
+					Initial_points(loop);
+				}
+				apply_defaults = 1;
+				continue;
+			}
+		}
 
 #if NEW_IO
 
@@ -2046,32 +2135,16 @@ void read_point_info(void)
 #if !NEW_IO
 			memcpy(&outputs,tempbuf,sizeof(Str_out_point) * MAX_OUTS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(OUT);
-			}
-
 			break;
 		case IN:
 #if !NEW_IO
 			memcpy(&inputs,tempbuf,sizeof(Str_in_point) * MAX_INS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(IN);
-
-			}
-
 			break;
 		case VAR:
 #if !NEW_IO
 			memcpy(&vars,tempbuf,sizeof(Str_variable_point) * MAX_VARS);
 #endif
-			// if initial status
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(VAR);Test[23]++;
-			}
 			break;
 
 		case CON:
@@ -2154,6 +2227,11 @@ void read_point_info(void)
 
 	}
 
+	if(apply_defaults)
+	{
+		ESP_LOGI("FL", "blank point flash, loading factory defaults mini_type=%u", Modbus.mini_type);
+		save_point_info(0);
+	}
 
 }
 

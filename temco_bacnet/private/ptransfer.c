@@ -1217,7 +1217,7 @@ int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_
 
 int Send_Ptransfer_to_Sub(U8_T *p, U16_T length,U8_T port)
 {
-	Str_user_data_header head;
+	Str_user_data_header head = {0};
 	BACNET_PRIVATE_TRANSFER_DATA private_data = { 0 };
 	BACNET_APPLICATION_DATA_VALUE data_value = { 0 };
 	uint8_t far test_value[MAX_APDU] = { 0 };
@@ -1302,7 +1302,7 @@ void handler_private_transfer(
     BACNET_APPLICATION_DATA_VALUE rec_data_value = { 0 };
     BACNET_PRIVATE_TRANSFER_DATA private_data = { 0 };
     BACNET_PRIVATE_TRANSFER_DATA rec_data = { 0 };
-		Str_user_data_header	private_header;
+		Str_user_data_header	private_header = {0};
 		BACNET_OCTET_STRING Temp_CS;
 		uint8_t* ptr = NULL;
 		uint8_t test_value[MAX_APDU] = { 0 };

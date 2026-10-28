@@ -94,7 +94,7 @@ S16_T find_remote_point( Point_Net *point )
 {
 	S16_T i;
 	U8_T flag;
-	REMOTE_POINTS *ptr;
+	REMOTE_POINTS *ptr = NULL;
 
 	if(check_point_type(point) == 1)
 	{
@@ -106,6 +106,9 @@ S16_T find_remote_point( Point_Net *point )
 		ptr = remote_points_list_bacnet;
 	}
 #endif
+	if (ptr == NULL) {
+		return -1;
+	}
 //	if( point->network_number == 0xFF ||  point->network_number == 0)
 //	{
 //		point->network_number = Setting_Info.reg.network_number;//panel_net_info.network_number;
@@ -170,13 +173,16 @@ U8_T check_network_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 U8_T check_remote_point_list(Point_Net *point,U8_T *index, U8_T protocal)
 {
 	U16_T i;
-	REMOTE_POINTS *ptr;
+	REMOTE_POINTS *ptr = NULL;
 	if(protocal == 0)
 		ptr = remote_points_list_modbus;
 #if (ARM_MINI || ARM_CM5 || ARM_TSTAT_WIFI )
 	else
 		ptr = remote_points_list_bacnet;
 #endif
+	if (ptr == NULL) {
+		return 0;
+	}
 //	Test[20] = point->panel; Test[25] = ptr->point.panel;
 //	Test[21] = point->network_number; Test[26] = ptr->point.network_number;
 //	Test[22] = point->point_type; Test[27] = ptr->point.point_type;

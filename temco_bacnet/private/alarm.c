@@ -181,7 +181,7 @@ void check_input_alarm(void)
 
 		for(j = 0;j < 32 ;j++)
 		{
-			if(alarm_in_open & (1L << j))
+			if(alarm_in_open & (1UL << j))
 			{
 				if(j < 9)
 				{
@@ -243,7 +243,7 @@ void check_input_alarm(void)
 
 		for(j = 0;j < 32;j++)
 		{
-			if(alarm_in_short & (1L << j))
+			if(alarm_in_short & (1UL << j))
 			{
 				if(j < 9)
 				{
@@ -331,8 +331,8 @@ void generate_common_alarm(U8_T index)
 
 void generate_program_alarm(U8_T type,U8_T prg)
 {
-	S8_T str[50];
-	memset(str,0,50);
+	S8_T str[ALARM_MESSAGE_SIZE + 1];
+	memset(str, 0, sizeof(str));
 
 	//if(index == ALARM_PROGRAM)
 	if(type == 0) // dead cycle

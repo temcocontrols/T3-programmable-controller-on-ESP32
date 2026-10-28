@@ -8,7 +8,7 @@
 #include "types.h"
 #include "esp_attr.h"
 
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct _SCAN_DATABASE_
 {
 	U8_T id;
@@ -217,3 +217,5 @@ void Check_scan_db_time_to_live(void);
 
 #endif
 
+
+#pragma pack(pop)

@@ -210,6 +210,7 @@ void ui_Time_screen_init(void)
 {
     ui_Time = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_Time, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    ui_set_screen_background(ui_Time);
 
     ui_ChangeConfigTitle3 = lv_obj_create(ui_Time);
     lv_obj_set_width(ui_ChangeConfigTitle3, 450);

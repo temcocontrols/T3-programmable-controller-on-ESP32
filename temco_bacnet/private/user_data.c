@@ -714,8 +714,13 @@ void init_panel(void)
 	month_length[11] = 31;
 
 
-	memset(input_raw,1000,2 * MAX_INS);
-	memset(input_raw_back,1000,2 * MAX_INS);
+	{
+		U16_T ri;
+		for (ri = 0; ri < MAX_INS; ri++) {
+			input_raw[ri] = 1000;
+			input_raw_back[ri] = 1000;
+		}
+	}
 	memset(output_raw,0,2 * MAX_OUTS);
 	memset(output_raw_back,0,2 * MAX_OUTS);
 //	memset(chip_info,0,12);
@@ -4327,7 +4332,7 @@ void monitor_init(void)
 U8_T Write_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 {
 	uint8 ret;//, loop = 50;
-	uint8 result;
+	uint8 result = 0;
 	uint8 file_index;  // range is  0 - 23
 
 	if(SD_exist != 2)
@@ -4335,14 +4340,19 @@ U8_T Write_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 		return 1;
 	}
 
-
+	(void)ret;
+	(void)file_index;
+	(void)file_no;
+	(void)index;
+	(void)ana_dig;
+	(void)star_pos;
 	return result;
 }
 
 
 U8_T Read_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 {
-	uint8 result;
+	uint8 result = 0;
 	uint8 ret;
 	uint8_t file_index;
 	if(SD_exist != 2)
@@ -4350,7 +4360,12 @@ U8_T Read_SD(U16_T file_no,U8_T index,U8_T ana_dig,uint32_t star_pos)
 		return 1;
 	}
 
-
+	(void)ret;
+	(void)file_index;
+	(void)file_no;
+	(void)index;
+	(void)ana_dig;
+	(void)star_pos;
 	return result;
 }
 

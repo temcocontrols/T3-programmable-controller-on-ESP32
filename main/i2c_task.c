@@ -19,6 +19,15 @@
 
 static const char *TAG = "i2c-task";
 
+static void copy_io_str(void *dst, size_t dst_sz, const char *src)
+{
+	if (dst == NULL || dst_sz == 0 || src == NULL) {
+		return;
+	}
+	memset(dst, 0, dst_sz);
+	strncpy((char *)dst, src, dst_sz - 1);
+}
+
 //SemaphoreHandle_t print_mux = NULL;
 /**
  * @brief  code to operate on SHT31 sensor
@@ -583,6 +592,52 @@ uint32_t iaq_baseline;
 uint8_t flag_voc_init;
 uint8_t count_voc_int;
 
+static int32_t tstat11_hum_buf[5];
+static uint8_t tstat11_hum_count;
+static uint8_t tstat11_hum_pos;
+static int32_t tstat11_hum_last = -1;
+
+static void tstat11_write_humidity(int32_t milli_rh)
+{
+	Str_points_ptr ptr;
+	int32_t pre_value;
+	int32_t sum = 0;
+	uint8_t i;
+
+	if((milli_rh < 0) || (milli_rh > 100000))
+		return;
+
+	if((tstat11_hum_last >= 0) && (tstat11_hum_count >= 5))
+	{
+		if((milli_rh - tstat11_hum_last > 20000) || (tstat11_hum_last - milli_rh > 20000))
+			return;
+	}
+
+	tstat11_hum_buf[tstat11_hum_pos] = milli_rh;
+	tstat11_hum_pos++;
+	if(tstat11_hum_pos >= 5)
+		tstat11_hum_pos = 0;
+	if(tstat11_hum_count < 5)
+		tstat11_hum_count++;
+
+	for(i = 0; i < tstat11_hum_count; i++)
+		sum += tstat11_hum_buf[i];
+	pre_value = sum / tstat11_hum_count;
+	tstat11_hum_last = pre_value;
+
+	ptr = put_io_buf(IN, 1);
+	if(!ptr.pin->calibration_sign)
+		pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+	else
+		pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+	if(pre_value < 0)
+		pre_value = 0;
+	else if(pre_value > 100000)
+		pre_value = 100000;
+	ptr.pin->value = pre_value;
+	g_sensors.humidity = (int16_t)(pre_value / 100);
+}
+
 void VOC_Initial(void) 	// SGP30
 {
 	int16_t ret;
@@ -731,201 +786,201 @@ void i2c_sensor_task(void *arg)
 				ptr.pvar->value = Ade7953Read(0x280+i);
 			}
 			ptr = put_io_buf(VAR,0);
-			memcpy(ptr.pin->description,"SAG VOLTAGE LEVEL",strlen("SAG VOLTAGE LEVEL"));
-			memcpy(ptr.pin->label,"SAGLVL",strlen("SAGLVL"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "SAG VOLTAGE LEVEL");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "SAGLVL");
 			ptr = put_io_buf(VAR,1);
-			memcpy(ptr.pin->description,"ACCUMULATION MODE",strlen("ACCUMULATION MODE"));
-			memcpy(ptr.pin->label,"ACCMODE",strlen("ACCMODE"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "ACCUMULATION MODE");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "ACCMODE");
 			ptr = put_io_buf(VAR,2);
-			memcpy(ptr.pin->description,"ACTIVE PW NO LOAD LV",strlen("ACTIVE PW NO LOAD LV"));
-			memcpy(ptr.pin->label,"APNOLOAD",strlen("APNOLOAD"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "ACTIVE PW NO LOAD LV");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "APNOLOAD");
 			ptr = put_io_buf(VAR,3);
-			memcpy(ptr.pin->description,"Reactive PW no-load LV",strlen("Reactive PW no-load LV"));
-			memcpy(ptr.pin->label,"VARNOLD",strlen("VARNOLD"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reactive PW no-load LV");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VARNOLD");
 			ptr = put_io_buf(VAR,4);
-			memcpy(ptr.pin->description,"Apparent PW no-load level",strlen("Apparent PW no-load level"));
-			memcpy(ptr.pin->label,"VANOLD",strlen("VANOLD"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Apparent PW no-load level");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VANOLD");
 			ptr = put_io_buf(VAR,5);
-			memcpy(ptr.pin->description,"Instantaneous Apparent Power A",strlen("Instantaneous Apparent Power"));
-			memcpy(ptr.pin->label,"AVA",strlen("AVA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Apparent Power A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AVA");
 			ptr = put_io_buf(VAR,6);
-			memcpy(ptr.pin->description,"Instantaneous Apparent Power B",strlen("Instantaneous Apparent Power"));
-			memcpy(ptr.pin->label,"AVB",strlen("AVB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Apparent Power B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AVB");
 			ptr = put_io_buf(VAR,7);
-			memcpy(ptr.pin->description,"Instantaneous Active Power",strlen("Instantaneous Active Power"));
-			memcpy(ptr.pin->label,"AWATT",strlen("AWATT"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Active Power");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AWATT");
 			ptr = put_io_buf(VAR,8);
-			memcpy(ptr.pin->description,"Instantaneous Active Power",strlen("Instantaneous Active Power"));
-			memcpy(ptr.pin->label,"BWATT",strlen("BWATT"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Active Power");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BWATT");
 			ptr = put_io_buf(VAR,9);
-			memcpy(ptr.pin->description,"Instantaneous Reactive Power",strlen("Instantaneous Reactive Power"));
-			memcpy(ptr.pin->label,"AVAR",strlen("AVAR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Reactive Power");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AVAR");
 			ptr = put_io_buf(VAR,10);
-			memcpy(ptr.pin->description,"Instantaneous Reactive Power",strlen("Instantaneous Reactive Power"));
-			memcpy(ptr.pin->label,"BVAR",strlen("BVAR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Reactive Power");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BVAR");
 			ptr = put_io_buf(VAR,11);
-			memcpy(ptr.pin->description,"Instantaneous Current",strlen("Instantaneous Current"));
-			memcpy(ptr.pin->label,"IA",strlen("IA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Current");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IA");
 			ptr = put_io_buf(VAR,12);
-			memcpy(ptr.pin->description,"Instantaneous Current",strlen("Instantaneous Current"));
-			memcpy(ptr.pin->label,"IB",strlen("IB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Current");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IB");
 			ptr = put_io_buf(VAR,13);
-			memcpy(ptr.pin->description,"Instantaneous Voltage",strlen("Instantaneous Voltage"));
-			memcpy(ptr.pin->label,"VOLT",strlen("VOLT"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Instantaneous Voltage");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VOLT");
 			ptr = put_io_buf(VAR,14);
-			memcpy(ptr.pin->description,"IRMSA register",strlen("IRMSA register"));
-			memcpy(ptr.pin->label,"IRMSA",strlen("IRMSA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "IRMSA register");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IRMSA");
 			ptr = put_io_buf(VAR,15);
-			memcpy(ptr.pin->description,"IRMSB register",strlen("IRMSB register"));
-			memcpy(ptr.pin->label,"IRMSB",strlen("IRMSB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "IRMSB register");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IRMSB");
 			ptr = put_io_buf(VAR,16);
-			memcpy(ptr.pin->description,"VRMS register",strlen("VRMS register"));
-			memcpy(ptr.pin->label,"VRMS",strlen("VRMS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "VRMS register");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VRMS");
 			ptr = put_io_buf(VAR,17);
-			memcpy(ptr.pin->description,"Active Energy A",strlen("Active Energy A"));
-			memcpy(ptr.pin->label,"AENGA",strlen("AENGA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Active Energy A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AENGA");
 			ptr = put_io_buf(VAR,18);
-			memcpy(ptr.pin->description,"Active Energy B",strlen("Active Energy B"));
-			memcpy(ptr.pin->label,"AENGB",strlen("AENGB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Active Energy B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AENGB");
 			ptr = put_io_buf(VAR,19);
-			memcpy(ptr.pin->description,"Reactive Energy A",strlen("Reactive Energy A"));
-			memcpy(ptr.pin->label,"RENGA",strlen("RENGA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reactive Energy A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "RENGA");
 			ptr = put_io_buf(VAR,20);
-			memcpy(ptr.pin->description,"Reactive Energy B",strlen("Reactive Energy B"));
-			memcpy(ptr.pin->label,"RENGB",strlen("RENGB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reactive Energy B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "RENGB");
 			ptr = put_io_buf(VAR,21);
-			memcpy(ptr.pin->description,"Apparent Energy A",strlen("Apparent Energy A"));
-			memcpy(ptr.pin->label,"APENGA",strlen("APENGA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Apparent Energy A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "APENGA");
 			ptr = put_io_buf(VAR,22);
-			memcpy(ptr.pin->description,"Apparent Energy B",strlen("Apparent Energy B"));
-			memcpy(ptr.pin->label,"APENGB",strlen("APENGB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Apparent Energy B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "APENGB");
 			ptr = put_io_buf(VAR,23);
-			memcpy(ptr.pin->description,"Overvolatage Level",strlen("Overvolatage Level"));
-			memcpy(ptr.pin->label,"OVLVL",strlen("OVLVL"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Overvolatage Level");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "OVLVL");
 			ptr = put_io_buf(VAR,24);
-			memcpy(ptr.pin->description,"Overcurrent Level",strlen("Overcurrent Level"));
-			memcpy(ptr.pin->label,"OILVL",strlen("OILVL"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Overcurrent Level");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "OILVL");
 			ptr = put_io_buf(VAR,25);
-			memcpy(ptr.pin->description,"Voltage Channel Peak ",strlen("Voltage Channel Peak "));
-			memcpy(ptr.pin->label,"VPEAK",strlen("VPEAK"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Voltage Channel Peak ");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VPEAK");
 			ptr = put_io_buf(VAR,26);
-			memcpy(ptr.pin->description,"Read Voltage Peak With Reset",strlen("Read Voltage Peak With Reset"));
-			memcpy(ptr.pin->label,"RSTVPEAK",strlen("RSTVPEAK"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Read Voltage Peak With Reset");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "RSTVPEAK");
 			ptr = put_io_buf(VAR,27);
-			memcpy(ptr.pin->description,"Current Channel A Peak",strlen("Current Channel A Peak"));
-			memcpy(ptr.pin->label,"IAPEAK",strlen("IAPEAK"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Current Channel A Peak");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IAPEAK");
 			ptr = put_io_buf(VAR,28);
-			memcpy(ptr.pin->description,"Read Current Channel A Peak With Reset",strlen("Read Current Channel A Peak With Reset"));
-			memcpy(ptr.pin->label,"RSTIAPEAK",strlen("RSTIAPEAK"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Read Current Channel A Peak With Reset");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "RSTIAPEAK");
 			ptr = put_io_buf(VAR,29);
-			memcpy(ptr.pin->description,"Current Channel B Peak",strlen("Current Channel A Peak"));
-			memcpy(ptr.pin->label,"IBPEAK",strlen("IBPEAK"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Current Channel B Peak");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IBPEAK");
 			ptr = put_io_buf(VAR,30);
-			memcpy(ptr.pin->description,"Read Current Channel B Peak With Reset",strlen("Read Current Channel A Peak With Reset"));
-			memcpy(ptr.pin->label,"RSTIBPEAK",strlen("RSTIBPEAK"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Read Current Channel B Peak With Reset");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "RSTIBPEAK");
 			ptr = put_io_buf(VAR,31);
-			memcpy(ptr.pin->description,"Interrupt Enable A",strlen("Interrupt Enable A"));
-			memcpy(ptr.pin->label,"IRQENA",strlen("IRQENA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Interrupt Enable A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IRQENA");
 			ptr = put_io_buf(VAR,32);
-			memcpy(ptr.pin->description,"Interrupt Status A",strlen("Interrupt Status A"));
-			memcpy(ptr.pin->label,"ISTATA",strlen("ISTATA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Interrupt Status A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "ISTATA");
 			ptr = put_io_buf(VAR,33);
-			memcpy(ptr.pin->description,"Reset Interrupt Status A",strlen("Reset Interrupt Status A"));
-			memcpy(ptr.pin->label,"RSTISA",strlen("RSTISA"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reset Interrupt Status A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "RSTISA");
 			ptr = put_io_buf(VAR,34);
-			memcpy(ptr.pin->description,"Interrupt Enable B",strlen("Interrupt Enable A"));
-			memcpy(ptr.pin->label,"IRQENB",strlen("IRQENB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Interrupt Enable B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IRQENB");
 			ptr = put_io_buf(VAR,35);
-			memcpy(ptr.pin->description,"Interrupt Status B",strlen("Interrupt Status A"));
-			memcpy(ptr.pin->label,"ISTATB",strlen("ISTATB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Interrupt Status B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "ISTATB");
 			ptr = put_io_buf(VAR,36);
-			memcpy(ptr.pin->description,"Reset Interrupt Status B",strlen("Reset Interrupt Status B"));
-			memcpy(ptr.pin->label,"RSTISB",strlen("RSTISB"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reset Interrupt Status B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "RSTISB");
 			ptr = put_io_buf(VAR,37);
-			memcpy(ptr.pin->description,"Checksum",strlen("Checksum"));
-			memcpy(ptr.pin->label,"CRC",strlen("CRC"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Checksum");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "CRC");
 			ptr = put_io_buf(VAR,38);
-			memcpy(ptr.pin->description,"Current Channel Gain A",strlen("Current Channel Gain A"));
-			memcpy(ptr.pin->label,"IAGAIN",strlen("IAGAIN"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Current Channel Gain A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "IAGAIN");
 			ptr = put_io_buf(VAR,39);
-			memcpy(ptr.pin->description,"Voltage Channel Gain A",strlen("Voltage Channel Gain A"));
-			memcpy(ptr.pin->label,"VGAIN",strlen("VGAIN"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Voltage Channel Gain A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VGAIN");
 			ptr = put_io_buf(VAR,40);
-			memcpy(ptr.pin->description,"Active Power Gain A",strlen("Active Power Gain A"));
-			memcpy(ptr.pin->label,"AWGAIN",strlen("AWGAIN"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Active Power Gain A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AWGAIN");
 			ptr = put_io_buf(VAR,41);
-			memcpy(ptr.pin->description,"Reactive Power Gain A",strlen("Reactive Power Gain A"));
-			memcpy(ptr.pin->label,"AVARG",strlen("AVARG"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reactive Power Gain A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AVARG");
 			ptr = put_io_buf(VAR,42);
-			memcpy(ptr.pin->description,"Apparent Power Gain A",strlen("Apparent Power Gain A"));
-			memcpy(ptr.pin->label,"AVAG",strlen("AVAG"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Apparent Power Gain A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AVAG");
 			ptr = put_io_buf(VAR,43);
-			memcpy(ptr.pin->description,"IRMS Offset A",strlen("IRMS Offset A"));
-			memcpy(ptr.pin->label,"AIRMSOS",strlen("AIRMSOS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "IRMS Offset A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AIRMSOS");
 			ptr = put_io_buf(VAR,44);
-			memcpy(ptr.pin->description,"VRMS Offset",strlen("VRMS Offset"));
-			memcpy(ptr.pin->label,"VRMSOS",strlen("VRMSOS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "VRMS Offset");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VRMSOS");
 			ptr = put_io_buf(VAR,45);
-			memcpy(ptr.pin->description,"Active Power Offset Correction A",strlen("Active Power Offset Correction A"));
-			memcpy(ptr.pin->label,"AWATTOS",strlen("AWATTOS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Active Power Offset Correction A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AWATTOS");
 			ptr = put_io_buf(VAR,46);
-			memcpy(ptr.pin->description,"Reactive Power Offset Correction A",strlen("Reactive Power Offset Correction A"));
-			memcpy(ptr.pin->label,"AVAROS",strlen("AVAROS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reactive Power Offset Correction A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AVAROS");
 			ptr = put_io_buf(VAR,47);
-			memcpy(ptr.pin->description,"Apparent Power Offset Correction A",strlen("Apparent Power Offset Correction A"));
-			memcpy(ptr.pin->label,"AVAOS",strlen("AVAOS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Apparent Power Offset Correction A");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "AVAOS");
 			ptr = put_io_buf(VAR,48);
-			memcpy(ptr.pin->description,"Voltage Channel Gain B",strlen("Voltage Channel Gain B"));
-			memcpy(ptr.pin->label,"VGBIN",strlen("VGBIN"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Voltage Channel Gain B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "VGBIN");
 			ptr = put_io_buf(VAR,49);
-			memcpy(ptr.pin->description,"Active Power Gain B",strlen("Active Power Gain B"));
-			memcpy(ptr.pin->label,"BWGBIN",strlen("BWGBIN"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Active Power Gain B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BWGBIN");
 			ptr = put_io_buf(VAR,50);
-			memcpy(ptr.pin->description,"Reactive Power Gain B",strlen("Reactive Power Gain B"));
-			memcpy(ptr.pin->label,"BVBRG",strlen("BVBRG"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reactive Power Gain B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BVBRG");
 			ptr = put_io_buf(VAR,51);
-			memcpy(ptr.pin->description,"Apparent Power Gain B",strlen("Apparent Power Gain B"));
-			memcpy(ptr.pin->label,"BVBG",strlen("BVBG"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Apparent Power Gain B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BVBG");
 			ptr = put_io_buf(VAR,52);
-			memcpy(ptr.pin->description,"IRMS Offset B",strlen("IRMS Offset B"));
-			memcpy(ptr.pin->label,"BIRMSOS",strlen("BIRMSOS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "IRMS Offset B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BIRMSOS");
 			ptr = put_io_buf(VAR,53);
-			memcpy(ptr.pin->description,"Active Power Offset Correction B",strlen("Active Power Offset Correction B"));
-			memcpy(ptr.pin->label,"BWBTTOS",strlen("BWBTTOS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Active Power Offset Correction B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BWBTTOS");
 			ptr = put_io_buf(VAR,54);
-			memcpy(ptr.pin->description,"Reactive Power Offset Correction B",strlen("Reactive Power Offset Correction B"));
-			memcpy(ptr.pin->label,"BVBROS",strlen("BVBROS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Reactive Power Offset Correction B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BVBROS");
 			ptr = put_io_buf(VAR,55);
-			memcpy(ptr.pin->description,"Apparent Power Offset Correction B",strlen("Apparent Power Offset Correction B"));
-			memcpy(ptr.pin->label,"BVBOS",strlen("BVBOS"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "Apparent Power Offset Correction B");
+			copy_io_str(ptr.pin->label, sizeof(ptr.pin->label), "BVBOS");
 			ptr = put_io_buf(VAR,56);
-			memcpy(ptr.pin->description,"VOLTAGE FACTOR",strlen("VOLTAGE FACTOR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "VOLTAGE FACTOR");
 			ptr.pin->value = 136;
 			ptr = put_io_buf(VAR,57);
-			memcpy(ptr.pin->description,"CURRENT1 FACTOR",strlen("CURRENT1 FACTOR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "CURRENT1 FACTOR");
 			ptr.pin->value = 1318;
 			ptr = put_io_buf(VAR,58);
-			memcpy(ptr.pin->description,"CURRENT2 FACTOR",strlen("CURRENT2 FACTOR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "CURRENT2 FACTOR");
 			ptr.pin->value = 1318;
 			put_io_buf(VAR,59);
-			memcpy(ptr.pin->description,"POWER1 FACTOR",strlen("POWER1 FACTOR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "POWER1 FACTOR");
 			ptr.pin->value = 164;
 			ptr = put_io_buf(VAR,60);
-			memcpy(ptr.pin->description,"POWER2 FACTOR",strlen("POWER2 FACTOR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "POWER2 FACTOR");
 			ptr.pin->value = 164;
 			ptr = put_io_buf(VAR,61);
-			memcpy(ptr.pin->description,"ENERGY1 FACTOR",strlen("ENERGY1 FACTOR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "ENERGY1 FACTOR");
 			ptr.pin->value = 25240;
 			ptr = put_io_buf(VAR,62);
-			memcpy(ptr.pin->description,"ENERGY2 FACTOR",strlen("ENERGY2 FACTOR"));
+			copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "ENERGY2 FACTOR");
 			ptr.pin->value = 25240;
-			ptr = put_io_buf(IN,0);memcpy(ptr.pin->description,"VOLTAGE",strlen("VOLTAGE"));
-			ptr = put_io_buf(IN,1);memcpy(ptr.pin->description,"CURRENT1",strlen("CURRENT1"));
-			ptr = put_io_buf(IN,2);memcpy(ptr.pin->description,"CURRENT2",strlen("CURRENT2"));
-			ptr = put_io_buf(IN,3);memcpy(ptr.pin->description,"POWER1",strlen("POWER1"));
-			ptr = put_io_buf(IN,4);memcpy(ptr.pin->description,"POWER2",strlen("POWER2"));
-			ptr = put_io_buf(IN,5);memcpy(ptr.pin->description,"ENERGY1",strlen("ENERGY1"));
-			ptr = put_io_buf(IN,6);memcpy(ptr.pin->description,"ENERGY2",strlen("ENERGY2"));
+			ptr = put_io_buf(IN,0);copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "VOLTAGE");
+			ptr = put_io_buf(IN,1);copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "CURRENT1");
+			ptr = put_io_buf(IN,2);copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "CURRENT2");
+			ptr = put_io_buf(IN,3);copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "POWER1");
+			ptr = put_io_buf(IN,4);copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "POWER2");
+			ptr = put_io_buf(IN,5);copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "ENERGY1");
+			ptr = put_io_buf(IN,6);copy_io_str(ptr.pin->description, sizeof(ptr.pin->description), "ENERGY2");
 
 		}
 		if(Modbus.mini_type == PROJECT_FAN_MODULE || Modbus.mini_type == PROJECT_AIRLAB)
@@ -984,17 +1039,31 @@ void i2c_sensor_task(void *arg)
         	uint16 temp_co2;
         	int32_t pre_value = 0;
 
-			scd4x_start_periodic_measurement();
+			if(Modbus.mini_type == MINI_TSTAT11)
+			{
+				if(g_sensors.co2 == 0)
+					scd4x_start_periodic_measurement();
+			}
+			else
+				scd4x_start_periodic_measurement();
 			vTaskDelay(100 / portTICK_PERIOD_MS);
-			ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
+			if(Modbus.mini_type == MINI_TSTAT11)
+			{
+				uint16_t data_ready = 0;
+				ret = scd4x_get_data_ready_status(&data_ready);
+				if((ret != 0) || ((data_ready & 0x07FF) == 0))
+					ret = ESP_FAIL;
+				else
+					ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
+			}
+			else
+				ret = scd4x_read_measurement(&temp_co2, &temp_tmp, &temp_hum);
 			if(ret != ESP_OK)
 			{
-				// ESP_LOGE(TAG, "SCD4X read failed");
 				Test[20]++;
 			}
 			else
 			{
-				// ESP_LOGI(TAG, "SCD4X read co2: %d, temp: %d, hum: %d", temp_co2, temp_tmp, temp_hum);
 				if(temp_co2 < 100 || temp_co2 > 3000)
 				{
 
@@ -1016,7 +1085,6 @@ void i2c_sensor_task(void *arg)
 						pre_value += -1000L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 
 					ptr.pin->value = pre_value;
-					//scd4x_read_measurement(&g_sensors.co2, &g_sensors.co2_temp, &g_sensors.co2_humi);
 				}
 			}
 			ret = sht4x_measure_blocking_read(&sht4x_temp, &sht4x_hum);
@@ -1043,13 +1111,20 @@ void i2c_sensor_task(void *arg)
 					pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 				ptr.pin->value = pre_value;
 
-				ptr = put_io_buf(IN,1);
-				pre_value = g_sensors.humidity*100;
-				if( !ptr.pin->calibration_sign )
-					pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+				if(Modbus.mini_type == MINI_TSTAT11)
+				{
+					tstat11_write_humidity(sht4x_hum);
+				}
 				else
-					pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
-				ptr.pin->value = pre_value;
+				{
+					ptr = put_io_buf(IN,1);
+					pre_value = g_sensors.humidity*100;
+					if( !ptr.pin->calibration_sign )
+						pre_value += 100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+					else
+						pre_value += -100L * (ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
+					ptr.pin->value = pre_value;
+				}
 
 			}
         }
@@ -1143,7 +1218,6 @@ void i2c_sensor_task(void *arg)
 				}
 			}
 
-
 			// Persist the current baseline every hour
 			if (++baseline_time % 3600 == 3599)
 			{
@@ -1197,30 +1271,32 @@ void i2c_sensor_task(void *arg)
 				}
 				uint8_t error = scd4x_read_measurement(&co2, &temperature, &humidity);
 				if (error) { count_err++;
-						//printf("Error executing scd4x_read_measurement(): %i\n", error);
 				} else if (co2 == 0) {
-					 // printf("Invalid sample detected, skipping.\n");
 				} else {count_err = 0;
 					//CO2_get_value(co2,temperature / 100,humidity / 100);
 
-					if((hum_sensor_type != 1) && (hum_sensor_type != 2) )
+					g_sensors.co2_temp = temperature;
+					g_sensors.co2_humi = humidity;
+					if((Modbus.mini_type != MINI_TSTAT11)
+						&& (Modbus.mini_type != PROJECT_LSW_SENSOR)
+						&& (Modbus.mini_type != PROJECT_TRANSDUCER)
+						&& (hum_sensor_type != 1)
+						&& (hum_sensor_type != 2))
 					{
 						g_sensors.temperature = temperature / 100;
-						g_sensors.humidity = humidity/ 100;
-
+						g_sensors.humidity = humidity / 100;
+						ptr = put_io_buf(IN,0);
+						ptr.pin->value = g_sensors.temperature * 100;
+						ptr = put_io_buf(IN,1);
+						ptr.pin->value = g_sensors.humidity * 100;
 					}
-					ptr = put_io_buf(IN,0);
-					ptr.pin->value = g_sensors.temperature * 100;
-					ptr = put_io_buf(IN,1);
-					ptr.pin->value = g_sensors.humidity * 100;
 					g_sensors.co2 = co2;
 
 					ptr = put_io_buf(IN,2);
 					ptr.pin->value = g_sensors.co2 * 1000;
 				}
-				if(count_err > 10)
+				if((Modbus.mini_type != MINI_TSTAT11) && (count_err > 10))
 				{
-
 					co2_present = 0;
 				}
 

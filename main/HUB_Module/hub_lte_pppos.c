@@ -405,7 +405,9 @@ static void hub_lte_pppos_log_dns_info(int dns_type, const char *name)
     }
 
     if (dns_info.ip.type == ESP_IPADDR_TYPE_V4) {
-        ESP_LOGI(TAG, "PPP DNS %s: " IPSTR, name, IP2STR(&dns_info.ip.u_addr.ip4));
+        ESP_LOGI(TAG, "PPP DNS %s: " IPSTR, name,
+                 esp_ip4_addr1(&dns_info.ip.u_addr.ip4), esp_ip4_addr2(&dns_info.ip.u_addr.ip4),
+                 esp_ip4_addr3(&dns_info.ip.u_addr.ip4), esp_ip4_addr4(&dns_info.ip.u_addr.ip4));
     } else {
         ESP_LOGI(TAG, "PPP DNS %s: non-IPv4 type=%d", name, dns_info.ip.type);
     }
@@ -1974,7 +1976,8 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
         snprintf(s_lte_status.ip_addr,
                  sizeof(s_lte_status.ip_addr),
                  IPSTR,
-                 IP2STR(&event->ip_info.ip));
+                 esp_ip4_addr1(&event->ip_info.ip), esp_ip4_addr2(&event->ip_info.ip),
+                 esp_ip4_addr3(&event->ip_info.ip), esp_ip4_addr4(&event->ip_info.ip));
         s_lte_status.connected = true;
         hub_network_manager_set_lte_status(true, s_lte_status.ip_addr);
         hub_lte_pppos_set_last_result(ESP_OK, "PPP got IP event");
@@ -1988,9 +1991,12 @@ static void hub_lte_pppos_ip_event_handler(void *handler_arg,
         hub_lte_pppos_cell_recovery_set_stage(CELL_RECOVERY_IDLE, "PPP got IP");
         ESP_LOGI(TAG,
                  "PPP got IP: ip=" IPSTR " netmask=" IPSTR " gw=" IPSTR,
-                 IP2STR(&event->ip_info.ip),
-                 IP2STR(&event->ip_info.netmask),
-                 IP2STR(&event->ip_info.gw));
+                 esp_ip4_addr1(&event->ip_info.ip), esp_ip4_addr2(&event->ip_info.ip),
+                 esp_ip4_addr3(&event->ip_info.ip), esp_ip4_addr4(&event->ip_info.ip),
+                 esp_ip4_addr1(&event->ip_info.netmask), esp_ip4_addr2(&event->ip_info.netmask),
+                 esp_ip4_addr3(&event->ip_info.netmask), esp_ip4_addr4(&event->ip_info.netmask),
+                 esp_ip4_addr1(&event->ip_info.gw), esp_ip4_addr2(&event->ip_info.gw),
+                 esp_ip4_addr3(&event->ip_info.gw), esp_ip4_addr4(&event->ip_info.gw));
         hub_lte_pppos_log_dns_info(ESP_NETIF_DNS_MAIN, "main");
         hub_lte_pppos_log_dns_info(ESP_NETIF_DNS_BACKUP, "backup");
         hub_lte_pppos_log_dns_info(ESP_NETIF_DNS_FALLBACK, "fallback");

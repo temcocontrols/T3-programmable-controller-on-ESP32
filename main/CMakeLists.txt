@@ -4,7 +4,6 @@ idf_component_register(		SRCS
 							"Mqtt_Handler/Mqtt_Handler.c"
 #							"deviceparams.c"
 							"i2c_task.c"
-							"ota.c"
 #							"microphone.c"
 							"wifi.c"
 							"sgp30_featureset.c"
@@ -54,14 +53,14 @@ idf_component_register(		SRCS
 							"mm_spi.c"
 							"hy3131_sw.c"
 							"Light_pwm.c"
-					#		"ddns.c"
+							"ddns.c"
 						#	"lowPower.c"
 							"co2.c"
 							"lora.c"
 							"HUB_Module/a7608.c"
 							"HUB_Module/hub_gsm_status.c"
 							"HUB_Module/hub_snmp.c"
-							"LcdTheme.c"
+							"lcdTheme.c"
 							"DisHomeScreen.c"
 							"DisFonts.c"
 							"DisSymbol.c"
@@ -112,6 +111,7 @@ idf_component_register(		SRCS
 						spi_flash
 						temco_IO_control
 						temco_bacnet
+						temco_dynamic_display
 						esp_wireguard
 						snmp_agent
 			PRIV_REQUIRES espressif__esp_modem
@@ -125,3 +125,4 @@ target_sources(${COMPONENT_LIB} PRIVATE ${TEMCO_SCREEN_SOURCES})
 set(COMPONENT_ADD_INCLUDEDIRS "." "HUB_Module")
 
 target_link_libraries(${COMPONENT_TARGET} "-u pro_info")
+

@@ -3,7 +3,6 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "esp_system.h"
-//#include "esp_wifi.h"
 #include "wifi.h"
 #include "driver/uart.h"
 #include "nvs.h"
@@ -102,10 +101,6 @@ void init_ssid_info()
 {
 	memset(SSID_Info.name,0,64);
 	memset(SSID_Info.password,0,32);
-	memcpy(SSID_Info.name, "TP-LINK_wuxian", strlen("TP-LINK_wuxian"));
-	memcpy(SSID_Info.password, "87654321", strlen("87654321"));
-	//memcpy(SSID_Info.name, "TEMCO_TEST_2.4G", strlen("TEMCO_TEST_2.4G"));
-	//memcpy(SSID_Info.password, "Travel321", strlen("Travel321"));
 }
 
 //#define WIFI_RETRY_NEED_INITIAL_COUNT  20
@@ -200,7 +195,9 @@ static void wifi_event_handler(
                 SSID_Info.getway[2] = esp_ip4_addr3(&ip->gw);
                 SSID_Info.getway[3] = esp_ip4_addr4(&ip->gw);
 
-                ESP_LOGE(TAG, "IP: " IPSTR, IP2STR(&ip->ip));
+                ESP_LOGE(TAG, "IP: " IPSTR,
+                         esp_ip4_addr1(&ip->ip), esp_ip4_addr2(&ip->ip),
+                         esp_ip4_addr3(&ip->ip), esp_ip4_addr4(&ip->ip));
 
                 wifi_ensure_public_dns(false);
 
@@ -367,7 +364,6 @@ void wifi_init_sta(void)
 
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
     }
 
     esp_wifi_stop();
@@ -578,6 +574,73 @@ void connect_wifi(void)
 	debug_info("Start Wifi init........");
 	wifi_init_sta();
 	debug_info("Finish Wifi init........");
+}
+
+void wifi_init_task(void *pvParameters)
+{
+    connect_wifi();
+    vTaskDelete(NULL); // Delete this task after initialization
+}
+
+void connect_wifi_non_blocking(void)
+{
+    xTaskCreate(wifi_init_task, "wifi_init_task", 6000, NULL, 6, NULL);
+}
+
+esp_err_t wifi_scan_networks(wifi_ap_record_t *ap_list, uint16_t *ap_count, uint16_t max_ap)
+{
+	if(!ap_list || !ap_count || max_ap == 0) {
+		return ESP_ERR_INVALID_ARG;
+	}
+
+	*ap_count = 0;
+
+	vTaskDelay(pdMS_TO_TICKS(500));
+	esp_wifi_scan_stop();
+
+	wifi_scan_config_t scan_config = {
+		.ssid = NULL,
+		.bssid = NULL,
+		.channel = 0,
+		.show_hidden = true,
+		.scan_type = WIFI_SCAN_TYPE_ACTIVE,
+		.scan_time.active.min = 100,
+		.scan_time.active.max = 300,
+	};
+
+	esp_err_t err = esp_wifi_scan_start(&scan_config, true);
+	if(err != ESP_OK) {
+		vTaskDelay(pdMS_TO_TICKS(1000));
+		err = esp_wifi_scan_start(&scan_config, true);
+		if(err != ESP_OK) {
+			return err;
+		}
+	}
+
+	uint16_t found = 0;
+	esp_wifi_scan_get_ap_num(&found);
+	if(found == 0) {
+		return ESP_OK;
+	}
+
+	if(found > max_ap) {
+		found = max_ap;
+	}
+
+	err = esp_wifi_scan_get_ap_records(&found, ap_list);
+	if(err != ESP_OK) {
+		return err;
+	}
+
+    for (uint16_t i = 0; i < found; i++)
+    {
+        char ssid[sizeof(ap_list[i].ssid) + 1];
+
+        memcpy(ssid, ap_list[i].ssid, sizeof(ap_list[i].ssid));
+        ssid[sizeof(ap_list[i].ssid)] = '\0';
+    }
+	*ap_count = found;
+	return ESP_OK;
 }
 
 // 比较两个 4 字节数组是否相等

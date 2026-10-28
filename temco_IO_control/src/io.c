@@ -193,6 +193,7 @@ uint32_t conver_by_unit_custable(uint8_t point,uint32_t sample)
 		return ( 3000L  * sample ) >> 10;//get_input_value_by_range( inputs[point].range, sample );
 	}
 
+	return 0;
 }
 
 uint8_t get_max_input(void)

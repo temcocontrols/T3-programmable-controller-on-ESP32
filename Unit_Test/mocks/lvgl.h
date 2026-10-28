@@ -34,7 +34,11 @@ typedef enum {
     LV_INDEV_STATE_REL = 0,
 } lv_indev_state_t;
 
-#define LV_COLOR_FORMAT_RGB565_SWAPPED 0
+#define LV_COLOR_FORMAT_RGB565 0x12
+#define LV_COLOR_FORMAT_RGB565_SWAPPED 0x1B
+#define LV_COLOR_FORMAT_RGB888 0x0F
+#define LV_COLOR_FORMAT_ARGB8888 0x10
+#define LV_COLOR_FORMAT_XRGB8888 0x11
 #define LV_INDEV_TYPE_POINTER 0
 
 #define LV_DISPLAY_RENDER_MODE_PARTIAL 0
@@ -293,6 +297,7 @@ enum {
 
 extern const lv_font_t lv_font_montserrat_10;
 extern const lv_font_t lv_font_montserrat_12;
+extern const lv_font_t lv_font_montserrat_14;
 extern const lv_font_t lv_font_montserrat_16;
 extern const lv_font_t lv_font_montserrat_18;
 extern const lv_font_t lv_font_montserrat_20;
@@ -315,6 +320,9 @@ void lv_display_set_color_format(lv_display_t *disp, int fmt);
 void lv_display_set_flush_cb(lv_display_t *disp, void (*flush_cb)(lv_display_t *, const lv_area_t *, uint8_t *));
 void lv_display_set_default(lv_display_t *disp);
 lv_display_t *lv_display_get_default(void);
+lv_display_t *lv_obj_get_display(const lv_obj_t *obj);
+int32_t lv_display_get_horizontal_resolution(const lv_display_t *disp);
+int32_t lv_display_get_vertical_resolution(const lv_display_t *disp);
 void lv_disp_flush_ready(lv_display_t *disp);
 
 
@@ -329,6 +337,7 @@ lv_obj_t *lv_obj_create(lv_obj_t *parent);
 void lv_obj_del(lv_obj_t *obj);
 bool lv_obj_is_valid(const lv_obj_t *obj);
 void lv_obj_align(lv_obj_t *obj, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs);
+void lv_obj_align_to(lv_obj_t *obj, const lv_obj_t *base, lv_align_t align, lv_coord_t x_ofs, lv_coord_t y_ofs);
 void lv_obj_center(lv_obj_t *obj);
 void lv_obj_set_size(lv_obj_t *obj, lv_coord_t w, lv_coord_t h);
 void lv_obj_set_width(lv_obj_t *obj, lv_coord_t w);
@@ -358,6 +367,8 @@ void lv_obj_set_style_pad_row(lv_obj_t *obj, lv_coord_t value, uint32_t selector
 void lv_obj_set_style_radius(lv_obj_t *obj, lv_coord_t value, uint32_t selector);
 void lv_obj_set_style_bg_color(lv_obj_t *obj, lv_color_t value, uint32_t selector);
 void lv_obj_set_style_bg_opa(lv_obj_t *obj, int value, uint32_t selector);
+void lv_obj_set_style_bg_image_src(lv_obj_t *obj, const void *src, uint32_t selector);
+void lv_obj_set_style_bg_image_opa(lv_obj_t *obj, int value, uint32_t selector);
 void lv_obj_set_style_border_color(lv_obj_t *obj, lv_color_t value, uint32_t selector);
 void lv_obj_set_style_border_width(lv_obj_t *obj, lv_coord_t value, uint32_t selector);
 void lv_obj_set_style_border_opa(lv_obj_t *obj, int value, uint32_t selector);
@@ -397,6 +408,7 @@ void lv_label_set_text(lv_obj_t *obj, const char *text);
 void lv_label_set_long_mode(lv_obj_t *obj, int mode);
 
 lv_obj_t *lv_button_create(lv_obj_t *parent);
+#define lv_btn_create lv_button_create
 lv_obj_t *lv_checkbox_create(lv_obj_t *parent);
 void lv_checkbox_set_text(lv_obj_t *obj, const char *text);
 
@@ -419,6 +431,7 @@ int32_t lv_bar_get_value(const lv_obj_t *obj);
 
 lv_obj_t *lv_dropdown_create(lv_obj_t *parent);
 void lv_dropdown_set_options(lv_obj_t *obj, const char *options);
+const char *lv_dropdown_get_options(const lv_obj_t *obj);
 void lv_dropdown_set_selected(lv_obj_t *obj, uint16_t sel_opt);
 uint16_t lv_dropdown_get_selected(const lv_obj_t *obj);
 void lv_dropdown_get_selected_str(const lv_obj_t *obj, char *buf, uint32_t buf_size);
@@ -456,18 +469,23 @@ void lv_table_get_selected_cell(const lv_obj_t *obj, uint32_t *row, uint32_t *co
 lv_obj_t *lv_calendar_create(lv_obj_t *parent);
 void lv_calendar_set_today_date(lv_obj_t *obj, uint16_t year, uint8_t month, uint8_t day);
 void lv_calendar_set_showed_date(lv_obj_t *obj, uint16_t year, uint8_t month);
+void lv_calendar_set_highlighted_dates(lv_obj_t *obj, lv_calendar_date_t highlighted[], size_t date_num);
 lv_result_t lv_calendar_get_pressed_date(const lv_obj_t *obj, lv_calendar_date_t *date);
 lv_obj_t *lv_calendar_header_arrow_create(lv_obj_t *parent);
 
 lv_obj_t *lv_image_create(lv_obj_t *parent);
+#define lv_img_create lv_image_create
 void lv_image_set_src(lv_obj_t *obj, const void *src);
+#define lv_img_set_src lv_image_set_src
 void lv_image_set_rotation(lv_obj_t *obj, int32_t angle);
 int32_t lv_image_get_rotation(const lv_obj_t *obj);
 void lv_image_set_scale(lv_obj_t *obj, uint16_t zoom);
 uint16_t lv_image_get_scale(const lv_obj_t *obj);
 
 lv_obj_t *lv_imagebutton_create(lv_obj_t *parent);
+#define lv_imgbtn_create lv_imagebutton_create
 void lv_imagebutton_set_src(lv_obj_t *obj, int state, const void *src_mid, const void *src_left, const void *src_right);
+#define lv_imgbtn_set_src lv_imagebutton_set_src
 
 lv_obj_t *lv_screen_active(void);
 lv_obj_t *lv_layer_top(void);
@@ -519,11 +537,32 @@ void lv_spinbox_decrement(lv_obj_t *obj);
 #define LV_FLEX_FLOW_COLUMN 1
 #define LV_FLEX_ALIGN_START 0
 #define LV_FLEX_ALIGN_SPACE_BETWEEN 1
-#define LV_LABEL_LONG_SCROLL 0
+#define LV_LABEL_LONG_WRAP 0
+#define LV_LABEL_LONG_DOT 1
+#define LV_LABEL_LONG_SCROLL 2
+#define LV_LABEL_LONG_SCROLL_CIRCULAR 3
+#define LV_LABEL_LONG_CLIP 4
 #define LV_TEXT_DECOR_NONE 0
 #define LV_OPA_COVER 255
 #define LV_OPA_40 102
-#define LV_TEXT_ALIGN_CENTER 1
+#define LV_TEXT_ALIGN_AUTO 0
+#define LV_TEXT_ALIGN_LEFT 1
+#define LV_TEXT_ALIGN_CENTER 2
+#define LV_TEXT_ALIGN_RIGHT 3
+#define LV_OPA_TRANSP 0
+#define LV_OPA_10 25
+#define LV_OPA_20 51
+#define LV_OPA_30 76
+#define LV_OPA_50 127
+#define LV_OPA_60 153
+#define LV_OPA_70 178
+#define LV_OPA_80 204
+#define LV_OPA_90 229
+
+void lv_obj_set_style_transform_angle(lv_obj_t *obj, int32_t value, uint32_t selector);
+void lv_obj_set_style_transform_scale(lv_obj_t *obj, int32_t value, uint32_t selector);
+void lv_obj_set_style_transform_pivot_x(lv_obj_t *obj, lv_coord_t value, uint32_t selector);
+void lv_obj_set_style_transform_pivot_y(lv_obj_t *obj, lv_coord_t value, uint32_t selector);
 
 void lv_obj_set_style_text_decor(lv_obj_t *obj, int value, uint32_t selector);
 

@@ -1965,12 +1965,18 @@ void Trend_Log_Init(void);
 void Initial_points(uint8_t point_type);
 void set_default_parameters(void)
 {
+	Flash_Inital();
 	save_uint8_to_flash(FLASH_MODBUS_ID,1);
 	save_uint8_to_flash(FLASH_EN_SNTP,1);
 	save_uint8_to_flash(FLASH_EN_TIME_SYNC_PC,1);
 	save_uint8_to_flash(FLASH_LCD_TIME_OFF_DELAY,255);
 	save_uint16_to_flash(FLASH_WRITE_FLASH,0);
 	save_uint8_to_flash(FLASH_FIX_COM_CONFIG,1);
+#if NEW_IO
+	new_inputs = NULL;
+	new_outputs = NULL;
+	new_vars = NULL;
+#endif
 	Bacnet_Initial_Data();
 
 	Initial_points(OUT);
@@ -2007,6 +2013,8 @@ void Inital_Bacnet_Server(void)
 			Set_Object_Name("T3-NEWNG2-ESP");
 		else if(Modbus.mini_type == PROJECT_LIGHT_PWM)
 			Set_Object_Name("T3-LPWM-ESP");
+		else if(Modbus.mini_type == MINI_TSTAT11)
+			Set_Object_Name("T3-TSTAT11-ESP");
 		else
 			Set_Object_Name("T3-XX-ESP");
 	}
@@ -2503,6 +2511,7 @@ void check_cov_data(BACNET_COV_DATA* cov,uint16_t instance, S32_T value)
 		Point_Net point;
 		BACNET_PROPERTY_VALUE *list;
 			if (cov == NULL) {
+				return;
 		}
 
 		// check whether it is in network point table
@@ -2678,14 +2687,10 @@ int send_cov_demo(void) {
 		bacapp_parse_application_data(BACNET_APPLICATION_TAG_REAL, "25.0",
 				&value_list.value);
 
-
-
 			//debug_cov("Send_UCOV_Notify");
 
 		Send_UCOV_Notify(apdu,&cov_data,BAC_IP_CLIENT);
 		udp_client_send(5);
-
-
 	}
 
 	if(Test[0] == 1000 || Test[0] == 2000 || Test[0] == 3000 || Test[0] == 4000)
@@ -2843,6 +2848,11 @@ void Timer_task(void *pvParameters)
 #if COV
 			handler_cov_timer_seconds(elapsed_seconds);
 #endif
+		}
+
+		if(Modbus.mini_type == MINI_TSTAT11)
+		{
+			tstat11_occ_update();
 		}
 
 		if(system_timer % 1000  == 0) // 1000ms,  only for test
@@ -3028,7 +3038,6 @@ void Update_Led(void)
 //	U8_T index,shift;
 //	U32_T tempvalue;
 	static U16_T pre_in[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-	U8_T error_in = 0; // error of input raw value
 	U8_T pre_status = 0;
 	U8_T max_in = 0;
 	U8_T max_out = 0;
@@ -3059,7 +3068,7 @@ void Update_Led(void)
 		max_out = 7;
 		max_digout = 7;
 	}
-	else if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
+	else if(Modbus.mini_type == MINI_TSTAT10)
 	{
 		max_in = 8;
 		max_out = 7;
@@ -3069,11 +3078,13 @@ void Update_Led(void)
 
 	for(loop = 0;loop < max_in;loop++)
 	{
+		U8_T error_in;
 		pre_status = InputLed[loop];
 		if(input_raw[loop]  > pre_in[loop])
 			error_in = input_raw[loop]  - pre_in[loop];
 		else
 			error_in = pre_in[loop] - input_raw[loop];
+		(void)error_in;
 
 		ptr = put_io_buf(IN,loop);
 
@@ -3360,7 +3371,6 @@ void i2c_master_task(void *pvParameters)
 	if(Modbus.mini_type == PROJECT_CO2)
 	{
 		qSendCo2 = xQueueCreate(2, 2);
-
 	}
 	/*if(Modbus.mini_type == MINI_TSTAT10)
 	{
@@ -3523,8 +3533,7 @@ void i2c_master_task(void *pvParameters)
 		}
 		else if(Modbus.mini_type == MINI_SMALL_ARM  || Modbus.mini_type == MINI_BIG_ARM ||
 				Modbus.mini_type == PROJECT_RMC1216	|| Modbus.mini_type == MINI_TSTAT10 ||
-				Modbus.mini_type == MINI_TSTAT11    || Modbus.mini_type == PROJECT_NG2_NEW ||
-				Modbus.mini_type == PROJECT_CO2)
+			    Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
 		{
 			// send
 			// led
@@ -4710,7 +4719,7 @@ void LS_led_task(void *pvParameters);
 
 extern void ethernet_check_task( void *pvParameters);
 void start_dns_server(void);
-#if 0//DDNS
+#if DDNS
 void ddns_task(void *pvParameters);
 #endif
 
@@ -4796,9 +4805,7 @@ void app_main()
 	Set_Device_Stage(DEVICE_STAGE_INIT);
 	Bacnet_Initial_Data();
 	read_default_from_flash();
-	/* Force Hub identity before Bacnet init (TSTAT11 forces MINI_TSTAT11 similarly). */
-	Modbus.mini_type = PROJECT_HUB;
-	save_uint8_to_flash(FLASH_MINI_TYPE, Modbus.mini_type);
+
 	initial_HSP();
 	Inital_Bacnet_Server();
 	Get_Tst_DB_From_Flash();   // read sub device information from flash memeory
@@ -4860,7 +4867,7 @@ void app_main()
     xTaskCreate(udp_scan_task, "udp_scan", 4096, NULL, 1, &main_task_handle[4]); // udp server 1234
     xTaskCreate(bip_task, "bacnet ip", 6000, NULL, 1, &main_task_handle[0]); // udp server 47808
     xTaskCreate(Scan_network_bacnet_Task,"Scan_network_bacnet_Task", 4096, NULL, tskIDLE_PRIORITY + 1, &main_task_handle[16]); // udp client 47808
-#if 0//DDNS
+#if DDNS
     xTaskCreate(ddns_task, "ddns_task", 4096, NULL, 5, NULL);
 #endif
 
@@ -4889,7 +4896,6 @@ void app_main()
 		xTaskCreate(LS_led_task, "led_task", 2048, NULL, 14, NULL);
 	}
 
-	// TODO: Need to update i2c communication with display and other i2c sensor
     if(Modbus.mini_type == MINI_NANO || Modbus.mini_type == PROJECT_TSTAT9 ||  Modbus.mini_type == MINI_SMALL_ARM || Modbus.mini_type == PROJECT_RMC1216
     		|| Modbus.mini_type == MINI_BIG_ARM ||  Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == PROJECT_NG2_NEW || Modbus.mini_type == PROJECT_CO2)
     {
@@ -5013,7 +5019,6 @@ void uart_send_string(U8_T *p, U16_T length,U8_T port)
 
 	if(port == 0)	{led_sub_tx++; flagLED_sub_tx = 1;}
 	else if(port == 2)	{led_main_tx++; flagLED_main_tx = 1;}
-
 	com_tx[port]++;
 }
 

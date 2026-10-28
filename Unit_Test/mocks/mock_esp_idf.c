@@ -52,6 +52,7 @@ int esp_wifi_sta_get_ap_info(wifi_ap_record_t *ap_info) { (void)ap_info; return 
 int esp_wifi_get_mode(wifi_mode_t *mode) { if (mode) *mode = WIFI_MODE_STA; return ESP_OK; }
 int esp_wifi_disconnect(void) { return ESP_OK; }
 int esp_wifi_scan_start(const void *config, bool block) { (void)config; (void)block; return ESP_OK; }
+int esp_wifi_scan_stop(void) { return ESP_OK; }
 int esp_wifi_scan_get_ap_num(uint16_t *number) { if (number) *number = 0; return ESP_OK; }
 int esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records) { (void)ap_records; if (number) *number = 0; return ESP_OK; }
 

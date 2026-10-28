@@ -98,7 +98,9 @@ static void hub_snmp_refresh_local_ip(void)
 	if (esp_netif_get_ip_info(netif, &ip_info) != ESP_OK) {
 		return;
 	}
-	snprintf(s_sys_ip, sizeof(s_sys_ip), IPSTR, IP2STR(&ip_info.ip));
+	snprintf(s_sys_ip, sizeof(s_sys_ip), IPSTR,
+		 esp_ip4_addr1(&ip_info.ip), esp_ip4_addr2(&ip_info.ip),
+		 esp_ip4_addr3(&ip_info.ip), esp_ip4_addr4(&ip_info.ip));
 }
 
 static int hub_snmp_get_uptime(MIB *thismib)

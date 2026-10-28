@@ -782,8 +782,8 @@ void clear_scan_db(void)
 	}
 	for (i = 0;i < MAXREMOTEPOINTS;i++)
 	{
-		flag_rmp_ad[MAXREMOTEPOINTS] = 0;;
-		count_read_rmp_ad[MAXREMOTEPOINTS] = 0;
+		flag_rmp_ad[i] = 0;
+		count_read_rmp_ad[i] = 0;
 	}
 	// clear remote point list
 	number_of_remote_points_modbus = 0;
@@ -2126,12 +2126,11 @@ void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header)
 
 	tmp_sendbuf = malloc(512);
 	if (tmp_sendbuf == NULL) {
-		// 处理内存分配失败
 		return;
 	}
 	subnet_response_buf = malloc(512);
 	if (subnet_response_buf == NULL) {
-		// 处理内存分配失败
+		free(tmp_sendbuf);
 		return;
 	}
 
@@ -2383,7 +2382,7 @@ void vStartScanTask(unsigned char uxPriority)
 	U8_T i;
 
 	memset(node_write,0,sizeof(STR_NODE_OPERATE) * STACK_LEN);
-	subcom_seq[0] = subcom_seq[1] = subcom_seq[2] = 0;
+	subcom_seq[0] = subcom_seq[1] = 0;
 	subcom_num = 0;
 
 	reset_scan_db_flag = 0;
@@ -2653,7 +2652,7 @@ void check_read_tstat_name(void)
 // change config and bautrate if auto scan
 void Change_com_config(U8_T port)
 {
-	U8_T temp_baut;
+	U8_T temp_baut = 0;
 
 // if discover device in this port by hands, change config
 	if(Modbus.com_config[port] != MODBUS_MASTER)

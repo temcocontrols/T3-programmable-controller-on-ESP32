@@ -160,7 +160,9 @@ static void sntp_log_dns_servers(void)
                 continue;
             if (dns.ip.type != ESP_IPADDR_TYPE_V4 || dns.ip.u_addr.ip4.addr == 0)
                 continue;
-            ESP_LOGI(TAG, "DNS %s %d: " IPSTR, ifkeys[k], i, IP2STR(&dns.ip.u_addr.ip4));
+            ESP_LOGI(TAG, "DNS %s %d: " IPSTR, ifkeys[k], i,
+                     esp_ip4_addr1(&dns.ip.u_addr.ip4), esp_ip4_addr2(&dns.ip.u_addr.ip4),
+                     esp_ip4_addr3(&dns.ip.u_addr.ip4), esp_ip4_addr4(&dns.ip.u_addr.ip4));
         }
     }
 }

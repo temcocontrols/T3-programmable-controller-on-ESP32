@@ -68,11 +68,24 @@ typedef union {
     wifi_ap_config_t ap;
 } wifi_config_t;
 
+typedef enum {
+    WIFI_SCAN_TYPE_ACTIVE = 0,
+    WIFI_SCAN_TYPE_PASSIVE,
+} wifi_scan_type_t;
+
 typedef struct {
     const uint8_t *ssid;
     const uint8_t *bssid;
     uint8_t channel;
     bool show_hidden;
+    wifi_scan_type_t scan_type;
+    struct {
+        struct {
+            uint32_t min;
+            uint32_t max;
+        } active;
+        uint32_t passive;
+    } scan_time;
 } wifi_scan_config_t;
 
 typedef struct {
@@ -97,6 +110,7 @@ int esp_wifi_set_mode(wifi_mode_t mode);
 int esp_wifi_set_config(wifi_interface_t interface, wifi_config_t *conf);
 int esp_wifi_sta_get_ap_info(wifi_ap_record_t *ap_info);
 int esp_wifi_scan_start(const void *config, bool block);
+int esp_wifi_scan_stop(void);
 int esp_wifi_scan_get_ap_num(uint16_t *number);
 int esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records);
 int esp_wifi_get_mode(wifi_mode_t *mode);

@@ -56,12 +56,12 @@ extern char debug_array[100];
 //#define SENDER_PASSWORD     "u6flh?lO"//"GhyR$d@!@" //CONFIG_SMTP_SENDER_PASSWORD
 //#define RECIPIENT_MAIL      "chelsea@temcocontrols.com"//CONFIG_SMTP_RECIPIENT_MAIL
 
-char mail_server[20];
+char mail_server[sizeof(Email_Setting.reg.smtp_domain)];
 char mail_port[10];
-char sender_password[20];
-char sender_mail[60];
-char recipient_mail1[60];
-char recipient_mail2[60];
+char sender_password[sizeof(Email_Setting.reg.password)];
+char sender_mail[sizeof(Email_Setting.reg.email_address)];
+char recipient_mail1[sizeof(Email_Setting.reg.To1Addr)];
+char recipient_mail2[sizeof(Email_Setting.reg.To2Addr)];
 
 U8_T flag_sendemail;
 char send_message[200];
@@ -595,12 +595,12 @@ void smtp_client_task_nossl(char *message)
 	debug_info("Connecting to email server...");
 
 
-	snprintf(mail_server,40,"%s",Email_Setting.reg.smtp_domain);
-	snprintf(mail_port,10,"%u",Email_Setting.reg.smtp_port);
-	snprintf(sender_mail,60,"%s",Email_Setting.reg.email_address);
-	snprintf(recipient_mail1,60,"%s",Email_Setting.reg.To1Addr);
-	snprintf(recipient_mail2,60,"%s",Email_Setting.reg.To2Addr);
-	snprintf(sender_password,60,"%s",Email_Setting.reg.password);
+	snprintf(mail_server, sizeof(mail_server), "%s", Email_Setting.reg.smtp_domain);
+	snprintf(mail_port, sizeof(mail_port), "%u", Email_Setting.reg.smtp_port);
+	snprintf(sender_mail, sizeof(sender_mail), "%s", Email_Setting.reg.email_address);
+	snprintf(recipient_mail1, sizeof(recipient_mail1), "%s", Email_Setting.reg.To1Addr);
+	snprintf(recipient_mail2, sizeof(recipient_mail2), "%s", Email_Setting.reg.To2Addr);
+	snprintf(sender_password, sizeof(sender_password), "%s", Email_Setting.reg.password);
 
 	//snprintf(mail_server,20,"192.168.0.7");
 	//snprintf(mail_port,5,"502");

@@ -5,7 +5,7 @@
 #include "esp_attr.h"
 #include <stdint.h>
 
-#pragma pack(1)
+#pragma pack(push, 1)
 
 /* 定义此宏将把 Port 2 (Main RS485) 切换为 USB CDC 虚拟串口 */
 //#define USE_USB_CDC_MAIN
@@ -241,3 +241,5 @@ uint32 Get_multicast_addr(uint8 *ip_addr);
 void delay_ms(unsigned int t);
 
 #endif
+
+#pragma pack(pop)

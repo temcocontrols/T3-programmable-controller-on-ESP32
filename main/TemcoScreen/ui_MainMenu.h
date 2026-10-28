@@ -33,6 +33,12 @@ extern lv_obj_t * ui_Label7;
 extern void ui_event_Button5(lv_event_t * e);
 extern lv_obj_t * ui_Button5;
 extern lv_obj_t * ui_Label8;
+extern void ui_event_Button6(lv_event_t * e);
+extern lv_obj_t * ui_Button6;
+#if DDNS
+extern void ui_event_Button7(lv_event_t * e);
+extern lv_obj_t * ui_Button7;
+#endif
 extern void ui_event_BackButton(lv_event_t * e);
 extern lv_obj_t * ui_BackButton;
 extern lv_obj_t * ui_MenuDot;
