@@ -130,13 +130,17 @@ typedef enum
 	DEVICE_STAGE_MAX
 } eDeviceStage_t;
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 void LcdThemeInit(void);
 void LcdThemeLoop(void);
+#endif
 eDeviceStage_t Get_Device_Stage(void);
 void LcdThemeMarkForUpdate( void );
 void Set_Device_Stage(eDeviceStage_t stage);
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 U16_T LcdThemeUpdateColors( U16_T inColour );
 U16_T LcdThemeUpdateSymbol( U16_T inColour );
+#endif
 
 #endif /* _LCD_THEME_H_ */

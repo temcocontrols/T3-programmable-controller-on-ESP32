@@ -4,6 +4,7 @@
 #include "Menu.h"
 #include "Constcode.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #if 1//SET_SCH
 
 str_my_point sch_on_off[8] =
@@ -594,5 +595,6 @@ void MenuTimeChange_keycope(uint16 key_value)
 	}
 }
 
+#endif
 #endif
 

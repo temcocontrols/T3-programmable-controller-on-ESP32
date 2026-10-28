@@ -310,7 +310,7 @@ esp_err_t read_default_from_flash(void)
 	com_config_back[2] = Modbus.com_config[2];
 
 	err = nvs_get_u8(my_handle, FLASH_MINI_TYPE, &Modbus.mini_type);
-	if((err == ESP_ERR_NVS_NOT_FOUND) || (Modbus.mini_type < 30))
+	if((err == ESP_ERR_NVS_NOT_FOUND) || (Modbus.mini_type < PROJECT_HUB))
 	{
 		Modbus.mini_type = MINI_TSTAT11;
 		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);

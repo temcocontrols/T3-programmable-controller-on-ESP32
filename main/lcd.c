@@ -21,6 +21,7 @@
 #include "LcdTheme.h"
 #include "LCD_TSTAT.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #ifdef COLOR_TEST
 uint32 TSTAT8_BACK_COLOR = 0xd6dd;
 uint32 TSTAT8_MENU_COLOR2 = 0xd6dd;
@@ -1575,5 +1576,13 @@ void Lcd_task(void *arg)
 	}
 }
 
+#endif
+#else
+lcdconfig display_lcd;
+uint8_t display_config[5];
+void lcd_back_set(uint8_t status)
+{
+	(void)status;
+}
 #endif
 
