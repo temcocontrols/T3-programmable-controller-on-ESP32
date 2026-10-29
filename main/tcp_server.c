@@ -5446,7 +5446,11 @@ void app_main()
 
 	if(Modbus.mini_type == PROJECT_LORA_GATEWAY)
 	{
-		(void)lora_start();
+		esp_err_t lora_result = lora_start();
+		if(lora_result != ESP_OK)
+		{
+			ESP_LOGE("lora", "Startup failed: %s; inspect lora_get_status()", esp_err_to_name(lora_result));
+		}
 	}
 
 	flag_ethernet_initial = ethernet_init();
