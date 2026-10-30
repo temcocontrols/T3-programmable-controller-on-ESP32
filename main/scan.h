@@ -184,6 +184,7 @@ void modify_master_id_in_database(U8_T old_id, U8_T set_id);
 void remove_id_from_db(U8_T index_of_scan_db);
 void Response_MAIN_To_SUB(U8_T *buf, U16_T len,U8_T port);
 void Response_TCPIP_To_SUB(U8_T *buf, U16_T len,U8_T port,U8_T *header);
+void Response_TCPIP_To_I2CBUS(U8_T *buf, U16_T len, U8_T *header);
 
 void Get_Tst_DB_From_Flash(void);
 void list_tstat_pos(void);

@@ -528,6 +528,31 @@ int32_t stm_i2c_read(int16_t reg, uint8_t *value,uint16_t len)
     return ret;
 }
 
+/* Variable-length read. One bulk read, so a Modbus reply can be longer than stm_i2c_read(). */
+int32_t stm_i2c_read_blk(uint8_t reg, uint8_t *value, uint16_t len)
+{
+    int ret;
+    i2c_cmd_handle_t cmd;
+
+    if(value == NULL || len == 0)
+        return ESP_ERR_INVALID_ARG;
+
+    cmd = i2c_cmd_link_create();
+    if(cmd == NULL)
+        return ESP_ERR_NO_MEM;
+
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (0x74 << 1) | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, reg, ACK_CHECK_EN);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (0x74 << 1) | READ_BIT, ACK_CHECK_EN);
+    i2c_master_read(cmd, value, len, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
+
 /*
 void sensirion_sleep_usec(uint32_t useconds) {
 	//delay_us(useconds);

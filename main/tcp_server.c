@@ -80,6 +80,22 @@
 
 #define S_ALL_NEW  0x15
 #define G_ALL_NEW  0x25
+/* PROJECT_RMC1232: Modbus RTU frame tunneled to the STM over I2C */
+#define S_MODBUS_FWD  0x16
+#define G_MODBUS_FWD  0x26
+#define I2C_FWD_MAX   256
+#define I2C_FWD_HOLD_MS  10000
+
+static uint8_t i2c_fwd_tx[I2C_FWD_MAX];
+static uint8_t i2c_fwd_rx[I2C_FWD_MAX];
+static volatile uint16_t i2c_fwd_tx_len;
+static volatile uint16_t i2c_fwd_rx_len;
+static volatile uint16_t i2c_fwd_expect;
+static volatile uint8_t i2c_fwd_state; /* 0 idle, 1 pending, 2 ok, 3 fail */
+static volatile uint8_t i2c_fwd_seq;
+static volatile uint8_t i2c_fwd_hold;
+static volatile TickType_t i2c_fwd_last;
+static SemaphoreHandle_t i2c_fwd_sem;
 
 TaskHandle_t main_task_handle[20];
 extern TaskHandle_t Handle_Scan;
@@ -1026,27 +1042,36 @@ int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 		{
 			return 0;
 		}
-
-		if(Modbus.com_config[0] == MODBUS_MASTER)
-			Modbus.sub_port = 0;
-		else if(Modbus.com_config[2] == MODBUS_MASTER)
-			Modbus.sub_port = 2;
+		if((Modbus.mini_type == PROJECT_RMC1232) && (rx_buffer[6] == 111))
+		{ // specail code for RMC1232
+			// transfer tcp_packet to I2Cbus	
+			//Response_TCPIP_To_I2CBUS(rx_buffer + UIP_HEAD,len - UIP_HEAD,header);
+			Modbus.sub_port = 3; // I2C bus
+		}
 		else
 		{
-			return 0;
-		}
-
-		for(i = 0;i <  sub_no ;i++)
-		{
-			if(rx_buffer[UIP_HEAD] == uart0_sub_addr[i])
-			{
-				 Modbus.sub_port = 0;
-				 continue;
-			}
-			else if(rx_buffer[UIP_HEAD] == uart2_sub_addr[i])
-			{
+			if(Modbus.com_config[0] == MODBUS_MASTER)
+				Modbus.sub_port = 0;
+			else if(Modbus.com_config[2] == MODBUS_MASTER)
 				Modbus.sub_port = 2;
-				continue;
+			else
+			{			
+				return 0;
+			}
+		
+
+			for(i = 0;i <  sub_no ;i++)
+			{
+				if(rx_buffer[UIP_HEAD] == uart0_sub_addr[i])
+				{
+					 Modbus.sub_port = 0;
+					 continue;
+				}
+				else if(rx_buffer[UIP_HEAD] == uart2_sub_addr[i])
+				{
+					Modbus.sub_port = 2;
+					continue;
+				}
 			}
 		}
 
@@ -1071,7 +1096,17 @@ int Modbus_Tcp(uint16_t len,int sock,U8_T* rx_buffer)
 		}
 		memset(modbus_send_buf,0,500);
 		modbus_send_len = 0;
-		Response_TCPIP_To_SUB(rx_buffer + UIP_HEAD,len - UIP_HEAD,Modbus.sub_port,header);
+		
+		if(Modbus.sub_port == 3) /* I2C: only 03 / 06 / 10 */
+		{Test[13]++;
+			if(rx_buffer[UIP_HEAD + 1] == READ_VARIABLES
+				|| rx_buffer[UIP_HEAD + 1] == WRITE_VARIABLES
+				|| rx_buffer[UIP_HEAD + 1] == MULTIPLE_WRITE)
+				Response_TCPIP_To_I2CBUS(rx_buffer + UIP_HEAD,len - UIP_HEAD,header);
+		}
+		else
+			Response_TCPIP_To_SUB(rx_buffer + UIP_HEAD,len - UIP_HEAD,Modbus.sub_port,header);
+			
 		local_send_len = modbus_send_len;
 		if(local_send_len > 0 && local_send_len <= sizeof(local_send_buf))
 		{
@@ -3415,6 +3450,206 @@ void reboot_sub_chip(void)
 	usleep(100000); // 500ms
 	gpio_set_level(GPIO_NUM_32, 1);
 }
+
+static int i2c_fwd_crc_ok(uint8_t *buf, uint16_t n)
+{
+	uint16_t crc;
+	if(n < 5 || n > 255)
+		return 0;
+	crc = crc16(buf, (uint8_t)(n - 2));
+	return crc == (uint16_t)buf[n - 2] * 256 + buf[n - 1];
+}
+
+static void i2c_fwd_exception(U8_T *header, U8_T unit, U8_T func)
+{
+	header[4] = 0;
+	header[5] = 3;
+	modbus_send_buf[0] = header[0];
+	modbus_send_buf[1] = header[1];
+	modbus_send_buf[2] = header[2];
+	modbus_send_buf[3] = header[3];
+	modbus_send_buf[4] = header[4];
+	modbus_send_buf[5] = header[5];
+	modbus_send_buf[6] = unit;
+	modbus_send_buf[7] = func | 0x80;
+	modbus_send_buf[8] = 0x0B;
+	modbus_send_len = 9;
+}
+
+/* 1 = skip the periodic S_ALL_NEW packet. Cleared 10s after the last forward. */
+static uint8_t i2cbus_pause_tx(void)
+{
+	if(i2c_fwd_state == 1)
+		return 1;
+	if(!i2c_fwd_hold)
+		return 0;
+	if((xTaskGetTickCount() - i2c_fwd_last) >= pdMS_TO_TICKS(I2C_FWD_HOLD_MS))
+	{
+		i2c_fwd_hold = 0;
+		return 0;
+	}
+	return 1;
+}
+
+/* Runs only from i2c_master_task. Sends one queued Modbus RTU frame and reads the reply. */
+static void i2cbus_forward_execute(void)
+{
+	static uint8_t tx_local[I2C_FWD_MAX];
+	static uint8_t rx_local[I2C_FWD_MAX];
+	uint16_t tx_len;
+	uint16_t expect;
+	uint8_t seq;
+	esp_err_t wret;
+	int32_t rret;
+	Test[11]++;
+	if(i2c_fwd_state != 1)
+		return;
+
+	seq = i2c_fwd_seq;
+	tx_len = i2c_fwd_tx_len;
+	expect = i2c_fwd_expect;
+	if(tx_len == 0 || tx_len > I2C_FWD_MAX || expect < 5 || expect > I2C_FWD_MAX)
+	{
+		if(i2c_fwd_seq == seq && i2c_fwd_state == 1)
+		{
+			i2c_fwd_rx_len = 0;
+			i2c_fwd_state = 3;
+			if(i2c_fwd_sem != NULL)
+				xSemaphoreGive(i2c_fwd_sem);
+		}
+		return;
+	}
+
+	memcpy(tx_local, i2c_fwd_tx, tx_len);
+	memset(rx_local, 0, expect);
+	wret = stm_i2c_write(S_MODBUS_FWD, tx_local, tx_len);
+	Test[12]++;
+	if(wret == ESP_OK)
+	{
+		vTaskDelay(pdMS_TO_TICKS(200));
+		rret = stm_i2c_read_blk(G_MODBUS_FWD, rx_local, expect);
+	}
+	else
+		rret = -1;
+
+	if(i2c_fwd_seq != seq || i2c_fwd_state != 1)
+		return;
+
+	i2c_fwd_last = xTaskGetTickCount();
+	i2c_fwd_hold = 1;
+	if(wret == ESP_OK && rret == ESP_OK)
+	{
+		memcpy(i2c_fwd_rx, rx_local, expect);
+		i2c_fwd_rx_len = expect;
+		i2c_fwd_state = 2;
+	}
+	else
+	{
+		i2c_fwd_rx_len = 0;
+		i2c_fwd_state = 3;
+	}
+	if(i2c_fwd_sem != NULL)
+		xSemaphoreGive(i2c_fwd_sem);
+}
+
+void Response_TCPIP_To_I2CBUS(U8_T *buf, U16_T len, U8_T *header)
+{
+	uint8_t func;
+	uint16_t expect;
+	uint16_t crc;
+	uint16_t rtu_len;
+	uint16_t use;
+	uint8_t seq;
+
+	if(buf == NULL || header == NULL || Modbus.mini_type != PROJECT_RMC1232)
+		return;
+
+	func = buf[1];
+	if(func != READ_VARIABLES && func != WRITE_VARIABLES && func != MULTIPLE_WRITE)
+		return;
+
+	if(len < 6 || len > (I2C_FWD_MAX - 2))
+	{
+		i2c_fwd_exception(header, buf[0], func);
+		return;
+	}
+
+	if(func == READ_VARIABLES)
+	{
+		uint16_t qty = ((uint16_t)buf[4] << 8) | buf[5];
+		if(qty == 0 || (uint32_t)qty * 2 + 5 > I2C_FWD_MAX)
+		{
+			i2c_fwd_exception(header, buf[0], func);
+			return;
+		}
+		expect = qty * 2 + 5;
+	}
+	else if(func == MULTIPLE_WRITE)
+	{
+		if(len < 7 || len != (U16_T)buf[6] + 7)
+		{
+			i2c_fwd_exception(header, buf[0], func);
+			return;
+		}
+		expect = 8;
+	}
+	else
+		expect = 8;
+
+	if(i2c_fwd_sem == NULL)
+		i2c_fwd_sem = xSemaphoreCreateBinary();
+	if(i2c_fwd_sem == NULL)
+	{
+		i2c_fwd_exception(header, buf[0], func);
+		return;
+	}
+
+	memcpy(i2c_fwd_tx, buf, len);
+	crc = crc16(i2c_fwd_tx, (uint8_t)len);
+	i2c_fwd_tx[len] = HIGH_BYTE(crc);
+	i2c_fwd_tx[len + 1] = LOW_BYTE(crc);
+	i2c_fwd_tx_len = (uint16_t)(len + 2);
+	i2c_fwd_expect = expect;
+	i2c_fwd_rx_len = 0;
+	i2c_fwd_hold = 1;
+	i2c_fwd_last = xTaskGetTickCount();
+	seq = ++i2c_fwd_seq;
+	if(seq == 0)
+		seq = ++i2c_fwd_seq;
+	xSemaphoreTake(i2c_fwd_sem, 0);
+	i2c_fwd_state = 1;
+
+	if(xSemaphoreTake(i2c_fwd_sem, pdMS_TO_TICKS(1500)) != pdTRUE
+		|| i2c_fwd_seq != seq || i2c_fwd_state != 2)
+	{
+		if(i2c_fwd_seq == seq)
+			i2c_fwd_state = 0;
+		i2c_fwd_exception(header, buf[0], func);
+		return;
+	}
+
+	rtu_len = i2c_fwd_rx_len;
+	use = 0;
+	if(i2c_fwd_crc_ok(i2c_fwd_rx, rtu_len))
+		use = rtu_len;
+	else if(rtu_len > 5 && (i2c_fwd_rx[1] & 0x80) && i2c_fwd_crc_ok(i2c_fwd_rx, 5))
+		use = 5;
+
+	i2c_fwd_state = 0;
+	if(use < 5)
+	{
+		i2c_fwd_exception(header, buf[0], func);
+		return;
+	}
+
+	use -= 2;
+	memcpy(modbus_send_buf, header, 6);
+	memcpy(&modbus_send_buf[6], i2c_fwd_rx, use);
+	modbus_send_buf[4] = (U8_T)(use >> 8);
+	modbus_send_buf[5] = (U8_T)use;
+	modbus_send_len = (U16_T)(6 + use);
+}
+
 void i2c_master_task(void *pvParameters)
 {
 	Str_points_ptr ptr;
@@ -3651,12 +3886,21 @@ void i2c_master_task(void *pvParameters)
 	}
 	task_test.enable[0] = 1;
 	i2c_send_buf[0] = i2c_send_buf[1] = i2c_send_buf[2] = i2c_send_buf[3] = 0;
+	if(i2c_fwd_sem == NULL)
+		i2c_fwd_sem = xSemaphoreCreateBinary();
 
 	for (;;)
 	{
 
 
 		task_test.count[0]++;
+
+		if(Modbus.mini_type == PROJECT_RMC1232 && i2c_fwd_state == 1)
+		{
+			i2cbus_forward_execute();
+			vTaskDelay(10 / portTICK_PERIOD_MS);
+			continue;
+		}
 
 
 		if(Modbus.mini_type == PROJECT_TSTAT9)
@@ -4165,7 +4409,8 @@ void i2c_master_task(void *pvParameters)
 							vTaskDelay(50 / portTICK_PERIOD_MS);
 
 					}
-					else if(Modbus.mini_type == PROJECT_NG3 || Modbus.mini_type == PROJECT_RMC1232)
+					else if(Modbus.mini_type == PROJECT_NG3 ||
+						(Modbus.mini_type == PROJECT_RMC1232 && i2cbus_pause_tx() == 0))
 					{ 	
 						esp_err_t ret = stm_i2c_write(S_ALL_NEW,i2c_send_buf,83);
 						Test[6]++;
