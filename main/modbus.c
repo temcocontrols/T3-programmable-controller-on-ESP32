@@ -106,6 +106,11 @@ uint8_t com_config_back[3];
 STR_PLC plc_power = {
 	.flag_48V_exist = 1,
 	.CT_channel = { 15, 16, 17, 18, 19, 20 },
+	/* never configured: all channels enabled */
+	.en_power = {
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+	},
 };
 /* internal accumulators: (W * 1000) * seconds; energy = kWh * 1000 = acc / 3600000 */
 static uint64_t plc_energy_acc[24];     /* charge (I > 0) → MODBUS_ENERGY1 */

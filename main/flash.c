@@ -547,6 +547,7 @@ esp_err_t read_default_from_flash(void)
 	if(err == ESP_OK && len >= PLC_POWER_NVS_SIZE_V1)
 	{
 		uint8_t i;
+		uint8_t any_en = 0;
 		if(len < PLC_POWER_NVS_SIZE)
 		{
 			for(i = 0; i < 24; i++)
@@ -562,7 +563,28 @@ esp_err_t read_default_from_flash(void)
 					plc_power.dis_energy[i] = (uint32_t)(-d);
 			}
 		}
+		/* all en_power still 0 → never configured; default enable */
+		for(i = 0; i < 24; i++)
+		{
+			if(plc_power.en_power[i])
+			{
+				any_en = 1;
+				break;
+			}
+		}
+		if(!any_en)
+		{
+			for(i = 0; i < 24; i++)
+				plc_power.en_power[i] = 1;
+		}
 		plc_power_sync_acc(); /* restore energy integrator so energy[] keeps accumulating */
+	}
+	else
+	{
+		uint8_t i;
+		/* no PLC power blob yet: keep CT defaults, enable all energy channels */
+		for(i = 0; i < 24; i++)
+			plc_power.en_power[i] = 1;
 	}
 	/* any CT_channel == 0 → default IN15..IN20 and clear that CT's energy */
 	{
