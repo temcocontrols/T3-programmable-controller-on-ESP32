@@ -22,6 +22,7 @@ lv_obj_t * ui_Button5 = NULL;
 lv_obj_t * ui_Label8 = NULL;
 lv_obj_t * ui_Button6 = NULL;
 lv_obj_t * ui_Button7 = NULL;
+lv_obj_t * ui_Button8 = NULL;
 lv_obj_t * ui_BackButton = NULL;
 lv_obj_t * ui_MenuDot = NULL;
 lv_obj_t * ui_Panel2 = NULL;
@@ -47,6 +48,9 @@ void ui_event_MainMenu(lv_event_t * e)
 #if 1
         RightIn_Animation(ui_Button7, 600);
 #endif
+        if (ui_Button8) {
+            LeftInItem_Animation(ui_Button8, 600);
+        }
         LeftInItem_Animation(ui_BackButton, 600);
         RightIn_Animation(ui_Panel2, 600);
         LeftInItem_Animation(ui_CalenderBtn, 600);
@@ -61,6 +65,9 @@ void ui_event_MainMenu(lv_event_t * e)
 #if 1
         _ui_opacity_set(ui_Button7, 0);
 #endif
+        if (ui_Button8) {
+            _ui_opacity_set(ui_Button8, 0);
+        }
         _ui_opacity_set(ui_BackButton, 0);
         _ui_opacity_set(ui_Panel2, 0);
         _ui_opacity_set(ui_CalenderBtn, 0);
@@ -125,6 +132,17 @@ void ui_event_Button7(lv_event_t * e)
         _ui_screen_change(&ui_DdnsScreen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_DdnsScreen_screen_init);
 }
 #endif
+
+void ui_event_Button8(lv_event_t * e)
+{
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+        return;
+    }
+    if (!ui_ir_blaster_visible()) {
+        return;
+    }
+    _ui_screen_change(&ui_IrBlaster, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_IrBlaster_screen_init);
+}
 
 void ui_event_BackButton(lv_event_t * e)
 {
@@ -384,6 +402,26 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_text_color(label7, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
 #endif
 
+    /* TSTAT11 only: IR hardware is on GPIO17/18. Hidden on HUB and other mini_types. */
+    if (ui_ir_blaster_visible()) {
+        ui_Button8 = lv_button_create(ui_ButtonContainer);
+        lv_obj_set_size(ui_Button8, 220, 40);
+        lv_obj_align(ui_Button8, LV_ALIGN_CENTER, 0, 240);
+        lv_obj_set_style_radius(ui_Button8, 30, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(ui_Button8, lv_color_hex(0x349EF9), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(ui_Button8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_color(ui_Button8, lv_color_hex(0x81BAEA), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_main_stop(ui_Button8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_stop(ui_Button8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_dir(ui_Button8, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_t *label8 = lv_label_create(ui_Button8);
+        lv_label_set_text(label8, "IR Blaster");
+        lv_obj_center(label8);
+        lv_obj_set_style_text_font(label8, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_color(label8, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_add_event_cb(ui_Button8, ui_event_Button8, LV_EVENT_ALL, NULL);
+    }
+
     ui_BackButton = lv_imagebutton_create(ui_ButtonContainer);
     lv_imagebutton_set_src(ui_BackButton, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_leftarrow_png, NULL);
     lv_imagebutton_set_src(ui_BackButton, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_leftarrow_png, NULL);
@@ -533,6 +571,7 @@ void ui_MainMenu_screen_destroy(void)
     ui_Label8 = NULL;
     ui_Button6 = NULL;
     ui_Button7 = NULL;
+    ui_Button8 = NULL;
     uic_BackButton = NULL;
     ui_BackButton = NULL;
     ui_MenuDot = NULL;

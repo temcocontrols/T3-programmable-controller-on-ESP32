@@ -73,6 +73,12 @@
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
 #include "hub_snmp.h"
+#if CONFIG_IDF_TARGET_ESP32S3
+#include "ir_blaster.h"
+#if MINI_TSTAT11 != IR_BLASTER_MINI_TSTAT11
+#error MINI_TSTAT11 must stay 31 (IR_BLASTER_MINI_TSTAT11)
+#endif
+#endif
 
 //#include "lowPower.h"
 
@@ -4844,6 +4850,14 @@ void app_main()
 	{
 		LCD_Init();
 		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+#if CONFIG_IDF_TARGET_ESP32S3
+		/* TSTAT11 only: GPIO17 TX / GPIO18 RX. Never start on HUB or other types. */
+		ESP_LOGI(TCP_TASK_TAG, "ir_blaster calling init (mini_type %u)", (unsigned)Modbus.mini_type);
+		{
+			esp_err_t ir_ret = ir_blaster_init(Modbus.mini_type);
+			ESP_LOGI(TCP_TASK_TAG, "ir_blaster_init %s", esp_err_to_name(ir_ret));
+		}
+#endif
 	}
 
 #if (CONFIG_IDF_TARGET_ESP32S3 == 0)

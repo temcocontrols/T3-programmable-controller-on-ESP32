@@ -69,6 +69,26 @@ dependencies:
     source:
       type: idf
     version: 5.5.3
+  jorgecis/IRremoteIDF:
+    component_hash: 16bc7e03ea711fa7118d85803c76d314f0fee78f160f610c337439ac1ecbba68
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    targets:
+    - esp32
+    - esp32s2
+    - esp32s3
+    - esp32c2
+    - esp32c3
+    - esp32c5
+    - esp32c6
+    - esp32h2
+    - esp32p4
+    version: 1.0.2
   lvgl/lvgl:
     component_hash: 184e532558c1c45fefed631f3e235423d22582aafb4630f3e8885c35281a49ae
     dependencies: []
@@ -82,7 +102,8 @@ direct_dependencies:
 - espressif/led_strip
 - espressif/mdns
 - idf
+- jorgecis/IRremoteIDF
 - lvgl/lvgl
-manifest_hash: 527312b5d0143b55dfea1f79127f72e6486482febce5f10504ac7b269b50606e
+manifest_hash: 8a7a24c9f211cebb49e42bd61faeb07207b709aedc67fcddaff74ca4c2f2d9ba
 target: esp32s3
 version: 2.0.0

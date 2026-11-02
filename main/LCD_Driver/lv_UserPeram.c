@@ -276,6 +276,14 @@ void lv_Lcd_UpdateData(void)
         {
             lv_refresh_calender_Data();
         }
+        else if(UI_OBJ_READY(ui_IrBlaster) && (current_Screen == ui_IrBlaster))
+        {
+            ui_IrBlaster_refresh();
+        }
+        else if(UI_OBJ_READY(ui_IrSlotDetail) && (current_Screen == ui_IrSlotDetail))
+        {
+            ui_IrSlotDetail_refresh();
+        }
     }
 }
 

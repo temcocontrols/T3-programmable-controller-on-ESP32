@@ -39,6 +39,8 @@ extern lv_obj_t * ui_Button6;
 extern void ui_event_Button7(lv_event_t * e);
 extern lv_obj_t * ui_Button7;
 #endif
+extern void ui_event_Button8(lv_event_t * e);
+extern lv_obj_t * ui_Button8;
 extern void ui_event_BackButton(lv_event_t * e);
 extern lv_obj_t * ui_BackButton;
 extern lv_obj_t * ui_MenuDot;

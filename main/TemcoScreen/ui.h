@@ -40,6 +40,7 @@ extern "C" {
 #include "ui_ScheduleEditScreen.h"
 #include "ui_HolidayCalenderScreen.h"
 #include "ui_RemoteAccess.h"
+#include "ui_IrBlaster.h"
 
 ///////////////////// VARIABLES ////////////////////
 
