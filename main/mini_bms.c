@@ -39,11 +39,12 @@ extern uint16 rmc_oc_chg;
 extern uint16 rmc_oc_dsg;
 
 /*
- * LED layout (same roles as RMC refresh_power_leds):
- *  0: green=ext power, red=battery
- *  1: green=BQ comm OK, red=fail
- *  2..5: SOC 25/50/75/100% — red / yellow / green / green; top bar blinks when charging
+ * LED roles (logical); strip wiring is reversed: phys = 5 - logical
+ *  L0↔P5: green=ext power, red=battery
+ *  L1↔P4: green=BQ comm OK, red=fail
+ *  L2..L5 ↔ P3..P0: SOC 25/50/75/100% — red / yellow / green / green; top bar blinks when charging
  */
+#define MINI_BMS_LED_PHYS(logical)  ((uint8_t)((MINI_BMS_LED_COUNT - 1) - (logical)))
 static void mini_bms_bq_task(void *pvParameters)
 {
 	uint16_t voltage_x10 = 0;
@@ -216,21 +217,21 @@ static void mini_bms_led_task(void *pvParameters)
 			charge_blink = 0;
 		}
 
-		/* LED0: ext power */
+		/* L0→P5: ext power */
 		if (ext_power) {
-			led_strip_set_pixel(strip, 0, 0, 30, 0);
+			led_strip_set_pixel(strip, MINI_BMS_LED_PHYS(0), 0, 30, 0);
 		} else {
-			led_strip_set_pixel(strip, 0, 30, 0, 0);
+			led_strip_set_pixel(strip, MINI_BMS_LED_PHYS(0), 30, 0, 0);
 		}
 
-		/* LED1: BMS I2C OK */
+		/* L1→P4: BMS I2C OK */
 		if (bat_ok) {
-			led_strip_set_pixel(strip, 1, 0, 30, 0);
+			led_strip_set_pixel(strip, MINI_BMS_LED_PHYS(1), 0, 30, 0);
 		} else {
-			led_strip_set_pixel(strip, 1, 30, 0, 0);
+			led_strip_set_pixel(strip, MINI_BMS_LED_PHYS(1), 30, 0, 0);
 		}
 
-		/* LED2..5: SOC bars */
+		/* L2..L5 → P3..P0: SOC bars */
 		if (bat_ok && bars > 0) {
 			if (bars <= 1) {
 				r = 30; g = 0; b = 0;
@@ -241,7 +242,7 @@ static void mini_bms_led_task(void *pvParameters)
 			}
 
 			for (i = 0; i < POWER_LED_SOC_COUNT; i++) {
-				uint8_t idx = (uint8_t)(2 + i);
+				uint8_t idx = MINI_BMS_LED_PHYS(2 + i);
 				if (i >= bars) {
 					led_strip_set_pixel(strip, idx, 0, 0, 0);
 				} else if (charging && i == (bars - 1) && !charge_blink) {
@@ -252,7 +253,7 @@ static void mini_bms_led_task(void *pvParameters)
 			}
 		} else {
 			for (i = 0; i < POWER_LED_SOC_COUNT; i++) {
-				led_strip_set_pixel(strip, (uint8_t)(2 + i), 0, 0, 0);
+				led_strip_set_pixel(strip, MINI_BMS_LED_PHYS(2 + i), 0, 0, 0);
 			}
 		}
 
