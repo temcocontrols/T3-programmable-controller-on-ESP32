@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "driver/uart.h"
+#include "driver/gpio.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "nvs.h"
@@ -18,6 +18,11 @@
 #include "IRsend.h"
 #include "IRutils.h"
 #include "IRremoteESP8266.h"
+
+/* IRrecv capture state (ISR writes rawlen). Used only to log "is the pin seeing IR". */
+namespace _IRrecv {
+extern atomic_irparams_t params;
+}
 
 static const char *TAG = "ir_blaster";
 #define IR_BLASTER_MAGIC 0x32425249u
@@ -70,6 +75,11 @@ static volatile uint8_t s_learn_add_custom;
 static volatile uint8_t s_learn_status = IR_LEARN_IDLE;
 static TickType_t s_learn_deadline;
 static char s_learn_msg[64];
+static volatile uint32_t s_gpio_edges;
+static volatile uint32_t s_decode_ok;
+static volatile uint16_t s_max_rawlen;
+static int s_last_gpio = -1;
+static TickType_t s_rx_log_tick;
 
 static const char *k_lib_names[IR_LIB_BTN_MAX] = {
     "Power", "Mode", "Fan", "Temp+", "Temp-",
@@ -89,7 +99,6 @@ static void ir_print(const char *fmt, ...)
     if (n >= (int)sizeof(buf)) {
         n = (int)sizeof(buf) - 1;
     }
-    uart_write_bytes(UART_NUM_0, buf, (size_t)n);
     ESP_LOGI(TAG, "%s", buf);
 }
 
@@ -319,20 +328,92 @@ static void handle_learn_capture(const decode_results *r)
     s_learn_slot = -1;
 }
 
+static void log_rx_snapshot(const char *why)
+{
+    int pin = CONFIG_IR_BLASTER_RX_GPIO;
+    int lvl = gpio_get_level((gpio_num_t)pin);
+    uint16_t rawlen = _IRrecv::params.rawlen;
+    uint8_t st = _IRrecv::params.rcvstate;
+    if (rawlen > s_max_rawlen) {
+        s_max_rawlen = rawlen;
+    }
+    ESP_LOGI(TAG,
+             "IR RX %s GPIO%u=%d (idle=1) edges=%u decode_ok=%u cap_rawlen=%u max_rawlen=%u rcvstate=%u learn=%u",
+             why,
+             (unsigned)pin,
+             lvl,
+             (unsigned)s_gpio_edges,
+             (unsigned)s_decode_ok,
+             (unsigned)rawlen,
+             (unsigned)s_max_rawlen,
+             (unsigned)st,
+             (unsigned)s_learn_status);
+}
+
+static void sample_rx_gpio(void)
+{
+    int lvl = gpio_get_level((gpio_num_t)CONFIG_IR_BLASTER_RX_GPIO);
+    if (s_last_gpio < 0) {
+        s_last_gpio = lvl;
+        return;
+    }
+    if (lvl != s_last_gpio) {
+        s_gpio_edges++;
+        s_last_gpio = lvl;
+        ESP_LOGI(TAG, "IR RX GPIO%u edge -> %d  edges=%u cap_rawlen=%u",
+                 (unsigned)CONFIG_IR_BLASTER_RX_GPIO,
+                 lvl,
+                 (unsigned)s_gpio_edges,
+                 (unsigned)_IRrecv::params.rawlen);
+    }
+}
+
 static void ir_blaster_task(void *arg)
 {
     (void)arg;
     s_rx->enableIRIn();
+    s_last_gpio = gpio_get_level((gpio_num_t)CONFIG_IR_BLASTER_RX_GPIO);
+    ESP_LOGI(TAG, "IR RX on GPIO%u level=%d (TSOP idle should be 1)",
+             (unsigned)CONFIG_IR_BLASTER_RX_GPIO, s_last_gpio);
     ir_print("ir_blaster RX on\r\n");
 
     for (;;) {
+        sample_rx_gpio();
+
         if ((s_learn_status == IR_LEARN_WAIT) &&
             (xTaskGetTickCount() > s_learn_deadline)) {
+            log_rx_snapshot("TIMEOUT");
             s_learn_slot = -1;
             s_learn_status = IR_LEARN_FAIL;
-            snprintf(s_learn_msg, sizeof(s_learn_msg), "Learn timeout");
+            if (s_gpio_edges == 0) {
+                snprintf(s_learn_msg, sizeof(s_learn_msg), "Timeout: GPIO no pulse");
+            } else if (s_decode_ok == 0) {
+                snprintf(s_learn_msg, sizeof(s_learn_msg), "Timeout: pin moved, no frame");
+            } else {
+                snprintf(s_learn_msg, sizeof(s_learn_msg), "Learn timeout");
+            }
+            ESP_LOGW(TAG, "IR learn fail: %s", s_learn_msg);
         }
+
+        if ((s_learn_status == IR_LEARN_WAIT) &&
+            ((xTaskGetTickCount() - s_rx_log_tick) >= pdMS_TO_TICKS(1000))) {
+            s_rx_log_tick = xTaskGetTickCount();
+            log_rx_snapshot("wait");
+        }
+
         if (s_rx->decode(&s_results)) {
+            s_decode_ok++;
+            if (s_results.rawlen > s_max_rawlen) {
+                s_max_rawlen = s_results.rawlen;
+            }
+            ESP_LOGI(TAG,
+                     "IR RX FRAME proto=%s bits=%u rawlen=%u overflow=%u value=0x%llx learn=%u",
+                     typeToString(s_results.decode_type).c_str(),
+                     (unsigned)s_results.bits,
+                     (unsigned)s_results.rawlen,
+                     (unsigned)s_results.overflow,
+                     (unsigned long long)s_results.value,
+                     (unsigned)s_learn_status);
             if ((s_learn_status == IR_LEARN_WAIT) && (xSemaphoreTake(s_lock, pdMS_TO_TICKS(50)) == pdTRUE)) {
                 handle_learn_capture(&s_results);
                 xSemaphoreGive(s_lock);
@@ -350,6 +431,8 @@ esp_err_t ir_blaster_init(uint8_t mini_type)
     if (mini_type != IR_BLASTER_MINI_TSTAT11) {
         return ESP_ERR_NOT_SUPPORTED;
     }
+    /* Default: hide ESP_LOGI on this tag. Raise to ESP_LOG_INFO to see RX/learn debug. */
+    esp_log_level_set(TAG, ESP_LOG_WARN);
     ir_print("ir_blaster init enter TX GPIO%u RX GPIO%u\r\n",
              (unsigned)CONFIG_IR_BLASTER_TX_GPIO,
              (unsigned)CONFIG_IR_BLASTER_RX_GPIO);
@@ -384,6 +467,28 @@ esp_err_t ir_blaster_init(uint8_t mini_type)
         return ESP_ERR_NO_MEM;
     }
     s_tx->begin();
+#if DECODE_HASH
+    s_rx->setUnknownThreshold(6);
+#endif
+
+    {
+        gpio_num_t rx = (gpio_num_t)CONFIG_IR_BLASTER_RX_GPIO;
+        gpio_num_t tx = (gpio_num_t)CONFIG_IR_BLASTER_TX_GPIO;
+        gpio_set_direction(rx, GPIO_MODE_INPUT);
+        gpio_set_direction(tx, GPIO_MODE_OUTPUT);
+        int idle = gpio_get_level(rx);
+        ESP_LOGI(TAG, "HW CHECK RX GPIO%u idle=%d (expect 1 = ~3.3V on TSOP D26 OUT)",
+                 (unsigned)rx, idle);
+        ESP_LOGI(TAG, "HW CHECK TX GPIO%u: 3 blinks — look at D23/D24/D25 with a phone camera",
+                 (unsigned)tx);
+        for (int i = 0; i < 3; i++) {
+            gpio_set_level(tx, 1);
+            vTaskDelay(pdMS_TO_TICKS(150));
+            gpio_set_level(tx, 0);
+            vTaskDelay(pdMS_TO_TICKS(150));
+        }
+        ESP_LOGI(TAG, "HW CHECK done RX now=%d", gpio_get_level(rx));
+    }
 
     if (xTaskCreate(ir_blaster_task, "ir_blaster", 8192, NULL, 10, NULL) != pdPASS) {
         return ESP_ERR_NO_MEM;
@@ -484,7 +589,16 @@ esp_err_t ir_blaster_begin_learn(uint8_t slot, uint8_t add_custom)
     s_learn_slot = (int)slot;
     s_learn_deadline = xTaskGetTickCount() + pdMS_TO_TICKS(LEARN_TIMEOUT_MS);
     s_learn_status = IR_LEARN_WAIT;
+    s_gpio_edges = 0;
+    s_decode_ok = 0;
+    s_max_rawlen = 0;
+    s_last_gpio = gpio_get_level((gpio_num_t)CONFIG_IR_BLASTER_RX_GPIO);
+    s_rx_log_tick = xTaskGetTickCount();
+    s_rx->resume();
     snprintf(s_learn_msg, sizeof(s_learn_msg), "Point remote, press one key");
+    ESP_LOGI(TAG, "IR learn start slot=%u add_custom=%u GPIO%u=%d (idle should be 1)",
+             (unsigned)slot, (unsigned)s_learn_add_custom,
+             (unsigned)CONFIG_IR_BLASTER_RX_GPIO, s_last_gpio);
     return ESP_OK;
 }
 
