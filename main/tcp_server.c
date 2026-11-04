@@ -33,9 +33,6 @@
 #include "modbus.h"
 #include "driver/uart.h"
 #include "driver/gpio.h"
-#include "driver/adc.h"
-#include "driver/rtc_io.h"
-#include "soc/rtc_io_reg.h"
 #include "wifi.h"
 #include "ethernet_task.h"
 #include "flash.h"
@@ -3838,12 +3835,7 @@ void i2c_master_task(void *pvParameters)
 		ptr.pin->digital_analog = 0;
 		ptr.pin->range = ALARM_NORMAL;
 		memcpy(ptr.pin->label,"BMS_LIVE",strlen("BMS_LIVE"));
-		memcpy(ptr.pin->description,"BMS STATUS",strlen("BMS STATUS"));	
-		ptr = put_io_buf(IN,49); // internal temperature
-		ptr.pin->range = R10K_40_120DegC;
-		memcpy(ptr.pin->label,"BMS_T2",strlen("BMS_T2"));
-		
-		
+		memcpy(ptr.pin->description,"BMS STATUS",strlen("BMS STATUS"));
 	}
 	if(Modbus.mini_type == PROJECT_NG3)
 	{
@@ -4665,8 +4657,16 @@ void i2c_master_task(void *pvParameters)
 										ptr = put_io_buf(IN,40); // COVT
 										ptr.pin->value = (i2c_rcv_buf[111] * 256 + i2c_rcv_buf[112]);
 										
-										ptr = put_io_buf(IN,32); // IN33 internal temperature
-										ptr.pin->value = (i2c_rcv_buf[98] * 256 + i2c_rcv_buf[99]) * 1000;
+										ptr = put_io_buf(IN,32); // IN33
+										if(top_hardware >= 3)
+										{
+											/* PA4 10k raw ADC; HW_REV 2 still sends °C */
+											uint16 adc_10k = (uint16)((i2c_rcv_buf[98] << 8) | i2c_rcv_buf[99]);
+											if(ptr.pin->auto_manual == 0)
+												ptr.pin->value = get_input_value_by_range_45K(adc_10k);
+										}
+										else
+											ptr.pin->value = (i2c_rcv_buf[98] * 256 + i2c_rcv_buf[99]) * 1000;
 										// get 32AI
 										// Filter() holds 0-20mA jumps until the next ARM sample (not the next I2C reread)
 										for(i = 0;i < 64 / 2;i++)	  // 88 == 24+64
@@ -5474,87 +5474,6 @@ static void convert_rmc1232_AHKC_Hall(void)
 	}
 }
 
-/* IO33 = ADC1_CH5, 10k thermistor for RMC1232 internal temp (IN49).
- * adc1_config_channel_atten() forces analog/float and clears pull-up;
- * restore RTC input + internal pull-up so NTC-to-GND can be biased. */
-#define RMC1232_TEMP_GPIO			GPIO_NUM_33
-#define RMC1232_TEMP_ADC_CH			ADC1_CHANNEL_5
-#define RMC1232_TEMP_ADC_SAMPLES	64
-/* IIR: y += (x - y) / 8, about 8s at the 1s control loop */
-
-static void rmc1232_temp_io_enable_pullup(void)
-{
-	rtc_gpio_set_direction(RMC1232_TEMP_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
-	rtc_gpio_pullup_en(RMC1232_TEMP_GPIO);
-	rtc_gpio_pulldown_dis(RMC1232_TEMP_GPIO);
-	/* GPIO33 = XTAL_32K_N: force RUE in case driver path cleared it */
-	SET_PERI_REG_MASK(RTC_IO_XTAL_32K_PAD_REG, RTC_IO_X32N_RUE);
-	CLEAR_PERI_REG_MASK(RTC_IO_XTAL_32K_PAD_REG, RTC_IO_X32N_RDE);
-}
-
-static void rmc1232_update_internal_temp(void)
-{
-	Str_points_ptr ptr;
-	uint16 adc_10k;
-	uint32_t sum;
-	uint8_t i;
-	static uint8_t adc_inited;
-	int raw;
-
-	if(Modbus.mini_type != PROJECT_RMC1232)
-		return;
-
-	if(!adc_inited)
-	{
-		adc1_config_width(ADC_WIDTH_BIT_12);
-		adc1_config_channel_atten(RMC1232_TEMP_ADC_CH, ADC_ATTEN_DB_11);
-		rmc1232_temp_io_enable_pullup();
-		adc_inited = 1;
-	}
-
-	/* one burst, drop min/max, then slow IIR so a noisy sample cannot jump the temp */
-	{
-		uint16_t v;
-		uint16_t vmin = 0xFFFF;
-		uint16_t vmax = 0;
-		static uint32_t adc_acc;
-		static uint8_t adc_seeded;
-
-		sum = 0;
-		for(i = 0; i < RMC1232_TEMP_ADC_SAMPLES; i++)
-		{
-			raw = adc1_get_raw(RMC1232_TEMP_ADC_CH);
-			if(raw < 0)
-				raw = 0;
-			v = (uint16_t)raw;
-			sum += v;
-			if(v < vmin)
-				vmin = v;
-			if(v > vmax)
-				vmax = v;
-		}
-		sum -= vmin;
-		sum -= vmax;
-		v = (uint16_t)(sum / (RMC1232_TEMP_ADC_SAMPLES - 2));
-		if(!adc_seeded)
-		{
-			adc_acc = (uint32_t)v << 3;
-			adc_seeded = 1;
-		}
-		else
-			adc_acc = adc_acc - (adc_acc >> 3) + v;
-		adc_10k = (uint16)((adc_acc + 4) >> 3);
-	}
-
-	ptr = put_io_buf(IN,49);
-	if(ptr.pin->auto_manual == 0)
-		ptr.pin->value = get_input_value_by_range_45K( adc_10k );
-	Test[32] = adc_10k;
-	Test[33] = ptr.pin->value / 100;
-	/* bit0=RUE set? non-zero means pull-up reg enabled */
-	//Test[36] = (REG_READ(RTC_IO_XTAL_32K_PAD_REG) & RTC_IO_X32N_RUE) ? 1 : 0;
-}
-
 void Bacnet_Control(void *pvParameters)
 {
 	U16_T i,j;
@@ -5684,7 +5603,6 @@ void Bacnet_Control(void *pvParameters)
 				 * after convert it becomes ±A so power can be signed */
 				convert_rmc1232_AHKC_Hall();
 				calculate_plc_power();
-				rmc1232_update_internal_temp();
 			}
 		}
 
