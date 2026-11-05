@@ -3722,6 +3722,7 @@ void i2c_master_task(void *pvParameters)
 	}*/
 	if(Modbus.mini_type == PROJECT_RMC1216)
 	{
+		Modbus.RMC1232_led_Test = Modbus.mini_type;
 		ptr = put_io_buf(IN,16);
 		if(ptr.pin->range == 0)
 			ptr.pin->range = R10K_40_120DegC;
@@ -3839,6 +3840,7 @@ void i2c_master_task(void *pvParameters)
 	}
 	if(Modbus.mini_type == PROJECT_NG3)
 	{
+		Modbus.RMC1232_led_Test = Modbus.mini_type;
 		ptr = put_io_buf(IN,24);
 		if(ptr.pin->range == 0)
 		{
@@ -4479,8 +4481,8 @@ void i2c_master_task(void *pvParameters)
 								{	// normal format : 0x55 + 0xaa + top_rev + sw_rev
 									top_hardware = i2c_rcv_buf[2];
 									top_firmware = i2c_rcv_buf[3];
-									chip_info[1] = top_firmware;
-									chip_info[2] = top_firmware;
+									chip_info[1] = top_hardware;
+									chip_info[2] = top_firmware;									
 									if(Modbus.mini_type == PROJECT_RMC1216)
 									{// 8DO+4AO+24AI?
 										// get output switch
@@ -4688,6 +4690,7 @@ void i2c_master_task(void *pvParameters)
 										//if(top_firmware >= 13)  NG3 top firmware >= 13
 										// 24AI + 6 DO + 5 AO + 2 DO + 2HUM
 										// OUT layout: DO1-6 (0-5), AO1-5 (6-10), DO7-8 (11-12)
+										
 										for(uint8_t i = 0;i < 6;i++)
 										{
 											uint8_t switch_temp = 0;
@@ -4698,7 +4701,7 @@ void i2c_master_task(void *pvParameters)
 											if(i == 3)	switch_temp = (i2c_rcv_buf[4] >> 6 ) & 0x03;
 											if(i == 4)	switch_temp = i2c_rcv_buf[5] & 0x03;
 											if(i == 5)	switch_temp = (i2c_rcv_buf[5] >> 2 ) & 0x03;
-
+											
 											if(ptr.pout->switch_status != switch_temp)
 											{
 												ptr.pout->switch_status = switch_temp;
@@ -4706,7 +4709,7 @@ void i2c_master_task(void *pvParameters)
 											}
 										}
 
-										{
+										{// OUT12,OUT13 ->  DIGTAL OUTPUT
 											uint8_t switch_temp;
 											ptr = put_io_buf(OUT,11);
 											switch_temp = (i2c_rcv_buf[5] >> 4 ) & 0x03;
@@ -5606,7 +5609,7 @@ void Bacnet_Control(void *pvParameters)
 			}
 		}
 
-		//if(check_whehter_running_code() == 1)
+		if(check_whehter_running_code() == 1)
 		for( i = 0; i < MAX_PRGS; i++/*, ptr++*/ )
 		{
 			if( programs[i].bytes )
