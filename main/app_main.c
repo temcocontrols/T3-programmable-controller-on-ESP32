@@ -38,6 +38,7 @@
 #include "ethernet_task.h"
 #include "flash.h"
 #include "rtc.h"
+#include <time.h>
 #include "usb_cdc.h"
 
 #include "i2c_task.h"
@@ -2773,8 +2774,14 @@ void Timer_task(void *pvParameters)
 			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
 	{
 		i2c_master_init();
-		PCF_hctosys();
-		PCF_systohc();
+		if(PCF_hctosys() == 0)
+		{
+			PCF_systohc();
+		}
+		else
+		{
+			debug_info("PCF_hctosys failed, skip PCF_systohc");
+		}
 	}
 	Eth_IP_Change = 0;
 
@@ -2895,10 +2902,14 @@ void Timer_task(void *pvParameters)
 			{
 				PCF_GetDateTime(&rtc_date);
 				Test[40]++;
-				// syc time per hour
+				/* Copy ESP32 → PCF only when system time is valid.
+				 * Otherwise this writes 1970/00:00 over a time set from the LCD. */
 				if(rtc_date.minute == 0 && rtc_date.second == 0)
 				{Test[41]++;
-					PCF_systohc();
+					if(time(NULL) > (time_t)1577836800)
+					{
+						PCF_systohc();
+					}
 				}
 			}
 

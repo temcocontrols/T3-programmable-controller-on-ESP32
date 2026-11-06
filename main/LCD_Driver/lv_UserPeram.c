@@ -14,6 +14,7 @@
 #include "lv_UserPeram.h"
 #include "esp_wifi.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -95,7 +96,7 @@ typedef enum
 } param_table_type_t;
 
 static param_table_type_t s_param_table_type = PARAM_TABLE_INPUT;
-static lv_coord_t s_param_table_widths[9] = { 40, 160, 70, 70, 60, 60, 45, 45, 90 };
+static lv_coord_t s_param_table_widths[9] = { 40, 160, 70, 80, 60, 60, 45, 45, 90 };
 static bool s_param_build_active = false;
 static uint16_t s_param_build_row = 0;
 static uint16_t s_param_build_total = 0;
@@ -125,6 +126,10 @@ static void ui_update_textarea_from_int(lv_obj_t * obj, uint8_t value);
 static uint8_t ui_get_int_from_textarea(lv_obj_t * obj);
 static uint16_t param_table_get_row_count(void);
 static uint16_t param_table_calc_total_width(bool is_output);
+static void param_table_format_milli(char *buf, size_t buf_size, int32_t milli, int decimals);
+static int32_t param_table_parse_milli(const char *text);
+static void param_table_format_var_value(char *buf, size_t buf_size, int32_t value, uint8_t range);
+static int32_t param_table_parse_var_value(const char *text, uint8_t range);
 static void param_table_fill_row(uint16_t i);
 static void param_table_build_begin(void);
 static void param_table_build_step(void);
@@ -980,6 +985,70 @@ static uint16_t param_table_calc_total_width(bool is_output)
     return total_w;
 }
 
+/* T3000 analog IN/OUT present-value is milli-units: display /1000, write *1000.
+ * lv_snprintf in this build has no %f, so format from integer parts. */
+static void param_table_format_milli(char *buf, size_t buf_size, int32_t milli, int decimals)
+{
+    const char *sign = "";
+    int32_t abs_milli = milli;
+    int32_t whole;
+    int32_t frac;
+
+    if(abs_milli < 0) {
+        sign = "-";
+        abs_milli = -abs_milli;
+    }
+
+    whole = abs_milli / 1000;
+    frac = abs_milli % 1000;
+
+    if(decimals >= 3) {
+        lv_snprintf(buf, buf_size, "%s%ld.%03ld", sign, (long)whole, (long)frac);
+    }
+    else {
+        frac = (frac + 5) / 10;
+        if(frac >= 100) {
+            whole++;
+            frac = 0;
+        }
+        lv_snprintf(buf, buf_size, "%s%ld.%02ld", sign, (long)whole, (long)frac);
+    }
+}
+
+static int32_t param_table_parse_milli(const char *text)
+{
+    double v;
+
+    if((text == NULL) || (text[0] == '\0')) {
+        return 0;
+    }
+
+    v = atof(text);
+    if(v >= 0.0) {
+        return (int32_t)(v * 1000.0 + 0.5);
+    }
+    return (int32_t)(v * 1000.0 - 0.5);
+}
+
+/* Variable table: unused range stays raw; any set range uses milli-units. */
+static void param_table_format_var_value(char *buf, size_t buf_size, int32_t value, uint8_t range)
+{
+    if(range == 0U) {
+        lv_snprintf(buf, buf_size, "%ld", (long)value);
+    }
+    else {
+        param_table_format_milli(buf, buf_size, value, 3);
+    }
+}
+
+static int32_t param_table_parse_var_value(const char *text, uint8_t range)
+{
+    if(range == 0U) {
+        return (int32_t)atoi((text != NULL) ? text : "0");
+    }
+    return param_table_parse_milli(text);
+}
+
 static void param_table_fill_row(uint16_t i)
 {
     if(!UI_OBJ_READY(s_lv_table) || i >= s_param_build_total) {
@@ -1003,7 +1072,7 @@ static void param_table_fill_row(uint16_t i)
 
         lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
         lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
-        lv_snprintf(buf, sizeof(buf), "%ld", (long)inputs[i].value);
+        param_table_format_milli(buf, sizeof(buf), inputs[i].value, 2);
         lv_table_set_cell_value(s_lv_table, r, 3, buf);
         lv_table_set_cell_value(s_lv_table, r, 4,
                     inputs[i].auto_manual == 0 ? "Auto" : "Manual");
@@ -1025,7 +1094,7 @@ static void param_table_fill_row(uint16_t i)
 
         lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
         lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
-        lv_snprintf(buf, sizeof(buf), "%ld", (long)outputs[i].value);
+        param_table_format_milli(buf, sizeof(buf), outputs[i].value, 2);
         lv_table_set_cell_value(s_lv_table, r, 3, buf);
         lv_table_set_cell_value(s_lv_table, r, 4,
                     outputs[i].auto_manual == 0 ? "Auto" : "Manual");
@@ -1049,7 +1118,7 @@ static void param_table_fill_row(uint16_t i)
 
         lv_table_set_cell_value(s_lv_table, r, 1, desc_buf);
         lv_table_set_cell_value(s_lv_table, r, 2, label_buf);
-        lv_snprintf(buf, sizeof(buf), "%ld", (long)vars[i].value);
+        param_table_format_var_value(buf, sizeof(buf), vars[i].value, vars[i].range);
         lv_table_set_cell_value(s_lv_table, r, 3, buf);
         lv_table_set_cell_value(s_lv_table, r, 4,
                     vars[i].auto_manual == 0 ? "Auto" : "Manual");
@@ -1510,7 +1579,7 @@ static void param_table_apply_updates(void)
                 sizeof(inputs[i].description), CELL(r, 1));
             param_table_copy_text((char *)inputs[i].label,
                 sizeof(inputs[i].label), CELL(r, 2));
-            inputs[i].value          = GETI(r, 3);
+            inputs[i].value          = param_table_parse_milli(CELL(r, 3));
             inputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
             inputs[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             inputs[i].control        = S8(GETI(r, 6));
@@ -1527,7 +1596,7 @@ static void param_table_apply_updates(void)
                 sizeof(outputs[i].description), CELL(r, 1));
             param_table_copy_text((char *)outputs[i].label,
                 sizeof(outputs[i].label), CELL(r, 2));
-            outputs[i].value          = GETI(r, 3);
+            outputs[i].value          = param_table_parse_milli(CELL(r, 3));
             outputs[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
             outputs[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             outputs[i].control        = S8(GETI(r, 6));
@@ -1545,7 +1614,6 @@ static void param_table_apply_updates(void)
                 sizeof(vars[i].description), CELL(r, 1));
             param_table_copy_text((char *)vars[i].label,
                 sizeof(vars[i].label), CELL(r, 2));
-            vars[i].value          = GETI(r, 3);
             vars[i].auto_manual    = (strcmp(CELL(r, 4), "Manual") == 0) ? 1 : 0;
             vars[i].digital_analog = (strcmp(CELL(r, 5), "Analog") == 0) ? 1 : 0;
             vars[i].control        = U8(GETI(r, 6));
@@ -1555,6 +1623,7 @@ static void param_table_apply_updates(void)
             {
                 vars[i].range = 0;
             }
+            vars[i].value          = param_table_parse_var_value(CELL(r, 3), vars[i].range);
         }
     }
 
@@ -2981,10 +3050,23 @@ void Event_Cb_TimeSyncUpdateFunc(lv_event_t * e)
             rtc_date.minute = (uint8_t)lv_dropdown_get_selected(ui_Dropdown8);
             rtc_date.second = 0U;
         }
+        if(rtc_date.year < 2020U) {
+            rtc_date.year = 2026U;
+        }
+        if((rtc_date.month < 1U) || (rtc_date.month > 12U)) {
+            rtc_date.month = 1U;
+        }
+        if((rtc_date.day < 1U) || (rtc_date.day > 31U)) {
+            rtc_date.day = 1U;
+        }
         ESP_LOGI(TAG, "Applying manual time update: %04u-%02u-%02u %02u:%02u:%02u",
                  rtc_date.year, rtc_date.month, rtc_date.day,
                  rtc_date.hour, rtc_date.minute, rtc_date.second);
-        PCF_SetDateTime(&rtc_date);
+        if(PCF_SetDateTimeAndSystem(&rtc_date) != 0)
+        {
+            ESP_LOGE(TAG, "Failed to save time to PCF8563 (i2c=%d)",
+                     (int)PCF_GetLastError());
+        }
 		update_timers();
         isDateUpdated = false;
         isTimeUpdated = false;
