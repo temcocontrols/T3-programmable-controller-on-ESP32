@@ -101,7 +101,13 @@ esp_err_t Touch_i2c_Write(uint8_t addr, uint16_t reg,
 esp_err_t Touch_i2c_Read(uint8_t addr, uint16_t reg,
                      uint8_t *data, uint16_t len)
 {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_cmd_handle_t cmd;
+
+    if ((data == NULL) || (len == 0)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cmd = i2c_cmd_link_create();
 
     // Write register address
     i2c_master_start(cmd);
@@ -113,10 +119,12 @@ esp_err_t Touch_i2c_Read(uint8_t addr, uint16_t reg,
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (addr << 1) | READ_BIT, ACK_CHECK_EN);
 
-    if (len > 1) {
+    if (len == 1) {
+        i2c_master_read_byte(cmd, data, I2C_MASTER_NACK);
+    } else {
         i2c_master_read(cmd, data, (size_t)(len - 1), I2C_MASTER_ACK);
+        i2c_master_read_byte(cmd, data + (len - 1), I2C_MASTER_NACK);
     }
-    i2c_master_read_byte(cmd, &data[len - 1], I2C_MASTER_NACK);
 
     i2c_master_stop(cmd);
 
