@@ -15,16 +15,17 @@
  *
  */
 
-#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/uart.h"
 #include "driver/i2c.h"
 #include "driver/gpio.h"
 #include "esp_err.h"
+#include "esp_log.h"
 #include "i2c_task.h"
 
 #include "touch_drv.h"
+
+static const char *TAG = "touch_drv";
 
 #define TOUCH_PIN_SCL_IO           GPIO_NUM_47         /*!< GPIO number used for I2C master clock */
 #define TOUCH_PIN_SDA_IO           GPIO_NUM_48         /*!< GPIO number used for I2 master data  */
@@ -45,6 +46,15 @@
 #define GT911_I2C_ADDR  0x14
 #define I2C_TIMEOUT_MS  100
 #define GOODIX_REG_ID   0x8140
+
+/* Lower = more sensitive. 0x18 felt like factory; 0x0A is a real step. Raise if ghost taps. */
+#define GT911_TOUCH_THRESHOLD  0x02
+#define GT911_CFG_START        0x8047
+#define GT911_CFG_LEN          186
+#define GT911_CFG_BODY_LEN     184
+#define GT911_CFG_CHUNK        16
+#define GT911_OFFS_TOUCH_TH    0x0C  /* 0x8053 */
+#define GT911_OFFS_LEAVE_TH    0x0D  /* 0x8054 */
 
 #define TOUCH_MAX_X  320
 #define TOUCH_MAX_Y  480
@@ -76,9 +86,9 @@ esp_err_t Touch_i2c_Write(uint8_t addr, uint16_t reg,
 
     i2c_master_write_byte(cmd, reg >> 8, ACK_CHECK_EN);
     i2c_master_write_byte(cmd, reg & 0xFF, ACK_CHECK_EN);
-
-    for (int i = 0; i < len; i++)
-        i2c_master_write_byte(cmd, data[i], ACK_CHECK_EN);
+    if ((data != NULL) && (len > 0)) {
+        i2c_master_write(cmd, data, len, ACK_CHECK_EN);
+    }
 
     i2c_master_stop(cmd);
 
@@ -91,7 +101,13 @@ esp_err_t Touch_i2c_Write(uint8_t addr, uint16_t reg,
 esp_err_t Touch_i2c_Read(uint8_t addr, uint16_t reg,
                      uint8_t *data, uint16_t len)
 {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_cmd_handle_t cmd;
+
+    if ((data == NULL) || (len == 0)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cmd = i2c_cmd_link_create();
 
     // Write register address
     i2c_master_start(cmd);
@@ -103,9 +119,11 @@ esp_err_t Touch_i2c_Read(uint8_t addr, uint16_t reg,
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, (addr << 1) | READ_BIT, ACK_CHECK_EN);
 
-    for (int i = 0; i < len; i++) {
-        i2c_master_read_byte(cmd, &data[i],
-            (i == len - 1) ? I2C_MASTER_NACK : I2C_MASTER_ACK);
+    if (len == 1) {
+        i2c_master_read_byte(cmd, data, I2C_MASTER_NACK);
+    } else {
+        i2c_master_read(cmd, data, (size_t)(len - 1), I2C_MASTER_ACK);
+        i2c_master_read_byte(cmd, data + (len - 1), I2C_MASTER_NACK);
     }
 
     i2c_master_stop(cmd);
@@ -121,36 +139,19 @@ static esp_err_t TouchReadConfig( void )
 {
    	esp_err_t ret;
     uint8_t addr = GT911_I2C_ADDR;
-    char debugbuf[100];
 	uint8_t id[4] = {0};
 
-	memset(debugbuf, 0, sizeof(debugbuf));
-	sprintf(debugbuf, "GT911 trying address 0x%02X...\r\n", addr);
-	uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
+	ESP_LOGI(TAG, "GT911 trying address 0x%02X", addr);
 
 	ret = Touch_i2c_Read(addr, GOODIX_REG_ID, id, 4);
 	if (ret != ESP_OK)
 	{
-		uart_write_bytes(
-			UART_NUM_0,
-			"GT911 ID read failed\r\n",
-			sizeof("GT911 ID read failed\r\n") - 1
-		);
+		ESP_LOGE(TAG, "GT911 ID read failed");
 		return ret;
 	}
 
-	memset(debugbuf, 0, sizeof(debugbuf));
-	sprintf(debugbuf,
-			"GT911 ID = %c%c%c%c\r\n",
-			id[0], id[1], id[2], id[3]);
-	uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
-    memset(debugbuf, 0, sizeof(debugbuf));
-    sprintf(
-        debugbuf,
-        "GT911 ID @0x%02X = %c%c%c%c\r\n",
-        addr, id[0], id[1], id[2], id[3]
-    );
-    uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
+	ESP_LOGI(TAG, "GT911 ID = %c%c%c%c", id[0], id[1], id[2], id[3]);
+	ESP_LOGI(TAG, "GT911 ID @0x%02X = %c%c%c%c", addr, id[0], id[1], id[2], id[3]);
 
 	uint8_t fw[2];
 
@@ -158,28 +159,19 @@ static esp_err_t TouchReadConfig( void )
 
 	uint16_t fw_ver = fw[0] | (fw[1] << 8);
 
-	sprintf(debugbuf,
-			"GT911 FW version: 0x%04X\r\n",
-			fw_ver);
-	uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
+	ESP_LOGI(TAG, "GT911 FW version: 0x%04X", fw_ver);
 
 	uint8_t cfg_ver;
 
 	Touch_i2c_Read(addr, 0x8047, &cfg_ver, 1);
 
-	sprintf(debugbuf,
-			"GT911 CFG version: 0x%02X\r\n",
-			cfg_ver);
-	uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
+	ESP_LOGI(TAG, "GT911 CFG version: 0x%02X", cfg_ver);
 
 	uint8_t status;
 
 	Touch_i2c_Read(addr, 0x814E, &status, 1);
 
-	sprintf(debugbuf,
-			"GT911 Status: 0x%02X\r\n",
-			status);
-	uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
+	ESP_LOGI(TAG, "GT911 Status: 0x%02X", status);
 
     uint8_t clear = 0x00;
 	Touch_i2c_Write(addr, 0x814E, &clear, 1);
@@ -188,15 +180,84 @@ static esp_err_t TouchReadConfig( void )
 
 	Touch_i2c_Read(addr, 0x8150, touch, 8);
 
-	sprintf(debugbuf,
-			"GT911 Touch Data: %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+	ESP_LOGD(TAG, "GT911 Touch Data: %02X %02X %02X %02X %02X %02X %02X %02X",
 			touch[0], touch[1], touch[2], touch[3],
 			touch[4], touch[5], touch[6], touch[7]);
-	uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
 
 	Touch_i2c_Write(addr, 0x814E, &clear, 1);
 
 	return ESP_OK;
+}
+
+static esp_err_t gt911_write_cfg(const uint8_t *cfg)
+{
+    uint8_t addr = GT911_I2C_ADDR;
+    uint16_t off = 0;
+    uint8_t fresh = 1;
+
+    while (off < GT911_CFG_BODY_LEN) {
+        uint16_t n = (uint16_t)(GT911_CFG_BODY_LEN - off);
+        if (n > GT911_CFG_CHUNK) {
+            n = GT911_CFG_CHUNK;
+        }
+        if (Touch_i2c_Write(addr, (uint16_t)(GT911_CFG_START + off), cfg + off, n) != ESP_OK) {
+            return ESP_FAIL;
+        }
+        off = (uint16_t)(off + n);
+    }
+
+    if (Touch_i2c_Write(addr, 0x80FF, &cfg[184], 1) != ESP_OK) {
+        return ESP_FAIL;
+    }
+    return Touch_i2c_Write(addr, 0x8100, &fresh, 1);
+}
+
+static void gt911_apply_touch_threshold(void)
+{
+    uint8_t cfg[GT911_CFG_LEN];
+    uint8_t addr = GT911_I2C_ADDR;
+    uint8_t th = 0;
+
+    if (Touch_i2c_Read(addr, GT911_CFG_START, cfg, GT911_CFG_LEN) != ESP_OK) {
+        ESP_LOGE(TAG, "GT911 cfg read fail");
+        return;
+    }
+
+    ESP_LOGI(TAG, "GT911 Touch_Level was 0x%02X, set 0x%02X",
+             cfg[GT911_OFFS_TOUCH_TH], GT911_TOUCH_THRESHOLD);
+
+    if (cfg[0] < 0xFF) {
+        cfg[0]++;
+    } else {
+        cfg[0] = 1;
+    }
+    cfg[GT911_OFFS_TOUCH_TH] = GT911_TOUCH_THRESHOLD;
+    cfg[GT911_OFFS_LEAVE_TH] = (GT911_TOUCH_THRESHOLD > 4)
+                                   ? (uint8_t)(GT911_TOUCH_THRESHOLD - 4) : 1;
+
+    uint8_t sum = 0;
+    for (int i = 0; i < GT911_CFG_BODY_LEN; i++) {
+        sum += cfg[i];
+    }
+    cfg[184] = (uint8_t)((~sum) + 1);
+    cfg[185] = 1;
+
+    if (gt911_write_cfg(cfg) != ESP_OK) {
+        ESP_LOGE(TAG, "GT911 cfg write fail");
+        return;
+    }
+    vTaskDelay(pdMS_TO_TICKS(80));
+
+    if (Touch_i2c_Read(addr, 0x8053, &th, 1) != ESP_OK) {
+        ESP_LOGE(TAG, "GT911 Touch_Level readback fail");
+        return;
+    }
+    if (th != GT911_TOUCH_THRESHOLD) {
+        ESP_LOGE(TAG, "GT911 Touch_Level now 0x%02X (wanted 0x%02X)",
+                 th, GT911_TOUCH_THRESHOLD);
+        return;
+    }
+    ESP_LOGI(TAG, "GT911 Touch_Level now 0x%02X", th);
 }
 
 static void Touch_Gpio_Init(void)
@@ -247,22 +308,13 @@ bool TouchGetInputs(uint16_t *x, uint16_t *y)
     /* 1. Read touch status */
     if (Touch_i2c_Read(addr, 0x814E, &status, 1) != ESP_OK)
     {
-        uart_write_bytes(
-            UART_NUM_0,
-            "TouchGetInputs: Failed to read status\r\n",
-            sizeof("TouchGetInputs: Failed to read status\r\n") - 1
-        );
+        ESP_LOGW(TAG, "TouchGetInputs: Failed to read status");
         return false;
     }
 
     /* Data not ready */
     if (!(status & 0x80))
     {
-        // uart_write_bytes(
-        //     UART_NUM_0,
-        //     "TouchGetInputs: Data not ready\r\n",
-        //     sizeof("TouchGetInputs: Data not ready\r\n") - 1
-        // );
         return false;
     }
 
@@ -270,22 +322,13 @@ bool TouchGetInputs(uint16_t *x, uint16_t *y)
 
         /* No touch points */
     if (points == 0) {
-        // uart_write_bytes(
-        //     UART_NUM_0,
-        //     "TouchGetInputs: No touch points\r\n",
-        //     sizeof("TouchGetInputs: No touch points\r\n") - 1
-        // );
         Touch_i2c_Write(GT911_I2C_ADDR, 0x814E, &clear, 1);
         return false;
     }
 
         /* Read first touch point */
     if (Touch_i2c_Read(GT911_I2C_ADDR, 0x8150, buf, 8) != ESP_OK) {
-        uart_write_bytes(
-            UART_NUM_0,
-            "TouchGetInputs: Failed to read touch point\r\n",
-            sizeof("TouchGetInputs: Failed to read touch point\r\n") - 1
-        );
+        ESP_LOGW(TAG, "TouchGetInputs: Failed to read touch point");
         Touch_i2c_Write(GT911_I2C_ADDR, 0x814E, &clear, 1);
         return false;
     }
@@ -310,7 +353,6 @@ void gt911_print_touch( void )
     uint8_t status;
     uint8_t addr = GT911_I2C_ADDR;
     uint8_t buf[8];
-    char debugbuf[100];
     uint8_t clear = 0x00;
     uint16_t x, y;
 
@@ -336,10 +378,7 @@ void gt911_print_touch( void )
             // x = buf[1] | (buf[2] << 8);
             // y = buf[3] | (buf[4] << 8);
 
-            sprintf(debugbuf,
-                    "Touch: X=%d Y=%d\r\n", x, y);
-            uart_write_bytes(UART_NUM_0,
-                             debugbuf, strlen(debugbuf));
+            ESP_LOGD(TAG, "Touch: X=%d Y=%d", x, y);
         }
     }
 
@@ -358,6 +397,7 @@ void Touch_Drv_Init(void)
     vTaskDelay(pdMS_TO_TICKS(500));
 
     TouchReadConfig();
+    gt911_apply_touch_threshold();
 
 #if 0
     uint32_t counter = 0;

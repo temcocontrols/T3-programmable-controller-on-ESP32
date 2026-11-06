@@ -113,6 +113,13 @@ esp_err_t dynamic_display_api_start(void) { return ESP_OK; }
 void dynamic_display_api_stop(void) {}
 esp_err_t dynamic_display_reset_to_defaults(void) { return ESP_OK; }
 int PCF_SetDateTime(PCF_DateTime *dt) { (void)dt; return 0; }
+int PCF_SetDateTimeAndSystem(PCF_DateTime *dt)
+{
+    if (dt == NULL) {
+        return -2;
+    }
+    return 0;
+}
 void update_timers(void) {}
 BACNET_BINARY_PV Binary_Output_Present_Value(uint32_t instance) { (void)instance; return (BACNET_BINARY_PV)0; }
 

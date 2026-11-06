@@ -38,6 +38,7 @@
 #include "ethernet_task.h"
 #include "flash.h"
 #include "rtc.h"
+#include <time.h>
 #include "usb_cdc.h"
 
 #include "i2c_task.h"
@@ -73,6 +74,12 @@
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
 #include "hub_snmp.h"
+#if CONFIG_IDF_TARGET_ESP32S3
+#include "ir_blaster.h"
+#if MINI_TSTAT11 != IR_BLASTER_MINI_TSTAT11
+#error MINI_TSTAT11 must stay 31 (IR_BLASTER_MINI_TSTAT11)
+#endif
+#endif
 
 //#include "lowPower.h"
 
@@ -2767,8 +2774,14 @@ void Timer_task(void *pvParameters)
 			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
 	{
 		i2c_master_init();
-		PCF_hctosys();
-		PCF_systohc();
+		if(PCF_hctosys() == 0)
+		{
+			PCF_systohc();
+		}
+		else
+		{
+			debug_info("PCF_hctosys failed, skip PCF_systohc");
+		}
 	}
 	Eth_IP_Change = 0;
 
@@ -2889,10 +2902,14 @@ void Timer_task(void *pvParameters)
 			{
 				PCF_GetDateTime(&rtc_date);
 				Test[40]++;
-				// syc time per hour
+				/* Copy ESP32 → PCF only when system time is valid.
+				 * Otherwise this writes 1970/00:00 over a time set from the LCD. */
 				if(rtc_date.minute == 0 && rtc_date.second == 0)
 				{Test[41]++;
-					PCF_systohc();
+					if(time(NULL) > (time_t)1577836800)
+					{
+						PCF_systohc();
+					}
 				}
 			}
 
@@ -4844,6 +4861,14 @@ void app_main()
 	{
 		LCD_Init();
 		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+#if CONFIG_IDF_TARGET_ESP32S3
+		/* TSTAT11 only: GPIO17 TX / GPIO18 RX. Never start on HUB or other types. */
+		ESP_LOGI(TCP_TASK_TAG, "ir_blaster calling init (mini_type %u)", (unsigned)Modbus.mini_type);
+		{
+			esp_err_t ir_ret = ir_blaster_init(Modbus.mini_type);
+			ESP_LOGI(TCP_TASK_TAG, "ir_blaster_init %s", esp_err_to_name(ir_ret));
+		}
+#endif
 	}
 
 #if (CONFIG_IDF_TARGET_ESP32S3 == 0)
