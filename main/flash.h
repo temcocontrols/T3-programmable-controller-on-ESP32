@@ -44,6 +44,7 @@ typedef enum
 #define FLASH_RMC_OC_CHG	"RMC_OC_CHG"
 #define FLASH_RMC_OC_DSG	"RMC_OC_DSG"
 #define FLASH_RMC_BMS_RST_MIN	"RMC_RST_MIN"	/* minutes, min 10, default 60 */
+#define FLASH_NEG_VOL_CAL	"NEG_VOL_CAL"	/* uint16[5] meas mV, only if user wrote */
 
 
 
@@ -197,6 +198,7 @@ void save_flash_trendlog_num(void);
 
 void Save_SPD_CNT(void);
 void Save_PLC_Power(void);
+void Save_Neg_Vol_Cal(void);
 void Store_PLC_Power(uint8_t flag);
 void plc_power_sync_acc(void);
 void update_pvar(uint8_t index, int32_t value);

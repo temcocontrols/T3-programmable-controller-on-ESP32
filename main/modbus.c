@@ -124,6 +124,9 @@ uint16 rmc_bms_rst_min = 60;	/* BMS comm-fail HW reset interval, minutes, min 10
 uint16 rmc_bms_rst_count;	/* from STM i2c [116..117] */
 uint16 rmc_bms_rst_time_sec;	/* from STM i2c_tx_temp[4..5], seconds */
 volatile uint8_t rmc_bms_rst_now;	/* one I2C frame of 0: reset BMS, keep interval */
+/* IN9-IN11 meas breakpoints (mV). user==0 → hardware default table */
+uint16_t neg_vol_cal[5];
+uint8_t neg_vol_cal_user;
 
 /* Keep integrators in sync so energy survives reboot and keeps accumulating */
 void plc_power_sync_acc(void)
@@ -1509,6 +1512,12 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
 		{
 			temp1 = rmc_bms_rst_min >> 8;
 			temp2 = rmc_bms_rst_min;
+		}
+		else if(address >= MODBUS_RMC1232_NEG_VOL_CAL_0V && address <= MODBUS_RMC1232_NEG_VOL_CAL_60V)
+		{
+			uint16_t cal = rmc1232_neg_vol_meas((uint8_t)(address - MODBUS_RMC1232_NEG_VOL_CAL_0V));
+			temp1 = (uint8_t)(cal >> 8);
+			temp2 = (uint8_t)cal;
 		}
 		else if(address == MODBUS_BMS_CURRENT)
 		{
@@ -3021,6 +3030,19 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			  rmc_bms_rst_min = v;
 			  save_uint16_to_flash(FLASH_RMC_BMS_RST_MIN, rmc_bms_rst_min);
 		  }
+	  }
+	  else if(address >= MODBUS_RMC1232_NEG_VOL_CAL_0V && address <= MODBUS_RMC1232_NEG_VOL_CAL_60V)
+	  {
+		  uint8_t idx = (uint8_t)(address - MODBUS_RMC1232_NEG_VOL_CAL_0V);
+		  uint8_t n;
+		  if(!neg_vol_cal_user)
+		  {
+			  for(n = 0; n < 5; n++)
+				  neg_vol_cal[n] = rmc1232_neg_vol_meas(n);
+			  neg_vol_cal_user = 1;
+		  }
+		  neg_vol_cal[idx] = (uint16_t)(*(bufadd + 5) + 256 * *(bufadd + 4));
+		  Save_Neg_Vol_Cal();
 	  }
       else if(address >= MODBUS_TIMER_ADDRESS && address <= MODBUS_TIMER_ADDRESS + 6)
       {

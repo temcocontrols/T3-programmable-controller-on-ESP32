@@ -7,7 +7,7 @@
 
 #pragma pack(1)
 
-#define SOFTREV     6801
+#define SOFTREV     6802
 
 
 #define		SW_OFF 	 0

@@ -3794,6 +3794,7 @@ void i2c_master_task(void *pvParameters)
 		memcpy(ptr.pin->description,"BMS CURRENT",strlen("BMS CURRENT"));
 		ptr = put_io_buf(IN,39); // cuv_threshold_mv
 		ptr.pin->range = V0_5;
+		memcpy(ptr.pin->label,"CUVT",strlen("CUVT"));
 		memcpy(ptr.pin->description,"CUV_THRESHOLD",strlen("CUV_THRESHOLD"));
 		ptr = put_io_buf(IN,40); // cov_threshold_mv
 		ptr.pin->range = V0_5;
@@ -4450,6 +4451,7 @@ void i2c_master_task(void *pvParameters)
 
 					{
 						Test[2] = top_firmware;
+						Test[3] = top_hardware;
 						if(Modbus.mini_type == PROJECT_RMC1216 || Modbus.mini_type == PROJECT_RMC1232  || Modbus.mini_type == PROJECT_NG3)
 						{
 							u16 crc_check = 0;
@@ -4481,8 +4483,9 @@ void i2c_master_task(void *pvParameters)
 								{	// normal format : 0x55 + 0xaa + top_rev + sw_rev
 									top_hardware = i2c_rcv_buf[2];
 									top_firmware = i2c_rcv_buf[3];
-									chip_info[1] = top_hardware;
-									chip_info[2] = top_firmware;									
+									chip_info[2] = top_hardware;
+									chip_info[1] = top_firmware;	
+									Test[3] = top_hardware;							
 									if(Modbus.mini_type == PROJECT_RMC1216)
 									{// 8DO+4AO+24AI?
 										// get output switch
@@ -4665,7 +4668,7 @@ void i2c_master_task(void *pvParameters)
 											/* PA4 10k raw ADC; HW_REV 2 still sends °C */
 											uint16 adc_10k = (uint16)((i2c_rcv_buf[98] << 8) | i2c_rcv_buf[99]);
 											if(ptr.pin->auto_manual == 0)
-												ptr.pin->value = get_input_value_by_range_45K(adc_10k);
+												ptr.pin->value = get_input_value_by_range(R10K_40_120DegC,adc_10k);
 										}
 										else
 											ptr.pin->value = (i2c_rcv_buf[98] * 256 + i2c_rcv_buf[99]) * 1000;
@@ -4879,8 +4882,8 @@ void i2c_master_task(void *pvParameters)
 									uint8_t flag_top_ready = 0;
 									top_hardware = i2c_rcv_buf[2];
 									top_firmware = i2c_rcv_buf[3];
-									chip_info[1] = i2c_rcv_buf[2]; // top hardware
-									chip_info[2] = i2c_rcv_buf[3]; // top firmware
+									chip_info[2] = i2c_rcv_buf[2]; // top hardware
+									chip_info[1] = i2c_rcv_buf[3]; // top firmware
 									flag_top_ready = 1;
 									if(top_firmware >= 7)
 									{
@@ -5133,8 +5136,8 @@ void i2c_master_task(void *pvParameters)
 									/* [0][1]=magic [2]=TOP_HARDWARE [3]=TOP_FIRMWARE(SOFTREV) [4..]=STR_CO2_Reg */
 									top_hardware = i2c_rcv_buf[2];
 									top_firmware = i2c_rcv_buf[3];
-									chip_info[1] = top_hardware;
-									chip_info[2] = top_firmware;
+									chip_info[2] = top_hardware;
+									chip_info[1] = top_firmware;
 									memcpy(&co2_data,&i2c_rcv_buf[4],sizeof(STR_CO2_Reg));
 
 									j = 0;
@@ -5397,25 +5400,48 @@ void smtp_client_task_nossl(char *);
 
 void update_sntp(void);
 
-/* IN9-IN11: circuit maps -30~-65V to ~2.28~4.3V (open≈0.56V).
- * Table: 2.28→-30, 2.85→-40, 3.43→-50, 4.01→-60. Value unit: mV (x1000). */
+/* IN9-IN11 meas breakpoints (mV). 1119..1123 override these after a write. */
+static const uint16_t meas_hw2[5] = {560, 2280, 2850, 3430, 4010};
+static const uint16_t meas_hw3[5] = {629, 2338, 2910, 3481, 4047};
+
+uint16_t rmc1232_neg_vol_meas(uint8_t index)
+{
+	if(index >= 5)
+		return 0;
+	if(neg_vol_cal_user)
+		return neg_vol_cal[index];
+	return (chip_info[2] >= 3) ? meas_hw3[index] : meas_hw2[index];
+}
+
+/* Map intermediate mV to actual mV (x1000): 0 / -30 / -40 / -50 / -60 V. */
 static int32_t convert_neg_voltage_from_meas_mv(int32_t meas_mv)
 {
-	static const int32_t meas[] = {560, 2280, 2850, 3430, 4010};
+	int32_t meas[5];
 	static const int32_t actual[] = {0, -30000, -40000, -50000, -60000};
 	uint8_t i;
+
+	for(i = 0; i < 5; i++)
+		meas[i] = (int32_t)rmc1232_neg_vol_meas(i);
 
 	if(meas_mv <= meas[0])
 		return actual[0];
 	for(i = 0; i < 4; i++)
 	{
+		int32_t span = meas[i + 1] - meas[i];
 		if(meas_mv <= meas[i + 1])
-			return actual[i] + (actual[i + 1] - actual[i]) * (meas_mv - meas[i])
-				/ (meas[i + 1] - meas[i]);
+		{
+			if(span == 0)
+				return actual[i];
+			return actual[i] + (actual[i + 1] - actual[i]) * (meas_mv - meas[i]) / span;
+		}
 	}
 	/* beyond -60V: extrapolate last segment toward -65V */
-	return actual[4] + (actual[4] - actual[3]) * (meas_mv - meas[4])
-		/ (meas[4] - meas[3]);
+	{
+		int32_t span = meas[4] - meas[3];
+		if(span == 0)
+			return actual[4];
+		return actual[4] + (actual[4] - actual[3]) * (meas_mv - meas[4]) / span;
+	}
 }
 
 /* After control_input(): rewrite IN9-IN12 from intermediate reading to actual V.
@@ -5433,12 +5459,14 @@ static void convert_rmc1232_in9_in12(void)
 		int32_t meas;
 
 		ptr = put_io_buf(IN, i);
+		
 		if(ptr.pin->auto_manual != 0)
 			continue;
 		cal = 100L * ((int32_t)ptr.pin->calibration_hi * 256 + ptr.pin->calibration_lo);
 		if(ptr.pin->calibration_sign)
 			cal = -cal;
 		meas = ptr.pin->value - cal;
+		Test[25 + i] = meas;
 		if(i < 11)
 			ptr.pin->value = convert_neg_voltage_from_meas_mv(meas) + cal;
 		else

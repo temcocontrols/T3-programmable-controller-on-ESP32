@@ -43,6 +43,8 @@ extern uint16 rmc_stack;
 extern uint16 rmc_oc_chg;
 extern uint16 rmc_oc_dsg;
 extern uint16 rmc_bms_rst_min;
+extern uint16_t neg_vol_cal[5];
+extern uint8_t neg_vol_cal_user;
 
 extern uint16_t count_lcd_time_off_delay;
 extern uint8_t com_config_back[3];
@@ -651,6 +653,17 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u16(my_handle, FLASH_RMC_BMS_RST_MIN, rmc_bms_rst_min);
 	}
 
+	{
+		uint16_t tmp[5];
+		len = sizeof(tmp);
+		err = nvs_get_blob(my_handle, FLASH_NEG_VOL_CAL, tmp, &len);
+		if(err == ESP_OK && len == sizeof(tmp))
+		{
+			memcpy(neg_vol_cal, tmp, sizeof(tmp));
+			neg_vol_cal_user = 1;
+		}
+	}
+
 	len = 7;
 	err = nvs_get_blob(my_handle, FLASH_LCD_CONFIG, &lcddisplay, &len);
 
@@ -1005,6 +1018,20 @@ void Save_SPD_CNT(void)
 void Save_PLC_Power(void)
 {
 	save_block(FLASH_BLOCK_PLC_POWER);
+}
+
+void Save_Neg_Vol_Cal(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if(err != ESP_OK)
+		return;
+	err = nvs_set_blob(my_handle, FLASH_NEG_VOL_CAL, neg_vol_cal, sizeof(neg_vol_cal));
+	if(err == ESP_OK)
+		nvs_commit(my_handle);
+	nvs_close(my_handle);
 }
 
 /* Persist accumulating energy periodically (same cadence idea as Store_Pulse_Counter) */

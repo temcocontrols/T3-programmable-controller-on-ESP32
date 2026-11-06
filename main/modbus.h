@@ -239,6 +239,13 @@ enum {
 	MODBUS_BMS_RST_COUNT,		/* 1116 BMS_HW_RST count, read-only */
 	MODBUS_BMS_RST_TIME,		/* 1117 seconds since last BMS_HW_RST, read-only */
 	MODBUS_BMS_RST_INTERVAL,	/* 1118 minutes; min 10, default 60; write 0 = reset BMS once */
+
+	/* IN9-IN11 meas[] breakpoints, mV. Unwritten: meas_hw2 or meas_hw3. */
+	MODBUS_RMC1232_NEG_VOL_CAL_0V = 1130 ,	/* 1119 0 V, meas mV */
+	MODBUS_RMC1232_NEG_VOL_CAL_30V,		/* -30 V */
+	MODBUS_RMC1232_NEG_VOL_CAL_40V,		/* -40 V */
+	MODBUS_RMC1232_NEG_VOL_CAL_50V,		/* -50 V */
+	MODBUS_RMC1232_NEG_VOL_CAL_60V,		/* -60 V */
 	
 	MODBUS_TEMP1 = 1200,
 	MODBUS_HUM1 = 1201,
@@ -641,6 +648,11 @@ enum {
 	MODBUS_EX_MOUDLE_FLAG12 = 65001,
 	MODBUS_EX_MOUDLE_FLAG34 = 65002,
 };
+
+/* 0 = follow meas_hw2/meas_hw3; 1 = neg_vol_cal[] saved by the user */
+extern uint16_t neg_vol_cal[5];
+extern uint8_t neg_vol_cal_user;
+uint16_t rmc1232_neg_vol_meas(uint8_t index);
 
 uint16_t read_IO_reg(uint16_t addr);
 void Write_IO_reg(uint16_t StartAdd,uint8_t * pData);
