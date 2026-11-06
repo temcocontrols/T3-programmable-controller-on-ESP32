@@ -26,6 +26,7 @@ extern "C" {
 #define IR_LEARN_WAIT     1
 #define IR_LEARN_OK       2
 #define IR_LEARN_FAIL     3
+#define IR_LEARN_ASK_LIB  4
 
 #define IR_LIB_BTN_POWER      0
 #define IR_LIB_BTN_MODE       1
@@ -61,12 +62,16 @@ esp_err_t ir_blaster_clear_slot(uint8_t slot);
 esp_err_t ir_blaster_rename_slot(uint8_t slot, const char *name);
 
 esp_err_t ir_blaster_begin_learn(uint8_t slot, uint8_t add_custom);
+/* After ASK_LIB: accept=1 keeps Library, accept=0 stores as Custom. */
+esp_err_t ir_blaster_confirm_library(uint8_t accept);
 void      ir_blaster_cancel_learn(void);
 uint8_t   ir_blaster_learn_status(void);
+int       ir_blaster_learn_slot(void);
 const char *ir_blaster_learn_message(void);
 
 int       ir_blaster_lib_button_count(uint8_t slot);
 const char *ir_blaster_lib_button_name(uint8_t slot, int index);
+esp_err_t ir_blaster_rename_lib(uint8_t slot, int index, const char *name);
 esp_err_t ir_blaster_send_lib(uint8_t slot, int index);
 
 int       ir_blaster_custom_count(uint8_t slot);

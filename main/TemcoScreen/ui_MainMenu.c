@@ -44,13 +44,15 @@ void ui_event_MainMenu(lv_event_t * e)
         LeftInItem_Animation(ui_Button3, 200);
         RightIn_Animation(ui_Button4, 200);
         LeftInItem_Animation(ui_Button5, 400);
-        LeftInItem_Animation(ui_Button6, 600);
+        if (ui_Button8) {
+            RightIn_Animation(ui_Button8, 400);
+            LeftInItem_Animation(ui_Button6, 600);
+        } else {
+            LeftInItem_Animation(ui_Button6, 600);
+        }
 #if 1
         RightIn_Animation(ui_Button7, 600);
 #endif
-        if (ui_Button8) {
-            LeftInItem_Animation(ui_Button8, 600);
-        }
         LeftInItem_Animation(ui_BackButton, 600);
         RightIn_Animation(ui_Panel2, 600);
         LeftInItem_Animation(ui_CalenderBtn, 600);
@@ -368,9 +370,51 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_text_line_space(ui_Label8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label8, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    int y_wg = 140;
+    int y_ddns = 190;
+    if (ui_ir_blaster_visible()) {
+        y_wg = 190;
+        y_ddns = 240;
+    }
+
+    /* TSTAT11 only: place IR Blaster above WireGuard. Same slide-in as WiFi/Network. */
+    if (ui_ir_blaster_visible()) {
+        ui_Button8 = lv_button_create(ui_ButtonContainer);
+        lv_obj_set_width(ui_Button8, 220);
+        lv_obj_set_height(ui_Button8, 40);
+        lv_obj_set_x(ui_Button8, 0);
+        lv_obj_set_y(ui_Button8, 140);
+        lv_obj_set_align(ui_Button8, LV_ALIGN_CENTER);
+        lv_obj_add_flag(ui_Button8, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+        lv_obj_remove_flag(ui_Button8, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_radius(ui_Button8, 30, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(ui_Button8, lv_color_hex(0x349EF9), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(ui_Button8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_color(ui_Button8, lv_color_hex(0x81BAEA), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_main_stop(ui_Button8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_stop(ui_Button8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_dir(ui_Button8, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_t *label8 = lv_label_create(ui_Button8);
+        lv_obj_set_width(label8, LV_SIZE_CONTENT);
+        lv_obj_set_height(label8, LV_SIZE_CONTENT);
+        lv_obj_set_align(label8, LV_ALIGN_CENTER);
+        lv_label_set_long_mode(label8, LV_LABEL_LONG_SCROLL);
+        lv_label_set_text(label8, "IR Blaster");
+        lv_obj_set_style_text_color(label8, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_opa(label8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_letter_space(label8, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_font(label8, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_add_event_cb(ui_Button8, ui_event_Button8, LV_EVENT_ALL, NULL);
+    }
+
     ui_Button6 = lv_button_create(ui_ButtonContainer);
-    lv_obj_set_size(ui_Button6, 220, 40);
-    lv_obj_align(ui_Button6, LV_ALIGN_CENTER, 0, 140);
+    lv_obj_set_width(ui_Button6, 220);
+    lv_obj_set_height(ui_Button6, 40);
+    lv_obj_set_x(ui_Button6, 0);
+    lv_obj_set_y(ui_Button6, y_wg);
+    lv_obj_set_align(ui_Button6, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_Button6, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_remove_flag(ui_Button6, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_radius(ui_Button6, 30, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_Button6, lv_color_hex(0x349EF9), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Button6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -379,15 +423,20 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_bg_grad_stop(ui_Button6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_grad_dir(ui_Button6, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_t *label6 = lv_label_create(ui_Button6);
+    lv_obj_set_width(label6, LV_SIZE_CONTENT);
+    lv_obj_set_height(label6, LV_SIZE_CONTENT);
+    lv_obj_set_align(label6, LV_ALIGN_CENTER);
+    lv_label_set_long_mode(label6, LV_LABEL_LONG_SCROLL);
     lv_label_set_text(label6, "WireGuard");
-    lv_obj_center(label6);
-    lv_obj_set_style_text_font(label6, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_color(label6, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(label6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_letter_space(label6, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(label6, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
 
 #if 1
     ui_Button7 = lv_button_create(ui_ButtonContainer);
     lv_obj_set_size(ui_Button7, 220, 40);
-    lv_obj_align(ui_Button7, LV_ALIGN_CENTER, 0, 190);
+    lv_obj_align(ui_Button7, LV_ALIGN_CENTER, 0, y_ddns);
     lv_obj_set_style_radius(ui_Button7, 30, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_Button7, lv_color_hex(0x349EF9), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_Button7, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -402,34 +451,14 @@ void ui_MainMenu_screen_init(void)
     lv_obj_set_style_text_color(label7, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
 #endif
 
-    /* TSTAT11 only: IR hardware is on GPIO17/18. Hidden on HUB and other mini_types. */
-    if (ui_ir_blaster_visible()) {
-        ui_Button8 = lv_button_create(ui_ButtonContainer);
-        lv_obj_set_size(ui_Button8, 220, 40);
-        lv_obj_align(ui_Button8, LV_ALIGN_CENTER, 0, 240);
-        lv_obj_set_style_radius(ui_Button8, 30, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(ui_Button8, lv_color_hex(0x349EF9), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_opa(ui_Button8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_grad_color(ui_Button8, lv_color_hex(0x81BAEA), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_main_stop(ui_Button8, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_grad_stop(ui_Button8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_grad_dir(ui_Button8, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_t *label8 = lv_label_create(ui_Button8);
-        lv_label_set_text(label8, "IR Blaster");
-        lv_obj_center(label8);
-        lv_obj_set_style_text_font(label8, &lv_font_montserrat_30, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_text_color(label8, lv_color_hex(0x09007D), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_add_event_cb(ui_Button8, ui_event_Button8, LV_EVENT_ALL, NULL);
-    }
-
-    ui_BackButton = lv_imagebutton_create(ui_ButtonContainer);
+    ui_BackButton = lv_imagebutton_create(ui_MainMenu);
     lv_imagebutton_set_src(ui_BackButton, LV_IMAGEBUTTON_STATE_RELEASED, NULL, &ui_img_leftarrow_png, NULL);
     lv_imagebutton_set_src(ui_BackButton, LV_IMAGEBUTTON_STATE_PRESSED, NULL, &ui_img_leftarrow_png, NULL);
     lv_obj_set_width(ui_BackButton, 40);
     lv_obj_set_height(ui_BackButton, 60);
-    lv_obj_set_x(ui_BackButton, -215);
+    lv_obj_set_x(ui_BackButton, 8);
     lv_obj_set_y(ui_BackButton, 0);
-    lv_obj_set_align(ui_BackButton, LV_ALIGN_CENTER);
+    lv_obj_set_align(ui_BackButton, LV_ALIGN_LEFT_MID);
     lv_obj_set_style_border_side(ui_BackButton, LV_BORDER_SIDE_NONE, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_MenuDot = lv_image_create(ui_MainMenu);

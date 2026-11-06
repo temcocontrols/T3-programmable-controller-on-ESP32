@@ -26,6 +26,7 @@ extern "C" {
 #define IR_LEARN_WAIT     1
 #define IR_LEARN_OK       2
 #define IR_LEARN_FAIL     3
+#define IR_LEARN_ASK_LIB  4
 
 #define IR_LIB_BTN_POWER      0
 #define IR_LIB_BTN_MODE       1
@@ -79,8 +80,14 @@ static inline esp_err_t ir_blaster_begin_learn(uint8_t slot, uint8_t add_custom)
     (void)add_custom;
     return ESP_ERR_NOT_SUPPORTED;
 }
+static inline esp_err_t ir_blaster_confirm_library(uint8_t accept)
+{
+    (void)accept;
+    return ESP_ERR_NOT_SUPPORTED;
+}
 static inline void ir_blaster_cancel_learn(void) {}
 static inline uint8_t ir_blaster_learn_status(void) { return IR_LEARN_IDLE; }
+static inline int ir_blaster_learn_slot(void) { return -1; }
 static inline const char *ir_blaster_learn_message(void) { return ""; }
 static inline int ir_blaster_lib_button_count(uint8_t slot)
 {
@@ -92,6 +99,13 @@ static inline const char *ir_blaster_lib_button_name(uint8_t slot, int index)
     (void)slot;
     (void)index;
     return "";
+}
+static inline esp_err_t ir_blaster_rename_lib(uint8_t slot, int index, const char *name)
+{
+    (void)slot;
+    (void)index;
+    (void)name;
+    return ESP_ERR_NOT_SUPPORTED;
 }
 static inline esp_err_t ir_blaster_send_lib(uint8_t slot, int index)
 {

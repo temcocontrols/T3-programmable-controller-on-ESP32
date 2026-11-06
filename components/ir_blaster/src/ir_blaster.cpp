@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "driver/gpio.h"
@@ -85,6 +86,7 @@ static const char *k_lib_names[IR_LIB_BTN_MAX] = {
     "Power", "Mode", "Fan", "Temp+", "Temp-",
     "SwingV", "SwingH", "Turbo", "Sleep", "Quiet", "Send"
 };
+static char s_lib_label[IR_BLASTER_SLOT_COUNT][IR_LIB_BTN_MAX][IR_BLASTER_NAME_MAX];
 
 static void ir_print(const char *fmt, ...)
 {
@@ -136,19 +138,253 @@ static int slot_custom_count(const ir_slot_t *sl)
     return n;
 }
 
+#define IR_NVS_VER 3
+
+static bool wr_bytes(uint8_t **p, uint8_t *end, const void *src, size_t n)
+{
+    if ((size_t)(end - *p) < n) {
+        return false;
+    }
+    memcpy(*p, src, n);
+    *p += n;
+    return true;
+}
+
+static bool rd_bytes(const uint8_t **p, const uint8_t *end, void *dst, size_t n)
+{
+    if ((size_t)(end - *p) < n) {
+        return false;
+    }
+    memcpy(dst, *p, n);
+    *p += n;
+    return true;
+}
+
+static void store_reset(void)
+{
+    memset(s_store, 0, sizeof(*s_store));
+    memset(s_lib_label, 0, sizeof(s_lib_label));
+    s_store->magic = IR_BLASTER_MAGIC;
+    for (int s = 0; s < IR_BLASTER_SLOT_COUNT; s++) {
+        for (int k = 0; k < IR_BLASTER_CUSTOM_PER_SLOT; k++) {
+            s_store->slots[s].custom_ids[k] = -1;
+        }
+    }
+}
+
+static void store_sanitize(void)
+{
+    s_store->magic = IR_BLASTER_MAGIC;
+    for (int s = 0; s < IR_BLASTER_SLOT_COUNT; s++) {
+        ir_slot_t *sl = &s_store->slots[s];
+        sl->name[IR_BLASTER_NAME_MAX - 1] = 0;
+        for (int b = 0; b < IR_LIB_BTN_MAX; b++) {
+            s_lib_label[s][b][IR_BLASTER_NAME_MAX - 1] = 0;
+        }
+        if (sl->lib_raw_len > IR_BLASTER_MAX_RAW) {
+            sl->lib_raw_len = IR_BLASTER_MAX_RAW;
+        }
+        if (sl->ac_state_len > IR_BLASTER_STATE_MAX) {
+            sl->ac_state_len = IR_BLASTER_STATE_MAX;
+        }
+        for (int k = 0; k < IR_BLASTER_CUSTOM_PER_SLOT; k++) {
+            int id = sl->custom_ids[k];
+            if ((id < 0) || (id >= IR_BLASTER_CUSTOM_TOTAL) || !s_store->keys[id].used) {
+                sl->custom_ids[k] = -1;
+            }
+        }
+    }
+    for (int i = 0; i < IR_BLASTER_CUSTOM_TOTAL; i++) {
+        ir_key_t *key = &s_store->keys[i];
+        key->name[IR_BLASTER_NAME_MAX - 1] = 0;
+        if (key->raw_len > IR_BLASTER_MAX_RAW) {
+            key->raw_len = IR_BLASTER_MAX_RAW;
+        }
+        if (key->state_len > IR_BLASTER_STATE_MAX) {
+            key->state_len = IR_BLASTER_STATE_MAX;
+        }
+    }
+}
+
+static size_t store_pack(uint8_t *out, size_t out_max)
+{
+    uint8_t *p = out;
+    uint8_t *end = out + out_max;
+    uint16_t ver = IR_NVS_VER;
+    if (!wr_bytes(&p, end, &s_store->magic, sizeof(s_store->magic)) ||
+        !wr_bytes(&p, end, &ver, sizeof(ver))) {
+        return 0;
+    }
+    for (int s = 0; s < IR_BLASTER_SLOT_COUNT; s++) {
+        const ir_slot_t *sl = &s_store->slots[s];
+        uint16_t raw_n = sl->lib_raw_len;
+        uint8_t st_n = sl->ac_state_len;
+        if (!wr_bytes(&p, end, &sl->kind, 1) ||
+            !wr_bytes(&p, end, sl->name, IR_BLASTER_NAME_MAX) ||
+            !wr_bytes(&p, end, &sl->protocol, sizeof(sl->protocol)) ||
+            !wr_bytes(&p, end, &sl->lib_value, sizeof(sl->lib_value)) ||
+            !wr_bytes(&p, end, &sl->lib_bits, sizeof(sl->lib_bits)) ||
+            !wr_bytes(&p, end, &raw_n, sizeof(raw_n)) ||
+            !wr_bytes(&p, end, &sl->has_ac, 1) ||
+            !wr_bytes(&p, end, &st_n, 1) ||
+            !wr_bytes(&p, end, sl->custom_ids, sizeof(sl->custom_ids)) ||
+            !wr_bytes(&p, end, sl->lib_raw, raw_n * sizeof(uint16_t)) ||
+            !wr_bytes(&p, end, sl->ac_state, st_n)) {
+            return 0;
+        }
+    }
+    for (int i = 0; i < IR_BLASTER_CUSTOM_TOTAL; i++) {
+        const ir_key_t *key = &s_store->keys[i];
+        uint8_t used = key->used;
+        if (!wr_bytes(&p, end, &used, 1)) {
+            return 0;
+        }
+        if (!used) {
+            continue;
+        }
+        uint16_t raw_n = key->raw_len;
+        uint8_t st_n = key->state_len;
+        if (!wr_bytes(&p, end, &key->owner_slot, 1) ||
+            !wr_bytes(&p, end, key->name, IR_BLASTER_NAME_MAX) ||
+            !wr_bytes(&p, end, &key->protocol, sizeof(key->protocol)) ||
+            !wr_bytes(&p, end, &key->value, sizeof(key->value)) ||
+            !wr_bytes(&p, end, &key->bits, sizeof(key->bits)) ||
+            !wr_bytes(&p, end, &key->freq_hz, sizeof(key->freq_hz)) ||
+            !wr_bytes(&p, end, &raw_n, sizeof(raw_n)) ||
+            !wr_bytes(&p, end, &st_n, 1) ||
+            !wr_bytes(&p, end, &key->has_ac_state, 1) ||
+            !wr_bytes(&p, end, key->raw, raw_n * sizeof(uint16_t)) ||
+            !wr_bytes(&p, end, key->state, st_n)) {
+            return 0;
+        }
+    }
+    if (!wr_bytes(&p, end, s_lib_label, sizeof(s_lib_label))) {
+        return 0;
+    }
+    return (size_t)(p - out);
+}
+
+static bool store_unpack(const uint8_t *in, size_t in_len)
+{
+    const uint8_t *p = in;
+    const uint8_t *end = in + in_len;
+    uint32_t magic = 0;
+    uint16_t ver = 0;
+    if (!rd_bytes(&p, end, &magic, sizeof(magic)) || (magic != IR_BLASTER_MAGIC) ||
+        !rd_bytes(&p, end, &ver, sizeof(ver)) || ((ver != 2) && (ver != IR_NVS_VER))) {
+        return false;
+    }
+    store_reset();
+    for (int s = 0; s < IR_BLASTER_SLOT_COUNT; s++) {
+        ir_slot_t *sl = &s_store->slots[s];
+        uint16_t raw_n = 0;
+        uint8_t st_n = 0;
+        if (!rd_bytes(&p, end, &sl->kind, 1) ||
+            !rd_bytes(&p, end, sl->name, IR_BLASTER_NAME_MAX) ||
+            !rd_bytes(&p, end, &sl->protocol, sizeof(sl->protocol)) ||
+            !rd_bytes(&p, end, &sl->lib_value, sizeof(sl->lib_value)) ||
+            !rd_bytes(&p, end, &sl->lib_bits, sizeof(sl->lib_bits)) ||
+            !rd_bytes(&p, end, &raw_n, sizeof(raw_n)) ||
+            !rd_bytes(&p, end, &sl->has_ac, 1) ||
+            !rd_bytes(&p, end, &st_n, 1) ||
+            !rd_bytes(&p, end, sl->custom_ids, sizeof(sl->custom_ids))) {
+            return false;
+        }
+        if (raw_n > IR_BLASTER_MAX_RAW) {
+            return false;
+        }
+        if (st_n > IR_BLASTER_STATE_MAX) {
+            return false;
+        }
+        sl->lib_raw_len = raw_n;
+        sl->ac_state_len = st_n;
+        if (!rd_bytes(&p, end, sl->lib_raw, raw_n * sizeof(uint16_t)) ||
+            !rd_bytes(&p, end, sl->ac_state, st_n)) {
+            return false;
+        }
+        sl->name[IR_BLASTER_NAME_MAX - 1] = 0;
+    }
+    for (int i = 0; i < IR_BLASTER_CUSTOM_TOTAL; i++) {
+        ir_key_t *key = &s_store->keys[i];
+        uint8_t used = 0;
+        if (!rd_bytes(&p, end, &used, 1)) {
+            return false;
+        }
+        key->used = used;
+        if (!used) {
+            continue;
+        }
+        uint16_t raw_n = 0;
+        uint8_t st_n = 0;
+        if (!rd_bytes(&p, end, &key->owner_slot, 1) ||
+            !rd_bytes(&p, end, key->name, IR_BLASTER_NAME_MAX) ||
+            !rd_bytes(&p, end, &key->protocol, sizeof(key->protocol)) ||
+            !rd_bytes(&p, end, &key->value, sizeof(key->value)) ||
+            !rd_bytes(&p, end, &key->bits, sizeof(key->bits)) ||
+            !rd_bytes(&p, end, &key->freq_hz, sizeof(key->freq_hz)) ||
+            !rd_bytes(&p, end, &raw_n, sizeof(raw_n)) ||
+            !rd_bytes(&p, end, &st_n, 1) ||
+            !rd_bytes(&p, end, &key->has_ac_state, 1)) {
+            return false;
+        }
+        if (raw_n > IR_BLASTER_MAX_RAW) {
+            return false;
+        }
+        if (st_n > IR_BLASTER_STATE_MAX) {
+            return false;
+        }
+        key->raw_len = raw_n;
+        key->state_len = st_n;
+        if (!rd_bytes(&p, end, key->raw, raw_n * sizeof(uint16_t)) ||
+            !rd_bytes(&p, end, key->state, st_n)) {
+            return false;
+        }
+        key->name[IR_BLASTER_NAME_MAX - 1] = 0;
+    }
+    if (ver >= 3) {
+        if (!rd_bytes(&p, end, s_lib_label, sizeof(s_lib_label))) {
+            return false;
+        }
+    }
+    store_sanitize();
+    return true;
+}
+
+static void *ir_internal(size_t n)
+{
+    void *p = heap_caps_malloc(n, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (p == NULL) {
+        p = malloc(n);
+    }
+    return p;
+}
+
 static esp_err_t store_save(void)
 {
-    nvs_handle_t h;
-    esp_err_t err = nvs_open("ir_blast", NVS_READWRITE, &h);
-    if (err != ESP_OK) {
-        return err;
+    size_t max = sizeof(*s_store) + sizeof(s_lib_label) + 64;
+    uint8_t *buf = (uint8_t *)ir_internal(max);
+    if (buf == NULL) {
+        return ESP_ERR_NO_MEM;
     }
     s_store->magic = IR_BLASTER_MAGIC;
-    err = nvs_set_blob(h, "store", s_store, sizeof(*s_store));
-    if (err == ESP_OK) {
-        err = nvs_commit(h);
+    size_t n = store_pack(buf, max);
+    if (n == 0) {
+        free(buf);
+        return ESP_ERR_INVALID_SIZE;
     }
-    nvs_close(h);
+    nvs_handle_t h;
+    esp_err_t err = nvs_open("ir_blast", NVS_READWRITE, &h);
+    if (err == ESP_OK) {
+        err = nvs_set_blob(h, "store2", buf, n);
+        if (err == ESP_OK) {
+            err = nvs_commit(h);
+        }
+        nvs_close(h);
+    }
+    free(buf);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "IR NVS save failed: %s", esp_err_to_name(err));
+    }
     return err;
 }
 
@@ -158,17 +394,36 @@ static void store_load(void)
     if (nvs_open("ir_blast", NVS_READONLY, &h) != ESP_OK) {
         return;
     }
-    size_t len = sizeof(*s_store);
-    esp_err_t err = nvs_get_blob(h, "store", s_store, &len);
-    nvs_close(h);
-    if ((err != ESP_OK) || (s_store->magic != IR_BLASTER_MAGIC)) {
-        memset(s_store, 0, sizeof(*s_store));
-        for (int s = 0; s < IR_BLASTER_SLOT_COUNT; s++) {
-            for (int k = 0; k < IR_BLASTER_CUSTOM_PER_SLOT; k++) {
-                s_store->slots[s].custom_ids[k] = -1;
+    size_t len = 0;
+    esp_err_t err = nvs_get_blob(h, "store2", NULL, &len);
+    if (((err == ESP_OK) || (err == ESP_ERR_NVS_INVALID_LENGTH)) && (len > 0)) {
+        uint8_t *buf = (uint8_t *)ir_internal(len);
+        if (buf != NULL) {
+            err = nvs_get_blob(h, "store2", buf, &len);
+            if ((err != ESP_OK) || !store_unpack(buf, len)) {
+                store_reset();
             }
+            free(buf);
+            nvs_close(h);
+            return;
         }
     }
+    /* Legacy full-struct blob (may miss names/keys if saved from PSRAM). */
+    len = sizeof(*s_store);
+    uint8_t *old = (uint8_t *)ir_internal(len);
+    if (old != NULL) {
+        err = nvs_get_blob(h, "store", old, &len);
+        if ((err == ESP_OK) && (len >= sizeof(uint32_t))) {
+            memcpy(s_store, old, (len < sizeof(*s_store)) ? len : sizeof(*s_store));
+            if (s_store->magic != IR_BLASTER_MAGIC) {
+                store_reset();
+            } else {
+                store_sanitize();
+            }
+        }
+        free(old);
+    }
+    nvs_close(h);
 }
 
 static int alloc_custom_key(uint8_t slot)
@@ -208,13 +463,16 @@ static bool protocol_is_ac(decode_type_t proto)
 
 static void apply_capture_to_key(ir_key_t *key, const decode_results *r)
 {
+    uint8_t owner = key->owner_slot;
     memset(key, 0, sizeof(*key));
     key->used = 1;
+    key->owner_slot = owner;
     key->protocol = (int32_t)r->decode_type;
     key->value = r->value;
     key->bits = r->bits;
     key->freq_hz = 38000;
     strncpy(key->name, typeToString(r->decode_type).c_str(), sizeof(key->name) - 1);
+    key->name[sizeof(key->name) - 1] = 0;
     if (hasACState(r->decode_type)) {
         uint16_t n = (uint16_t)(r->bits / 8);
         if (n > IR_BLASTER_STATE_MAX) {
@@ -290,7 +548,10 @@ static void handle_learn_capture(const decode_results *r)
             }
             delete[] raw;
             strncpy(sl->name, typeToString(proto).c_str(), sizeof(sl->name) - 1);
-            snprintf(s_learn_msg, sizeof(s_learn_msg), "Library: %s", sl->name);
+            sl->name[sizeof(sl->name) - 1] = 0;
+            snprintf(s_learn_msg, sizeof(s_learn_msg), "Accept Library: %s?", sl->name);
+            s_learn_status = IR_LEARN_ASK_LIB;
+            return;
         } else {
             int kid = alloc_custom_key((uint8_t)slot);
             if (kid < 0) {
@@ -326,6 +587,55 @@ static void handle_learn_capture(const decode_results *r)
     (void)store_save();
     s_learn_status = IR_LEARN_OK;
     s_learn_slot = -1;
+}
+
+static void slot_reset_empty(uint8_t slot)
+{
+    ir_slot_t *sl = &s_store->slots[slot];
+    memset(sl, 0, sizeof(*sl));
+    for (int i = 0; i < IR_BLASTER_CUSTOM_PER_SLOT; i++) {
+        sl->custom_ids[i] = -1;
+    }
+    memset(s_lib_label[slot], 0, sizeof(s_lib_label[slot]));
+}
+
+static esp_err_t convert_library_to_custom(uint8_t slot)
+{
+    ir_slot_t *sl = &s_store->slots[slot];
+    int kid = alloc_custom_key(slot);
+    if (kid < 0) {
+        return ESP_ERR_NO_MEM;
+    }
+    ir_key_t *key = &s_store->keys[kid];
+    uint8_t owner = key->owner_slot;
+    memset(key, 0, sizeof(*key));
+    key->used = 1;
+    key->owner_slot = owner;
+    key->protocol = sl->protocol;
+    key->value = sl->lib_value;
+    key->bits = sl->lib_bits;
+    key->freq_hz = 38000;
+    key->raw_len = sl->lib_raw_len;
+    if (key->raw_len > IR_BLASTER_MAX_RAW) {
+        key->raw_len = IR_BLASTER_MAX_RAW;
+    }
+    memcpy(key->raw, sl->lib_raw, key->raw_len * sizeof(uint16_t));
+    key->has_ac_state = sl->has_ac;
+    key->state_len = sl->ac_state_len;
+    if (key->state_len > IR_BLASTER_STATE_MAX) {
+        key->state_len = IR_BLASTER_STATE_MAX;
+    }
+    memcpy(key->state, sl->ac_state, key->state_len);
+    snprintf(key->name, sizeof(key->name), "Key %d", slot_custom_count(sl));
+
+    int8_t ids[IR_BLASTER_CUSTOM_PER_SLOT];
+    memcpy(ids, sl->custom_ids, sizeof(ids));
+    memset(sl, 0, sizeof(*sl));
+    memcpy(sl->custom_ids, ids, sizeof(ids));
+    sl->kind = IR_SLOT_CUSTOM;
+    snprintf(sl->name, sizeof(sl->name), "Custom %u", (unsigned)(slot + 1));
+    memset(s_lib_label[slot], 0, sizeof(s_lib_label[slot]));
+    return ESP_OK;
 }
 
 static void log_rx_snapshot(const char *why)
@@ -385,13 +695,7 @@ static void ir_blaster_task(void *arg)
             log_rx_snapshot("TIMEOUT");
             s_learn_slot = -1;
             s_learn_status = IR_LEARN_FAIL;
-            if (s_gpio_edges == 0) {
-                snprintf(s_learn_msg, sizeof(s_learn_msg), "Timeout: GPIO no pulse");
-            } else if (s_decode_ok == 0) {
-                snprintf(s_learn_msg, sizeof(s_learn_msg), "Timeout: pin moved, no frame");
-            } else {
-                snprintf(s_learn_msg, sizeof(s_learn_msg), "Learn timeout");
-            }
+            snprintf(s_learn_msg, sizeof(s_learn_msg), "Timeout");
             ESP_LOGW(TAG, "IR learn fail: %s", s_learn_msg);
         }
 
@@ -552,6 +856,7 @@ esp_err_t ir_blaster_clear_slot(uint8_t slot)
     for (int i = 0; i < IR_BLASTER_CUSTOM_PER_SLOT; i++) {
         sl->custom_ids[i] = -1;
     }
+    memset(s_lib_label[slot], 0, sizeof(s_lib_label[slot]));
     return store_save();
 }
 
@@ -570,7 +875,7 @@ esp_err_t ir_blaster_begin_learn(uint8_t slot, uint8_t add_custom)
     if (!s_inited || (slot >= IR_BLASTER_SLOT_COUNT)) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (s_learn_status == IR_LEARN_WAIT) {
+    if ((s_learn_status == IR_LEARN_WAIT) || (s_learn_status == IR_LEARN_ASK_LIB)) {
         return ESP_ERR_INVALID_STATE;
     }
     if (add_custom) {
@@ -602,8 +907,53 @@ esp_err_t ir_blaster_begin_learn(uint8_t slot, uint8_t add_custom)
     return ESP_OK;
 }
 
+esp_err_t ir_blaster_confirm_library(uint8_t accept)
+{
+    if (!s_inited) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (xSemaphoreTake(s_lock, pdMS_TO_TICKS(100)) != pdTRUE) {
+        return ESP_ERR_TIMEOUT;
+    }
+    esp_err_t err = ESP_ERR_INVALID_STATE;
+    if (s_learn_status == IR_LEARN_ASK_LIB) {
+        int slot = s_learn_slot;
+        if ((slot >= 0) && (slot < IR_BLASTER_SLOT_COUNT) &&
+            (s_store->slots[slot].kind == IR_SLOT_LIBRARY)) {
+            if (accept) {
+                err = store_save();
+                snprintf(s_learn_msg, sizeof(s_learn_msg), "Library: %s",
+                         s_store->slots[slot].name);
+                s_learn_status = IR_LEARN_OK;
+                s_learn_slot = -1;
+            } else {
+                err = convert_library_to_custom((uint8_t)slot);
+                if (err == ESP_OK) {
+                    err = store_save();
+                    snprintf(s_learn_msg, sizeof(s_learn_msg), "Custom key saved");
+                    s_learn_status = IR_LEARN_OK;
+                    s_learn_slot = -1;
+                } else {
+                    slot_reset_empty((uint8_t)slot);
+                    snprintf(s_learn_msg, sizeof(s_learn_msg), "Custom key limit");
+                    s_learn_status = IR_LEARN_FAIL;
+                    s_learn_slot = -1;
+                }
+            }
+        }
+    }
+    xSemaphoreGive(s_lock);
+    return err;
+}
+
 void ir_blaster_cancel_learn(void)
 {
+    if ((s_learn_status == IR_LEARN_ASK_LIB) && (s_learn_slot >= 0) &&
+        (s_learn_slot < IR_BLASTER_SLOT_COUNT) && (s_store != NULL)) {
+        if (s_store->slots[s_learn_slot].kind == IR_SLOT_LIBRARY) {
+            slot_reset_empty((uint8_t)s_learn_slot);
+        }
+    }
     s_learn_slot = -1;
     s_learn_status = IR_LEARN_IDLE;
     s_learn_msg[0] = 0;
@@ -612,6 +962,11 @@ void ir_blaster_cancel_learn(void)
 uint8_t ir_blaster_learn_status(void)
 {
     return s_learn_status;
+}
+
+int ir_blaster_learn_slot(void)
+{
+    return s_learn_slot;
 }
 
 const char *ir_blaster_learn_message(void)
@@ -635,13 +990,28 @@ int ir_blaster_lib_button_count(uint8_t slot)
 
 const char *ir_blaster_lib_button_name(uint8_t slot, int index)
 {
-    if (ir_blaster_lib_button_count(slot) == 1) {
-        return k_lib_names[IR_LIB_BTN_SEND];
-    }
-    if ((index < 0) || (index >= 10)) {
+    int n = ir_blaster_lib_button_count(slot);
+    if ((n <= 0) || (index < 0) || (index >= n)) {
         return "";
     }
+    if (s_lib_label[slot][index][0]) {
+        return s_lib_label[slot][index];
+    }
+    if (n == 1) {
+        return k_lib_names[IR_LIB_BTN_SEND];
+    }
     return k_lib_names[index];
+}
+
+esp_err_t ir_blaster_rename_lib(uint8_t slot, int index, const char *name)
+{
+    int n = ir_blaster_lib_button_count(slot);
+    if ((name == NULL) || (n <= 0) || (index < 0) || (index >= n)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    strncpy(s_lib_label[slot][index], name, IR_BLASTER_NAME_MAX - 1);
+    s_lib_label[slot][index][IR_BLASTER_NAME_MAX - 1] = 0;
+    return store_save();
 }
 
 esp_err_t ir_blaster_send_lib(uint8_t slot, int index)
