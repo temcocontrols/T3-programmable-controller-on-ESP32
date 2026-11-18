@@ -83,6 +83,12 @@ void check_SD_PnP(void);
 void clear_currnet_page(void);
 void Save_Email_Setting(void);
 esp_err_t save_wireguard_config_to_flash(void);
+esp_err_t save_mqtt_config_to_flash(void);
+esp_err_t save_snmp_config_to_flash(void);
+void hub_gsm_status_refresh(void);
+void Mqtt_Handler_Apply_Config(void);
+esp_err_t hub_snmp_apply_config(void);
+int hub_snmp_is_running(void);
 void Save_MSV(void);
 
 #if ARM_TSTAT_WIFI
@@ -1211,7 +1217,7 @@ int WritePrivateBacnetToModbusData(uint32_t deviceid, int16_t start_reg, uint16_
 
 int Send_Ptransfer_to_Sub(U8_T *p, U16_T length,U8_T port)
 {
-	Str_user_data_header head;
+	Str_user_data_header head = {0};
 	BACNET_PRIVATE_TRANSFER_DATA private_data = { 0 };
 	BACNET_APPLICATION_DATA_VALUE data_value = { 0 };
 	uint8_t far test_value[MAX_APDU] = { 0 };
@@ -1296,7 +1302,7 @@ void handler_private_transfer(
     BACNET_APPLICATION_DATA_VALUE rec_data_value = { 0 };
     BACNET_PRIVATE_TRANSFER_DATA private_data = { 0 };
     BACNET_PRIVATE_TRANSFER_DATA rec_data = { 0 };
-		Str_user_data_header	private_header;
+		Str_user_data_header	private_header = {0};
 		BACNET_OCTET_STRING Temp_CS;
 		uint8_t* ptr = NULL;
 		uint8_t test_value[MAX_APDU] = { 0 };
@@ -1628,6 +1634,14 @@ void handler_private_transfer(
 					ptr = (uint8_t *)&wireguard_point;
 				break;
 
+				case WRITE_MQTT_CFG:
+					ptr = (uint8_t *)&mqtt_point;
+				break;
+
+				case WRITE_SNMP_CFG:
+					ptr = (uint8_t *)&snmp_point;
+				break;
+
 				default:
 					break;
 
@@ -1902,6 +1916,16 @@ void handler_private_transfer(
 					{
 						save_wireguard_config_to_flash();
 					}
+					else if(command == WRITE_MQTT_CFG)
+					{
+						save_mqtt_config_to_flash();
+						Mqtt_Handler_Apply_Config();
+					}
+					else if(command == WRITE_SNMP_CFG)
+					{
+						save_snmp_config_to_flash();
+						hub_snmp_apply_config();
+					}
 					else if(command == WRITE_MSV_COMMAND)
 					{
 						Save_MSV();
@@ -2173,6 +2197,20 @@ void handler_private_transfer(
 
 			case READ_WIREGUARD_CFG:
 				ptr = (uint8_t *)&wireguard_point;
+				break;
+
+			case READ_GSM_STATUS:
+				hub_gsm_status_refresh();
+				ptr = (uint8_t *)&gsm_status_point;
+				break;
+
+			case READ_MQTT_CFG:
+				ptr = (uint8_t *)&mqtt_point;
+				break;
+
+			case READ_SNMP_CFG:
+				snmp_point.reg.running = hub_snmp_is_running() ? 1 : 0;
+				ptr = (uint8_t *)&snmp_point;
 				break;
 
 			default:

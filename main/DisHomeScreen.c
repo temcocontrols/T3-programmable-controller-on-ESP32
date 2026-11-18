@@ -25,6 +25,7 @@
 #include "ud_str.h"
 #include "define.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 static void DisplayDrawFormat( void );
 void DisplayTemperature( uint8_t index , S16_T value, uint8 unit);
 void DisplayHumidity( uint8_t index , S16_T value );
@@ -371,5 +372,6 @@ static void DisplaySetpointValue(void)
     display_screen_value(1);
     // draw_tangle( 52 , 112 - 30 );
 }
+#endif
 
 /* End of File */

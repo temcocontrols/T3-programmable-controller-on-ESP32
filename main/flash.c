@@ -13,7 +13,6 @@
 #include "bacnet.h"
 #include "esp_log.h"
 
-#include "unity.h"
 #include "esp_partition.h"
 #include "esp_system.h"
 #include <string.h>
@@ -22,6 +21,7 @@
 #include "driver/uart.h"
 #include "scan.h"
 #include "WireGuard_App.h"
+#include "store.h"
 
 uint8_t ChangeFlash;
 uint16_t count_write_Flash;
@@ -206,6 +206,21 @@ esp_err_t read_default_from_flash(void)
 		nvs_set_u8(my_handle, FLASH_SERIAL_NUM4, Modbus.serialNum[3]);
 	}
 
+	/* T3000 Product Type comes from this byte (88 = T3Controller). Same key as TSTAT11. */
+	err = nvs_get_u8(my_handle, FLASH_PRODUCT_MODEL, &Modbus.product_model);
+	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.product_model == 0)
+	{
+		Modbus.product_model = 88;
+		nvs_set_u8(my_handle, FLASH_PRODUCT_MODEL, Modbus.product_model);
+	}
+
+	err = nvs_get_u8(my_handle, FLASH_HARDWARE_REV, &Modbus.hardRev);
+	if(err == ESP_ERR_NVS_NOT_FOUND)
+	{
+		Modbus.hardRev = 2;
+		nvs_set_u8(my_handle, FLASH_HARDWARE_REV, Modbus.hardRev);
+	}
+
 	err = nvs_get_u8(my_handle, FLASH_INSTANCE1, &temp[0]);
 	if(err ==ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -295,9 +310,9 @@ esp_err_t read_default_from_flash(void)
 	com_config_back[2] = Modbus.com_config[2];
 
 	err = nvs_get_u8(my_handle, FLASH_MINI_TYPE, &Modbus.mini_type);
-	if(err == ESP_ERR_NVS_NOT_FOUND)
+	if((err == ESP_ERR_NVS_NOT_FOUND) || (Modbus.mini_type < PROJECT_HUB))
 	{
-		Modbus.mini_type = MINI_NANO;
+		Modbus.mini_type = MINI_TSTAT11;
 		nvs_set_u8(my_handle, FLASH_MINI_TYPE, Modbus.mini_type);
 	}
 	err = nvs_get_u8(my_handle, FLASH_THEME_TYPE, &Modbus.LcdTheme);
@@ -345,13 +360,15 @@ esp_err_t read_default_from_flash(void)
 	nvs_get_u8(my_handle, FLASH_EN_TIME_SYNC_PC, &Modbus.en_time_sync_with_pc);
 	if(Modbus.en_time_sync_with_pc == 255)
 	{
-		Modbus.en_time_sync_with_pc = 1;
+		/* Default: time server (same choice UI as other devices). User may switch to PC sync. */
+		Modbus.en_time_sync_with_pc = 0;
 		nvs_set_u8(my_handle, FLASH_EN_TIME_SYNC_PC, Modbus.en_time_sync_with_pc);
 	}
 	nvs_get_u8(my_handle, FLASH_EN_SNTP, &Modbus.en_sntp);
 	if(err == ESP_ERR_NVS_NOT_FOUND || Modbus.en_sntp == 0 || Modbus.en_sntp > 5)
 	{
-		Modbus.en_sntp = 1;
+		/* Default: timeserver1 (en_sntp >= 2 enables SNTP). */
+		Modbus.en_sntp = 2;
 		nvs_set_u8(my_handle, FLASH_EN_SNTP, Modbus.en_sntp);
 	}
 
@@ -410,7 +427,7 @@ esp_err_t read_default_from_flash(void)
 	else
 	{
 		if(Modbus.mini_type != PROJECT_MPPT){
-			if(count_reboot >= 3)
+			if(count_reboot >= 5)
 			{ // reboot
 				nvs_set_u8(my_handle, FLASH_COUNT_REBOOT, 0);
 				start_fw_update();
@@ -645,6 +662,22 @@ esp_err_t read_default_from_flash(void)
 		//nvs_set_u8(my_handle, FLASH_LCD_TIME_OFF_DELAY, Modbus.LCD_time_off_delay);
 	}
 
+	if(Modbus.mini_type == MINI_TSTAT11)
+	{
+		err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, &occ_trigger.timer);
+		if((err == ESP_ERR_NVS_NOT_FOUND) || (occ_trigger.timer == 0))
+		{
+			occ_trigger.timer = 300;
+			nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_TIMER, occ_trigger.timer);
+		}
+		err = nvs_get_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, &occ_trigger.trigger);
+		if(err == ESP_ERR_NVS_NOT_FOUND)
+		{
+			occ_trigger.trigger = 1;
+			nvs_set_u16(my_handle, FLASH_OCC_TRIGGER_VALUE, occ_trigger.trigger);
+		}
+	}
+
 	err = nvs_get_u16(my_handle, FLASH_CURRENT_TLG_PAGE, &current_page);
 	if(err == ESP_ERR_NVS_NOT_FOUND)
 	{
@@ -683,6 +716,9 @@ esp_err_t read_default_from_flash(void)
 #endif
 	// Close
 	nvs_close(my_handle);
+
+	(void)load_mqtt_config_from_flash();
+	(void)load_snmp_config_from_flash();
 
 	Flash_Inital();
 
@@ -728,7 +764,10 @@ esp_err_t save_wireguard_config_to_flash(void)
 	esp_err_t err;
 
 	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-	if (err != ESP_OK) return err;
+	if (err != ESP_OK) {
+		wireguard_app_request_reload();
+		return err;
+	}
 
 	// Save enable flag
 	err = nvs_set_u8(my_handle, FLASH_WIREGUARD_ENABLE, wireguard_point.reg.wireguard_enable);
@@ -767,6 +806,7 @@ esp_err_t save_wireguard_config_to_flash(void)
 
 done:
 	nvs_close(my_handle);
+	wireguard_app_request_reload();
 	return err;
 }
 
@@ -841,6 +881,142 @@ esp_err_t load_wireguard_config_from_flash(void)
 	return ESP_OK;
 }
 
+static void mqtt_config_set_defaults(void)
+{
+	memset(&mqtt_point, 0, sizeof(mqtt_point));
+	mqtt_point.reg.enable = 0;
+	mqtt_point.reg.port = 1883;
+	strncpy(mqtt_point.reg.broker, "broker.hivemq.com", sizeof(mqtt_point.reg.broker) - 1);
+	strncpy(mqtt_point.reg.client_id, "temco_hub", sizeof(mqtt_point.reg.client_id) - 1);
+	strncpy(mqtt_point.reg.pub_topic, "temco/test/hub/pub", sizeof(mqtt_point.reg.pub_topic) - 1);
+	strncpy(mqtt_point.reg.sub_topic, "temco/test/hub/sub", sizeof(mqtt_point.reg.sub_topic) - 1);
+}
+
+static void snmp_config_set_defaults(void)
+{
+	memset(&snmp_point, 0, sizeof(snmp_point));
+	snmp_point.reg.enable = 0;
+	snmp_point.reg.port = 161;
+	snmp_point.reg.trap_dest_port = 162;
+	strncpy(snmp_point.reg.ro_community, "public", sizeof(snmp_point.reg.ro_community) - 1);
+	strncpy(snmp_point.reg.rw_community, "private", sizeof(snmp_point.reg.rw_community) - 1);
+	strncpy(snmp_point.reg.sys_name, "Temco Hub", sizeof(snmp_point.reg.sys_name) - 1);
+	strncpy(snmp_point.reg.sys_location, "Temco Controls", sizeof(snmp_point.reg.sys_location) - 1);
+	strncpy(snmp_point.reg.sys_contact, "support@temcocontrols.com", sizeof(snmp_point.reg.sys_contact) - 1);
+}
+
+esp_err_t save_mqtt_config_to_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	Modbus.enable_mqtt = mqtt_point.reg.enable ? 1 : 0;
+	err = nvs_set_u8(my_handle, FLASH_ENABLE_MQTT, Modbus.enable_mqtt);
+	if (err == ESP_OK) {
+		err = nvs_set_blob(my_handle, FLASH_MQTT_BLOB, mqtt_point.all, sizeof(mqtt_point.all));
+	}
+	if (err == ESP_OK) {
+		err = nvs_commit(my_handle);
+	}
+	nvs_close(my_handle);
+	return err;
+}
+
+esp_err_t load_mqtt_config_from_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+	size_t len = sizeof(mqtt_point.all);
+
+	mqtt_config_set_defaults();
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	err = nvs_get_blob(my_handle, FLASH_MQTT_BLOB, mqtt_point.all, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		mqtt_config_set_defaults();
+		nvs_get_u8(my_handle, FLASH_ENABLE_MQTT, &Modbus.enable_mqtt);
+		mqtt_point.reg.enable = Modbus.enable_mqtt ? 1 : 0;
+		nvs_set_blob(my_handle, FLASH_MQTT_BLOB, mqtt_point.all, sizeof(mqtt_point.all));
+		nvs_commit(my_handle);
+	} else if (err == ESP_OK) {
+		Modbus.enable_mqtt = mqtt_point.reg.enable ? 1 : 0;
+		if (mqtt_point.reg.port == 0) {
+			mqtt_point.reg.port = 1883;
+		}
+		if (mqtt_point.reg.broker[0] == '\0') {
+			strncpy(mqtt_point.reg.broker, "broker.hivemq.com", sizeof(mqtt_point.reg.broker) - 1);
+		}
+		if (mqtt_point.reg.pub_topic[0] == '\0') {
+			strncpy(mqtt_point.reg.pub_topic, "temco/test/hub/pub", sizeof(mqtt_point.reg.pub_topic) - 1);
+		}
+		if (mqtt_point.reg.sub_topic[0] == '\0') {
+			strncpy(mqtt_point.reg.sub_topic, "temco/test/hub/sub", sizeof(mqtt_point.reg.sub_topic) - 1);
+		}
+	}
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
+esp_err_t save_snmp_config_to_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	err = nvs_set_blob(my_handle, FLASH_SNMP_BLOB, snmp_point.all, sizeof(snmp_point.all));
+	if (err == ESP_OK) {
+		err = nvs_commit(my_handle);
+	}
+	nvs_close(my_handle);
+	return err;
+}
+
+esp_err_t load_snmp_config_from_flash(void)
+{
+	nvs_handle_t my_handle;
+	esp_err_t err;
+	size_t len = sizeof(snmp_point.all);
+
+	snmp_config_set_defaults();
+
+	err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+	if (err != ESP_OK) {
+		return err;
+	}
+	err = nvs_get_blob(my_handle, FLASH_SNMP_BLOB, snmp_point.all, &len);
+	if (err == ESP_ERR_NVS_NOT_FOUND) {
+		snmp_config_set_defaults();
+		nvs_set_blob(my_handle, FLASH_SNMP_BLOB, snmp_point.all, sizeof(snmp_point.all));
+		nvs_commit(my_handle);
+	} else if (err == ESP_OK) {
+		if (snmp_point.reg.port == 0) {
+			snmp_point.reg.port = 161;
+		}
+		if (snmp_point.reg.trap_dest_port == 0) {
+			snmp_point.reg.trap_dest_port = 162;
+		}
+		if (snmp_point.reg.ro_community[0] == '\0') {
+			strncpy(snmp_point.reg.ro_community, "public", sizeof(snmp_point.reg.ro_community) - 1);
+		}
+		if (snmp_point.reg.rw_community[0] == '\0') {
+			strncpy(snmp_point.reg.rw_community, "private", sizeof(snmp_point.reg.rw_community) - 1);
+		}
+	}
+	snmp_point.reg.running = 0;
+	nvs_close(my_handle);
+	return ESP_OK;
+}
+
 
 typedef struct
 {
@@ -889,7 +1065,7 @@ void Flash_Inital(void)
 			baseAddr += len;
 #if NEW_IO
 			if(max_vars <= MAX_VARS)
-				len = sizeof(Str_variable_point) * max_vars;
+				len = sizeof(Str_variable_point) * MAX_VARS;
 			else
 				len = sizeof(Str_variable_point) * max_vars;
 #else
@@ -1748,9 +1924,8 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"P_size",strlen("P_size"));
 		}
 
-		if(Modbus.mini_type == MINI_TSTAT10 || Modbus.mini_type == MINI_TSTAT11)
+		if(Modbus.mini_type == MINI_TSTAT10)
 		{
-
 			ptr = put_io_buf(IN,8);
 			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
 			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
@@ -1772,7 +1947,6 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"TVOC",strlen("TVOC"));
 			ptr.pin->range = TVOC_PPB;
 
-
 			ptr = put_io_buf(IN,11);
 			memcpy(ptr.pin->description,"OCCUPIED SENSOR",strlen("OCCUPIED SENSOR"));
 			memcpy(ptr.pin->label,"OCC   ",strlen("OCC   "));
@@ -1786,6 +1960,41 @@ void Initial_points(uint8_t point_type)
 			memcpy(ptr.pin->label,"LUX",strlen("LUX"));
 		}
 
+		if(Modbus.mini_type == MINI_TSTAT11)
+		{
+			ptr = put_io_buf(IN,0);
+			memcpy(ptr.pin->description,"TEMPERATURE",strlen("TEMPERATURE"));
+			memcpy(ptr.pin->label,"TEMP",strlen("TEMP"));
+			ptr.pin->digital_analog = 1;
+			ptr.pin->range = R10K_40_120DegC;
+
+			ptr = put_io_buf(IN,1);
+			memcpy(ptr.pin->description,"HUMIDITY",strlen("HUMIDITY"));
+			memcpy(ptr.pin->label,"HUM",strlen("HUM"));
+			ptr.pin->range = Humidty;
+
+			ptr = put_io_buf(IN,2);
+			memcpy(ptr.pin->description,"CO2 ",strlen("CO2 "));
+			memcpy(ptr.pin->label,"CO2",strlen("CO2"));
+			ptr.pin->range = CO2_PPM;
+
+			ptr = put_io_buf(IN,3);
+			memcpy(ptr.pin->description,"TVOC",strlen("TVOC"));
+			memcpy(ptr.pin->label,"TVOC",strlen("TVOC"));
+			ptr.pin->range = TVOC_PPB;
+
+			ptr = put_io_buf(IN,4);
+			memcpy(ptr.pin->description,"OCCUPIED SENSOR",strlen("OCCUPIED SENSOR"));
+			memcpy(ptr.pin->label,"OCC   ",strlen("OCC   "));
+			ptr.pin->digital_analog = 0;
+			if(ptr.pin->range == 0)
+				ptr.pin->range = UNOCCUPIED_OCCUPIED;
+
+			ptr = put_io_buf(IN,5);
+			if(ptr.pin->range == 0)
+				ptr.pin->range = LUX;
+			memcpy(ptr.pin->label,"LUX",strlen("LUX"));
+		}
 	}
 	else if(point_type == VAR)
 	{
@@ -1828,8 +2037,25 @@ void Initial_points(uint8_t point_type)
 
 			Get_AVS();
 		}
-
 	}
+}
+
+/* Factory-programmed empty is 0x04; complete flash erase is 0xFF. */
+static int points_flash_is_blank(const uint8_t *buf)
+{
+	if(buf == NULL)
+	{
+		return 1;
+	}
+	if(buf[0] == 0x04 && buf[1] == 0x04 && buf[2] == 0x04)
+	{
+		return 1;
+	}
+	if(buf[0] == 0xFF && buf[1] == 0xFF && buf[2] == 0xFF)
+	{
+		return 1;
+	}
+	return 0;
 }
 
 void read_point_info(void)
@@ -1843,12 +2069,27 @@ void read_point_info(void)
 	U8_T page;
 	uint8_t  err = 0xff;
 	uint8_t *tempbuf = NULL;
+	uint8_t apply_defaults = 0;
 
 	for(loop = 0;loop < MAX_POINT_TYPE;loop++)
 	{
 
 		if(Flash_Position[loop].valid == 0)
 			continue;
+
+		{
+			uint8_t hdr[3] = {0, 0, 0};
+			if(esp_partition_read(partition, Flash_Position[loop].addr, hdr, sizeof(hdr)) == ESP_OK &&
+			   points_flash_is_blank(hdr))
+			{
+				if((loop == OUT) || (loop == IN) || (loop == VAR))
+				{
+					Initial_points(loop);
+				}
+				apply_defaults = 1;
+				continue;
+			}
+		}
 
 #if NEW_IO
 
@@ -1894,32 +2135,16 @@ void read_point_info(void)
 #if !NEW_IO
 			memcpy(&outputs,tempbuf,sizeof(Str_out_point) * MAX_OUTS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(OUT);
-			}
-
 			break;
 		case IN:
 #if !NEW_IO
 			memcpy(&inputs,tempbuf,sizeof(Str_in_point) * MAX_INS);
 #endif
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(IN);
-
-			}
-
 			break;
 		case VAR:
 #if !NEW_IO
 			memcpy(&vars,tempbuf,sizeof(Str_variable_point) * MAX_VARS);
 #endif
-			// if initial status
-			if(tempbuf[0] == 0x04 && tempbuf[1] == 0x04 && tempbuf[2] == 0x04)
-			{
-				Initial_points(VAR);Test[23]++;
-			}
 			break;
 
 		case CON:
@@ -2002,6 +2227,11 @@ void read_point_info(void)
 
 	}
 
+	if(apply_defaults)
+	{
+		ESP_LOGI("FL", "blank point flash, loading factory defaults mini_type=%u", Modbus.mini_type);
+		save_point_info(0);
+	}
 
 }
 

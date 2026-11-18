@@ -21,6 +21,7 @@
 #include "LcdTheme.h"
 #include "LCD_TSTAT.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #ifdef COLOR_TEST
 uint32 TSTAT8_BACK_COLOR = 0xd6dd;
 uint32 TSTAT8_MENU_COLOR2 = 0xd6dd;
@@ -1105,7 +1106,7 @@ void Top_area_display(uint8 item, S16_T value, uint8 unit)
 						disp_ch(0,SECOND_CH_POS,THERM_METER_POS,0x30+(value_buf%100)/10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 						disp_ch(0,THIRD_CH_POS,THERM_METER_POS,0x30+value_buf%10,TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 					}
-					else if(value_buf < 100)
+					else
 					{
 						//disp_ch(0,0,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
 						//disp_str(FORM15X30, FIRST_CH_POS,  25,  ' ',SCH_COLOR,TSTAT8_BACK_COLOR);
@@ -1575,5 +1576,13 @@ void Lcd_task(void *arg)
 	}
 }
 
+#endif
+#else
+lcdconfig display_lcd;
+uint8_t display_config[5];
+void lcd_back_set(uint8_t status)
+{
+	(void)status;
+}
 #endif
 

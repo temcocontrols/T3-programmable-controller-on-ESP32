@@ -7,7 +7,7 @@
 
 
 #include "esp_attr.h"
-#pragma pack(1)
+#pragma pack(push, 1)
 
 #define MAXFRAMEBUFFER			      490
 #define MAX_SEND_FRAMES             5
@@ -161,6 +161,10 @@ typedef enum {
 		 READ_SCHEDULE_FLAG	= 41,
 		 READ_MSV_COMMAND = 42,
 		 READ_EMAIL_ALARM          = 43,
+		 READ_WIREGUARD_CFG        = 44,
+		 READ_GSM_STATUS           = 45,
+		 READ_MQTT_CFG             = 46,
+		 READ_SNMP_CFG             = 47,
 
 		 WRITEOUTPUT_T3000         = 100+OUT+1,  /* write outputs          */
 		 WRITEINPUT_T3000          = 100+IN+1,   /* write inputs           */
@@ -187,6 +191,9 @@ typedef enum {
 		 WRITEREMOTEPOINT		   = 140,			/* write remote point */
 		 WRITE_MSV_COMMAND 		= 142,
 		 WRITE_EMAIL_ALARM           = 143,
+		 WRITE_WIREGUARD_CFG         = 144,
+		 WRITE_MQTT_CFG              = 146,
+		 WRITE_SNMP_CFG              = 147,
 
 
 //		 SEND_TIME_SYNC				= 150,    // no used
@@ -300,7 +307,7 @@ typedef enum { not_used_output, V0_10, P0_100_Open, P0_20psi, P0_100,
 
 
 //typedef enum { MINIPANEL,T5,T6,T7,T3 } PanelType;
-#pragma pack(1)
+#pragma pack(push, 1)  /* nested: structs from here onwards also need 1-byte packing */
 
 typedef struct
 {
@@ -1458,5 +1465,8 @@ extern  U16_T  output_raw[MAX_OUTS];
 extern  U16_T  output_raw_back[MAX_OUTS];
 extern  U16_T  chip_info[6];
 extern  uint32_t  Instance;
-#endif
 
+#pragma pack(pop)   /* pop nested push from line 303 */
+#pragma pack(pop)   /* pop outer push from line 10   */
+
+#endif

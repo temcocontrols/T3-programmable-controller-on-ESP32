@@ -51,9 +51,11 @@ typedef struct
 #define ITEM_VOC   3
 #define ITEM_LIGHT 4
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 void disp_ch(uint8_t form, uint16_t x, uint16_t y,uint8_t value,uint16_t dcolor,uint16_t bgcolor);
 void disp_icon(uint16_t cp, uint16_t pp, uint16_t const *icon_name, uint16_t x,uint16_t y,uint16_t dcolor, uint16_t bgcolor);
 void disp_str(uint8_t form, uint16_t x,uint16_t y,char *str,uint16_t dcolor,uint16_t bgcolor);
 void disp_special_str(uint8_t form, uint16_t x, uint16_t y, char *str, uint16_t dcolor, uint16_t bgcolor);
+#endif
 
 #endif /* MAIN_LCD_H_ */

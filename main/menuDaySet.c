@@ -4,6 +4,7 @@
 #include "Menu.h"
 #include "Constcode.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #if 1//SET_SCH
 
 str_my_point sch_on_off[8] =
@@ -115,7 +116,7 @@ void MenuDaySet_display(void)
 	uint8_t hour,min;
 	char j;
 	memset(temp_buffer, 0, 0);
-	blink_count = (blink_count ++) % 2;
+	blink_count = (blink_count + 1) % 2;
 
 	if(blink_count % 2  == 0)
 	{
@@ -257,7 +258,7 @@ void MenuTimeSet_display(void)
 	uint8_t hour,min;
 	char j;
 	memset(temp_buffer, 0, 0);
-	blink_count = (blink_count++) % 2;
+	blink_count = (blink_count + 1) % 2;
 
 	if(blink_count %2  == 0)
 	{
@@ -415,7 +416,7 @@ void MenuTimeChange_display(void)
 	uint8_t hour,min;
 	char j;
 	memset(temp_buffer, 0, 0);
-	blink_count = (blink_count++) % 2;
+	blink_count = (blink_count + 1) % 2;
 
 	if(blink_count % 2 == 0)
 	{
@@ -594,5 +595,6 @@ void MenuTimeChange_keycope(uint16 key_value)
 	}
 }
 
+#endif
 #endif
 

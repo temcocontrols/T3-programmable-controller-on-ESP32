@@ -17,6 +17,9 @@ lv_obj_t * uic_TempratureSymbol;
 lv_obj_t * uic_TemperatureVal;
 lv_obj_t * uic_RunTime;
 lv_obj_t * ui_HomeScreen = NULL;
+lv_obj_t * ui_RunningModeLabel = NULL;
+lv_obj_t * ui_RS485ArrowUpImg = NULL;
+lv_obj_t * ui_RS485ArrowDnImg = NULL;
 lv_obj_t * ui_RunTime = NULL;
 lv_obj_t * ui_TemperatureContainer = NULL;
 lv_obj_t * ui_TempSetPoint1 = NULL;
@@ -49,6 +52,9 @@ lv_obj_t * ui_Roller1 = NULL;
 lv_obj_t * ui_StartFanBtn = NULL;
 lv_obj_t * ui_Label29 = NULL;
 lv_obj_t * ui_ModeBtn = NULL;
+lv_obj_t * ui_Co2Label = NULL;
+lv_obj_t * ui_TvocLabel = NULL;
+lv_obj_t * ui_OccTimerLabel = NULL;
 lv_obj_t * ui_Label30 = NULL;
 lv_obj_t * ui_SysModePanel = NULL;
 lv_obj_t * ui_HeatModeBtn = NULL;
@@ -226,6 +232,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_remove_flag(ui_HomeScreen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_color(ui_HomeScreen, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_HomeScreen, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_set_screen_background(ui_HomeScreen);
 
     ui_RunTime = lv_textarea_create(ui_HomeScreen);
     lv_obj_set_width(ui_RunTime, 100);
@@ -250,6 +257,26 @@ void ui_HomeScreen_screen_init(void)
 
     lv_obj_set_style_bg_color(ui_RunTime, lv_color_hex(0xFFFFFF), LV_PART_SELECTED | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_RunTime, 0, LV_PART_SELECTED | LV_STATE_DEFAULT);
+
+    ui_RunningModeLabel = lv_label_create(ui_HomeScreen);
+    lv_obj_align(ui_RunningModeLabel, LV_ALIGN_TOP_MID, 0, 8);
+    lv_label_set_text(ui_RunningModeLabel, "Mode: --");
+    lv_obj_set_style_text_color(ui_RunningModeLabel, lv_color_hex(0x62B7FF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_RunningModeLabel, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_RS485ArrowUpImg = lv_img_create(ui_HomeScreen);
+    lv_img_set_src(ui_RS485ArrowUpImg, &ui_img_backsmallarrow_png);
+
+    lv_obj_set_style_transform_angle(ui_RS485ArrowUpImg, 900, LV_PART_MAIN);
+    lv_obj_align(ui_RS485ArrowUpImg, LV_ALIGN_TOP_RIGHT, -27, 00);
+    lv_obj_add_flag(ui_RS485ArrowUpImg, LV_OBJ_FLAG_HIDDEN);
+
+    ui_RS485ArrowDnImg = lv_img_create(ui_HomeScreen);
+    lv_img_set_src(ui_RS485ArrowDnImg, &ui_img_backsmallarrow_png);
+
+    lv_obj_set_style_transform_angle(ui_RS485ArrowDnImg, 2700, LV_PART_MAIN);
+    lv_obj_align(ui_RS485ArrowDnImg, LV_ALIGN_TOP_RIGHT, -60, 40);
+    lv_obj_add_flag(ui_RS485ArrowDnImg, LV_OBJ_FLAG_HIDDEN);
 
     ui_TemperatureContainer = lv_obj_create(ui_HomeScreen);
     lv_obj_remove_style_all(ui_TemperatureContainer);
@@ -363,7 +390,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_x(ui_TemperatureSetPoint, 64);
     lv_obj_set_y(ui_TemperatureSetPoint, 60);
     lv_obj_set_align(ui_TemperatureSetPoint, LV_ALIGN_CENTER);
-    lv_textarea_set_accepted_chars(ui_TemperatureSetPoint, "012345678.°CF ");
+    lv_textarea_set_accepted_chars(ui_TemperatureSetPoint, "0123456789.°CF ");
     lv_textarea_set_max_length(ui_TemperatureSetPoint, 8);
     lv_textarea_set_placeholder_text(ui_TemperatureSetPoint, "SetPoint");
     lv_textarea_set_one_line(ui_TemperatureSetPoint, true);
@@ -375,7 +402,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_border_opa(ui_TemperatureSetPoint, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_WifiSymb = lv_image_create(ui_HomeScreen);
-    lv_image_set_src(ui_WifiSymb, &ui_img_wifisym_png);
+    lv_image_set_src(ui_WifiSymb, &ui_img_wifisym_Disable_png);
     lv_obj_set_width(ui_WifiSymb, LV_SIZE_CONTENT);   /// 34
     lv_obj_set_height(ui_WifiSymb, LV_SIZE_CONTENT);    /// 29
     lv_obj_set_x(ui_WifiSymb, 210);
@@ -519,7 +546,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_x(ui_Label16, 0);
     lv_obj_set_y(ui_Label16, -17);
     lv_obj_set_align(ui_Label16, LV_ALIGN_TOP_MID);
-    lv_label_set_text(ui_Label16, "            Fan Mode          ");
+    lv_label_set_text(ui_Label16, "Fan Mode");
     lv_obj_set_style_text_font(ui_Label16, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_color(ui_Label16, lv_color_hex(0x3E6AE3), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_Label16, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -764,6 +791,32 @@ void ui_HomeScreen_screen_init(void)
     lv_label_set_text(ui_Label30, "Mode");
     lv_obj_set_style_text_font(ui_Label30, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    ui_OccTimerLabel = lv_label_create(ui_HomeScreen);
+    lv_obj_set_width(ui_OccTimerLabel, 90);
+    lv_label_set_text(ui_OccTimerLabel, "Occ   --");
+    lv_obj_set_style_text_color(ui_OccTimerLabel, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_OccTimerLabel, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_OccTimerLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_align_to(ui_OccTimerLabel, ui_ModeBtn, LV_ALIGN_OUT_TOP_LEFT, 2, -4);
+
+    ui_Co2Label = lv_label_create(ui_HomeScreen);
+    lv_obj_set_width(ui_Co2Label, 90);
+    lv_label_set_text(ui_Co2Label, "");
+    lv_obj_set_style_text_color(ui_Co2Label, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Co2Label, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_Co2Label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_align_to(ui_Co2Label, ui_OccTimerLabel, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+    lv_obj_add_flag(ui_Co2Label, LV_OBJ_FLAG_HIDDEN);
+
+    ui_TvocLabel = lv_label_create(ui_HomeScreen);
+    lv_obj_set_width(ui_TvocLabel, 90);
+    lv_label_set_text(ui_TvocLabel, "");
+    lv_obj_set_style_text_color(ui_TvocLabel, lv_color_hex(0xB8D4E8), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_TvocLabel, &lv_font_montserrat_12, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_TvocLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_align_to(ui_TvocLabel, ui_OccTimerLabel, LV_ALIGN_OUT_TOP_LEFT, 0, -2);
+    lv_obj_add_flag(ui_TvocLabel, LV_OBJ_FLAG_HIDDEN);
+
     ui_SysModePanel = lv_obj_create(ui_HomeScreen);
     lv_obj_set_width(ui_SysModePanel, 240);
     lv_obj_set_height(ui_SysModePanel, 250);
@@ -821,7 +874,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_Label35, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Image7 = lv_image_create(ui_HeatModeBtn);
-    lv_image_set_src(ui_Image7, &ui_img_1679221590);
+    lv_image_set_src(ui_Image7, &ui_img_day_30_png);
     lv_obj_set_width(ui_Image7, LV_SIZE_CONTENT);   /// 35
     lv_obj_set_height(ui_Image7, LV_SIZE_CONTENT);    /// 35
     lv_obj_set_align(ui_Image7, LV_ALIGN_LEFT_MID);
@@ -930,7 +983,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_Label32, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Image5 = lv_image_create(ui_OffModeBtn);
-    lv_image_set_src(ui_Image5, &ui_img_1020677502);
+    lv_image_set_src(ui_Image5, &ui_img_power_symbol_30_png);
     lv_obj_set_width(ui_Image5, LV_SIZE_CONTENT);   /// 35
     lv_obj_set_height(ui_Image5, LV_SIZE_CONTENT);    /// 35
     lv_obj_set_align(ui_Image5, LV_ALIGN_LEFT_MID);
@@ -976,7 +1029,7 @@ void ui_HomeScreen_screen_init(void)
     lv_obj_set_style_text_font(ui_Label36, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Image8 = lv_image_create(ui_CoolModeBtn);
-    lv_image_set_src(ui_Image8, &ui_img_1869774352);
+    lv_image_set_src(ui_Image8, &ui_img_snowflake_30_png);
     lv_obj_set_width(ui_Image8, LV_SIZE_CONTENT);   /// 35
     lv_obj_set_height(ui_Image8, LV_SIZE_CONTENT);    /// 35
     lv_obj_set_align(ui_Image8, LV_ALIGN_LEFT_MID);
@@ -1016,6 +1069,9 @@ void ui_HomeScreen_screen_destroy(void)
 
     // NULL screen variables
     ui_HomeScreen = NULL;
+    ui_RunningModeLabel = NULL;
+    ui_RS485ArrowUpImg = NULL;
+    ui_RS485ArrowDnImg = NULL;
     uic_RunTime = NULL;
     ui_RunTime = NULL;
     ui_TemperatureContainer = NULL;
@@ -1059,6 +1115,9 @@ void ui_HomeScreen_screen_destroy(void)
     ui_StartFanBtn = NULL;
     ui_Label29 = NULL;
     ui_ModeBtn = NULL;
+    ui_Co2Label = NULL;
+    ui_TvocLabel = NULL;
+    ui_OccTimerLabel = NULL;
     ui_Label30 = NULL;
     ui_SysModePanel = NULL;
     ui_HeatModeBtn = NULL;

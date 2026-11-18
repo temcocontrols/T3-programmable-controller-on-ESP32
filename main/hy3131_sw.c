@@ -70,7 +70,7 @@ void HY3131_count_PreFilter_0K (void)
 void HY3131_WriteData(uint8_t *DataBuffer, uint32_t StartAddress, uint32_t ByteCount)
 {
     uint8_t tx[1 + ByteCount];
-    tx[0] = ((StartAddress << 1) | 0x00); // WriteComm = 0
+    tx[0] = (uint8_t)(StartAddress << 1); // WriteComm = 0
     memcpy(&tx[1], DataBuffer, ByteCount);
     spi_transaction_t t = {
         .length = (1 + ByteCount) * 8,

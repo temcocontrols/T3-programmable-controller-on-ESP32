@@ -249,6 +249,7 @@ typedef struct my_point
 
 
 void vStartKeyTasks( unsigned char uxPriority);
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 void vStartMenuTask(unsigned char uxPriority);
 
 
@@ -330,6 +331,7 @@ void display_scroll(void);
 void scroll_warning(uint8 item);
 void display_schedule_time(S8_T schedule_time_sel, uint8 hour_minute);
 void Top_area_display(uint8 item, S16_T value, uint8 unit);
+#endif
 
 
 #endif /* __LCD_TSTAT_H__ */

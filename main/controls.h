@@ -20,7 +20,7 @@
 //#define MAX_INS     	64
 //#define MAX_OUTS        64
 
-#pragma pack(1) 
+#pragma pack(push, 1) 
 
 #endif
 
@@ -84,3 +84,5 @@ extern uint8_t change_value_by_range(U8_T channel);
 
 #endif
 
+
+#pragma pack(pop)

@@ -27,30 +27,73 @@ typedef enum {
 #define ESP_ERR_WIFI_NOT_STARTED (ESP_FAIL)
 
 typedef enum {
-    WIFI_MODE_NULL,
+    WIFI_MODE_NULL = 0,
     WIFI_MODE_STA,
+    WIFI_MODE_AP,
+    WIFI_MODE_APSTA,
 } wifi_mode_t;
 
 typedef enum {
     WIFI_IF_STA,
+    WIFI_IF_AP,
 } wifi_interface_t;
+
+typedef enum { WIFI_AUTH_OPEN = 0, WIFI_AUTH_WPA_PSK = 1, WIFI_AUTH_WPA2_PSK = 2 } wifi_auth_mode_t;
+/* Backwards-compatible alias used in production code */
+#define WIFI_AUTH_WPA_WPA2_PSK WIFI_AUTH_WPA2_PSK
 
 typedef struct {
     uint8_t ssid[32];
     uint8_t password[64];
+    /* Added fields to match newer esp-idf wifi_sta_config_t */
+    int8_t bssid_set; /* non-zero if bssid is set */
+    uint8_t bssid[6];
     struct {
         bool capable;
         bool required;
     } pmf_cfg;
 } wifi_sta_config_t;
 
+typedef struct {
+    uint8_t ssid[32];
+    uint8_t password[64];
+    uint8_t ssid_len;
+    uint8_t channel;
+    wifi_auth_mode_t authmode;
+    uint8_t max_connection;
+} wifi_ap_config_t;
+
 typedef union {
     wifi_sta_config_t sta;
+    wifi_ap_config_t ap;
 } wifi_config_t;
+
+typedef enum {
+    WIFI_SCAN_TYPE_ACTIVE = 0,
+    WIFI_SCAN_TYPE_PASSIVE,
+} wifi_scan_type_t;
+
+typedef struct {
+    const uint8_t *ssid;
+    const uint8_t *bssid;
+    uint8_t channel;
+    bool show_hidden;
+    wifi_scan_type_t scan_type;
+    struct {
+        struct {
+            uint32_t min;
+            uint32_t max;
+        } active;
+        uint32_t passive;
+    } scan_time;
+} wifi_scan_config_t;
 
 typedef struct {
     uint8_t ssid[33];
-    int rssi;
+    uint8_t bssid[6];
+    int8_t primary; /* channel */
+    int8_t rssi;
+    wifi_auth_mode_t authmode;
 } wifi_ap_record_t;
 
 typedef struct {
@@ -67,6 +110,7 @@ int esp_wifi_set_mode(wifi_mode_t mode);
 int esp_wifi_set_config(wifi_interface_t interface, wifi_config_t *conf);
 int esp_wifi_sta_get_ap_info(wifi_ap_record_t *ap_info);
 int esp_wifi_scan_start(const void *config, bool block);
+int esp_wifi_scan_stop(void);
 int esp_wifi_scan_get_ap_num(uint16_t *number);
 int esp_wifi_scan_get_ap_records(uint16_t *number, wifi_ap_record_t *ap_records);
 int esp_wifi_get_mode(wifi_mode_t *mode);

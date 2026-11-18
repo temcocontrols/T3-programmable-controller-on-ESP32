@@ -283,7 +283,7 @@ char* get_description(uint8_t type,uint8_t num)
 	}
 	if(type == TEMCOAV)
 	{
-		if(Get_Mini_Type() == 9 || Get_Mini_Type() == 29) /*MINI_TSTAT10 || MINI_TSTAT11*/
+		if(Get_Mini_Type() == 9 || Get_Mini_Type() == 30 || Get_Mini_Type() == 31) /* TSTAT10, Hub/WireGuard, TSTAT11 */
 		{
 			if(num == 0) return "panel number";
 			/*else if(num == 1) return "dead master";
@@ -388,7 +388,7 @@ char* get_label(uint8_t type,uint8_t num)
 #if BAC_PROPRIETARY
 	if(type == TEMCOAV)
 	{
-		if(Get_Mini_Type() == 9 || Get_Mini_Type() == 29) /*MINI_TSTAT10 || MINI_TSTAT11*/
+		if(Get_Mini_Type() == 9 || Get_Mini_Type() == 30 || Get_Mini_Type() == 31) /* TSTAT10, Hub/WireGuard, TSTAT11 */
 		{
 			if(num == 0) return "panel number";
 			/*else if(num == 1) return "dead master";
@@ -797,7 +797,7 @@ float Get_bacnet_value_from_buf(uint8_t type,uint8_t priority,uint8_t i)
 		case TEMCOAV:
 		{
 			uint32 value = 0;
-			if(Get_Mini_Type() == 9 || Get_Mini_Type() == 29) /*MINI_TSTAT10 || MINI_TSTAT11*/
+			if(Get_Mini_Type() == 9 || Get_Mini_Type() == 30 || Get_Mini_Type() == 31) /* TSTAT10, Hub/WireGuard, TSTAT11 */
 			{
 				switch(i)
 				{
@@ -1489,7 +1489,7 @@ void wirte_bacnet_value_to_buf(uint8_t type,uint8_t priority,uint8_t i,float val
 				break;
 
 			case TEMCOAV:
-			if(Get_Mini_Type() == 9 || Get_Mini_Type() == 29) /*MINI_TSTAT10 || MINI_TSTAT11*/
+			if(Get_Mini_Type() == 9 || Get_Mini_Type() == 30 || Get_Mini_Type() == 31) /* TSTAT10, Hub/WireGuard, TSTAT11 */
 			{
 				/*if(i == 1)
 				{
@@ -2604,7 +2604,7 @@ void Store_MASTER_To_Eeprom(uint8_t master)
 char* Get_temcovars_string_from_buf(uint8_t number)
 {
 	char type,num;
-	char str[20];
+	static char str[20];
 	if(number == 4)
 	{
 		memset(str,'\0',20);

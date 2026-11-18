@@ -217,7 +217,7 @@ static int16_t sgp30_run_profile_by_number(uint16_t number) {
  *
  * Return:    STATUS_OK on success, STATUS_FAIL otherwise
  */
-static int16_t sgp30_detect_featureset_version(uint16_t *featureset) {
+static int16_t sgp30_detect_featureset_version(const uint16_t *featureset) {
     int16_t i, j;
     uint16_t feature_set_version = *featureset;
     const struct sgp_otp_featureset *sgp30_featureset;

@@ -10,6 +10,15 @@
 
 #define IN_SVAR_SAMPLE 20
 
+static Str_variable_point *net_health_var(unsigned offset)
+{
+	unsigned idx = (unsigned)NET_HEALTH_VAR_BASE + offset;
+	if (idx >= MAX_VARS) {
+		return NULL;
+	}
+	return &vars[idx];
+}
+
 
 U8_T SD_exist = 2; // dont use SD card in ESP
 U8_T Read_Picture_from_SD(U8_T file,U16_T index);
@@ -74,7 +83,7 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 	int j,k;
 	Ulong time;
 	Str_points_ptr ptr;
-	S32_T value;
+	S32_T sample_value;
 
 	U8_T temp[4];
 
@@ -113,9 +122,9 @@ void sample_analog_points(char i, Str_monitor_point *mon_ptr/*, Mon_aux  *aux_pt
 
 
 
-		if(get_net_point_value( ptr.pnet, &value,0,0 ) == 1)  // get rid of default value 0x55555555				
-		{
-			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  value;
+		if(get_net_point_value( ptr.pnet, &sample_value,0,0 ) == 1)  // get rid of default value 0x55555555				
+		{	
+			write_mon_point_buf[i * 2][mon_block[i * 2].index].value =  sample_value;
 
 			temp[0] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value);	
 			temp[1] = (write_mon_point_buf[i * 2][mon_block[i * 2].index].value) >> 8;	
@@ -180,7 +189,7 @@ U32_T  last_digital_sample_time[12];
 void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_ptr*/ )
 {
 	int j,k;//,A,B;
-	S32_T value;
+	S32_T sample_value;
 	Str_points_ptr ptr;
 	static U8_T  first = 0;
 //	static U16_T  count_write_sd = 0;
@@ -196,7 +205,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 
 	for( j = 0; j < mon_block[i * 2 + 1].no_points; j++ )
 	{		
-		if(get_net_point_value( mon_block[i * 2 + 1].inputs + j, &value,1,0 ) == 1)
+		if(get_net_point_value( mon_block[i * 2 + 1].inputs + j, &sample_value,1,0 ) == 1)
 		{ 
 			// store the points changed
 			ptr.pnet = mon_block[i * 2 + 1].inputs + j;		
@@ -213,7 +222,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.sub_id = ptr.pnet->sub_id;
 					write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].point.network_number = ptr.pnet->network_number;
 					
-					if(value)
+					if(sample_value)
 					{		
 							mon_block[i * 2 + 1].last_digital_state |= (1<<j);						
 
@@ -257,7 +266,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 					{	
 						if( 1 << j & mon_block[i * 2 + 1].last_digital_state )	
 						{
-							if(!value)
+							if(!sample_value)
 							{
 								
 								mon_block[i * 2 + 1].last_digital_state &= ~(1<<j);				
@@ -315,7 +324,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 						}
 						else
 						{
-							if( value)
+							if( sample_value)
 							{
 								mon_block[i * 2 + 1].last_digital_state |= (1<<j);
 								write_mon_point_buf[i * 2 + 1][mon_block[i * 2 + 1].index].index = mon_block[i * 2 + 1].monitor;
@@ -393,7 +402,7 @@ void sample_digital_points( U8_T i,Str_monitor_point *mon_ptr/*, Mon_aux *aux_pt
 			{
 				if(SD_exist == 2) 
 				{				
-					U8_T temp;
+					U8_T temp = 0;
 					//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + i,&temp);  // high 4 bits
 					if((temp & 0xf0) != (SD_block_num[i * 2] >> 16 & 0xf0))
 					{
@@ -441,9 +450,9 @@ void sample_points( void  )
 			{
 				//count_max_time[i]--;
 				if( mon_ptr->an_inputs > 0)
-				{Test[31]++
+				{Test[31]++;
 					if( mon_ptr->next_sample_time <= get_current_time() )
-					{	Test[32]++
+					{	Test[32]++;
 						sample_analog_points(i, mon_ptr);
 					}
 				}
@@ -688,9 +697,14 @@ void monitor_init(void)
 		monitors[NET_HEALTH_INDEX].inputs[i].sub_id = panel_number;
 		monitors[NET_HEALTH_INDEX].inputs[i].network_number = 0;
 		monitors[NET_HEALTH_INDEX].range[i] = HI_spd_count;
-		vars[NET_HEALTH_VAR_BASE + i].range = HI_spd_count;
-		vars[NET_HEALTH_VAR_BASE + i].digital_analog = 1;
-		vars[NET_HEALTH_VAR_BASE + i].value = 0;
+		{
+			Str_variable_point *hv = net_health_var((unsigned)i);
+			if (hv != NULL) {
+				hv->range = HI_spd_count;
+				hv->digital_analog = 1;
+				hv->value = 0;
+			}
+		}
 	}
 	
 	// BOOT 
@@ -700,9 +714,14 @@ void monitor_init(void)
 	monitors[NET_HEALTH_INDEX].inputs[8].sub_id = panel_number;
 	monitors[NET_HEALTH_INDEX].inputs[8].network_number = 0;
 	monitors[NET_HEALTH_INDEX].range[8] = OFF_ON;
-	vars[NET_HEALTH_VAR_BASE + 8].range = OFF_ON;
-	vars[NET_HEALTH_VAR_BASE + 8].digital_analog = 0;
-	vars[NET_HEALTH_VAR_BASE + 8].control = 0;
+	{
+		Str_variable_point *hv = net_health_var(8);
+		if (hv != NULL) {
+			hv->range = OFF_ON;
+			hv->digital_analog = 0;
+			hv->control = 0;
+		}
+	}
 	
 	
 	monitors[NET_HEALTH_INDEX].second_interval_time = IN_SVAR_SAMPLE;
@@ -750,11 +769,19 @@ void update_comport_health(void)
 	
 	for(i = 0;i < 3;i++)
 	{
-		if(((com_tx[i] - com_tx_back[i]) < 1000) && (com_tx[i] > com_tx_back[i]))		
-			vars[NET_HEALTH_VAR_BASE + i * 2].value = ((com_tx[i] - com_tx_back[i]) * 1000l / IN_SVAR_SAMPLE);
+		if(((com_tx[i] - com_tx_back[i]) < 1000) && (com_tx[i] > com_tx_back[i])) {
+			Str_variable_point *hv = net_health_var((unsigned)i * 2U);
+			if (hv != NULL) {
+				hv->value = ((com_tx[i] - com_tx_back[i]) * 1000l / IN_SVAR_SAMPLE);
+			}
+		}
 		
-		if(((com_rx[i] - com_rx_back[i]) < 1000) && (com_rx[i] > com_rx_back[i]))
-			vars[NET_HEALTH_VAR_BASE + i * 2 + 1].value = ((com_rx[i] - com_rx_back[i]) * 1000l/ IN_SVAR_SAMPLE);
+		if(((com_rx[i] - com_rx_back[i]) < 1000) && (com_rx[i] > com_rx_back[i])) {
+			Str_variable_point *hv = net_health_var((unsigned)i * 2U + 1U);
+			if (hv != NULL) {
+				hv->value = ((com_rx[i] - com_rx_back[i]) * 1000l/ IN_SVAR_SAMPLE);
+			}
+		}
 		
 		if(com_rx_back[i] != com_rx[i])
 			com_rx_back[i] = com_rx[i];
@@ -879,7 +906,7 @@ void dealwithMonitor(uint8_t bank)
 				{
 					if(SD_exist == 2) 
 					{
-						U8_T temp;
+						U8_T temp = 0;
 						//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + bank,&temp);
 						if((temp & 0x0f) != (SD_block_num[bank * 2] >> 16 & 0x0f))
 						{
@@ -915,7 +942,7 @@ void dealwithMonitor(uint8_t bank)
 				{
 					if(SD_exist == 2) 
 					{
-						U8_T temp;
+						U8_T temp = 0;
 						//E2prom_Read_Byte(EEP_SD_BLOCK_HI1 + bank,&temp);  // high 4 bits
 						if((temp & 0xf0) != (SD_block_num[bank * 2] >> 16 & 0xf0))
 						{

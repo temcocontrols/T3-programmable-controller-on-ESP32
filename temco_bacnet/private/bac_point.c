@@ -1802,5 +1802,3 @@ void initial_graphic_point(void)
 
 
 #endif
-
-#endif

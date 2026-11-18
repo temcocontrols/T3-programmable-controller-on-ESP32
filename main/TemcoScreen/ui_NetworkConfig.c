@@ -146,6 +146,7 @@ void ui_NetworkConfig_screen_init(void)
 {
     ui_NetworkConfig = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_NetworkConfig, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    ui_set_screen_background(ui_NetworkConfig);
 
     ui_ChangeConfigTitle1 = lv_obj_create(ui_NetworkConfig);
     lv_obj_set_width(ui_ChangeConfigTitle1, 450);

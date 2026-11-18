@@ -11,6 +11,8 @@
 #define UART_NUM_1 1
 #define UART_NUM_2 2
 
+typedef int uart_port_t;
+
 /* ── EEPROM address map — missing in host build ── */
 #ifndef EEP_UART0_STOPBIT
 #define EEP_UART0_STOPBIT       0x00   /* replace with actual address if needed */

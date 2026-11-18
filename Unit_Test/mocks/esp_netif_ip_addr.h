@@ -15,11 +15,7 @@ typedef struct {
     esp_ip4_addr_t gw;
 } esp_netif_ip_info_t;
 #define IPSTR "%d.%d.%d.%d"
-#define IP2STR(ipaddr) \
-    (int)((ipaddr)->addr & 0xFF), \
-    (int)(((ipaddr)->addr >> 8) & 0xFF), \
-    (int)(((ipaddr)->addr >> 16) & 0xFF), \
-    (int)(((ipaddr)->addr >> 24) & 0xFF)
+#define IP2STR(ipaddr) (int)((ipaddr)->addr & 0xFF), (int)(((ipaddr)->addr >> 8) & 0xFF), (int)(((ipaddr)->addr >> 16) & 0xFF), (int)(((ipaddr)->addr >> 24) & 0xFF)
 #ifdef __cplusplus
 }
 #endif

@@ -22,11 +22,13 @@ typedef struct {
 #define ESP_WIREGUARD_CONFIG_DEFAULT() {0}
 
 typedef struct {
-    int dummy;
+    void *netif;
+    void *netif_default;
 } wireguard_ctx_t;
 
 esp_err_t esp_wireguard_init(const wireguard_config_t *config, wireguard_ctx_t *ctx);
 esp_err_t esp_wireguard_connect(wireguard_ctx_t *ctx);
+esp_err_t esp_wireguard_disconnect(wireguard_ctx_t *ctx);
 esp_err_t esp_wireguard_set_default(wireguard_ctx_t *ctx);
 esp_err_t esp_wireguardif_peer_is_up(wireguard_ctx_t *ctx);
 

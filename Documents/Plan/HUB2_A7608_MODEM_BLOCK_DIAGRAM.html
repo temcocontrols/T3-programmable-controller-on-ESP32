@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HUB2 A7608E-H Modem - Architecture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f5f5; color: #222; }
+    .wrap { padding: 16px; max-width: 1400px; margin: 0 auto; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    nav a { padding: 8px 14px; background: #fff; border: 1px solid #d9d9d9; border-radius: 4px; color: #1f3864; text-decoration: none; font-size: 14px; font-weight: bold; }
+    nav a.active { background: #1f3864; color: #fff; border-color: #1f3864; }
+    nav a:hover:not(.active) { background: #eef2f8; }
+    .note { background: #fff; border-left: 4px solid #1f3864; padding: 12px 14px; margin-bottom: 16px; font-size: 14px; line-height: 1.55; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .warning { background: #fff8e6; border-left: 4px solid #e69138; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; line-height: 1.5; }
+    h2 { font-size: 16px; color: #1f3864; margin: 24px 0 12px; }
+    .diagram-panel { background: #fff; border: 1px solid #d9d9d9; box-shadow: 0 1px 4px rgba(0,0,0,0.12); padding: 16px; margin-bottom: 16px; overflow-x: auto; }
+    .flow { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 10px; min-width: 820px; }
+    .box { border: 1px solid #b8c5d8; background: #eef2f8; padding: 12px; text-align: center; min-height: 78px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .box strong { color: #1f3864; display: block; margin-bottom: 4px; }
+    .arrow { color: #1f3864; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.12); margin-bottom: 16px; }
+    th, td { border: 1px solid #d9d9d9; padding: 8px 10px; text-align: left; vertical-align: top; font-size: 14px; }
+    tr.title th { background: #1f3864; color: #fff; font-size: 18px; font-weight: bold; text-align: center; padding: 14px 10px; }
+    tr.header th { background: #1f3864; color: #fff; font-weight: bold; text-align: center; }
+    tr.odd td { background: #fff; }
+    tr.even td { background: #f2f2f2; }
+    td.center { text-align: center; }
+    ul.notes { font-size: 14px; line-height: 1.6; background: #fff; padding: 12px 12px 12px 28px; border: 1px solid #d9d9d9; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .footnote { font-size: 12px; color: #555; line-height: 1.6; }
+    code { background: #eef2f8; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a href="HUB2_A7608_MODEM_INTEGRATION.md">Integration Plan</a>
+      <a href="HUB2_A7608_MODEM_BLOCK_DIAGRAM.html" class="active">Block Diagram</a>
+      <a href="HUB2_A7608_MODEM_TODO.html">Firmware TODO</a>
+      <a href="HUB2_A7608_Modem_Integration_Plan.docx">Source Plan</a>
+    </nav>
+
+    <div class="note">
+      Functional view of the HUB2 modem architecture: ESP32-S3 controls A7608E-H through UART AT commands, exposes status through Temco firmware, and keeps W5500 Ethernet available for T3000, Modbus TCP, and BACnet/IP. Current bring-up uses the LilyGo-Modem-Series-compatible pin map and ATDebug firmware.
+    </div>
+
+    <div class="warning">
+      <strong>Routing note:</strong> first prototype target is connect-out cellular data and modem status reporting. True 4G-to-Ethernet router behavior requires PPP, NAT, and IP forwarding and should be planned separately.
+    </div>
+
+    <h2>System flow</h2>
+    <div class="diagram-panel">
+      <div class="flow">
+        <div class="box"><strong>ESP32-S3</strong><span>HUB2 firmware<br>AT control</span></div>
+        <div class="box"><strong>A7608E-H</strong><span>LTE + GNSS<br>UART AT</span></div>
+        <div class="box"><strong>Cellular network</strong><span>Registration<br>IP attach</span></div>
+        <div class="box"><strong>Cloud / server</strong><span>TCP, MQTT,<br>or HTTP upload</span></div>
+        <div class="box"><strong>T3000</strong><span>Modbus/BACnet<br>status view</span></div>
+      </div>
+      <p class="footnote">Bring-up path: ESP32-S3 boot -> modem power -> AT ready -> SIM ready -> LTE registered -> cellular IP -> status upload.</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr class="title"><th colspan="4">Core hardware blocks</th></tr>
+        <tr class="header"><th>Block</th><th>Component</th><th>Role</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr class="odd"><td>MCU</td><td>ESP32-S3</td><td>Application processor</td><td>Controls modem through UART AT commands and exposes status to Temco firmware.</td></tr>
+        <tr class="even"><td>Cellular</td><td>A7608E-H</td><td>4G LTE + GNSS modem</td><td>Provides SIM, LTE registration, cellular IP, TCP/MQTT/HTTP, and location.</td></tr>
+        <tr class="odd"><td>Ethernet</td><td>W5500</td><td>ESP32 Ethernet interface</td><td>Used for T3000 discovery, Modbus TCP, and BACnet/IP.</td></tr>
+        <tr class="even"><td>Switch</td><td>RTL8309N</td><td>Hardware Ethernet switch</td><td>Treat as unmanaged until VLAN, isolation, or port status is required.</td></tr>
+        <tr class="odd"><td>Power</td><td>HUB2 modem rail</td><td>Supplies A7608E-H current peaks</td><td>Must be verified during registration and data TX.</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead>
+        <tr class="title"><th colspan="4">ESP32-S3 to A7608E-H interfaces</th></tr>
+        <tr class="header"><th>Signal</th><th>Direction</th><th>Function</th><th>Bring-up requirement</th></tr>
+      </thead>
+      <tbody>
+        <tr class="odd"><td>MODEM_TXD</td><td class="center">GPIO17</td><td>Modem TX to ESP32-S3 UART RX path</td><td>LilyGo-compatible; ATDebug communication verified.</td></tr>
+        <tr class="even"><td>MODEM_RXD</td><td class="center">GPIO18</td><td>ESP32-S3 UART TX to modem RX path</td><td>LilyGo-compatible; ATDebug communication verified.</td></tr>
+        <tr class="odd"><td>PWRKEY</td><td class="center">GPIO15</td><td>Power-on/off key</td><td>LilyGo-compatible; use for normal modem boot and shutdown.</td></tr>
+        <tr class="even"><td>RESET</td><td class="center">GPIO16</td><td>Hardware reset</td><td>LilyGo-compatible; use for controlled recovery after repeated AT timeouts.</td></tr>
+        <tr class="odd"><td>RING</td><td class="center">GPIO6</td><td>Ring / URC wake indication</td><td>LilyGo-compatible; optional interrupt input for later low-power behavior.</td></tr>
+        <tr class="even"><td>DTR</td><td class="center">GPIO7</td><td>Data terminal ready / sleep control</td><td>LilyGo-compatible; keep behavior simple during first driver pass.</td></tr>
+        <tr class="odd"><td>SIM interface</td><td class="center">Modem pins</td><td>SIM detect and communication</td><td>Validate CPIN? READY and physical SIM detection.</td></tr>
+        <tr class="even"><td>USB_DP / USB_DM</td><td class="center">USB</td><td>Debug or firmware upgrade</td><td>ESP32-S3 USB-to-serial bridge is working; decide whether direct modem USB is needed.</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead>
+        <tr class="title"><th colspan="4">Firmware status outputs</th></tr>
+        <tr class="header"><th>Status</th><th>Source</th><th>Use</th><th>Expose through</th></tr>
+      </thead>
+      <tbody>
+        <tr class="odd"><td>SIM inserted / ready</td><td>SIM detect, CPIN?</td><td>SIM usability</td><td>Modbus, T3000</td></tr>
+        <tr class="even"><td>LTE registered</td><td>CREG?, CEREG?</td><td>Network registration state</td><td>Modbus, T3000</td></tr>
+        <tr class="odd"><td>CSQ / RSSI</td><td>CSQ</td><td>Signal quality</td><td>Modbus, T3000</td></tr>
+        <tr class="even"><td>Operator name</td><td>Operator query</td><td>Carrier identification</td><td>Modbus, T3000</td></tr>
+        <tr class="odd"><td>Cellular IP address</td><td>CGPADDR / IPADDR</td><td>Data connection status</td><td>Modbus, T3000</td></tr>
+        <tr class="even"><td>GNSS latitude / longitude</td><td>GNSS AT commands</td><td>Location</td><td>Modbus, optional BACnet</td></tr>
+        <tr class="odd"><td>Modem uptime / reset count</td><td>A7608 driver</td><td>Stability diagnostics</td><td>Modbus, T3000</td></tr>
+        <tr class="even"><td>Last error code</td><td>A7608 driver</td><td>Support troubleshooting</td><td>Modbus, T3000</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Design notes</h2>
+    <ul class="notes">
+      <li>Keep A7608 AT command handling inside one driver module.</li>
+      <li>Verify hardware with a small AT debug project before merging into the Temco firmware.</li>
+      <li>Do not make router behavior a first-prototype requirement.</li>
+      <li>W5500 and modem tasks must run together without starving Modbus TCP, BACnet/IP, or T3000 discovery.</li>
+      <li>Power behavior during LTE registration and data TX is a ship-critical test item.</li>
+    </ul>
+
+    <p class="footnote">
+      Detail: <a href="HUB2_A7608_MODEM_INTEGRATION.md">HUB2_A7608_MODEM_INTEGRATION.md</a>.
+      Backlog: <a href="HUB2_A7608_MODEM_TODO.html">HUB2_A7608_MODEM_TODO.html</a>.
+    </p>
+  </div>
+</body>
+</html>

@@ -173,12 +173,12 @@ void print_all_ram_usage(void)
     uint32_t flash_size = 0;
     esp_flash_get_size(NULL, &flash_size);
     memset(debugbuf,0,sizeof(debugbuf));
-    sprintf(debugbuf,"Flash size: %lu bytes\r\n", flash_size);
+    sprintf(debugbuf,"Flash size: %u bytes\r\n", (unsigned)flash_size);
     uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
 
     uint32_t taskMemory = uxTaskGetStackHighWaterMark(NULL);
     memset(debugbuf,0,sizeof(debugbuf));
-    sprintf(debugbuf,"Task free stack: %lu bytes\r\n", taskMemory);
+    sprintf(debugbuf,"Task free stack: %u bytes\r\n", (unsigned)taskMemory);
     uart_write_bytes(UART_NUM_0, debugbuf, strlen(debugbuf));
 }
 

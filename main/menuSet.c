@@ -6,6 +6,7 @@
 #include "modbus.h"
 #include "flash.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 extern uint8_t item_to_adjust;
 void Count_com_config(void);
 //uint8_t current_schedule;
@@ -197,6 +198,7 @@ void MenuSet_keycope(uint16 key_value)
 			break;
 	}
 }
+#endif
 
 
 

@@ -67,6 +67,7 @@ void ui_Parameters_screen_init(void)
 {
     ui_Parameters = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_Parameters, LV_OBJ_FLAG_SCROLLABLE);
+    ui_set_screen_background(ui_Parameters);
 
     ui_ChangeConfigTitle2 = lv_obj_create(ui_Parameters);
     lv_obj_set_width(ui_ChangeConfigTitle2, 450);

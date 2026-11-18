@@ -6,6 +6,7 @@
 #include "esp_log.h"            // for log_write
 #include "driver/gpio.h"
 #include "driver/uart.h"
+#include "driver/usb_serial_jtag.h"
 #include "modbus.h"
 #include "i2c_task.h"
 #include "flash.h"
@@ -18,12 +19,16 @@
 #include "rs485.h"
 #include "airlab.h"
 #include "flash.h"
+#include "usb_cdc.h"
 #include "controls.h"
 #include "lcd.h"
 #include "sntp_app.h"
 #include "co2.h"
 #include "LcdTheme.h"
 #include "WireGuard_App.h"
+#include "hub_gsm_status.h"
+#include "Mqtt_Handler.h"
+#include "hub_snmp.h"
 #include "Mqtt_Handler.h"
 
 
@@ -53,9 +58,9 @@ extern SemaphoreHandle_t xSem_comport[3];
 
 #define MB_BUF_SIZE (512)
 
-#define GPIO_MODBUS_EN_PIN    GPIO_NUM_15
-#define GPIO_SUB_EN_PIN        GPIO_NUM_13
-#define GPIO_MAIN_EN_PIN     GPIO_NUM_2
+#define GPIO_MODBUS_EN_PIN	GPIO_NUM_15
+#define GPIO_SUB_EN_PIN		GPIO_NUM_13
+#define GPIO_MAIN_EN_PIN 	GPIO_NUM_2
 
 //#define SUB_EN_PIN_SEL    (1ULL<<GPIO_SUB_EN_PIN)
 //#define MAIN_EN_PIN_SEL    (1ULL<<GPIO_MAIN_EN_PIN)
@@ -99,6 +104,35 @@ uint8_t count_change_uart2 = 0;
 uint8_t count_modbus_slave[3];
 uint8_t com_config_back[3];
 
+static bool hub_usb_serial_ready = false;
+
+void hub_usb_serial_init(void)
+{
+	if(hub_usb_serial_ready)
+		return;
+
+	usb_serial_jtag_driver_config_t config = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+	config.rx_buffer_size = 1024;
+	config.tx_buffer_size = 1024;
+	esp_err_t ret = usb_serial_jtag_driver_install(&config);
+	if(ret == ESP_OK || ret == ESP_ERR_INVALID_STATE)
+		hub_usb_serial_ready = true;
+}
+
+int hub_usb_serial_read(uint8_t *buf, uint32_t length, uint32_t timeout_ms)
+{
+	if(!hub_usb_serial_ready)
+		return 0;
+	return usb_serial_jtag_read_bytes(buf, length, pdMS_TO_TICKS(timeout_ms));
+}
+
+int hub_usb_serial_write(const uint8_t *buf, size_t length, uint32_t timeout_ms)
+{
+	if(!hub_usb_serial_ready)
+		return 0;
+	return usb_serial_jtag_write_bytes(buf, length, pdMS_TO_TICKS(timeout_ms));
+}
+
 void check_modbus_slave(void)
 {
     if(Modbus.fix_com_config == 1)
@@ -137,6 +171,15 @@ void check_modbus_slave(void)
 
 void Check_change_uart(void)
 {
+	if(Modbus.mini_type == PROJECT_HUB)
+	{
+		flag_change_uart0 = 0;
+		flag_change_uart2 = 0;
+		count_change_uart0 = 0;
+		count_change_uart2 = 0;
+		return;
+	}
+
     if(flag_change_uart0 == 1)
     {
         if(count_change_uart0++ > 3)
@@ -146,7 +189,6 @@ void Check_change_uart(void)
             uart_init(0);
             Count_com_config();
         }
-
     }
 
     if(flag_change_uart2 == 1)
@@ -359,8 +401,11 @@ static void setup_reg_data()
  //   if(Modbus.p == PROJECT_FAN_MODULE)
 //        Modbus.product_model = 97;//62;//
  //   else
-        Modbus.product_model = 88;
-    Modbus.hardRev = 2;
+        /* Keep flash/production values. Serial is also not reset here. */
+        if(Modbus.product_model == 0)
+            Modbus.product_model = 88;
+        if(Modbus.hardRev == 0)
+            Modbus.hardRev = 2;
    // Modbus.readyToUpdate = 0;
 
   /*  coil_reg_params.coil0 = 1;
@@ -383,11 +428,18 @@ static void setup_reg_data()
 
 void uart_init(uint8_t uart)
 {
-    int baud;
-    if((Modbus.mini_type == PROJECT_LORA_GATEWAY) && (uart == 2))
-    {
-        return;
-    }
+	int baud;
+	if((Modbus.mini_type == PROJECT_LORA_GATEWAY) && (uart == 2))
+	{
+		return;
+	}
+#ifdef USE_USB_CDC_MAIN
+	if(uart == 2)
+	{
+		/* Port 2 由 USB CDC 接管，跳过 UART2 硬件初始化 */
+		return;
+	}
+#endif
 
     switch(Modbus.baudrate[uart])
     {
@@ -564,6 +616,7 @@ void uart0_rx_task(void *pvParameters)
     setup_reg_data();
     //uint8_t* uart_rsv = (uint8_t*)malloc(512);
     uint8_t uart_rsv[512];
+    const uint32_t block_time = 0;
 
     debug_info("modbous initial \r\n");
 
@@ -598,8 +651,12 @@ void uart0_rx_task(void *pvParameters)
                         }
                     }
 
-                    // Read everything available in one shot
-                    int len = uart_read_bytes(0, uart_rsv, sizeof(uart_rsv), 0);
+				int len;
+				if(Modbus.mini_type == PROJECT_HUB)
+					len = hub_usb_serial_read(uart_rsv, 512, block_time);
+				else
+                {
+					len = uart_read_bytes(0, uart_rsv, sizeof(uart_rsv), 0);
 
                     if(len > 0)
                     {
@@ -633,6 +690,7 @@ void uart0_rx_task(void *pvParameters)
                         }
                     }
                 }
+                }
             }
         }
         else if(Modbus.com_config[0] == BACNET_MASTER || Modbus.com_config[0] == BACNET_SLAVE)
@@ -651,49 +709,56 @@ void uart0_rx_task(void *pvParameters)
                     //check_mstp_packet(uart_rsv, len , 0);
                     //Test[32]++;
                     //Test[33] = len;
+				}
+				else
+					vTaskDelay(500 / portTICK_PERIOD_MS);
+			}
+			else
+			{
+				if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
+				{
+					int len;
+					if(Modbus.mini_type == PROJECT_HUB)
+						len = hub_usb_serial_read(uart_rsv, 50, 10);
+					else
+						len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
 
-                }
-            }
-            else
-                vTaskDelay(500 / portTICK_PERIOD_MS);
+					if(len>0)
+					{Test[24]++;
+						led_sub_rx++;
+						com_rx[0] += len;
+						flagLED_sub_rx = 1;
+						//flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
+						check_whether_modbus_slave(uart_rsv,len,0);
+					}
+
+				}
+				else
+					vTaskDelay(50 / portTICK_PERIOD_MS);
+			}
         }
-        else
-        {
-            if((Modbus.com_config[0] == 0)/* || (Modbus.com_config[0] == MODBUS_MASTER)*/)
-            {
-                int len = uart_read_bytes(uart_num_sub, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
-
-                if(len>0)
-                {Test[24]++;
-                    led_sub_rx++;
-                    com_rx[0] += len;
-                    flagLED_sub_rx = 1;
-                    //flag_debug_rx = 1; memcpy(udp_debug_str,uart_rsv,len); debug_rx_len = len;
-                    check_whether_modbus_slave(uart_rsv,len,0);
-                }
-
-            }
-            else
-                vTaskDelay(50 / portTICK_PERIOD_MS);
-        }
-    }
+	}
 }
 
 void uart2_rx_task(void *pvParameters)
 {
-    //uint8_t modbus_send_buf[500];
-    //uint16_t modbus_send_len;
-    //memset(modbus_send_buf,0,500);
-    //modbus_send_len = 0;
-    setup_reg_data();
-    //uint8_t* uart_rsv = (uint8_t*)malloc(512);
-    uint8_t uart_rsv[512];
-    task_test.enable[10] = 1;
-    while (1) {
-        task_test.count[10]++;
-        if(Modbus.com_config[2] == MODBUS_SLAVE)
-        {
-            int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_PERIOD_MS);
+	//uint8_t modbus_send_buf[500];
+	//uint16_t modbus_send_len;
+	//memset(modbus_send_buf,0,500);
+	//modbus_send_len = 0;
+	setup_reg_data();
+	//uint8_t* uart_rsv = (uint8_t*)malloc(512);
+	uint8_t uart_rsv[512];
+	task_test.enable[10] = 1;
+	while (1) {
+		task_test.count[10]++;
+		if(Modbus.com_config[2] == MODBUS_SLAVE)
+		{
+#ifdef USE_USB_CDC_MAIN
+			int len = usb_cdc_read(uart_rsv, 512, 70);
+#else
+			int len = uart_read_bytes(uart_num_main, uart_rsv, 512, 70 / portTICK_PERIOD_MS);
+#endif
 
             if(len>0)
             {
@@ -724,43 +789,50 @@ void uart2_rx_task(void *pvParameters)
                 }
             }
 
-        }
-        else if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE )
-        {
-            if(system_timer / 1000 > 10)
-            {
-                int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
+		}
+		else if(Modbus.com_config[2] == BACNET_MASTER || Modbus.com_config[2] == BACNET_SLAVE )
+		{
+			if(system_timer / 1000 > 10)
+			{
+#ifdef USE_USB_CDC_MAIN
+				int len = usb_cdc_read(uart_rsv, 512, 100);
+#else
+				int len = uart_read_bytes(UART_NUM_2, uart_rsv, 512, 100 / portTICK_PERIOD_MS);
+#endif
 
-                if(len > 0)
-                {
-                    led_main_rx++;
-                    com_rx[2] += len;
-                    flagLED_main_rx = 1;
-                    Timer_Silence_Reset();
-                    //check_mstp_packet(uart_rsv, len , 2);
-                }
-            }
-            else
-                vTaskDelay(500 / portTICK_PERIOD_MS);
-        }
-        else
-        {
-            if((Modbus.com_config[2] == 0)/* || (Modbus.com_config[2] == MODBUS_MASTER) */)
-            {
-
-                int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
-                if(len>0)
-                {
-                    led_main_rx++;
-                    com_rx[2] += len;
-                    flagLED_main_rx = 1;
-                    check_whether_modbus_slave(uart_rsv,len,2);
-                }
-            }
-            else
-                vTaskDelay(500 / portTICK_PERIOD_MS);
-        }
-    }
+				if(len > 0)
+				{
+					led_main_rx++;
+					com_rx[2] += len;
+					flagLED_main_rx = 1;
+					Timer_Silence_Reset();
+					//check_mstp_packet(uart_rsv, len , 2);
+				}
+			}
+			else
+				vTaskDelay(500 / portTICK_PERIOD_MS);
+		}
+		else
+		{
+			if((Modbus.com_config[2] == 0)/* || (Modbus.com_config[2] == MODBUS_MASTER) */)
+			{
+#ifdef USE_USB_CDC_MAIN
+				int len = usb_cdc_read(uart_rsv, 50, 10);
+#else
+				int len = uart_read_bytes(uart_num_main, uart_rsv, 50, 10 / portTICK_PERIOD_MS);
+#endif
+				if(len>0)
+				{
+					led_main_rx++;
+					com_rx[2] += len;
+					flagLED_main_rx = 1;
+					check_whether_modbus_slave(uart_rsv,len,2);
+				}
+			}
+			else
+				vTaskDelay(500 / portTICK_PERIOD_MS);
+		}
+	}
 }
 
 void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8_t *resData ,uint16_t *modbus_send_len,uint8_t port)
@@ -1176,6 +1248,26 @@ void responseModbusData(uint8_t  *bufadd, uint8_t type, uint16_t rece_size,uint8
             else if((address >= MODBUS_WIREGUARD_ENABLE)&& (address <= MODBUS_WIREGUARD_END))
             {
                 temp = wireguard_read_by_block(address);
+                temp1 = (temp >> 8) & 0xFF;
+                temp2 = temp & 0xFF;
+            }
+            else if((address >= MODBUS_GSM_MODEM_STATE)&& (address <= MODBUS_GSM_END)
+            		&& (Modbus.mini_type == PROJECT_HUB))
+            {
+                temp = gsm_status_read_by_block(address);
+                temp1 = (temp >> 8) & 0xFF;
+                temp2 = temp & 0xFF;
+            }
+            else if((address >= MODBUS_MQTT_ENABLE) && (address <= MODBUS_MQTT_END))
+            {
+                temp = mqtt_config_read_by_block(address);
+                temp1 = (temp >> 8) & 0xFF;
+                temp2 = temp & 0xFF;
+            }
+            else if((address >= MODBUS_SNMP_ENABLE) && (address <= MODBUS_SNMP_END)
+            		&& (Modbus.mini_type == PROJECT_HUB))
+            {
+                temp = snmp_config_read_by_block(address);
                 temp1 = (temp >> 8) & 0xFF;
                 temp2 = temp & 0xFF;
             }
@@ -1884,7 +1976,14 @@ uint16_t read_tstat10_data_by_block(uint16_t addr)
     }
     else if(addr == MODBUS_OCCUPID)
     {
-        ptr = put_io_buf(IN,11);
+        if(Modbus.mini_type == MINI_TSTAT11)
+        {
+            ptr = put_io_buf(IN,4);
+        }
+        else
+        {
+            ptr = put_io_buf(IN,11);
+        }
         return ptr.pin->control;
     }
     else if(addr == MODBUS_CO2)
@@ -1920,7 +2019,7 @@ static void write_tstat10_data_by_block(uint16_t StartAdd,uint8_t HeadLen,uint8_
 	{
 //       vTaskSuspend(Handle_Menu);
         display_lcd.lcddisplay[StartAdd - MODBUS_LCD_CONFIG_FIRST] = pData[HeadLen + 5]+ (pData[HeadLen + 4]<<8);
-        memcpy(Setting_Info.reg.display_lcd.lcddisplay,display_lcd.lcddisplay,sizeof(lcdconfig));
+        memcpy(&Setting_Info.reg.display_lcd, &display_lcd, sizeof(lcdconfig));
         // clear first screen
         /*disp_str(FORM15X30, 6,  32, " ",SCH_COLOR,TSTAT8_BACK_COLOR);
         disp_ch(0,FIRST_CH_POS,THERM_METER_POS,' ',TSTAT8_CH_COLOR,TSTAT8_BACK_COLOR);
@@ -1973,6 +2072,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		else if(temp_i >= MODBUS_WIREGUARD_ENABLE && temp_i <= MODBUS_WIREGUARD_END)
 		{
 			wireguard_write_by_block(temp_i,0,bufadd);
+		}
+		else if(temp_i >= MODBUS_MQTT_ENABLE && temp_i <= MODBUS_MQTT_END)
+		{
+			mqtt_config_write_by_block(temp_i, 0, bufadd);
+		}
+		else if(temp_i >= MODBUS_SNMP_ENABLE && temp_i <= MODBUS_SNMP_END
+			&& (Modbus.mini_type == PROJECT_HUB))
+		{
+			snmp_config_write_by_block(temp_i, 0, bufadd);
 		}
 
 		/******************* write IN OUT by block start ******************************************/
@@ -2048,6 +2156,22 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			}
 			save_uint8_to_flash(FLASH_SN_WRITE,SNWriteflag);
 		}
+		else if(address == PRODUCT_MODEL)
+		{
+			if(*(bufadd + 5) != 0)
+			{
+				Modbus.product_model = *(bufadd + 5);
+				save_uint8_to_flash(FLASH_PRODUCT_MODEL, Modbus.product_model);
+			}
+		}
+		else if(address == HARDWARE_REV)
+		{
+			if(*(bufadd + 5) != 0)
+			{
+				Modbus.hardRev = *(bufadd + 5);
+				save_uint8_to_flash(FLASH_HARDWARE_REV, Modbus.hardRev);
+			}
+		}
 		if(address >= MODBUS_WIFI_START && address < MODBUS_WIREGUARD_ENABLE)
 		{
 			write_wifi_data_by_block(address,0,bufadd,0);
@@ -2055,6 +2179,15 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		else if(address >= MODBUS_WIREGUARD_ENABLE && address <= MODBUS_WIREGUARD_END)
 		{
 			wireguard_write_by_block(address,0,bufadd);
+		}
+		else if(address >= MODBUS_MQTT_ENABLE && address <= MODBUS_MQTT_END)
+		{
+			mqtt_config_write_by_block(address, 0, bufadd);
+		}
+		else if(address >= MODBUS_SNMP_ENABLE && address <= MODBUS_SNMP_END
+			&& (Modbus.mini_type == PROJECT_HUB))
+		{
+			snmp_config_write_by_block(address, 0, bufadd);
 		}
 		if(address >= MODBUS_TSTAT10_START && address <= MODBUS_TSTAT10_END)
 		{
@@ -2144,7 +2277,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		else if(address == MODBUS_ENABLE_MQTT)
 		{
 			Modbus.enable_mqtt = *(bufadd + 5);
+			mqtt_point.reg.enable = Modbus.enable_mqtt ? 1 : 0;
 			save_uint8_to_flash( FLASH_ENABLE_MQTT, Modbus.enable_mqtt);
+			save_mqtt_config_to_flash();
 			if(Modbus.enable_mqtt)
 				Mqtt_Handler_Init();
 			else
@@ -2274,7 +2409,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 		}
 		else if(address == MODBUS_MINI_TYPE)
 		{
-			if(*(bufadd + 5) <= MAX_MINI_TYPE && *(bufadd + 5) >= MINI_BIG_ARM)
+			if(*(bufadd + 5) <= MAX_MINI_TYPE && *(bufadd + 5) >= PROJECT_HUB)
 			{
 				Modbus.mini_type = *(bufadd + 5);
 				save_uint8_to_flash( FLASH_MINI_TYPE, Modbus.mini_type);
@@ -2285,7 +2420,9 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 			if(*(bufadd + 5) < 10 && *(bufadd + 5) >= 0)
 			{
 				Modbus.LcdTheme = *(bufadd + 5);
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 				LcdThemeMarkForUpdate();
+#endif
 				save_uint8_to_flash( FLASH_THEME_TYPE, Modbus.LcdTheme);
 			}
 		}
@@ -2438,7 +2575,7 @@ void internalDeal(uint8_t  *bufadd,uint8_t type)
 
 uint16_t read_IO_reg(uint16_t addr)
 {
-    uint8_t sendbuf[2];
+    uint8_t sendbuf[2] = {0, 0};
     Str_points_ptr ptr;
     if((addr >= MODBUS_OUTPUT_FIRST && addr <= MODBUS_OUTPUT_LAST) ||
         (addr >= MODBUS_EXOUTPUT_FIRST && addr <= MODBUS_EXOUTPUT_LAST))
@@ -3864,9 +4001,9 @@ void dealwith_write_setting(Str_Setting_Info * ptr)
             }
 #endif
 
-            if(memcmp(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcdconfig)))
+            if(memcmp(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcddisplay)))
             {
-                memcpy(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcdconfig));
+                memcpy(lcddisplay,ptr->reg.display_lcd.lcddisplay,sizeof(lcddisplay));
 
                 // clear first screen
                 /*disp_str(FORM15X30, 6,  32, "     ",SCH_COLOR,TSTAT8_BACK_COLOR);

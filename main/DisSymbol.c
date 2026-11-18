@@ -17,6 +17,7 @@
 #include "LcdTheme.h"
 #include "LCD_TSTAT.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 /*************************** color definitions ***************************/
 #define DIS_CH     DIS_SYMBOL_COLOR
 #define DIS_BG     DIS_SYMBOL_BG
@@ -1707,5 +1708,6 @@ DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, 
 DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG, DIS_BG
 
 };
+#endif
 
 // End of File

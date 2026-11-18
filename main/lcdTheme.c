@@ -44,6 +44,9 @@
 #include "Menu.h"
 #include "wifi.h"
 
+static eDeviceStage_t DeviceStage = DEVICE_STAGE_POWERON;
+
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #define TOTAL_THEMES   10
 
 const sLcdTheme_t ThemeList[TOTAL_THEMES] =
@@ -191,7 +194,6 @@ const sLcdTheme_t ThemeList[TOTAL_THEMES] =
 
 /* Internal current theme */
 static sLcdTheme_t CurrentTheme = ThemeList[1];
-static eDeviceStage_t DeviceStage = DEVICE_STAGE_POWERON;
 static bool LcdThemeUpdateRequired = false;
 
 /* Static function prototypes */
@@ -417,6 +419,13 @@ U16_T LcdThemeUpdateSymbol( U16_T inColour )
     return outColour;
 }
 
+#else
+void LcdThemeMarkForUpdate(void)
+{
+}
+
+#endif
+
 /**
  * @brief Get the current Device Stage
  *
@@ -443,6 +452,7 @@ void Set_Device_Stage(eDeviceStage_t stage)
     DeviceStage = stage;
 }
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 /**
  * @brief Set the current theme.
  *
@@ -458,3 +468,4 @@ static void LcdThemeSetCurrent(U8_T themeIndex)
         menu_init();
     }
 }
+#endif

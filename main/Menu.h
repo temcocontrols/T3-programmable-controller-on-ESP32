@@ -4,6 +4,7 @@
 #define	__MENU_H__
 #include "types.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #include "menuIdle.h"
 #include "menuMain.h"
 #include "menuSet.h"
@@ -91,6 +92,7 @@ void menu_init(void);
 void DisplayHomeScreen( bool isHomeScreen );
 //void vStartScrollingTask(unsigned char uxPriority);
 void print(char *p);
+#endif
 
 #endif
 

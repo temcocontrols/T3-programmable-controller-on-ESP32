@@ -152,6 +152,13 @@ protected:
   uint8_t m_bitShift;            ///< bit shift amount
   adsGain_t m_gain;              ///< ADC gain
   uint16_t m_dataRate;           ///< Data rate
+  Adafruit_ADS1X15()
+      : m_i2c_dev(NULL), m_bitShift(0), m_gain(GAIN_TWOTHIRDS), m_dataRate(0)
+  {
+    buffer[0] = 0;
+    buffer[1] = 0;
+    buffer[2] = 0;
+  }
 
 public:
   bool begin(uint8_t i2c_addr = ADS1X15_ADDRESS, TwoWire *wire = &Wire);

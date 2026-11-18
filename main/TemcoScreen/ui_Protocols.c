@@ -121,6 +121,7 @@ void ui_Protocols_screen_init(void)
 {
     ui_Protocols = lv_obj_create(NULL);
     lv_obj_remove_flag(ui_Protocols, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    ui_set_screen_background(ui_Protocols);
 
     ui_ChangeConfigTitle7 = lv_obj_create(ui_Protocols);
     lv_obj_set_width(ui_ChangeConfigTitle7, 450);

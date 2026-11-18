@@ -46,6 +46,7 @@ typedef enum
 #define FLASH_SERIAL_NUM2	"SERIAL_NUM_2"
 #define FLASH_SERIAL_NUM3	"SERIAL_NUM_3"
 #define FLASH_SERIAL_NUM4	"SERIAL_NUM_4"
+#define FLASH_PRODUCT_MODEL	"PRODUCT_MODEL"
 #define FLASH_RESUME_PACKAGE "RESUME_PACKAGE"
 #define FLASH_BOOTLOADER    "BOOTLOADER"
 #define FLASH_COUNT_REBOOT	"COUNT_REBOOT"
@@ -56,6 +57,8 @@ typedef enum
 #define FLASH_UART2_CONFIG	"UART2_CONFIG"
 #define FLASH_UART_CONFIG	"UART0_CONFIG"
 #define FLASH_SN_WRITE		"SN_WRITE"
+#define FLASH_PRODUCT_MODEL	"PRODUCT_MODEL"
+#define FLASH_HARDWARE_REV	"HARDWARE_REV"
 #define FLASH_MINI_TYPE		"MINI_TYPE"
 #define FLASH_THEME_TYPE	"THEME_TYPE"
 #define FLASH_DIS_HOME_SCREEN	"DIS_HOME_SCREEN"
@@ -131,8 +134,9 @@ typedef enum
 
 #define FLASH_CURRENT_TLG_PAGE	"TLG_PAGE"
 
-
 #define FLASH_ENABLE_MQTT        "MQTT_EN"
+#define FLASH_MQTT_BLOB          "MQTT_CFG"
+#define FLASH_SNMP_BLOB          "SNMP_CFG"
 #define FLASH_ENABLE_DEBUG
 
 
@@ -161,14 +165,15 @@ typedef enum
 */
 
 
+#define FLASH_OCC_TRIGGER_VALUE	"OCC_TRIGGER_VALUE"
+#define FLASH_OCC_TRIGGER_TIMER	"OCC_TRIGGER_TIMER"
+
 /*#define FLASH_SOUND_TRIGGER_VALUE	"SOUND_TRIGGER_VALUE"
 #define FLASH_SOUND_TRIGGER_TIMER	"SOUND_TRIGGER_TIMER"
 #define FLASH_LIGHT_TRIGGER_VALUE	"LIGHT_TRIGGER_VALUE"
 #define FLASH_LIGHT_TRIGGER_TIMER	"LIGHT_TRIGGER_TIMER"
 #define FLASH_CO2_TRIGGER_VALUE	"CO2_TRIGGER_VALUE"
 #define FLASH_CO2_TRIGGER_TIMER	"CO2_TRIGGER_TIMER"
-#define FLASH_OCC_TRIGGER_VALUE	"OCC_TRIGGER_VALUE"
-#define FLASH_OCC_TRIGGER_TIMER	"OCC_TRIGGER_TIMER"
 #define FLASH_SHT31_TEMP_OFFSET "SHT31_TEMP_OFFSET"
 #define FLASH_10K_TEMP_OFFSET	"10K_TEMP_OFFSET"
 #define FLASH_AMBIENT_TEMP_OFFSET	"AMBIENT_TEMP_OFFSET"
@@ -196,6 +201,10 @@ esp_err_t Save_Lcd_config(void);
 
 esp_err_t save_wireguard_config_to_flash(void);
 esp_err_t load_wireguard_config_from_flash(void);
+esp_err_t save_mqtt_config_to_flash(void);
+esp_err_t load_mqtt_config_from_flash(void);
+esp_err_t save_snmp_config_to_flash(void);
+esp_err_t load_snmp_config_from_flash(void);
 
 extern void Flash_Inital(void);
 extern void read_point_info(void);

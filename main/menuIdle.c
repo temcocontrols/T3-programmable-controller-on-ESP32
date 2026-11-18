@@ -10,6 +10,7 @@
 #include "LcdTheme.h"
 #include "airlab.h"
 
+#if (CONFIG_IDF_TARGET_ESP32S3 == 0)
 #define	NODES_POLL_PERIOD	30
 
 #define DISPLAY_VAL_LENTH   5
@@ -1877,4 +1878,5 @@ void display_value(uint16 pos, int16 disp_value, uint8 disp_unit)
 //	disp_str(FORM15X30, pos, MENU_VALUE_POS,  spbuf,  TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 	disp_str(FORM15X30, 0, SYS_MODE_POS,  (char *)spbuf,  TSTAT8_CH_COLOR, TSTAT8_BACK_COLOR);
 }
+#endif
 

@@ -16,6 +16,7 @@
 #include <netdb.h>
 
 #include "wifi.h"
+#include "define.h"
 #include "driver/uart.h"
 extern uint16_t Test[50];
 
@@ -186,15 +187,20 @@ void get_external_ip(char *ip_address, size_t len) {
 void uart_init(uint8_t uart);
 // 动态 DNS 任务
 void ddns_task(void *pvParameters) {
-	char ip_address[64];// = "114.86.81.158";
+	char ip_address[64] = {0};
     Test[10] = 0;
     while (1) {
+        if(Modbus.en_dyndns != 2 || SSID_Info.IP_Wifi_Status != WIFI_NORMAL)
+        {
+            vTaskDelay(pdMS_TO_TICKS(10000));
+            continue;
+        }
         // 获取外部 IP 地址
-        //get_external_ip(ip_address, sizeof(ip_address));
+        get_external_ip(ip_address, sizeof(ip_address));
         //ESP_LOGI(TAG, "External IP: %s", ip_address);
 
         // 更新动态 DNS
-        update_ddns(ip_address);
+        if(ip_address[0] != '\0') update_ddns(ip_address);
 
         memcpy(&Test[20],&ip_address,20);
 #if 0

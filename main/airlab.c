@@ -25,6 +25,17 @@
 
 extern STR_Task_Test task_test;
 
+static int airlab_display_config_index(uint16_t addr)
+{
+	if (addr == MODBUS_AIRLAB_DISPLAY_CONFIG5) {
+		return 4;
+	}
+	if (addr >= MODBUS_AIRLAB_DISPLAY_CONFIG1 && addr <= MODBUS_AIRLAB_DISPLAY_CONFIG4) {
+		return (int)(addr - MODBUS_AIRLAB_DISPLAY_CONFIG1);
+	}
+	return -1;
+}
+
 //sensirion PM2.5 sensor
 enum{
 SENSIRION_NULL,
@@ -1029,9 +1040,9 @@ uint16_t read_airlab_by_block(uint16_t addr)
 	  return co2_lowest_value;
 	}*/
 	// DISPLAY CONFIG
-	else if((addr >= MODBUS_AIRLAB_DISPLAY_CONFIG1) && (addr <= MODBUS_AIRLAB_DISPLAY_CONFIG5))
+	else if (airlab_display_config_index(addr) >= 0)
 	{
-	  return display_config[addr - MODBUS_AIRLAB_DISPLAY_CONFIG1];
+	  return display_config[airlab_display_config_index(addr)];
 	}
 	else if(addr == MODBUS_AIRLAB_IS_BLANK_SCREEN)
 	{
@@ -1123,9 +1134,9 @@ void write_airlab_by_block(uint16_t addr,uint8_t HeadLen,uint8_t *pData,uint8_t 
 		}
 	}
 	// DISPLAY CONFIG
-	else if((addr >= MODBUS_AIRLAB_DISPLAY_CONFIG1) && (addr <= MODBUS_AIRLAB_DISPLAY_CONFIG5))
+	else if (airlab_display_config_index(addr) >= 0)
 	{
-		display_config[addr - MODBUS_AIRLAB_DISPLAY_CONFIG1] = pData[HeadLen + 5];
+		display_config[airlab_display_config_index(addr)] = pData[HeadLen + 5];
 	}
 	else if(addr == MODBUS_AIRLAB_IS_BLANK_SCREEN)
 	{
