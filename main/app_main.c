@@ -956,21 +956,23 @@ static int tcp_send_all(int sock, const uint8_t *buf, int len)
 	return sent_total;
 }
 
+/* T3000 ISP "enter bootloader": EE 10 00 00 00 00 00 00, often padded to 64 bytes. */
+static int is_isp_enter_cmd(const U8_T *buf, uint16_t len)
+{
+	return (len >= 8) &&
+	       (buf[0] == 0xee) && (buf[1] == 0x10) &&
+	       (buf[2] == 0x00) && (buf[3] == 0x00) &&
+	       (buf[4] == 0x00) && (buf[5] == 0x00) &&
+	       (buf[6] == 0x00) && (buf[7] == 0x00);
+}
+
 static int Modbus_Tcp_one(uint16_t len, int sock, U8_T *rx_buffer)
 {
 	memset(modbus_send_buf, 0, 500);
 	modbus_send_len = 0;
 
-	if ((rx_buffer[0] == 0xee) && (rx_buffer[1] == 0x10) &&
-	    (rx_buffer[2] == 0x00) && (rx_buffer[3] == 0x00) &&
-	    (rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
-	    (rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00))
+	if (is_isp_enter_cmd(rx_buffer, len))
 	{
-		if (Modbus.mini_type == PROJECT_CO2)
-		{
-			flag_updating = 1;
-			delay_ms(2000);
-		}
 		start_fw_update();
 	}
 
@@ -1068,6 +1070,13 @@ int Modbus_Tcp(uint16_t len, int sock, U8_T *rx_buffer)
 	uint16_t offset = 0;
 	int frames = 0;
 	int last_ok = 0;
+
+	/* Same ISP enter check as the old firmware, on the raw TCP buffer.
+	   The frame splitter below rejects this packet because mbap_len is 0. */
+	if (is_isp_enter_cmd(rx_buffer, len))
+	{
+		start_fw_update();
+	}
 
 	/* One TCP read may contain several Modbus ADUs (common over WG). */
 	while ((offset + UIP_HEAD) <= len)

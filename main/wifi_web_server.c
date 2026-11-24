@@ -13,6 +13,7 @@
 
 #include "wifi.h"
 #include "flash.h"
+#include "define.h"
 #include "wifi_web_server.h"
 #include "dynamic_display_api.h"
 
@@ -267,7 +268,8 @@ esp_err_t wifi_web_server_start(void)
 {
     if (server) return ESP_OK;
 
-    dynamic_display_api_stop();
+    if (Modbus.mini_type == MINI_TSTAT11)
+        dynamic_display_api_stop();
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 8;
@@ -316,6 +318,9 @@ void wifi_web_server_stop(void)
         server = NULL;
         ESP_LOGE(TAG, "HTTP Web Server stopped.");
     }
-    vTaskDelay(pdMS_TO_TICKS(100)); // Small delay to ensure server stops before starting dynamic display API
-    dynamic_display_api_start();
+    if (Modbus.mini_type == MINI_TSTAT11)
+    {
+        vTaskDelay(pdMS_TO_TICKS(100)); // Small delay to ensure server stops before starting dynamic display API
+        dynamic_display_api_start();
+    }
 }
