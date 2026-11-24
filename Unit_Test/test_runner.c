@@ -22,6 +22,9 @@ extern void test_timegm_epoch_start(void);
 extern void test_timegm_known_date(void);
 extern void test_timegm_invalid_month(void);
 extern void test_timegm_before_epoch(void);
+extern void test_rtc_get_week_known_friday(void);
+extern void test_rtc_get_week_invalid_month(void);
+extern void test_pcf_set_datetime_and_system_rejects_null(void);
 
 // New Test Functions from test_bacnet_codecs.c
 extern void test_bacnet_tag_encoding_decoding(void);
@@ -128,6 +131,9 @@ int main(void)
     RUN_TEST(test_timegm_known_date);
     RUN_TEST(test_timegm_invalid_month);
     RUN_TEST(test_timegm_before_epoch);
+    RUN_TEST(test_rtc_get_week_known_friday);
+    RUN_TEST(test_rtc_get_week_invalid_month);
+    RUN_TEST(test_pcf_set_datetime_and_system_rejects_null);
 
     // 6. BACnet Codec Tests
     RUN_TEST(test_bacnet_tag_encoding_decoding);

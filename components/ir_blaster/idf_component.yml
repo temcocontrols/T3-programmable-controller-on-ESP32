@@ -1,0 +1,4 @@
+## TSTAT11 IR blaster
+## IRremoteIDF is the ESP-IDF port of IRremoteESP8266 v2.9.0 (130 protocols + raw learn/replay).
+dependencies:
+  jorgecis/IRremoteIDF: "^1.0.2"

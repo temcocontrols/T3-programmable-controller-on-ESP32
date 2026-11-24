@@ -169,7 +169,10 @@ int PCF_GetAlarm(PCF_Alarm *alarm) {
 }
 
 int PCF_SetDateTime(PCF_DateTime *dateTime) {
-	if (dateTime->second >= 60 || dateTime->minute >= 60 || dateTime->hour >= 24 || dateTime->day > 32 || dateTime->weekday > 6 || dateTime->month > 12 || dateTime->year < 1900 || dateTime->year >= 2100)
+	if (dateTime->second >= 60 || dateTime->minute >= 60 || dateTime->hour >= 24 ||
+	    dateTime->day < 1 || dateTime->day > 31 || dateTime->weekday > 6 ||
+	    dateTime->month < 1 || dateTime->month > 12 ||
+	    dateTime->year < 1900 || dateTime->year >= 2100)
 	{
 		return -2;
 	}
@@ -340,6 +343,33 @@ int PCF_systohc(){
 
 fail:
 	return ret;
+}
+
+int PCF_SetDateTimeAndSystem(PCF_DateTime *dateTime)
+{
+	struct tm tm = {0};
+	struct timeval tv = {0};
+	int ret;
+
+	if (dateTime == NULL) {
+		return -2;
+	}
+
+	dateTime->weekday = RTC_Get_Week(dateTime->year, dateTime->month, dateTime->day);
+	ret = PCF_SetDateTime(dateTime);
+	if (ret != 0) {
+		return ret;
+	}
+
+	tm.tm_sec = dateTime->second;
+	tm.tm_min = dateTime->minute;
+	tm.tm_hour = dateTime->hour;
+	tm.tm_mday = dateTime->day;
+	tm.tm_mon = dateTime->month - 1;
+	tm.tm_year = dateTime->year - 1900;
+	tv.tv_sec = timegm(&tm);
+	tv.tv_usec = 0;
+	return settimeofday(&tv, NULL);
 }
 
 

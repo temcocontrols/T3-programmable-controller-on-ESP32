@@ -251,6 +251,10 @@ void ui_init(void)
 #if 1
     ui_DdnsScreen_screen_init();
 #endif
+    if (ui_ir_blaster_visible()) {
+        ui_IrBlaster_screen_init();
+        ui_IrSlotDetail_screen_init();
+    }
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_StartUpScreen);
 }
@@ -272,4 +276,6 @@ void ui_destroy(void)
 #if 1
     ui_DdnsScreen_screen_destroy();
 #endif
+    ui_IrBlaster_screen_destroy();
+    ui_IrSlotDetail_screen_destroy();
 }

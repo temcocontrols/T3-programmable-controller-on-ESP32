@@ -1,0 +1,40 @@
+menu "TSTAT11 IR blaster"
+
+    config IR_BLASTER_TX_GPIO
+        int "IR transmitter GPIO (MOSFET gate for 3x TSAL6200)"
+        range 0 48
+        default 17
+        help
+            Tstat11 REV3: IO17_U1TX drives Q8, which switches D23/D24/D25 in parallel.
+
+    config IR_BLASTER_RX_GPIO
+        int "IR receiver GPIO (TSOP32238 OUT)"
+        range 0 48
+        default 18
+        help
+            Tstat11 REV3: TSOP32238 OUT is net IO18_U1RX.
+
+    config IR_BLASTER_CAPTURE_SIZE
+        int "IR capture buffer size (raw entries)"
+        range 100 2048
+        default 1024
+        help
+            1024 entries is enough for long A/C frames.
+
+    config IR_BLASTER_TIMEOUT_MS
+        int "IR message end timeout (ms)"
+        range 15 90
+        default 50
+        help
+            Quiet time that ends a capture. 15 ms suits most remotes; A/C needs 50 ms.
+
+    config IR_BLASTER_ECHO
+        bool "Replay each captured code (bench test)"
+        default n
+        help
+            After a successful capture, wait 500 ms then blast the same code on the
+            three IR LEDs. Use this to test learn+playback with an AC or fan.
+            Leave off in production so the thermostat does not rebroadcast every
+            remote in the room.
+
+endmenu

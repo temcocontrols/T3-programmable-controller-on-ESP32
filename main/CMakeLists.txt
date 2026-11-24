@@ -1,3 +1,9 @@
+if(IDF_TARGET STREQUAL "esp32s3")
+	set(IR_BLASTER_REQUIRES ir_blaster)
+else()
+	set(IR_BLASTER_REQUIRES)
+endif()
+
 idf_component_register(		SRCS
 							"app_main.c"
 							"modbus.c"
@@ -114,6 +120,7 @@ idf_component_register(		SRCS
 						temco_dynamic_display
 						esp_wireguard
 						snmp_agent
+						${IR_BLASTER_REQUIRES}
 			PRIV_REQUIRES espressif__esp_modem
 							)
 

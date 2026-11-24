@@ -38,6 +38,7 @@
 #include "ethernet_task.h"
 #include "flash.h"
 #include "rtc.h"
+#include <time.h>
 #include "usb_cdc.h"
 
 #include "i2c_task.h"
@@ -73,6 +74,12 @@
 #include "WireGuard_App.h"
 #include "Mqtt_Handler.h"
 #include "hub_snmp.h"
+#if CONFIG_IDF_TARGET_ESP32S3
+#include "ir_blaster.h"
+#if MINI_TSTAT11 != IR_BLASTER_MINI_TSTAT11
+#error MINI_TSTAT11 must stay 31 (IR_BLASTER_MINI_TSTAT11)
+#endif
+#endif
 
 //#include "lowPower.h"
 
@@ -949,21 +956,23 @@ static int tcp_send_all(int sock, const uint8_t *buf, int len)
 	return sent_total;
 }
 
+/* T3000 ISP "enter bootloader": EE 10 00 00 00 00 00 00, often padded to 64 bytes. */
+static int is_isp_enter_cmd(const U8_T *buf, uint16_t len)
+{
+	return (len >= 8) &&
+	       (buf[0] == 0xee) && (buf[1] == 0x10) &&
+	       (buf[2] == 0x00) && (buf[3] == 0x00) &&
+	       (buf[4] == 0x00) && (buf[5] == 0x00) &&
+	       (buf[6] == 0x00) && (buf[7] == 0x00);
+}
+
 static int Modbus_Tcp_one(uint16_t len, int sock, U8_T *rx_buffer)
 {
 	memset(modbus_send_buf, 0, 500);
 	modbus_send_len = 0;
 
-	if ((rx_buffer[0] == 0xee) && (rx_buffer[1] == 0x10) &&
-	    (rx_buffer[2] == 0x00) && (rx_buffer[3] == 0x00) &&
-	    (rx_buffer[4] == 0x00) && (rx_buffer[5] == 0x00) &&
-	    (rx_buffer[6] == 0x00) && (rx_buffer[7] == 0x00))
+	if (is_isp_enter_cmd(rx_buffer, len))
 	{
-		if (Modbus.mini_type == PROJECT_CO2)
-		{
-			flag_updating = 1;
-			delay_ms(2000);
-		}
 		start_fw_update();
 	}
 
@@ -1061,6 +1070,13 @@ int Modbus_Tcp(uint16_t len, int sock, U8_T *rx_buffer)
 	uint16_t offset = 0;
 	int frames = 0;
 	int last_ok = 0;
+
+	/* Same ISP enter check as the old firmware, on the raw TCP buffer.
+	   The frame splitter below rejects this packet because mbap_len is 0. */
+	if (is_isp_enter_cmd(rx_buffer, len))
+	{
+		start_fw_update();
+	}
 
 	/* One TCP read may contain several Modbus ADUs (common over WG). */
 	while ((offset + UIP_HEAD) <= len)
@@ -2767,8 +2783,14 @@ void Timer_task(void *pvParameters)
 			&&(Modbus.mini_type != PROJECT_MULTIMETER) && (Modbus.mini_type != PROJECT_LSW_BTN) && (Modbus.mini_type != PROJECT_LSW_SENSOR) )
 	{
 		i2c_master_init();
-		PCF_hctosys();
-		PCF_systohc();
+		if(PCF_hctosys() == 0)
+		{
+			PCF_systohc();
+		}
+		else
+		{
+			debug_info("PCF_hctosys failed, skip PCF_systohc");
+		}
 	}
 	Eth_IP_Change = 0;
 
@@ -2889,10 +2911,14 @@ void Timer_task(void *pvParameters)
 			{
 				PCF_GetDateTime(&rtc_date);
 				Test[40]++;
-				// syc time per hour
+				/* Copy ESP32 → PCF only when system time is valid.
+				 * Otherwise this writes 1970/00:00 over a time set from the LCD. */
 				if(rtc_date.minute == 0 && rtc_date.second == 0)
 				{Test[41]++;
-					PCF_systohc();
+					if(time(NULL) > (time_t)1577836800)
+					{
+						PCF_systohc();
+					}
 				}
 			}
 
@@ -4844,6 +4870,14 @@ void app_main()
 	{
 		LCD_Init();
 		xTaskCreate(Lcd_Task , "Lcd_Task", (4096 * 4), NULL, tskIDLE_PRIORITY + 1,  &main_task_handle[17]);
+#if CONFIG_IDF_TARGET_ESP32S3
+		/* TSTAT11 only: GPIO17 TX / GPIO18 RX. Never start on HUB or other types. */
+		ESP_LOGI(TCP_TASK_TAG, "ir_blaster calling init (mini_type %u)", (unsigned)Modbus.mini_type);
+		{
+			esp_err_t ir_ret = ir_blaster_init(Modbus.mini_type);
+			ESP_LOGI(TCP_TASK_TAG, "ir_blaster_init %s", esp_err_to_name(ir_ret));
+		}
+#endif
 	}
 
 #if (CONFIG_IDF_TARGET_ESP32S3 == 0)

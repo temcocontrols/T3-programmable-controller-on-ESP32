@@ -7,5 +7,6 @@
         "IDF_TARGET": "esp32s3"
     },
     "idf.portWin": "COM11",
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "idf.port": "COM11"
 }
