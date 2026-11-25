@@ -4,6 +4,7 @@
 // Project name: TemcoProject
 
 #include "ui_helpers.h"
+#include "ui_json_render.h"
 
 void _ui_bar_set_property(lv_obj_t * target, int id, int val)
 {
@@ -52,6 +53,9 @@ void _ui_slider_set_property(lv_obj_t * target, int id, int val)
 void _ui_screen_change(lv_obj_t ** target, lv_screen_load_anim_t fademode, int spd, int delay,
                        void (*target_init)(void))
 {
+    /* When the deployed JSON UI owns the display, the compiled navigation
+     * must not pull it back to a built-in screen. */
+    if(ui_json_render_active()) return;
     if(*target == NULL)
         target_init();
     lv_screen_load_anim(*target, fademode, spd, delay, false);

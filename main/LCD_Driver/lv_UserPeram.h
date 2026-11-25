@@ -15,6 +15,7 @@
 
 #include "lvgl.h"
 #include "TemcoScreen/ui.h"
+#include "TemcoScreen/ui_json_render.h"
 #include "TemcoScreen/ui_helpers.h"
 #include "TemcoScreen/ui_StartUpScreen.h"
 #include "TemcoScreen/ui_HomeScreen.h"
