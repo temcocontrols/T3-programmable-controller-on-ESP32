@@ -9,13 +9,34 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "screen_flash_store.h"
+#include "screen_transaction.h"
 
 #define TAG "ScreenStore"
 
 #define MOUNT_PATH "/spiffs"
 #define PARTITION_LABEL "screen_data"
-#define SCREENS_DIR MOUNT_PATH "/screens"
-#define IMAGES_DIR MOUNT_PATH "/images"
+
+/*
+ * Screens and images now live inside a slot directory (/spiffs/A/... or
+ * /spiffs/B/...) chosen by the commit record, so a deploy can be staged into
+ * the inactive slot and activated with a single record write.
+ */
+static const char *screens_dir(void)
+{
+    static char buf[40];
+    snprintf(buf, sizeof(buf), "%s/%s/screens", MOUNT_PATH, screen_txn_active_slot());
+    return buf;
+}
+
+static const char *images_dir(void)
+{
+    static char buf[40];
+    snprintf(buf, sizeof(buf), "%s/%s/images", MOUNT_PATH, screen_txn_active_slot());
+    return buf;
+}
+
+#define SCREENS_DIR screens_dir()
+#define IMAGES_DIR images_dir()
 #define WRITE_CHUNK_SIZE 4096
 #define SPIFFS_WRITE_OVERHEAD 1024
 
@@ -178,11 +199,14 @@ static void log_spiffs_usage(const char *when)
 }
 
 /*
- * SPIFFS cannot truncate or overwrite in place. fopen(..., "wb") on an
- * existing file keeps the old pages allocated, so fwrite() returns a short
- * count (ENOSPC) even when the payload is valid. That leaves a 0-byte or
- * truncated file; GET then reports "screen not found".
- * Unlink first so the old pages can be reused, then write + fsync.
+ * Crash-safe replace: the payload is written to <path>.tmp, fsynced, and only
+ * then renamed onto <path>. A power cut therefore leaves either the previous
+ * file or one complete .tmp file - never a truncated screen.
+ * recover_pending_writes_in() promotes a complete .tmp on the next boot.
+ *
+ * The destination is unlinked just before the rename because SPIFFS keeps the
+ * old pages allocated when a file is overwritten in place, which makes
+ * fwrite() return a short count (ENOSPC) even for a valid payload.
  */
 static esp_err_t write_file_replace(const char *path, const char *data, size_t len)
 {
@@ -209,11 +233,10 @@ static esp_err_t write_file_replace(const char *path, const char *data, size_t l
         }
     }
 
-    if (exists && remove(path) != 0) {
-        ESP_LOGW(TAG, "Failed to unlink existing file before rewrite: %s (errno=%d)", path, errno);
-    }
+    char tmp_path[132];
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path);
 
-    FILE *f = fopen(path, "wb");
+    FILE *f = fopen(tmp_path, "wb");
     if (!f) {
         ESP_LOGE(TAG, "Failed to open for writing: %s (errno=%d)", path, errno);
         return ESP_FAIL;
@@ -243,13 +266,95 @@ static esp_err_t write_file_replace(const char *path, const char *data, size_t l
 
     if (written != len || flush_err != 0 || sync_err != 0 || stream_err) {
         ESP_LOGE(TAG, "Incomplete write %s (%u/%u) flush=%d sync=%d ferror=%d errno=%d",
-                 path, (unsigned)written, (unsigned)len, flush_err, sync_err, stream_err, errno);
-        remove(path);
+                 tmp_path, (unsigned)written, (unsigned)len, flush_err, sync_err, stream_err, errno);
+        remove(tmp_path);
         log_spiffs_usage("after failed write");
         return ESP_FAIL;
     }
 
+    if (exists && remove(path) != 0 && errno != ENOENT) {
+        ESP_LOGW(TAG, "Failed to unlink previous file: %s (errno=%d)", path, errno);
+    }
+    if (rename(tmp_path, path) != 0) {
+        ESP_LOGE(TAG, "Failed to promote %s -> %s (errno=%d)", tmp_path, path, errno);
+        remove(tmp_path);
+        return ESP_FAIL;
+    }
+
     return ESP_OK;
+}
+
+static bool file_looks_complete(const char *path)
+{
+    struct stat st;
+    if (stat(path, &st) != 0 || st.st_size <= 0) {
+        return false;
+    }
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        return false;
+    }
+    /* Only the first and the last non-blank byte matter. Reading the whole file
+     * here blocked the display task long enough to trip the task watchdog. */
+    bool ok = false;
+    int first = 0;
+    if (fread(&first, 1, 1, f) == 1 && first == '{') {
+        char tail[64];
+        size_t want = sizeof(tail);
+        if ((size_t)st.st_size < want) {
+            want = (size_t)st.st_size;
+        }
+        if (fseek(f, (long)((size_t)st.st_size - want), SEEK_SET) == 0 &&
+            fread(tail, 1, want, f) == want) {
+            for (size_t i = want; i-- > 0;) {
+                char c = tail[i];
+                if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\0') {
+                    continue;
+                }
+                ok = (c == '}');
+                break;
+            }
+        }
+    }
+    fclose(f);
+    return ok;
+}
+
+static void recover_pending_writes_in(const char *dir)
+{
+    DIR *d = opendir(dir);
+    if (!d) {
+        return;
+    }
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        const char *n = e->d_name;
+        size_t nl = strlen(n);
+        if (nl < 5 || strcmp(n + nl - 4, ".tmp") != 0) {
+            continue;
+        }
+        char tmp_path[320];
+        char final_path[320];
+        size_t name_len = (nl > 250) ? 250 : nl - 4;
+        snprintf(tmp_path, sizeof(tmp_path), "%s/%s", dir, n);
+        snprintf(final_path, sizeof(final_path), "%s/%.*s", dir, (int)name_len, n);
+
+        struct stat st_tmp, st_final;
+        if (stat(tmp_path, &st_tmp) != 0 || st_tmp.st_size <= 0) {
+            remove(tmp_path);
+            continue;
+        }
+        if (stat(final_path, &st_final) == 0 && st_final.st_size > 0) {
+            remove(tmp_path);
+            continue;
+        }
+        if (rename(tmp_path, final_path) == 0) {
+            ESP_LOGW(TAG, "Recovered interrupted write: %s", final_path);
+        } else {
+            ESP_LOGE(TAG, "Could not recover %s (errno=%d)", tmp_path, errno);
+        }
+    }
+    closedir(d);
 }
 
 static void ensure_directories_exist(void)
@@ -263,6 +368,16 @@ static void ensure_directories_exist(void)
     }
 }
 
+/* EMBED_TXTFILES appends a NUL terminator; the stored file must not include it */
+static size_t embedded_text_len(const char *start, const char *end)
+{
+    size_t len = (size_t)(end - start);
+    if (len && start[len - 1] == '\0') {
+        len--;
+    }
+    return len;
+}
+
 static esp_err_t seed_default_screens_if_empty(void)
 {
     ensure_directories_exist();
@@ -271,10 +386,9 @@ static esp_err_t seed_default_screens_if_empty(void)
         char path[128];
         snprintf(path, sizeof(path), "%s/%s.json", SCREENS_DIR, DEFAULT_SCREENS[i].name);
 
-        struct stat st;
-        if (stat(path, &st) != 0 || st.st_size == 0) {
+        if (!file_looks_complete(path)) {
             ESP_LOGI(TAG, "Seeding default screen: %s", DEFAULT_SCREENS[i].name);
-            size_t len = (size_t)(DEFAULT_SCREENS[i].end - DEFAULT_SCREENS[i].start);
+            size_t len = embedded_text_len(DEFAULT_SCREENS[i].start, DEFAULT_SCREENS[i].end);
             if (write_file_replace(path, DEFAULT_SCREENS[i].start, len) != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to create default screen file: %s", path);
             }
@@ -285,10 +399,9 @@ static esp_err_t seed_default_screens_if_empty(void)
         char path[128];
         snprintf(path, sizeof(path), "%s/%s.json", IMAGES_DIR, DEFAULT_IMAGES[i].name);
 
-        struct stat st;
-        if (stat(path, &st) != 0 || st.st_size == 0) {
+        if (!file_looks_complete(path)) {
             ESP_LOGI(TAG, "Seeding default image: %s", DEFAULT_IMAGES[i].name);
-            size_t len = (size_t)(DEFAULT_IMAGES[i].end - DEFAULT_IMAGES[i].start);
+            size_t len = embedded_text_len(DEFAULT_IMAGES[i].start, DEFAULT_IMAGES[i].end);
             if (write_file_replace(path, DEFAULT_IMAGES[i].start, len) != ESP_OK) {
                 ESP_LOGE(TAG, "Failed to create default image file: %s", path);
             }
@@ -328,7 +441,7 @@ static size_t count_default_files_present(const default_resource_entry_t *entrie
     return present;
 }
 
-esp_err_t screen_store_init(void)
+esp_err_t screen_store_mount(void)
 {
     if (s_is_mounted) return ESP_OK;
 
@@ -340,9 +453,33 @@ esp_err_t screen_store_init(void)
     }
 
     log_spiffs_usage("after mount");
+    esp_err_t txn_err = screen_txn_init();
+    if (txn_err != ESP_OK) {
+        ESP_LOGE(TAG, "Screen transaction store failed to initialise (%s)", esp_err_to_name(txn_err));
+        return txn_err;
+    }
+    recover_pending_writes_in(SCREENS_DIR);
+    recover_pending_writes_in(IMAGES_DIR);
+    return ESP_OK;
+}
+
+/* Validating ~40 embedded files takes several seconds; callers that must stay
+ * responsive (the REST server) mount first and seed afterwards. */
+esp_err_t screen_store_seed_defaults(void)
+{
+    if (!s_is_mounted) return ESP_ERR_INVALID_STATE;
     seed_default_screens_if_empty();
     log_spiffs_usage("after seed");
     return ESP_OK;
+}
+
+esp_err_t screen_store_init(void)
+{
+    esp_err_t ret = screen_store_mount();
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    return screen_store_seed_defaults();
 }
 
 bool screen_store_is_ready(void)
@@ -589,6 +726,13 @@ esp_err_t screen_store_reset_to_defaults(void)
     err = mount_spiffs();
     if (err != ESP_OK) {
         return err;
+    }
+
+    /* the format removed the commit record: recreate it at revision 0 slot A
+       before seeding, or the next boot would wipe what we seed now */
+    err = screen_txn_reset_to_seed();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not recreate the commit record after format (%s)", esp_err_to_name(err));
     }
 
     seed_default_screens_if_empty();

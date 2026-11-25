@@ -17,6 +17,18 @@ extern "C" {
 esp_err_t screen_store_init(void);
 
 /**
+ * @brief Mount the storage without seeding (fast: safe to call before starting
+ *        the REST server).
+ */
+esp_err_t screen_store_mount(void);
+
+/**
+ * @brief Seed embedded defaults for any missing file (slow: validating every
+ *        embedded screen/image takes seconds).
+ */
+esp_err_t screen_store_seed_defaults(void);
+
+/**
  * @brief Check if SPIFFS storage is mounted and initialized.
  */
 bool screen_store_is_ready(void);

@@ -2,6 +2,8 @@ idf_component_register(
     SRCS
         "src/dynamic_display_api.c"
         "src/screen_flash_store.c"
+        "src/screen_transaction.c"
+        "src/screen_deploy_api.c"
     INCLUDE_DIRS
         "include"
     PRIV_INCLUDE_DIRS
@@ -11,6 +13,7 @@ idf_component_register(
         spiffs
         json
         nvs_flash
+        mbedtls
     EMBED_TXTFILES
         "DefaultScreens/start_up_screen.json"
         "DefaultScreens/home_screen.json"
