@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "JSON that intentionally differs from the compiled ui_*.c, re-applied by",
+    "tools/gen_json_from_c.py after every regeneration.  Keys are",
+    "\"<screen>/<slash separated path inside the screen JSON>\"; values replace",
+    "whatever the generator derived.  Only add entries that were verified on",
+    "hardware and have no counterpart in the C source."
+  ],
+  "home_screen": {
+    "_why": "The compiled UI never reacts to taps on the WiFi symbol (lv_UserPeram only repaints it), but the JSON UI must open the WiFi configuration screen.",
+    "widgets/HomeScreen/children/WifiSymb/events": {
+      "CLICKED": {
+        "actions": [
+          {
+            "action": "screen_change",
+            "anim": "MOVE_LEFT",
+            "delay": 100,
+            "screen": "wifi_config",
+            "speed": 500
+          }
+        ]
+      }
+    }
+  }
+}
