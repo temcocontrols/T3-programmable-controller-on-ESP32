@@ -5,12 +5,12 @@
   ],
   "fonts": [
     [
-      "lv_font_montserrat_18",
-      18
-    ],
-    [
       "lv_font_montserrat_16",
       16
+    ],
+    [
+      "lv_font_montserrat_18",
+      18
     ]
   ],
   "widgets": {
@@ -75,6 +75,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -101,6 +102,7 @@
                   "align": "left_mid",
                   "height": 0,
                   "obj_text": "Gateway              :",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -133,6 +135,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "192",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -172,6 +176,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "168",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -211,6 +217,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "1",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -250,6 +258,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "0",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -286,6 +296,7 @@
               },
               "height": 35,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -309,6 +320,7 @@
                   "align": "left_mid",
                   "height": 0,
                   "obj_text": "Assignment    :",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -372,6 +384,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -408,6 +421,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "192",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -447,6 +462,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "168",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -486,6 +503,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "1",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -525,6 +544,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "1",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -551,6 +572,7 @@
                   "align": "left_mid",
                   "height": 0,
                   "obj_text": "IP Address          :",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -580,6 +602,7 @@
               },
               "height": 35,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -599,6 +622,16 @@
             "NumKeyboard": {
               "align": "bottom_mid",
               "events": {
+                "CANCEL": {
+                  "actions": [
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "add",
+                      "target": "NumKeyboard"
+                    }
+                  ]
+                },
                 "READY": {
                   "actions": [
                     {
@@ -612,6 +645,7 @@
               },
               "height": 120,
               "hidden": true,
+              "keyboard_mode": "number",
               "obj_text": "",
               "style": {
                 "MAIN": {
@@ -647,6 +681,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "255",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -686,6 +722,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "255",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -725,6 +763,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "1",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -764,6 +804,8 @@
                   "height": 30,
                   "obj_text": "",
                   "placeholder": "0",
+                  "scrollable": false,
+                  "scrollbar_mode": "off",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -801,6 +843,7 @@
                   "align": "left_mid",
                   "height": 0,
                   "obj_text": "Subnet                 :",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -819,6 +862,7 @@
               },
               "height": 35,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -872,6 +916,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -891,6 +936,7 @@
           "height": 290,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",

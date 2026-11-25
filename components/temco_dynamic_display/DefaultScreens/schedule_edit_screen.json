@@ -16,6 +16,7 @@
           "align": "top_mid",
           "children": {
             "Dropdown9": {
+              "align": "top_left",
               "height": 25,
               "obj_text": "",
               "options": [
@@ -104,6 +105,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -147,6 +149,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -187,6 +190,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -240,6 +244,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -448,6 +453,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -792,6 +798,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -1142,6 +1149,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -1492,6 +1500,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -1842,6 +1851,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -2192,6 +2202,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -2542,6 +2553,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -2892,6 +2904,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -3242,6 +3255,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -3276,6 +3290,7 @@
                   "flex_track": "start",
                   "height": 300,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -3334,6 +3349,7 @@
                       },
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -3355,10 +3371,11 @@
                       "children": {
                         "Dropdown6": {
                           "align": "left_mid",
+                          "dir": "left",
                           "height": 30,
                           "obj_text": "",
                           "options": [
-                            "255",
+                            "00",
                             "01",
                             "02",
                             "03",
@@ -3408,10 +3425,10 @@
                         },
                         "Dropdown7": {
                           "align": "left_mid",
+                          "dir": "right",
                           "height": 30,
                           "obj_text": "",
                           "options": [
-                            "255",
                             "00",
                             "01",
                             "02",
@@ -3524,6 +3541,7 @@
                       "flex_track": "start",
                       "height": 30,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -3549,6 +3567,7 @@
                   "height": 100,
                   "hidden": true,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -3602,6 +3621,7 @@
           "height": 280,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",

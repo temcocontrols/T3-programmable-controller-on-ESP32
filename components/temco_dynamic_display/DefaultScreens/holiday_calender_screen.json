@@ -5,6 +5,10 @@
   ],
   "fonts": [
     [
+      "lv_font_montserrat_14",
+      14
+    ],
+    [
       "lv_font_montserrat_18",
       18
     ]
@@ -71,6 +75,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -93,7 +98,7 @@
             "Calendar1": {
               "align": "center",
               "header": "Arrow",
-              "height": 260,
+              "height": 220,
               "obj_text": "",
               "style": {
                 "MAIN": {
@@ -117,18 +122,36 @@
               },
               "sub_type": "calendar",
               "text_type": "literal",
-              "today_day": 10,
-              "today_month": 2,
-              "today_year": 2026,
               "type": "Widget",
               "width": 400,
               "x_pos": 0,
-              "y_pos": 0
+              "y_pos": -10
+            },
+            "HolidayDateLabel": {
+              "align": "bottom_mid",
+              "height": 0,
+              "long_mode": "WRAP",
+              "obj_text": "Tap a date to toggle holiday",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_align": "center",
+                    "text_font": "lv_font_montserrat_14"
+                  }
+                }
+              },
+              "sub_type": "label",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 400,
+              "x_pos": 0,
+              "y_pos": 8
             }
           },
           "height": 280,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",

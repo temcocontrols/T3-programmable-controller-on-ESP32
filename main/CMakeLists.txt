@@ -118,7 +118,7 @@ idf_component_register(		SRCS
 							)
 
 # Auto-include all .c files from TemcoScreen subdirectory
-file(GLOB TEMCO_SCREEN_SOURCES "TemcoScreen/*.c")
+file(GLOB TEMCO_SCREEN_SOURCES CONFIGURE_DEPENDS "TemcoScreen/*.c")
 target_sources(${COMPONENT_LIB} PRIVATE ${TEMCO_SCREEN_SOURCES})
 
 #                    		EMBED_TXTFILES ${project_dir}/server_certs/ca_cert.pem)

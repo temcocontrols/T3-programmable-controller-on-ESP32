@@ -18,7 +18,7 @@
             "GotoMenuButton8": {
               "align": "left_mid",
               "events": {
-                "ALL": {
+                "CLICKED": {
                   "actions": [
                     {
                       "action": "screen_change",
@@ -71,6 +71,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -94,8 +95,8 @@
               "align": "center",
               "height": 230,
               "obj_text": "",
-              "scroll_dir": "BOTH",
-              "scrollable": true,
+              "scroll_snap_y": "none",
+              "scrollbar_mode": "auto",
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -136,7 +137,7 @@
                 }
               },
               "events": {
-                "ALL": {
+                "CLICKED": {
                   "actions": [
                     {
                       "action": "screen_change",
@@ -150,6 +151,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -169,6 +171,7 @@
           "height": 280,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",

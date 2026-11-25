@@ -71,6 +71,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -112,8 +113,22 @@
                   "y_pos": 0
                 }
               },
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_RIGHT",
+                      "delay": 100,
+                      "screen": "main_menu",
+                      "speed": 1000
+                    }
+                  ]
+                }
+              },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -167,6 +182,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -213,6 +229,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -270,7 +287,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -304,7 +321,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 1",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -325,6 +342,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -369,6 +387,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -426,7 +445,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -460,7 +479,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 2",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -481,6 +500,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -525,6 +545,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -582,7 +603,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -616,7 +637,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 3",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -637,6 +658,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -681,6 +703,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -738,7 +761,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -772,7 +795,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 4",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -793,6 +816,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -837,6 +861,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -894,7 +919,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -928,7 +953,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 5",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -949,6 +974,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -993,6 +1019,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -1050,7 +1077,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -1084,7 +1111,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 6",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -1105,6 +1132,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -1149,6 +1177,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -1206,7 +1235,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -1240,7 +1269,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 7",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -1261,6 +1290,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -1305,6 +1335,7 @@
                       },
                       "height": 24,
                       "obj_text": "",
+                      "scrollable": false,
                       "style": {
                         "MAIN": {
                           "DEFAULT": {
@@ -1362,7 +1393,7 @@
                         },
                         "MAIN": {
                           "DEFAULT": {
-                            "bg_color": "#40765B",
+                            "bg_color": "#A04040",
                             "bg_opa": 200,
                             "border_color": "#5A846F",
                             "border_opa": 255,
@@ -1396,7 +1427,7 @@
                           ]
                         }
                       },
-                      "height": 70,
+                      "height": 0,
                       "obj_text": "Schedule 8",
                       "one_line": true,
                       "placeholder": "Placeholder...",
@@ -1417,6 +1448,7 @@
                   },
                   "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -1472,6 +1504,7 @@
           "height": 280,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",
@@ -1482,6 +1515,16 @@
         "ScheduleKeyboard": {
           "align": "bottom_mid",
           "events": {
+            "CANCEL": {
+              "actions": [
+                {
+                  "action": "flag_modify",
+                  "flag": "hidden",
+                  "mode": "add",
+                  "target": "ScheduleKeyboard"
+                }
+              ]
+            },
             "READY": {
               "actions": [
                 {

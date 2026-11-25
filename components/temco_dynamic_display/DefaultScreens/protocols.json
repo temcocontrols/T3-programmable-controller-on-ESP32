@@ -5,12 +5,12 @@
   ],
   "fonts": [
     [
-      "lv_font_montserrat_18",
-      18
-    ],
-    [
       "lv_font_montserrat_16",
       16
+    ],
+    [
+      "lv_font_montserrat_18",
+      18
     ]
   ],
   "widgets": {
@@ -75,6 +75,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -101,6 +102,7 @@
                   "align": "left_mid",
                   "height": 0,
                   "obj_text": "Modbus/Bacnet Id    :",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -135,7 +137,7 @@
                       ]
                     }
                   },
-                  "height": 43,
+                  "height": 0,
                   "obj_text": "",
                   "one_line": true,
                   "placeholder": "ID",
@@ -157,6 +159,7 @@
               },
               "height": 45,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -221,6 +224,7 @@
               },
               "height": 45,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -240,6 +244,16 @@
             "KeyboardProtocol": {
               "align": "bottom_mid",
               "events": {
+                "CANCEL": {
+                  "actions": [
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "add",
+                      "target": "KeyboardProtocol"
+                    }
+                  ]
+                },
                 "READY": {
                   "actions": [
                     {
@@ -271,6 +285,7 @@
               },
               "sub_type": "keyboard",
               "text_type": "literal",
+              "textarea": "PanelNameText",
               "type": "Widget",
               "width": 480,
               "x_pos": 0,
@@ -299,7 +314,7 @@
                       ]
                     }
                   },
-                  "height": 43,
+                  "height": 0,
                   "obj_text": "",
                   "one_line": true,
                   "placeholder": "Baud Rate",
@@ -322,6 +337,7 @@
                   "align": "left_mid",
                   "height": 0,
                   "obj_text": "Baud Rate                  :",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -339,6 +355,7 @@
               },
               "height": 45,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -358,6 +375,16 @@
             "NumKeyboardProtocol": {
               "align": "bottom_mid",
               "events": {
+                "CANCEL": {
+                  "actions": [
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "add",
+                      "target": "NumKeyboardProtocol"
+                    }
+                  ]
+                },
                 "READY": {
                   "actions": [
                     {
@@ -371,9 +398,11 @@
               },
               "height": 120,
               "hidden": true,
+              "keyboard_mode": "number",
               "obj_text": "",
               "sub_type": "keyboard",
               "text_type": "literal",
+              "textarea": "PanelNameText",
               "type": "Widget",
               "width": 300,
               "x_pos": 0,
@@ -402,7 +431,7 @@
                       ]
                     }
                   },
-                  "height": 43,
+                  "height": 0,
                   "obj_text": "",
                   "one_line": true,
                   "placeholder": "Panel Name",
@@ -425,6 +454,7 @@
                   "align": "left_mid",
                   "height": 0,
                   "obj_text": "Panel Name               :",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
@@ -442,6 +472,7 @@
               },
               "height": 45,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -495,6 +526,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -514,6 +546,7 @@
           "height": 290,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",

@@ -121,7 +121,7 @@
         },
         "wg_local": {
           "align": "top_right",
-          "height": 34,
+          "height": 0,
           "obj_text": "",
           "one_line": true,
           "sub_type": "textarea",
@@ -144,7 +144,7 @@
         },
         "wg_peer": {
           "align": "top_right",
-          "height": 34,
+          "height": 0,
           "obj_text": "",
           "one_line": true,
           "sub_type": "textarea",
@@ -167,7 +167,7 @@
         },
         "wg_port": {
           "align": "top_right",
-          "height": 34,
+          "height": 0,
           "obj_text": "",
           "one_line": true,
           "sub_type": "textarea",
