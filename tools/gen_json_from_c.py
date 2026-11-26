@@ -732,7 +732,8 @@ def apply_overrides(doc, screen_json):
 
 
 def canonical(o):
-    return json.dumps(o, sort_keys=True, indent=2)
+    # children key order is LVGL z-order, so it has to take part in the check
+    return json.dumps(o, indent=2)
 
 
 def diff_nodes(old, new, path="", out=None, limit=400):
@@ -788,7 +789,8 @@ def main():
         doc = apply_overrides(doc, SCREEN_JSON[s])
         if a.write:
             with open(target, "w", encoding="utf-8", newline="\n") as f:
-                json.dump(doc, f, indent=2, sort_keys=True)
+                # children order is LVGL z-order: never sort the keys
+                json.dump(doc, f, indent=2, sort_keys=False)
                 f.write("\n")
             print("wrote %s" % target)
             continue

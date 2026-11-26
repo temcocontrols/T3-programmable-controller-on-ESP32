@@ -112,6 +112,13 @@ static void lv_refresh_Time_Data(void);
 static void lv_refresh_Parameters_Data(void);
 static void lv_refresh_calender_Data(void);
 
+/* Remote-access screens are written by hand in ui_RemoteAccess.c and are not
+ * part of the SquareLine header. */
+extern lv_obj_t *ui_WireGuardScreen;
+extern lv_obj_t *ui_DdnsScreen;
+void ui_refresh_WireGuardScreen_Data(void);
+void ui_refresh_DdnsScreen_Data(void);
+
 /* Forward declarations of static helper functions to update specific UI components */
 static void ui_update_temperature(float temp);
 static void ui_update_humidity(uint8_t humidity);
@@ -278,6 +285,22 @@ void lv_Lcd_UpdateData(void)
         else if(current_Screen == ui_Parameters)
         {
             lv_refresh_Parameters_Data();
+        }
+        else if(current_Screen == ui_WireGuardScreen)
+        {
+            /* only on entry: the fields are editable and must not be refreshed
+             * from the register while the user is typing */
+            if(isScreenChanged)
+            {
+                ui_refresh_WireGuardScreen_Data();
+            }
+        }
+        else if(current_Screen == ui_DdnsScreen)
+        {
+            if(isScreenChanged)
+            {
+                ui_refresh_DdnsScreen_Data();
+            }
         }
         else if(current_Screen == ui_HolidayCalenderScreen)
         {

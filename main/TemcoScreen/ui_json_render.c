@@ -252,12 +252,36 @@ static void bridge_event_cb(lv_event_t *e)
     if (fn) fn(e);
 }
 
+/* A few designs build their content from a screen-load handler instead of from
+ * the exported widget tree: Parameters creates its table in
+ * UpdateParameterTableFunc() (SCREEN_LOAD_START) and parents it to ui_Panel4,
+ * which is rebound to the JSON panel, so forwarding the event is all that is
+ * needed.  Screens whose load handlers animate *absolute* geometry must stay
+ * filtered (see bridge_event_cb), hence the exception list rather than a
+ * blanket forward. */
+static bool bridge_forwards_load(const char *name)
+{
+    return name && strcmp(name, "Parameters") == 0;
+}
+
+static void bridge_load_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code != LV_EVENT_SCREEN_LOAD_START && code != LV_EVENT_SCREEN_LOADED) {
+        bridge_event_cb(e);
+        return;
+    }
+    ui_json_event_fn fn = (ui_json_event_fn)lv_event_get_user_data(e);
+    if (fn) fn(e);
+}
+
 static void bridge_attach(lv_obj_t *o, const char *name)
 {
     ui_json_event_fn fn = ui_json_events_lookup(name);
     if (!fn) return;
     lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(o, bridge_event_cb, LV_EVENT_ALL, (void *)fn);
+    lv_obj_add_event_cb(o, bridge_forwards_load(name) ? bridge_load_cb : bridge_event_cb,
+                        LV_EVENT_ALL, (void *)fn);
 }
 
 /* keyboards declared with an explicit target (future JSON schema):
@@ -1186,6 +1210,17 @@ static lv_obj_t *find_named(lv_obj_t *scope, const char *name)
         if (o && lv_obj_get_screen(o) == scr) return o;
     }
     return NULL;
+}
+
+/* Public lookup used by handlers that hold file-static widget pointers
+ * (WireGuard / DDNS): after the JSON UI takes over those pointers still refer to
+ * the compiled objects, so they have to re-resolve by design name. */
+lv_obj_t *ui_json_render_find(const char *name)
+{
+    if (!s_active || !name || !name[0]) return NULL;
+    lv_obj_t *scr = lv_screen_active();
+    if (!scr) return NULL;
+    return find_named(scr, name);
 }
 
 static void apply_flag_req(lv_obj_t *scope, const flag_req_t *r)

@@ -22,3 +22,10 @@ struct _lv_obj_t *ui_json_render_compiled_screen(struct _lv_obj_t *active);
 /* Queue a navigation to a design screen (served from the active slot).
  * Thread-safe: the request is applied by the LVGL task. */
 bool ui_json_render_goto(const char *screen_name);
+
+/* Look up a widget by its design name on the currently active JSON screen.
+ * Returns NULL when the JSON UI is inactive or the name is not on that screen,
+ * so callers can fall back to the compiled widget.  Needed by the handlers that
+ * address their widgets through file-static pointers (WireGuard / DDNS), which
+ * still point at the compiled objects after the JSON UI takes over. */
+struct _lv_obj_t *ui_json_render_find(const char *name);
