@@ -106,6 +106,8 @@ def main():
     ap.add_argument("--settle", type=float, default=6.0,
                     help="seconds to wait after forcing a UI reload")
     ap.add_argument("--screens", default="", help="comma separated, default all")
+    ap.add_argument("--wait", type=float, default=30.0,
+                    help="per-screen timeout; the big screens build for ~7 s and dump at 1.2 s + 6 s")
     ap.add_argument("--resplit", default="",
                     help="rebuild the per-screen files from an existing all.log, "
                          "without touching the device")
@@ -176,14 +178,14 @@ def main():
                 print("nav %-26s FAILED %s" % (name, e), flush=True)
                 continue
             t0 = time.time()
-            while time.time() - t0 < 25 and not dumped(name, mark):
+            while time.time() - t0 < a.wait * 0.8 and not dumped(name, mark):
                 time.sleep(0.25)
             # the block itself is printed line by line: keep reading until the
             # console has been quiet for a moment, otherwise the second dump is
             # cut off half way (the first one is pre-settle geometry)
             quiet = time.time()
             seen = len(all_lines)
-            while time.time() - t0 < 30:
+            while time.time() - t0 < a.wait:
                 time.sleep(0.25)
                 if len(all_lines) != seen:
                     seen = len(all_lines)

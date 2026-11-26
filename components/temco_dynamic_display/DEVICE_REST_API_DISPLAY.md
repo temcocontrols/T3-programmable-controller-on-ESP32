@@ -447,16 +447,28 @@ LVGL rules the audit encodes, which are easy to get wrong in a JSON screen:
 
 | Method | Path | Body | Effect |
 | --- | --- | --- | --- |
-| GET | `/api/eez-device/ui-mode` | — | `{"ui_mode":"json"｜"compiled","forced_compiled":bool}` |
-| POST | `/api/eez-device/ui-mode` | `{"mode":"json"｜"compiled"}` | switch renderer; returns the resulting mode |
+| GET | `/api/eez-device/ui-mode` | — | `{"ui_mode":"json"｜"compiled","mode":"auto"｜"json"｜"compiled","mode_failed":bool,"forced_compiled":bool}` |
+| POST | `/api/eez-device/ui-mode` | `{"mode":"auto"｜"json"｜"compiled"}` | switch mode; persisted in NVS; returns the resulting mode |
 | POST | `/api/eez-device/ui-screen` | `{"name":"time"}` | navigate to a design screen |
 | GET | `/api/eez-device/ui-debug` | — | `{"ok":true,"layout_dump":bool}` (report only) |
 | POST | `/api/eez-device/ui-debug` | `{"layout":true｜false}` | enable/disable the serial geometry dump |
-| GET | `/api/eez-device/device/status` | — | slot, revision, current screen, build state, storage |
+| GET | `/api/eez-device/device/status` | — | `{"ui_mode","mode","mode_failed","tier","slot","revision","current_screen","build_ok","forced_compiled","last_error","storage"}` |
 | POST | `/api/eez-device/deploy/begin` | `{"schema":1,"start_screen":"..."}` | open a deploy transaction, returns `deploy_id` |
 | PUT | `/api/eez-device/deploy/{id}/file?path=screens/time` | raw JSON | stage one file, returns its `sha256` |
 | POST | `/api/eez-device/deploy/{id}/commit` | — | swap the slot; returns revision + slot + counts |
 | POST | `/api/eez-device/reset-defaults` | — | wipe both slots and reseed from the firmware image |
+
+**Which UI the panel draws.** `auto` is the factory default: the compiled
+`ui_*.c` screens until something has been deployed (screen-set revision > 0),
+then the deployed JSON, and back to compiled after `reset-defaults` (revision 0).
+`{"mode":"json"}` / `{"mode":"compiled"}` force one UI and survive reboots.
+
+**Fallbacks — the compiled screens are never deleted, so there is no blank
+panel:** a failing start screen leaves them in place, a failing navigation keeps
+the current screen, three consecutive failed boots persist `compiled`, and a
+JSON renderer that stops servicing the LVGL loop for 20 s is rebooted into
+`compiled` by an independent `esp_timer` watchdog (`mode_failed: true` reports
+either case).
 
 ## Delta patch semantics (dot-path)
 
