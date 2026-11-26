@@ -737,6 +737,14 @@ void uart0_rx_task(void *pvParameters)
 					vTaskDelay(50 / portTICK_PERIOD_MS);
 			}
         }
+        else
+        {
+            /* No protocol configured for this port.  Without this delay the
+             * loop spins at priority 11 on core 0 and starves IDLE0 plus every
+             * lower priority task on this core, which includes the HTTP server
+             * and lwIP. */
+            vTaskDelay(20 / portTICK_PERIOD_MS);
+        }
 	}
 }
 

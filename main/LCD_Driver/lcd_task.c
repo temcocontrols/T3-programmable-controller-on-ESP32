@@ -24,6 +24,8 @@
 #include "esp_flash_spi_init.h"
 
 #define DISP_BUF_LINES 40
+/* configTICK_RATE_HZ is 100, so any value below 10 rounds to 0 ticks and turns
+ * this loop into a busy yield. */
 #define LCD_TASK_DELAY_MS 10
 
 static char debugbuf[100];
@@ -89,34 +91,21 @@ void LCD_RegesterlvglDriver()
     lv_display_set_default(display);
 
     lv_display_set_color_format(display, LV_COLOR_FORMAT_RGB565_SWAPPED);
-#if 1
-    size_t fb_size = LCD_SPI_BUFFER_SIZE;
 
-    uint16_t *buf1 = heap_caps_malloc(
-        fb_size,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT
-    );
+    /* PARTIAL rendering: LVGL redraws only the invalidated area.
+     * FULL mode re-renders and re-sends the whole 480x320 frame (307 KB,
+     * background image included) for *any* change, so the panel was busy
+     * repainting itself even while idle (lv_Lcd_UpdateData touches labels
+     * every 100 ms) and every tap looked sluggish.  Strip-sized buffers also
+     * keep each SPI flush small, so the task yields between strips. */
+    size_t buf_size = TFT_HOR_RES * DISP_BUF_LINES * sizeof(uint16_t);
 
-    assert(buf1);   // IMPORTANT
+    uint16_t *buf1 = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint16_t *buf2 = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-    lv_display_set_buffers(display, buf1, NULL, fb_size, LV_DISPLAY_RENDER_MODE_FULL);
-#else
+    assert(buf1 && buf2);   // IMPORTANT
 
-    size_t buf_size = LCD_SPI_BUFFER_SIZE/10;
-
-    lv_color_t *buf1 = heap_caps_malloc(buf_size,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-    lv_color_t *buf2 = heap_caps_malloc(buf_size,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-    assert(buf1 && buf2);
-
-    lv_display_set_buffers(display,
-            buf1, buf2,
-            buf_size,
-            LV_DISPLAY_RENDER_MODE_PARTIAL);
-#endif
+    lv_display_set_buffers(display, buf1, buf2, buf_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
     uart_write_bytes(UART_NUM_0, "lvgl display created\r\n", strlen("lvgl display created\r\n"));
     // flush callback
     lv_display_set_flush_cb(display, my_disp_flush);

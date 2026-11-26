@@ -517,7 +517,9 @@ esp_err_t Spi_lcd_init(void)
         return ret;
     }
 
-    uart_write_bytes(UART_NUM_0, "SPI initialized at 80 MHz\r\n",sizeof("SPI initialized at 20 MHz\r\n"));
+    /* (pre-existing) the length argument was sizeof() of a different literal, so
+     * this wrote 3 bytes past the string; use the real length. */
+    uart_write_bytes(UART_NUM_0, "SPI initialized at 80 MHz\r\n", strlen("SPI initialized at 80 MHz\r\n"));
     return ESP_OK;
 }
 
@@ -625,7 +627,11 @@ void LCD_WriteBitmap(uint16_t x,
                      uint16_t h,
                      uint8_t *color_bytes)
 {
-    LCD_Set_Window(x, y, x + w, y + h);
+    /* LCD_Set_Window() takes a *width*, not an end coordinate: it computes
+     * sx + width - 1 itself.  Passing x + w here was invisible while every
+     * flush covered the whole screen from (0,0), but with partial rendering
+     * the window ended at 2x + w - 1 and the picture tore into bands. */
+    LCD_Set_Window(x, y, w, h);
 
     LCD_WriteRAM_Prepare();
 
