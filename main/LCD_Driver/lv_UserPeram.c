@@ -233,6 +233,13 @@ void lv_Lcd_UpdateData(void)
         last_update_time = xTaskGetTickCount();
 
         lv_obj_t * current_Screen = lv_screen_active();
+
+        /* When the JSON UI drives the display the active screen is a runtime
+         * object, which never matches the compiled screen pointers below.
+         * Ask the renderer which compiled screen it stands in for so every
+         * per-screen refresh (live values, WiFi scan, clock…) still runs. */
+        current_Screen = ui_json_render_compiled_screen(current_Screen);
+
         static lv_obj_t * prv_Screen = NULL;
 
         if(current_Screen != prv_Screen)

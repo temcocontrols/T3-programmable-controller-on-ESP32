@@ -12,6 +12,7 @@ Place this file on your device development team docs and use the sample payloads
 - Base path & routing
 - Endpoint list (detailed): requests, responses, error codes
 - Screen JSON format (fields, widgets, fonts, bitmaps) — canonical schema and examples
+- Keeping the shipped defaults in step with the compiled UI, and verifying they render the same
 - Delta patch semantics (dot-path patching)
 - Image upload/download format
 - BACnet-style RPC compatibility
@@ -347,64 +348,115 @@ Implement these endpoints to ease integration with BACnet fallback clients.
 
 ---
 
-## Screen JSON format (canonical)
+## Screen JSON format
 
-The editor expects a consistent JSON structure for each screen. The repo's mock returns a `json` object for each screen which typically contains keys like `fonts`, `bitmaps`, and `widgets`. The exact widget schema is driven by the EEZ/LVGL flow runtime; below is a general-purpose, implementable shape that is compatible with the editor.
+The normative definition — envelope, every widget kind, the style part/state model, `align`
+semantics, events, image references and limits — is maintained once, in the T3000 Web View
+documentation: `docs/t3000/bacnet-api/screen-json.md`.
 
-Canonical screen JSON structure:
+What this firmware stores and serves, in the smallest correct form:
 
 ```json
-{
-  "fonts": [ { "name": "Roboto", "size": 16 }, ... ],
-  "bitmaps": [ "logo", "icon_wifi", ... ],
-  "widgets": {
-    "widgetId1": {
-      "type": "label",
-      "x": 10,
-      "y": 20,
-      "w": 200,
-      "h": 40,
-      "text": "Hello",
-      "style": { "color": "#ffffff", "font": "Roboto" }
-    },
-    "widgetId2": {
-      "type": "image",
-      "x": 220,
-      "y": 20,
-      "w": 48,
-      "h": 48,
-      "src": "logo"
-    },
-    "widgetId3": {
-      "type": "button",
-      "x": 10,
-      "y": 70,
-      "w": 100,
-      "h": 30,
-      "label": "Click",
-      "onClick": { "action": "navigate", "target": "menu_screen" }
-    }
-  },
-  "bg_color": "#000000",
-  "meta": { "panelId": 0, "created": "2026-08-05T12:00:00Z" }
-}
+{ "bg_color": "#000000",
+  "bitmaps": ["fan_small"],
+  "fonts": [["lv_font_montserrat_18", 18]],
+  "widgets": { "HomeScreen": { "type": "Widget", "sub_type": "screen", "children": {} } } }
 ```
 
-Notes:
-- `widgets` can be an object keyed by widget id (string) — editor code in the repo expects this mapping.
-- Widget `type` may be `label`, `image`, `button`, `container`, `slider`, `gauge`, `chart`, etc. Provide properties relevant to LVGL widgets.
-- `bitmaps` list names that the screen references; images must be uploaded via `/images/push` or embedded in screen JSON as base64 (embedding not recommended for large assets).
-- `fonts` list names and sizes used by screen.
+Every widget node carries `type`, `sub_type`, `x_pos`, `y_pos`, `width`, `height`, `obj_text` and
+`text_type`, plus optionally `align`, `style`, `children`, `events` and the `flex_*` set. A
+`width` or `height` of `0` means size-to-content. When `align` is present, `x_pos`/`y_pos` are
+offsets from the anchor, not coordinates.
 
-### Recommended widget properties (common)
-- `label`: `text`, `font`, `color`, `align`
-- `image`: `src` (name), `scale`, `opacity`
-- `button`: `label`, `onClick` (action object)
-- `container`: `children` (list of widget ids or keys)
+`align_to` (optional) mirrors SquareLine's `lv_obj_align_to()`: the widget is placed relative to a
+sibling instead of its parent, and is resolved after layout just like content-sized widgets.
 
-The editor will treat screen JSON generically; ensure keys are predictable.
+```json
+"Co2Label": { "align_to": { "target": "OccTimerLabel", "align": "out_top_left",
+                            "x_pos": 0, "y_pos": -2 } }
+```
 
----
+Earlier revisions of this page showed a different shape — `type: "label"`, `x`/`y`/`w`/`h`,
+`text`, and `screens` as an array. That is not what the firmware emits or accepts: `GET
+/device/info` returns `screens` as an object keyed `screen1..N`, and widgets use the fields above.
+
+### Keeping the shipped defaults in step with the compiled UI
+
+`DefaultScreens/*.json` is what the front end loads and what the JSON renderer draws, and it is
+derived from the compiled SquareLine sources, never hand-written (`DefaultImages/*.json` come from
+the exported image assets and are not generated):
+
+```bash
+python tools/gen_json_from_c.py --all --check --diff   # report drift against ui_*.c
+python tools/gen_json_from_c.py --all --write         # regenerate the defaults
+python tools/gen_ui_json_bind.py                      # refresh the name -> ui_*/uic_* table
+python tools/gen_ui_json_events.py                     # refresh handler + input-rule tables
+```
+
+Run those three generators whenever `main/TemcoScreen/ui_*.c` changes. `ddns_screen` and
+`wireguard_screen` are listed as *procedural*: `ui_RemoteAccess.c` builds them with local
+variables, so there is no static design to derive and their JSON stays hand-maintained.
+
+JSON that deliberately differs from the C (for example the home screen's WiFi symbol, which must
+open the WiFi configuration screen in JSON mode although the compiled UI ignores taps on it) is
+declared in `tools/json_overrides.json` and re-applied on every regeneration.
+
+The regenerated defaults only reach a device that was already flashed through a factory reset:
+seeding fills in *missing* files, it never overwrites existing ones. `POST
+/api/eez-device/reset-defaults` (the front end's "reset" action) formats `screen_data`, rewrites
+all defaults from the firmware image and returns `{"screens_restored": 13}`.
+
+### Verifying that the JSON still renders like the compiled screens
+
+`main/TemcoScreen/ui_json_render.c` draws the screens from `DefaultScreens/*.json`. To prove the two
+designs agree, the renderer can dump every built widget's final rectangle over the serial console and
+`tools/audit_render.py` recomputes the same rectangle from the JSON:
+
+```bash
+python tools/dump_screens.py  --port COM5 --host 192.168.1.46   # navigate all 13 screens, capture
+python tools/audit_render.py                                    # ok / MISMATCH per widget
+
+python tools/deploy_defaults.py --host 192.168.1.46             # push the repo defaults to a live unit
+python tools/deploy_defaults.py --screens wireguard_screen       # one screen (test only)
+```
+
+The dumper is compiled in but switched off (a dump blocks the LVGL task for about a second on the
+115200 console). `dump_screens.py` turns it on first:
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"layout":true}' http://192.168.1.46/api/eez-device/ui-debug
+curl http://192.168.1.46/api/eez-device/ui-debug     # {"ok":true,"layout_dump":true}
+```
+
+`deploy_defaults.py` publishes only the files staged in that transaction — `deploy/begin` wipes the
+inactive slot — so a filtered run leaves the slot holding just those files. Use it to test one
+screen, then deploy everything again (or `reset-defaults`) before shipping.
+
+LVGL rules the audit encodes, which are easy to get wrong in a JSON screen:
+
+| Behaviour | Consequence for the JSON |
+| --- | --- |
+| `lv_obj_align()` works inside the parent's *content* box: padding plus the border width on the sides where the border is drawn (`border_side`) | a widget inside a bordered panel sits `border_width` further in than one inside a borderless one |
+| `lv_obj_set_align()` + `lv_obj_set_pos()` keep the alignment *live*; LVGL re-runs it whenever the parent resizes | never convert an alignment into absolute coordinates: the entry animations resize their targets |
+| `lv_textarea_set_one_line(o, true)` forces `LV_STYLE_HEIGHT = LV_SIZE_CONTENT` | a one-line textarea must declare `"height": 0`, whatever height the design asked for |
+| `LV_SIZE_CONTENT` is written as `0` | a content-sized widget is placed from its measured size, not from the SquareLine editor hint |
+| `ShowItem_Animation` animates `y` and `height` to absolute 0, `*In_Animation` slides `x` | widgets the compiled handler animates are reported as `animated`, not compared |
+
+## Renderer control endpoints
+
+| Method | Path | Body | Effect |
+| --- | --- | --- | --- |
+| GET | `/api/eez-device/ui-mode` | — | `{"ui_mode":"json"｜"compiled","forced_compiled":bool}` |
+| POST | `/api/eez-device/ui-mode` | `{"mode":"json"｜"compiled"}` | switch renderer; returns the resulting mode |
+| POST | `/api/eez-device/ui-screen` | `{"name":"time"}` | navigate to a design screen |
+| GET | `/api/eez-device/ui-debug` | — | `{"ok":true,"layout_dump":bool}` (report only) |
+| POST | `/api/eez-device/ui-debug` | `{"layout":true｜false}` | enable/disable the serial geometry dump |
+| GET | `/api/eez-device/device/status` | — | slot, revision, current screen, build state, storage |
+| POST | `/api/eez-device/deploy/begin` | `{"schema":1,"start_screen":"..."}` | open a deploy transaction, returns `deploy_id` |
+| PUT | `/api/eez-device/deploy/{id}/file?path=screens/time` | raw JSON | stage one file, returns its `sha256` |
+| POST | `/api/eez-device/deploy/{id}/commit` | — | swap the slot; returns revision + slot + counts |
+| POST | `/api/eez-device/reset-defaults` | — | wipe both slots and reseed from the firmware image |
 
 ## Delta patch semantics (dot-path)
 

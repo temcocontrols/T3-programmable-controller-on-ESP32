@@ -30,6 +30,8 @@
           "height": 200,
           "hidden": true,
           "obj_text": "",
+          "shown_month": 2,
+          "shown_year": 2026,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -119,6 +121,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -139,6 +142,7 @@
           "align": "center",
           "children": {
             "ChangeDateBtn": {
+              "align": "top_left",
               "children": {
                 "Label70": {
                   "align": "center",
@@ -172,6 +176,7 @@
               },
               "height": 25,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -227,6 +232,7 @@
               },
               "height": 25,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -264,6 +270,7 @@
               },
               "height": 25,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -301,6 +308,7 @@
               },
               "height": 25,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -324,6 +332,7 @@
           },
           "height": 80,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -433,6 +442,7 @@
               "y_pos": -5
             },
             "Label12": {
+              "align": "top_left",
               "height": 0,
               "obj_text": "Time Server :",
               "sub_type": "label",
@@ -508,6 +518,7 @@
               },
               "height": 25,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -531,6 +542,7 @@
           },
           "height": 100,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -626,6 +638,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -647,6 +660,7 @@
               "children": {
                 "Dropdown11": {
                   "align": "left_mid",
+                  "dir": "left",
                   "height": 30,
                   "obj_text": "",
                   "options": [
@@ -700,6 +714,7 @@
                 },
                 "Dropdown8": {
                   "align": "left_mid",
+                  "dir": "right",
                   "height": 30,
                   "obj_text": "",
                   "options": [
@@ -815,6 +830,7 @@
               "flex_track": "start",
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -840,6 +856,7 @@
           "height": 100,
           "hidden": true,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -896,6 +913,7 @@
           },
           "height": 30,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {

@@ -99,6 +99,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -161,6 +162,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -223,6 +225,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -285,6 +288,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -347,6 +351,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -370,19 +375,15 @@
             "Button6": {
               "align": "center",
               "children": {
-                "Label9": {
+                "label6": {
                   "align": "center",
                   "height": 0,
-                  "long_mode": "SCROLL",
                   "obj_text": "WireGuard",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
                         "text_color": "#09007D",
-                        "text_font": "lv_font_montserrat_30",
-                        "text_letter_space": 2,
-                        "text_line_space": 0,
-                        "text_opa": 255
+                        "text_font": "lv_font_montserrat_30"
                       }
                     }
                   },
@@ -392,19 +393,6 @@
                   "width": 0,
                   "x_pos": 0,
                   "y_pos": 0
-                }
-              },
-              "events": {
-                "CLICKED": {
-                  "actions": [
-                    {
-                      "action": "screen_change",
-                      "anim": "MOVE_LEFT",
-                      "delay": 0,
-                      "screen": "wireguard_screen",
-                      "speed": 500
-                    }
-                  ]
                 }
               },
               "height": 40,
@@ -432,19 +420,15 @@
             "Button7": {
               "align": "center",
               "children": {
-                "Label10": {
+                "label7": {
                   "align": "center",
                   "height": 0,
-                  "long_mode": "SCROLL",
                   "obj_text": "DDNS",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
                         "text_color": "#09007D",
-                        "text_font": "lv_font_montserrat_30",
-                        "text_letter_space": 2,
-                        "text_line_space": 0,
-                        "text_opa": 255
+                        "text_font": "lv_font_montserrat_30"
                       }
                     }
                   },
@@ -454,19 +438,6 @@
                   "width": 0,
                   "x_pos": 0,
                   "y_pos": 0
-                }
-              },
-              "events": {
-                "CLICKED": {
-                  "actions": [
-                    {
-                      "action": "screen_change",
-                      "anim": "MOVE_LEFT",
-                      "delay": 0,
-                      "screen": "ddns_screen",
-                      "speed": 500
-                    }
-                  ]
                 }
               },
               "height": 40,
@@ -495,6 +466,7 @@
           "height": 275,
           "no_default_style": true,
           "obj_text": "",
+          "scroll_dir": "VER",
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",
@@ -559,6 +531,7 @@
           },
           "height": 40,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -579,6 +552,7 @@
           "align": "bottom_mid",
           "height": 19,
           "obj_text": "",
+          "scrollable": false,
           "src": "displayscreendotformenuscreen_gray",
           "style": {
             "MAIN": {
@@ -765,6 +739,7 @@
           },
           "height": 210,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {

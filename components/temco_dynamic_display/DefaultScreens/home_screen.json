@@ -1,7 +1,8 @@
 {
   "bg_color": "#000000",
   "bitmaps": [
-    "wifisym",
+    "backsmallarrow",
+    "wifisym_Disable",
     "rightarrow",
     "displayhomescreendot",
     "fan_auto_new",
@@ -13,33 +14,64 @@
   ],
   "fonts": [
     [
-      "lv_font_montserrat_18",
-      18
-    ],
-    [
       "Arial80",
       80
-    ],
-    [
-      "lv_font_montserrat_36",
-      36
-    ],
-    [
-      "lv_font_montserrat_16",
-      16
     ],
     [
       "lv_font_montserrat_10",
       10
     ],
     [
+      "lv_font_montserrat_12",
+      12
+    ],
+    [
+      "lv_font_montserrat_16",
+      16
+    ],
+    [
+      "lv_font_montserrat_18",
+      18
+    ],
+    [
       "lv_font_montserrat_30",
       30
+    ],
+    [
+      "lv_font_montserrat_36",
+      36
     ]
   ],
   "widgets": {
     "HomeScreen": {
       "children": {
+        "Co2Label": {
+          "align": "top_left",
+          "align_to": {
+            "align": "out_top_left",
+            "target": "OccTimerLabel",
+            "x_pos": 0,
+            "y_pos": -2
+          },
+          "height": 0,
+          "hidden": true,
+          "obj_text": "",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "text_align": "left",
+                "text_color": "#B8D4E8",
+                "text_font": "lv_font_montserrat_12"
+              }
+            }
+          },
+          "sub_type": "label",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 90,
+          "x_pos": 0,
+          "y_pos": 0
+        },
         "FanButton": {
           "align": "center",
           "events": {
@@ -81,6 +113,7 @@
                   "align": "left_mid",
                   "height": 35,
                   "obj_text": "",
+                  "scrollable": false,
                   "src": "fan_auto_new",
                   "sub_type": "image",
                   "text_type": "literal",
@@ -128,6 +161,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -172,6 +206,7 @@
                   "align": "left_mid",
                   "height": 35,
                   "obj_text": "",
+                  "scrollable": false,
                   "src": "fan_withtime",
                   "sub_type": "image",
                   "text_type": "literal",
@@ -237,6 +272,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -281,6 +317,7 @@
                   "align": "left_mid",
                   "height": 35,
                   "obj_text": "",
+                  "scrollable": false,
                   "src": "fan_small",
                   "sub_type": "image",
                   "text_type": "literal",
@@ -322,6 +359,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -394,6 +432,7 @@
           "height": 180,
           "hidden": true,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -430,6 +469,7 @@
                 "Until I turn it off",
                 ""
               ],
+              "selected": 2,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -500,6 +540,7 @@
               },
               "height": 30,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -541,6 +582,7 @@
           "height": 180,
           "hidden": true,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -561,8 +603,9 @@
         },
         "HomeDot": {
           "align": "bottom_mid",
-          "height": 21,
+          "height": 19,
           "obj_text": "",
+          "scrollable": false,
           "src": "displayhomescreendot",
           "style": {
             "MAIN": {
@@ -574,7 +617,7 @@
           "sub_type": "image",
           "text_type": "literal",
           "type": "Widget",
-          "width": 30,
+          "width": 26,
           "x_pos": 0,
           "y_pos": -5
         },
@@ -607,6 +650,7 @@
               "obj_text": "",
               "one_line": true,
               "placeholder": "00%",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -628,6 +672,7 @@
           "height": 70,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -687,6 +732,7 @@
           },
           "height": 30,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -724,6 +770,72 @@
           "x_pos": 5,
           "y_pos": 90
         },
+        "OccTimerLabel": {
+          "align": "top_left",
+          "align_to": {
+            "align": "out_top_left",
+            "target": "ModeBtn",
+            "x_pos": 2,
+            "y_pos": -4
+          },
+          "height": 0,
+          "obj_text": "Occ   --",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "text_align": "left",
+                "text_color": "#B8D4E8",
+                "text_font": "lv_font_montserrat_12"
+              }
+            }
+          },
+          "sub_type": "label",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 90,
+          "x_pos": 0,
+          "y_pos": 0
+        },
+        "RS485ArrowDnImg": {
+          "align": "top_right",
+          "height": 35,
+          "hidden": true,
+          "obj_text": "",
+          "src": "backsmallarrow",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "transform_angle": 2700
+              }
+            }
+          },
+          "sub_type": "image",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 35,
+          "x_pos": -60,
+          "y_pos": 40
+        },
+        "RS485ArrowUpImg": {
+          "align": "top_right",
+          "height": 35,
+          "hidden": true,
+          "obj_text": "",
+          "src": "backsmallarrow",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "transform_angle": 900
+              }
+            }
+          },
+          "sub_type": "image",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 35,
+          "x_pos": -27,
+          "y_pos": 0
+        },
         "RightBtn": {
           "align": "center",
           "events": {
@@ -743,6 +855,8 @@
           "img_pressed": "rightarrow",
           "img_released": "rightarrow",
           "obj_text": "",
+          "scrollable": false,
+          "scrollbar_mode": "off",
           "sub_type": "imagebutton",
           "text_type": "literal",
           "type": "Widget",
@@ -756,6 +870,8 @@
           "obj_text": "10:20 AM",
           "one_line": true,
           "placeholder": "Time",
+          "scrollable": false,
+          "scrollbar_mode": "off",
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -780,6 +896,25 @@
           "width": 100,
           "x_pos": -190,
           "y_pos": -135
+        },
+        "RunningModeLabel": {
+          "align": "top_mid",
+          "height": 0,
+          "obj_text": "Mode: --",
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "text_color": "#62B7FF",
+                "text_font": "lv_font_montserrat_16"
+              }
+            }
+          },
+          "sub_type": "label",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 0,
+          "x_pos": 0,
+          "y_pos": 8
         },
         "SysModePanel": {
           "align": "center",
@@ -838,6 +973,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -879,13 +1015,14 @@
               "children": {
                 "Image8": {
                   "align": "left_mid",
-                  "height": 35,
+                  "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "src": "snowflake_30",
                   "sub_type": "image",
                   "text_type": "literal",
                   "type": "Widget",
-                  "width": 35,
+                  "width": 30,
                   "x_pos": 0,
                   "y_pos": 0
                 },
@@ -922,6 +1059,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -964,13 +1102,14 @@
               "children": {
                 "Image7": {
                   "align": "left_mid",
-                  "height": 35,
+                  "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "src": "day_30",
                   "sub_type": "image",
                   "text_type": "literal",
                   "type": "Widget",
-                  "width": 35,
+                  "width": 30,
                   "x_pos": 0,
                   "y_pos": 0
                 },
@@ -1007,6 +1146,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -1075,13 +1215,14 @@
               "children": {
                 "Image5": {
                   "align": "left_mid",
-                  "height": 35,
+                  "height": 30,
                   "obj_text": "",
+                  "scrollable": false,
                   "src": "power_symbol_30",
                   "sub_type": "image",
                   "text_type": "literal",
                   "type": "Widget",
-                  "width": 35,
+                  "width": 30,
                   "x_pos": 0,
                   "y_pos": 0
                 },
@@ -1118,6 +1259,7 @@
               },
               "height": 40,
               "obj_text": "",
+              "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -1159,6 +1301,7 @@
           "height": 250,
           "hidden": true,
           "obj_text": "",
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
@@ -1249,6 +1392,7 @@
               "min": 0,
               "obj_text": "",
               "rotation": 90,
+              "scrollable": false,
               "style": {
                 "INDICATOR": {
                   "DEFAULT": {
@@ -1285,7 +1429,7 @@
             },
             "TemperatureSetPoint": {
               "align": "center",
-              "height": 70,
+              "height": 0,
               "obj_text": "",
               "one_line": true,
               "placeholder": "SetPoint",
@@ -1339,10 +1483,12 @@
                   "y_pos": -9
                 }
               },
-              "height": 123,
+              "height": 0,
               "obj_text": "",
               "one_line": true,
               "placeholder": "88.8",
+              "scrollable": false,
+              "scrollbar_mode": "off",
               "style": {
                 "MAIN": {
                   "DEFAULT": {
@@ -1366,6 +1512,7 @@
           "height": 230,
           "no_default_style": true,
           "obj_text": "",
+          "scrollable": false,
           "sub_type": "panel",
           "text_type": "literal",
           "type": "Widget",
@@ -1373,36 +1520,59 @@
           "x_pos": 0,
           "y_pos": 0
         },
-        "WifiSymb": {
-          "align": "center",
-          "height": 29,
-          "obj_text": "",
-          "src": "wifisym",
-          "sub_type": "image",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 34,
-          "x_pos": 210,
-          "y_pos": -142
-        },
-        "RunningModeLabel": {
-          "align": "top_mid",
+        "TvocLabel": {
+          "align": "top_left",
+          "align_to": {
+            "align": "out_top_left",
+            "target": "OccTimerLabel",
+            "x_pos": 0,
+            "y_pos": -2
+          },
           "height": 0,
-          "obj_text": "Mode: --",
+          "hidden": true,
+          "obj_text": "",
           "style": {
             "MAIN": {
               "DEFAULT": {
-                "text_color": "#62B7FF",
-                "text_font": "lv_font_montserrat_16"
+                "text_align": "left",
+                "text_color": "#B8D4E8",
+                "text_font": "lv_font_montserrat_12"
               }
             }
           },
           "sub_type": "label",
           "text_type": "literal",
           "type": "Widget",
-          "width": 0,
+          "width": 90,
           "x_pos": 0,
-          "y_pos": 8
+          "y_pos": 0
+        },
+        "WifiSymb": {
+          "align": "center",
+          "events": {
+            "CLICKED": {
+              "actions": [
+                {
+                  "action": "screen_change",
+                  "anim": "MOVE_LEFT",
+                  "delay": 100,
+                  "screen": "wifi_config",
+                  "speed": 500
+                }
+              ]
+            }
+          },
+          "height": 29,
+          "obj_text": "",
+          "scrollable": false,
+          "scrollbar_mode": "off",
+          "src": "wifisym_Disable",
+          "sub_type": "image",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 34,
+          "x_pos": 210,
+          "y_pos": -142
         }
       },
       "events": {

@@ -7,8 +7,10 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_http_server.h"
+#include "screen_deploy_api.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_heap_caps.h"
 #include "cJSON.h"
 
 #include "dynamic_display_api.h"
@@ -894,29 +896,62 @@ void dynamic_display_task(void *pvParameters)
         return;
     }
     s_started = true;
-    // Initialize SPIFFS screen storage and seed default screens if needed
-    esp_err_t ret = screen_store_init();
+
+    // Mount the storage first (fast); seeding is deferred until the REST server
+    // is listening because validating every embedded file takes seconds.
+    esp_err_t ret = screen_store_mount();
     if (ret != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to initialize screen flash storage");
+        ESP_LOGE(TAG, "Failed to initialize screen flash storage: %s", esp_err_to_name(ret));
     }
     else
     {
         httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-        config.max_uri_handlers = 20;
+        config.max_uri_handlers = 32;
         /* LWIP_MAX_SOCKETS is shared with MQTT/BACnet/Modbus TCP. Default
          * httpd uses 7 clients + listen + ctrl and then accept() fails with
          * errno 23 (ENFILE). Keep a small pool and drop idle sessions. */
-        config.max_open_sockets = 4;
+        config.max_open_sockets = 3;
         config.lru_purge_enable = true;
         config.backlog_conn = 2;
         config.recv_wait_timeout = 10;
         config.send_wait_timeout = 10;
-        config.stack_size = 20480; // Increase stack size for JSON processing
+        /* The server task stack must come from internal RAM, which is the
+         * scarcest resource on this board (16 MB of PSRAM, but the JSON trees
+         * the renderer keeps alive consume internal memory).  20 KB did not fit
+         * after the default screens grew; 8 KB is still twice the IDF default. */
+        config.stack_size = 8192;
         config.uri_match_fn = httpd_uri_match_wildcard;
 
-        ESP_LOGI(TAG, "Starting Dynamic Display REST Server on port %d", config.server_port);
-        if (httpd_start(&s_server, &config) != ESP_OK)
+        ESP_LOGI(TAG, "Starting Dynamic Display REST Server on port %d "
+                      "(internal heap %u, largest internal block %u)",
+                 config.server_port,
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+
+        /* The server task needs a ~20 KB contiguous block of internal RAM, which
+         * is not available in the first seconds after Wi-Fi init: starting too
+         * early fails with ESP_ERR_HTTPD_TASK and leaves the listen socket
+         * behind, so subsequent attempts cannot bind.  Wait for the network
+         * stack to settle, then try a bounded number of times. */
+        vTaskDelay(pdMS_TO_TICKS(8000));
+
+        esp_err_t herr = ESP_FAIL;
+        for (int attempt = 1; attempt <= 2; ++attempt)
+        {
+            herr = httpd_start(&s_server, &config);
+            if (herr == ESP_OK)
+            {
+                break;
+            }
+            ESP_LOGE(TAG, "httpd_start attempt %d failed: %s (internal heap %u, largest internal block %u)",
+                     attempt, esp_err_to_name(herr),
+                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                     (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+            s_server = NULL;
+            vTaskDelay(pdMS_TO_TICKS(4000));
+        }
+        if (herr != ESP_OK)
         {
             ESP_LOGE(TAG, "Failed to start HTTP server");
             s_started = false;
@@ -949,7 +984,12 @@ void dynamic_display_task(void *pvParameters)
                 httpd_register_uri_handler(s_server, &uris[i]);
             }
 
+            screen_deploy_register_handlers(s_server);
+
             ESP_LOGI(TAG, "Dynamic Display REST Server initialized successfully");
+
+            /* only now pay the cost of validating/creating the embedded defaults */
+            screen_store_seed_defaults();
         }
     }
     vTaskDelete(NULL); // Delete this task as it's no longer needed

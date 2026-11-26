@@ -14,6 +14,7 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "TemcoScreen/ui.h"
+#include "TemcoScreen/ui_json_render.h"
 #include "ud_str.h"
 #include "controls.h"
 #include "rtc.h"
@@ -201,11 +202,14 @@ void Lcd_Task(void *pvParameters)
 
     ui_init();
 
+    ui_json_render_register();
+
     lv_Init_UserParameters();
 
     uart_write_bytes(UART_NUM_0, "LVGL Loop Start..\r\n", strlen("LVGL Loop Start..\r\n"));
     while (1)
     {
+        ui_json_render_service();
         lv_timer_handler();
         lv_Lcd_UpdateData();
 
