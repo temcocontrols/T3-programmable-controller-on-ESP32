@@ -178,6 +178,18 @@ def main():
             t0 = time.time()
             while time.time() - t0 < 25 and not dumped(name, mark):
                 time.sleep(0.25)
+            # the block itself is printed line by line: keep reading until the
+            # console has been quiet for a moment, otherwise the second dump is
+            # cut off half way (the first one is pre-settle geometry)
+            quiet = time.time()
+            seen = len(all_lines)
+            while time.time() - t0 < 30:
+                time.sleep(0.25)
+                if len(all_lines) != seen:
+                    seen = len(all_lines)
+                    quiet = time.time()
+                elif time.time() - quiet > 1.5:
+                    break
             print("nav %-26s %s (%.1fs)" % (name, "ok" if dumped(name, mark) else "NO DUMP",
                                             time.time() - t0), flush=True)
     finally:
