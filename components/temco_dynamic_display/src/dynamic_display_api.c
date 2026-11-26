@@ -862,6 +862,10 @@ static esp_err_t reset_defaults_handler(httpd_req_t *req)
         return send_error(req, 500, "Failed to reset display storage");
     }
 
+    /* the revision is back to 0: let the renderer re-evaluate the mode, which
+     * in "auto" returns the panel to the compiled screens */
+    screen_deploy_notify_applied();
+
     char screen_names[MAX_SCREENS_LIST][64];
     size_t screen_count = 0;
     screen_store_list_screens(screen_names, MAX_SCREENS_LIST, &screen_count);

@@ -13,6 +13,7 @@
 #include "esp_random.h"
 #include "esp_http_server.h"
 #include "esp_system.h"
+#include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "cJSON.h"
@@ -51,6 +52,11 @@ void screen_deploy_set_ui_hooks(screen_ui_status_fn status_fn, screen_ui_apply_f
 {
     s_status_fn = status_fn;
     s_apply_fn = apply_fn;
+}
+
+void screen_deploy_notify_applied(void)
+{
+    if (s_apply_fn) s_apply_fn(screen_txn_active_slot(), screen_txn_revision());
 }
 
 /* ---------- helpers ---------- */
@@ -184,23 +190,28 @@ static esp_err_t capacity_handler(httpd_req_t *req)
 
 static esp_err_t device_status_handler(httpd_req_t *req)
 {
-    screen_txn_capacity_t cap;
-    if (screen_txn_capacity(&cap) != ESP_OK) {
-        return send_jsonf(req, "500 Internal Server Error", "{\"error\":\"storage_unavailable\"}");
-    }
+    /* cheap on purpose: this endpoint is polled (deploy drawer, T3000) and the
+     * full capacity walk costs ~0.8 s on this flash */
+    size_t total = 0, used = 0, freeb = 0;
+    screen_txn_usage(&total, &used, &freeb);
 
     screen_ui_status_t ui = {0};
     if (s_status_fn) {
         s_status_fn(&ui);
     }
     return send_jsonf(req, "200 OK",
-        "{\"ui_mode\":\"%s\",\"tier\":%d,\"slot\":\"%c\",\"revision\":%d,"
+        "{\"ui_mode\":\"%s\",\"mode\":\"%s\",\"mode_failed\":%s,\"tier\":%d,\"slot\":\"%c\",\"revision\":%d,"
         "\"current_screen\":\"%s\",\"build_ok\":%s,\"forced_compiled\":%s,\"last_error\":\"%s\","
-        "\"storage\":{\"total\":%u,\"used\":%u,\"free\":%u,\"reserved\":%u}}",
-        ui.ui_json ? "json" : "compiled", ui.ui_json ? 1 : 0,
-        cap.active_slot, cap.revision, ui.screen,
+        "\"heap\":{\"free\":%u,\"internal_free\":%u,\"internal_min\":%u},"
+        "\"storage\":{\"total\":%u,\"used\":%u,\"free\":%u}}",
+        ui.ui_json ? "json" : "compiled", ui.mode, ui.mode_failed ? "true" : "false",
+        ui.ui_json ? 1 : 0,
+        screen_txn_active_slot()[0], screen_txn_revision(), ui.screen,
         ui.build_ok ? "true" : "false", ui.forced_compiled ? "true" : "false", ui.last_error,
-        (unsigned)cap.total, (unsigned)cap.used, (unsigned)cap.free, (unsigned)cap.reserved);
+        (unsigned)esp_get_free_heap_size(),
+        (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+        (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+        (unsigned)total, (unsigned)used, (unsigned)freeb);
 }
 
 /* ---------- GET|POST /ui-mode ---------- */
@@ -218,29 +229,40 @@ static esp_err_t ui_mode_handler(httpd_req_t *req)
             return send_jsonf(req, "400 Bad Request", "{\"error\":\"invalid_json\"}");
         }
         const cJSON *mode = cJSON_GetObjectItem(root, "mode");
-        bool compiled;
+        int want;
+        char label[12] = "json";
         if (cJSON_IsString(mode)) {
-            compiled = strcmp(mode->valuestring, "compiled") == 0;
+            snprintf(label, sizeof(label), "%s", mode->valuestring);
+            if (!strcmp(label, "json")) want = 0;
+            else if (!strcmp(label, "compiled")) want = 1;
+            else if (!strcmp(label, "auto")) want = 2;
+            else want = -1;
         } else if (cJSON_IsBool(mode)) {
-            compiled = !cJSON_IsTrue(mode); /* {"mode":true} = json */
+            want = cJSON_IsTrue(mode) ? 0 : 1;   /* {"mode":true} = json */
+            snprintf(label, sizeof(label), "%s", want ? "compiled" : "json");
         } else {
-            cJSON_Delete(root);
-            return send_jsonf(req, "400 Bad Request",
-                              "{\"error\":\"bad_mode\",\"expect\":[\"json\",\"compiled\"]}");
+            want = -1;
         }
         cJSON_Delete(root);
+        if (want < 0) {
+            return send_jsonf(req, "400 Bad Request",
+                              "{\"error\":\"bad_mode\",\"expect\":[\"auto\",\"json\",\"compiled\"]}");
+        }
         if (!s_set_mode_fn) {
             return send_jsonf(req, "501 Not Implemented", "{\"error\":\"renderer_absent\"}");
         }
-        int state = s_set_mode_fn(compiled);
-        return send_jsonf(req, "200 OK", "{\"ok\":true,\"ui_mode\":\"%s\"}",
-                          state ? "compiled" : "json");
+        int state = s_set_mode_fn(want);
+        return send_jsonf(req, "200 OK", "{\"ok\":true,\"ui_mode\":\"%s\",\"mode\":\"%s\"}",
+                          state ? "compiled" : "json", label);
     }
 
     screen_ui_status_t ui = {0};
     if (s_status_fn) s_status_fn(&ui);
-    return send_jsonf(req, "200 OK", "{\"ui_mode\":\"%s\",\"forced_compiled\":%s}",
-                      ui.ui_json ? "json" : "compiled", ui.forced_compiled ? "true" : "false");
+    return send_jsonf(req, "200 OK",
+                      "{\"ui_mode\":\"%s\",\"mode\":\"%s\",\"mode_failed\":%s,\"forced_compiled\":%s}",
+                      ui.ui_json ? "json" : "compiled", ui.mode,
+                      ui.mode_failed ? "true" : "false",
+                      ui.forced_compiled ? "true" : "false");
 }
 
 /* ---------- POST /ui-screen {"name":"parameters"} ---------- */
