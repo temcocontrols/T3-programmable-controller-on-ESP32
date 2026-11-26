@@ -43,11 +43,19 @@ void screen_txn_last_counts(int *screens, int *images);
 esp_err_t screen_txn_read_active(const char *area, const char *name,
                                  char **out_buf, size_t *out_len);
 
+/* names (without .json) of every file of `area` in the active slot */
+esp_err_t screen_txn_list_active(const char *area, char names[][32],
+                                 size_t max_count, size_t *out_count);
+
 /* path of a file inside the active slot: /spiffs/<A|B>/<area>/<name>.json */
 void screen_slot_path(const char *area, const char *name, char *buf, size_t n);
-
 esp_err_t screen_txn_init(void);
 esp_err_t screen_txn_capacity(screen_txn_capacity_t *out);
+
+/* Cheap partition usage (esp_spiffs_info only): safe to call on every status
+ * poll.  screen_txn_capacity() additionally walks the inactive slot to report
+ * slot_free/reserved, which costs ~0.8 s on this flash. */
+void screen_txn_usage(size_t *total, size_t *used, size_t *free_bytes);
 
 esp_err_t screen_txn_begin(const char *deploy_id, int revision, const char *start_screen);
 esp_err_t screen_txn_stage(const char *deploy_id, const char *area, const char *name,

@@ -498,6 +498,35 @@ void screen_slot_path(const char *area, const char *name, char *buf, size_t n)
     slot_file(s_active, area, name, buf, n);
 }
 
+esp_err_t screen_txn_list_active(const char *area, char names[][32],
+                                 size_t max_count, size_t *out_count)
+{
+    if (!names || !out_count) return ESP_ERR_INVALID_ARG;
+    *out_count = 0;
+    if (!s_ready || !area) return ESP_ERR_INVALID_STATE;
+
+    char dir[96];
+    slot_dir(s_active, area, dir, sizeof(dir));
+    DIR *d = opendir(dir);
+    if (!d) return ESP_ERR_NOT_FOUND;
+
+    size_t count = 0;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL && count < max_count) {
+        const char *dot = strrchr(e->d_name, '.');
+        if (!dot || strcmp(dot, ".json") != 0) continue;
+        size_t len = (size_t)(dot - e->d_name);
+        if (len == 0 || len >= 32) continue;
+        memcpy(names[count], e->d_name, len);
+        names[count][len] = '\0';
+        count++;
+    }
+    closedir(d);
+
+    *out_count = count;
+    return ESP_OK;
+}
+
 esp_err_t screen_txn_init(void)
 {
     if (s_ready) return ESP_OK;
@@ -541,6 +570,17 @@ esp_err_t screen_txn_init(void)
     ensure_slot_dirs(other_slot(s_active));
     s_ready = true;
     return ESP_OK;
+}
+
+void screen_txn_usage(size_t *total, size_t *used, size_t *free_bytes)
+{
+    size_t t = 0, u = 0;
+    if (esp_spiffs_info(SCREEN_TXN_PARTITION, &t, &u) != ESP_OK) {
+        t = u = 0;
+    }
+    if (total) *total = t;
+    if (used) *used = u;
+    if (free_bytes) *free_bytes = (t > u) ? (t - u) : 0;
 }
 
 esp_err_t screen_txn_capacity(screen_txn_capacity_t *out)
