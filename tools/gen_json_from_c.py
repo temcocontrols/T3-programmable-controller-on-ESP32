@@ -325,6 +325,46 @@ def style_value(prop, raw):
     return num(raw)
 
 
+def handler_ifs(body):
+    """Yield (condition, statement) for every `if (...)` in an event handler.
+
+    The condition is matched by balancing parentheses, and the statement is
+    either the braced block or the single statement up to its `;`, because
+    SquareLine emits both forms (`if (...) { ... }` and
+    `if (...) _ui_screen_change(...);` — see ui_event_Button6).
+    """
+    for bm in re.finditer(r"\bif\s*\(", body):
+        i = bm.end() - 1
+        depth, j = 0, i
+        while j < len(body):
+            if body[j] == "(":
+                depth += 1
+            elif body[j] == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        cond = body[i + 1:j]
+        k = j + 1
+        while k < len(body) and body[k] in " \t\r\n":
+            k += 1
+        if k < len(body) and body[k] == "{":
+            d, e2 = 0, k
+            while e2 < len(body):
+                if body[e2] == "{":
+                    d += 1
+                elif body[e2] == "}":
+                    d -= 1
+                    if d == 0:
+                        break
+                e2 += 1
+            inner = body[k:e2 + 1]
+        else:
+            semi = body.find(";", k)
+            inner = body[k:semi + 1 if semi >= 0 else len(body)]
+        yield cond, inner
+
+
 def parse(screen):
     path = os.path.join(UI, "ui_" + screen + ".c")
     src = open(path, encoding="utf-8", errors="replace").read()
@@ -562,21 +602,13 @@ def parse(screen):
         body = src[i:j + 1]
 
         acts = {}
-        for bm in re.finditer(r"if\s*\(([^{};]*)\)\s*\{", body):
-            evs = [EVENT[c] for c in re.findall(r"LV_EVENT_[A-Z_]+", bm.group(1)) if c in EVENT]
+        # SquareLine writes both `if (...) { ... }` and the brace-less
+        # `if (...) _ui_screen_change(...);` form (see ui_event_Button6), so both
+        # have to be read or the button silently navigates nowhere.
+        for cond, inner in handler_ifs(body):
+            evs = [EVENT[c] for c in re.findall(r"LV_EVENT_[A-Z_]+", cond) if c in EVENT]
             if not evs:
                 continue
-            k = bm.end() - 1
-            d, e2 = 0, k
-            while e2 < len(body):
-                if body[e2] == "{":
-                    d += 1
-                elif body[e2] == "}":
-                    d -= 1
-                    if d == 0:
-                        break
-                e2 += 1
-            inner = body[k:e2 + 1]
             for ev in evs:
                 acts.setdefault(ev, [])
                 for sc in re.finditer(

@@ -395,6 +395,19 @@
                   "y_pos": 0
                 }
               },
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_LEFT",
+                      "delay": 0,
+                      "screen": "wireguard_screen",
+                      "speed": 500
+                    }
+                  ]
+                }
+              },
               "height": 40,
               "obj_text": "",
               "style": {
@@ -438,6 +451,19 @@
                   "width": 0,
                   "x_pos": 0,
                   "y_pos": 0
+                }
+              },
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_LEFT",
+                      "delay": 0,
+                      "screen": "ddns_screen",
+                      "speed": 500
+                    }
+                  ]
                 }
               },
               "height": 40,
