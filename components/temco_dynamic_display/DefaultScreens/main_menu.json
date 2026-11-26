@@ -375,16 +375,15 @@
             "Button6": {
               "align": "center",
               "children": {
-                "Label39": {
+                "label6": {
                   "align": "center",
                   "height": 0,
-                  "obj_text": "Inputs",
+                  "obj_text": "WireGuard",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
-                        "text_color": "#05074D",
-                        "text_decor": "none",
-                        "text_opa": 255
+                        "text_color": "#09007D",
+                        "text_font": "lv_font_montserrat_30"
                       }
                     }
                   },
@@ -393,7 +392,7 @@
                   "type": "Widget",
                   "width": 0,
                   "x_pos": 0,
-                  "y_pos": -48
+                  "y_pos": 0
                 }
               },
               "height": 40,
@@ -421,16 +420,15 @@
             "Button7": {
               "align": "center",
               "children": {
-                "Label40": {
+                "label7": {
                   "align": "center",
                   "height": 0,
-                  "obj_text": "Outputs",
+                  "obj_text": "DDNS",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
-                        "text_color": "#05074D",
-                        "text_decor": "none",
-                        "text_opa": 255
+                        "text_color": "#09007D",
+                        "text_font": "lv_font_montserrat_30"
                       }
                     }
                   },
@@ -439,7 +437,7 @@
                   "type": "Widget",
                   "width": 0,
                   "x_pos": 0,
-                  "y_pos": 22
+                  "y_pos": 0
                 }
               },
               "height": 40,
@@ -677,6 +675,46 @@
               "width": 40,
               "x_pos": 0,
               "y_pos": 65
+            },
+            "Label39": {
+              "align": "center",
+              "height": 0,
+              "obj_text": "Inputs",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_color": "#05074D",
+                    "text_decor": "none",
+                    "text_opa": 255
+                  }
+                }
+              },
+              "sub_type": "label",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 0,
+              "x_pos": 0,
+              "y_pos": -48
+            },
+            "Label40": {
+              "align": "center",
+              "height": 0,
+              "obj_text": "Outputs",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_color": "#05074D",
+                    "text_decor": "none",
+                    "text_opa": 255
+                  }
+                }
+              },
+              "sub_type": "label",
+              "text_type": "literal",
+              "type": "Widget",
+              "width": 0,
+              "x_pos": 0,
+              "y_pos": 22
             },
             "Label41": {
               "align": "center",

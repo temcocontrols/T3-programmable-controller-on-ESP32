@@ -240,6 +240,27 @@ def screen_region(src, screen):
     return src[start:nxt if nxt > 0 else len(src)]
 
 
+LOCAL_WIDGET = re.compile(
+    r"lv_obj_t\s*\*\s*(\w+)\s*=\s*lv_([a-z_]+)_create\s*\(\s*ui_[A-Za-z0-9_]+\s*\)\s*;")
+
+
+def alias_local_widgets(region):
+    """Give widgets the design keeps in a local variable a `ui_` name.
+
+    The compiled screens sometimes create a widget into a local, e.g.
+    `lv_obj_t *label6 = lv_label_create(ui_Button6); lv_label_set_text(label6,
+    "WireGuard");`.  Those are real design objects, so alias them as
+    `ui_label6` and let the normal (name based) extraction pick up their text and
+    style; otherwise the JSON silently loses them and the button renders blank.
+    """
+    for m in LOCAL_WIDGET.finditer(region):
+        local = m.group(1)
+        if local.startswith("ui_"):
+            continue
+        region = re.sub(r"\b%s\b" % re.escape(local), "ui_" + local, region)
+    return region
+
+
 _ASSET_DIMS = {}
 
 
@@ -308,27 +329,25 @@ def parse(screen):
     path = os.path.join(UI, "ui_" + screen + ".c")
     src = open(path, encoding="utf-8", errors="replace").read()
     region = screen_region(src, screen)
+    region = alias_local_widgets(region)
 
     # creation order + parents, and every call grouped by the object it targets
     objs = []
     calls = {}
     for fn, args in scan_calls(region):
-        if not args:
-            continue
-        if fn.endswith("_create"):
-            pm = re.match(r"ui_([A-Za-z0-9_]+)", args[0])
-            objs.append({"name": None, "kind": fn[:-len("_create")],
-                         "parent": pm.group(1) if pm else None})
         if args[0].startswith("ui_"):
             calls.setdefault(args[0][3:], []).append((fn, args))
-    # pair each creation call with the variable it is assigned to
-    for m in re.finditer(r"ui_([A-Za-z0-9_]+)\s*=\s*lv_([a-z_]+)_create\s*\(", region):
-        for o in objs:
-            if o["kind"] == m.group(2) and o["name"] is None:
-                o["name"] = m.group(1)
-                break
-    # widgets LVGL creates for us (calendar header) and locals are not design objects
-    objs = [o for o in objs if o["name"] and not o["name"].endswith("_header")]
+    # Design objects are exactly the `ui_X = lv_kind_create(parent)` statements:
+    # taking the name and the parent from the same statement keeps them paired
+    # (pairing them by "first unnamed widget of this kind" crossed the two when a
+    # local label sat between them, which silently re-parented later labels).
+    for m in re.finditer(
+            r"ui_([A-Za-z0-9_]+)\s*=\s*lv_([a-z_]+)_create\s*\(\s*([^()]*)\)", region):
+        pm = re.match(r"ui_([A-Za-z0-9_]+)", m.group(3).strip())
+        objs.append({"name": m.group(1), "kind": m.group(2),
+                     "parent": pm.group(1) if pm else None})
+    # widgets LVGL creates for us (calendar header) are not design objects
+    objs = [o for o in objs if not o["name"].endswith("_header")]
 
     by_name = {o["name"]: o for o in objs}
     assets = {}
@@ -366,6 +385,10 @@ def parse(screen):
                 if fn == "obj_align" and len(a) > 3:
                     node["x_pos"] = num(a[2])
                     node["y_pos"] = num(a[3])
+            elif fn == "obj_center":
+                node["align"] = "center"
+                node["x_pos"] = 0
+                node["y_pos"] = 0
             elif fn == "obj_align_to" and len(a) > 4:
                 node["align_to"] = {
                     "target": a[1].replace("ui_", "", 1),
