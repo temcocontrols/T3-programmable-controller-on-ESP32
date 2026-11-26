@@ -86,17 +86,6 @@
           "x_pos": 0,
           "y_pos": 0
         },
-        "DdnsLabel": {
-          "align": "top_mid",
-          "height": 0,
-          "obj_text": "Enable fixed DDNS service",
-          "sub_type": "label",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 0,
-          "x_pos": -45,
-          "y_pos": 78
-        },
         "ddns_enable": {
           "align": "top_mid",
           "height": 24,
@@ -107,6 +96,17 @@
           "width": 48,
           "x_pos": 80,
           "y_pos": 75
+        },
+        "DdnsLabel": {
+          "align": "top_mid",
+          "height": 0,
+          "obj_text": "Enable fixed DDNS service",
+          "sub_type": "label",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 0,
+          "x_pos": -45,
+          "y_pos": 78
         },
         "ddns_status": {
           "align": "top_mid",
@@ -119,7 +119,7 @@
           "x_pos": 0,
           "y_pos": 135
         },
-        "TestButton": {
+        "DdnsTestButton": {
           "align": "bottom_mid",
           "children": {
             "TestLabel": {
@@ -158,7 +158,7 @@
           "x_pos": 55,
           "y_pos": -20
         },
-        "UpdateButton": {
+        "DdnsUpdateButton": {
           "align": "bottom_mid",
           "children": {
             "UpdateLabel": {

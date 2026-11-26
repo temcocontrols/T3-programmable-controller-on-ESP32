@@ -86,17 +86,6 @@
           "x_pos": 0,
           "y_pos": 0
         },
-        "EnableLabel": {
-          "align": "top_left",
-          "height": 0,
-          "obj_text": "Enable",
-          "sub_type": "label",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 0,
-          "x_pos": 20,
-          "y_pos": 52
-        },
         "wg_enable": {
           "align": "top_mid",
           "height": 24,
@@ -107,6 +96,17 @@
           "width": 48,
           "x_pos": -20,
           "y_pos": 48
+        },
+        "EnableLabel": {
+          "align": "top_left",
+          "height": 0,
+          "obj_text": "Enable",
+          "sub_type": "label",
+          "text_type": "literal",
+          "type": "Widget",
+          "width": 0,
+          "x_pos": 20,
+          "y_pos": 52
         },
         "LocalLabel": {
           "align": "top_left",
@@ -188,7 +188,7 @@
           "x_pos": 0,
           "y_pos": 220
         },
-        "TestButton": {
+        "WgTestButton": {
           "align": "bottom_mid",
           "children": {
             "TestLabel": {
@@ -227,7 +227,7 @@
           "x_pos": 55,
           "y_pos": -20
         },
-        "UpdateButton": {
+        "WgUpdateButton": {
           "align": "bottom_mid",
           "children": {
             "UpdateLabel": {

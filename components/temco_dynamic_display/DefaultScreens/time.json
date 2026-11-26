@@ -11,62 +11,93 @@
   ],
   "widgets": {
     "Time": {
-      "children": {
-        "Calendar3": {
-          "align": "center",
-          "events": {
-            "VALUE_CHANGED": {
-              "actions": [
-                {
-                  "action": "flag_modify",
-                  "flag": "hidden",
-                  "mode": "add",
-                  "target": "Calendar3"
-                }
-              ]
+      "sub_type": "screen",
+      "type": "Widget",
+      "text_type": "literal",
+      "width": 0,
+      "height": 0,
+      "x_pos": 0,
+      "y_pos": 0,
+      "obj_text": "",
+      "events": {
+        "CLICKED": {
+          "actions": [
+            {
+              "action": "flag_modify",
+              "flag": "hidden",
+              "mode": "add",
+              "target": "TimeSettingPopUp"
+            },
+            {
+              "action": "flag_modify",
+              "flag": "hidden",
+              "mode": "add",
+              "target": "Calendar3"
             }
-          },
-          "header": "Arrow",
-          "height": 200,
-          "hidden": true,
+          ]
+        }
+      },
+      "children": {
+        "ChangeConfigTitle3": {
+          "sub_type": "panel",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 450,
+          "height": 40,
+          "x_pos": 0,
+          "y_pos": 0,
+          "align": "top_mid",
           "obj_text": "",
-          "shown_month": 2,
-          "shown_year": 2026,
+          "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
-                "bg_color": "#114570",
-                "bg_grad_color": "#436078",
-                "bg_grad_dir": "ver",
-                "bg_grad_stop": 255,
-                "bg_main_stop": 0,
-                "bg_opa": 240,
-                "border_color": "#7FC0F7",
-                "border_opa": 100,
-                "border_width": 2,
-                "radius": 10,
-                "shadow_color": "#2095F6",
-                "shadow_opa": 100,
-                "shadow_spread": 5,
-                "shadow_width": 100
+                "bg_color": "#2D70A0",
+                "bg_opa": 0,
+                "border_side": "bottom"
               }
             }
           },
-          "sub_type": "calendar",
-          "text_type": "literal",
-          "today_day": 10,
-          "today_month": 2,
-          "today_year": 2026,
-          "type": "Widget",
-          "width": 250,
-          "x_pos": 50,
-          "y_pos": 0
-        },
-        "ChangeConfigTitle3": {
-          "align": "top_mid",
           "children": {
+            "NetworkSetupConfig5": {
+              "sub_type": "label",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 0,
+              "height": 0,
+              "x_pos": -80,
+              "y_pos": 0,
+              "align": "center",
+              "obj_text": "   Time Sync Setup",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_font": "lv_font_montserrat_18"
+                  }
+                }
+              }
+            },
             "GotoMenuButton9": {
+              "sub_type": "imagebutton",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 35,
+              "height": 35,
+              "x_pos": 0,
+              "y_pos": 0,
               "align": "left_mid",
+              "obj_text": "",
+              "img_released": "backsmallarrow",
+              "img_pressed": "backsmallarrow",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 100,
+                    "bg_color": "#3C3C3C",
+                    "bg_opa": 255
+                  }
+                }
+              },
               "events": {
                 "CLICKED": {
                   "actions": [
@@ -79,258 +110,37 @@
                     }
                   ]
                 }
-              },
-              "height": 35,
-              "img_pressed": "backsmallarrow",
-              "img_released": "backsmallarrow",
-              "obj_text": "",
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#3C3C3C",
-                    "bg_opa": 255,
-                    "radius": 100
-                  }
-                }
-              },
-              "sub_type": "imagebutton",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 35,
-              "x_pos": 0,
-              "y_pos": 0
-            },
-            "NetworkSetupConfig5": {
-              "align": "center",
-              "height": 0,
-              "obj_text": "   Time Sync Setup",
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "text_font": "lv_font_montserrat_18"
-                  }
-                }
-              },
-              "sub_type": "label",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 0,
-              "x_pos": -80,
-              "y_pos": 0
-            }
-          },
-          "height": 40,
-          "obj_text": "",
-          "scrollable": false,
-          "style": {
-            "MAIN": {
-              "DEFAULT": {
-                "bg_color": "#2D70A0",
-                "bg_opa": 0,
-                "border_side": "bottom"
               }
             }
-          },
-          "sub_type": "panel",
-          "text_type": "literal",
+          }
+        },
+        "SyncLocalPcCheckbox": {
+          "sub_type": "checkbox",
           "type": "Widget",
-          "width": 450,
-          "x_pos": 0,
-          "y_pos": 0
+          "text_type": "literal",
+          "width": 0,
+          "height": 0,
+          "x_pos": -100,
+          "y_pos": -105,
+          "align": "center",
+          "obj_text": "Synchronize with Local PC",
+          "style": {
+            "INDICATOR": {
+              "DEFAULT": {
+                "radius": 50
+              }
+            }
+          }
         },
         "Panel1": {
-          "align": "center",
-          "children": {
-            "ChangeDateBtn": {
-              "align": "top_left",
-              "children": {
-                "Label70": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": "03-02-26",
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
-              "events": {
-                "CLICKED": {
-                  "actions": [
-                    {
-                      "action": "flag_modify",
-                      "flag": "hidden",
-                      "mode": "remove",
-                      "target": "Calendar3"
-                    },
-                    {
-                      "action": "flag_modify",
-                      "flag": "hidden",
-                      "mode": "add",
-                      "target": "TimeSettingPopUp"
-                    }
-                  ]
-                }
-              },
-              "height": 25,
-              "obj_text": "",
-              "scrollable": false,
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#292831",
-                    "bg_opa": 255,
-                    "border_color": "#52555A",
-                    "border_opa": 255,
-                    "border_side": "full",
-                    "border_width": 1,
-                    "radius": 5
-                  }
-                }
-              },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 140,
-              "x_pos": -10,
-              "y_pos": -10
-            },
-            "ChangeTimeBtn": {
-              "align": "left_mid",
-              "children": {
-                "Label68": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": "20 : 10",
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
-              "events": {
-                "CLICKED": {
-                  "actions": [
-                    {
-                      "action": "flag_modify",
-                      "flag": "hidden",
-                      "mode": "remove",
-                      "target": "TimeSettingPopUp"
-                    },
-                    {
-                      "action": "flag_modify",
-                      "flag": "hidden",
-                      "mode": "add",
-                      "target": "Calendar3"
-                    }
-                  ]
-                }
-              },
-              "height": 25,
-              "obj_text": "",
-              "scrollable": false,
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#292831",
-                    "bg_opa": 255,
-                    "border_color": "#52555A",
-                    "border_opa": 255,
-                    "border_side": "full",
-                    "border_width": 1,
-                    "radius": 5
-                  }
-                }
-              },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 140,
-              "x_pos": -10,
-              "y_pos": 10
-            },
-            "RefreshBtn": {
-              "align": "bottom_mid",
-              "children": {
-                "Label17": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": "Refresh Time",
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
-              "height": 25,
-              "obj_text": "",
-              "scrollable": false,
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#373640",
-                    "bg_opa": 255,
-                    "border_color": "#55555B",
-                    "border_opa": 255,
-                    "border_side": "full",
-                    "border_width": 1,
-                    "radius": 5
-                  }
-                }
-              },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 150,
-              "x_pos": 20,
-              "y_pos": 0
-            },
-            "SyncWithPcBtn": {
-              "align": "center",
-              "children": {
-                "Label18": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": "SYNC Local PC",
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
-              "height": 25,
-              "obj_text": "",
-              "scrollable": false,
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#313441",
-                    "bg_opa": 255,
-                    "border_color": "#52555A",
-                    "border_opa": 255,
-                    "border_side": "full",
-                    "border_width": 1,
-                    "radius": 5
-                  }
-                }
-              },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 150,
-              "x_pos": 20,
-              "y_pos": -20
-            }
-          },
+          "sub_type": "panel",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 430,
           "height": 80,
+          "x_pos": 0,
+          "y_pos": -50,
+          "align": "center",
           "obj_text": "",
           "scrollable": false,
           "style": {
@@ -342,19 +152,339 @@
               }
             }
           },
-          "sub_type": "panel",
-          "text_type": "literal",
+          "children": {
+            "ChangeTimeBtn": {
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 140,
+              "height": 25,
+              "x_pos": -10,
+              "y_pos": 10,
+              "align": "left_mid",
+              "obj_text": "",
+              "scrollable": false,
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 5,
+                    "bg_color": "#292831",
+                    "bg_opa": 255,
+                    "border_color": "#52555A",
+                    "border_opa": 255,
+                    "border_width": 1,
+                    "border_side": "full"
+                  }
+                }
+              },
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "remove",
+                      "target": "TimeSettingPopUp"
+                    },
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "add",
+                      "target": "Calendar3"
+                    }
+                  ]
+                }
+              },
+              "children": {
+                "Label68": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "20 : 10"
+                }
+              }
+            },
+            "ChangeDateBtn": {
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 140,
+              "height": 25,
+              "x_pos": -10,
+              "y_pos": -10,
+              "align": "top_left",
+              "obj_text": "",
+              "scrollable": false,
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 5,
+                    "bg_color": "#292831",
+                    "bg_opa": 255,
+                    "border_color": "#52555A",
+                    "border_opa": 255,
+                    "border_width": 1,
+                    "border_side": "full"
+                  }
+                }
+              },
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "remove",
+                      "target": "Calendar3"
+                    },
+                    {
+                      "action": "flag_modify",
+                      "flag": "hidden",
+                      "mode": "add",
+                      "target": "TimeSettingPopUp"
+                    }
+                  ]
+                }
+              },
+              "children": {
+                "Label70": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "03-02-26"
+                }
+              }
+            },
+            "RefreshBtn": {
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 150,
+              "height": 25,
+              "x_pos": 20,
+              "y_pos": 0,
+              "align": "bottom_mid",
+              "obj_text": "",
+              "scrollable": false,
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 5,
+                    "bg_color": "#373640",
+                    "bg_opa": 255,
+                    "border_color": "#55555B",
+                    "border_opa": 255,
+                    "border_width": 1,
+                    "border_side": "full"
+                  }
+                }
+              },
+              "children": {
+                "Label17": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "Refresh Time"
+                }
+              }
+            },
+            "SyncWithPcBtn": {
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 150,
+              "height": 25,
+              "x_pos": 20,
+              "y_pos": -20,
+              "align": "center",
+              "obj_text": "",
+              "scrollable": false,
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 5,
+                    "bg_color": "#313441",
+                    "bg_opa": 255,
+                    "border_color": "#52555A",
+                    "border_opa": 255,
+                    "border_width": 1,
+                    "border_side": "full"
+                  }
+                }
+              },
+              "children": {
+                "Label18": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "SYNC Local PC"
+                }
+              }
+            }
+          }
+        },
+        "SyncLocalPcCheckbox2": {
+          "sub_type": "checkbox",
           "type": "Widget",
-          "width": 430,
-          "x_pos": 0,
-          "y_pos": -50
+          "text_type": "literal",
+          "width": 0,
+          "height": 0,
+          "x_pos": -90,
+          "y_pos": 0,
+          "align": "center",
+          "obj_text": "Synchronize with time server",
+          "style": {
+            "INDICATOR": {
+              "DEFAULT": {
+                "radius": 50
+              }
+            }
+          }
         },
         "Panel3": {
+          "sub_type": "panel",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 430,
+          "height": 100,
+          "x_pos": 0,
+          "y_pos": 65,
           "align": "center",
+          "obj_text": "",
+          "scrollable": false,
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "bg_color": "#FFFFFF",
+                "bg_opa": 0,
+                "border_side": "none",
+                "pad_left": 15,
+                "pad_right": 1,
+                "pad_top": 10,
+                "pad_bottom": 10
+              }
+            }
+          },
           "children": {
-            "Dropdown4": {
-              "align": "bottom_right",
+            "Dropdown5": {
+              "sub_type": "dropdown",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 180,
               "height": 25,
+              "x_pos": 0,
+              "y_pos": -5,
+              "align": "top_mid",
+              "obj_text": "",
+              "options": [
+                "time.windows.com",
+                "cn.pool.ntp.org",
+                "time.nist.gov",
+                ""
+              ],
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "border_color": "#34333A",
+                    "border_opa": 255,
+                    "border_side": "full",
+                    "pad_left": 5,
+                    "pad_right": 5,
+                    "pad_top": 3,
+                    "pad_bottom": 0
+                  }
+                }
+              }
+            },
+            "Label12": {
+              "sub_type": "label",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 0,
+              "height": 0,
+              "x_pos": 0,
+              "y_pos": 0,
+              "align": "top_left",
+              "obj_text": "Time Server :"
+            },
+            "Label20": {
+              "sub_type": "label",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 0,
+              "height": 0,
+              "x_pos": 0,
+              "y_pos": 0,
+              "align": "left_mid",
+              "obj_text": "Last Update :"
+            },
+            "Label21": {
+              "sub_type": "label",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 0,
+              "height": 0,
+              "x_pos": 0,
+              "y_pos": 0,
+              "align": "bottom_left",
+              "obj_text": "Time Zone   :"
+            },
+            "Label19": {
+              "sub_type": "label",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 180,
+              "height": 25,
+              "x_pos": 0,
+              "y_pos": 0,
+              "align": "center",
+              "obj_text": "No Replay",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 5,
+                    "bg_color": "#292831",
+                    "bg_opa": 255,
+                    "border_color": "#313039",
+                    "border_opa": 255,
+                    "border_width": 2,
+                    "pad_left": 5,
+                    "pad_right": 0,
+                    "pad_top": 3,
+                    "pad_bottom": 0
+                  }
+                }
+              }
+            },
+            "Dropdown4": {
+              "sub_type": "dropdown",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 300,
+              "height": 25,
+              "x_pos": 0,
+              "y_pos": 5,
+              "align": "bottom_right",
               "obj_text": "",
               "options": [
                 "(UTC -12:00), Yankee Time Zone",
@@ -397,231 +527,97 @@
                     "border_color": "#34333A",
                     "border_opa": 255,
                     "border_side": "full",
-                    "pad_bottom": 0,
                     "pad_left": 5,
                     "pad_right": 5,
-                    "pad_top": 3
-                  }
-                }
-              },
-              "sub_type": "dropdown",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 300,
-              "x_pos": 0,
-              "y_pos": 5
-            },
-            "Dropdown5": {
-              "align": "top_mid",
-              "height": 25,
-              "obj_text": "",
-              "options": [
-                "time.windows.com",
-                "cn.pool.ntp.org",
-                "time.nist.gov",
-                ""
-              ],
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "border_color": "#34333A",
-                    "border_opa": 255,
-                    "border_side": "full",
-                    "pad_bottom": 0,
-                    "pad_left": 5,
-                    "pad_right": 5,
-                    "pad_top": 3
-                  }
-                }
-              },
-              "sub_type": "dropdown",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 180,
-              "x_pos": 0,
-              "y_pos": -5
-            },
-            "Label12": {
-              "align": "top_left",
-              "height": 0,
-              "obj_text": "Time Server :",
-              "sub_type": "label",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 0,
-              "x_pos": 0,
-              "y_pos": 0
-            },
-            "Label19": {
-              "align": "center",
-              "height": 25,
-              "obj_text": "No Replay",
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#292831",
-                    "bg_opa": 255,
-                    "border_color": "#313039",
-                    "border_opa": 255,
-                    "border_width": 2,
-                    "pad_bottom": 0,
-                    "pad_left": 5,
-                    "pad_right": 0,
                     "pad_top": 3,
-                    "radius": 5
+                    "pad_bottom": 0
                   }
                 }
-              },
-              "sub_type": "label",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 180,
-              "x_pos": 0,
-              "y_pos": 0
-            },
-            "Label20": {
-              "align": "left_mid",
-              "height": 0,
-              "obj_text": "Last Update :",
-              "sub_type": "label",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 0,
-              "x_pos": 0,
-              "y_pos": 0
-            },
-            "Label21": {
-              "align": "bottom_left",
-              "height": 0,
-              "obj_text": "Time Zone   :",
-              "sub_type": "label",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 0,
-              "x_pos": 0,
-              "y_pos": 0
+              }
             },
             "UpdateLastServerSyncBtn": {
-              "align": "right_mid",
-              "children": {
-                "Label23": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": "Update",
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 100,
               "height": 25,
+              "x_pos": 0,
+              "y_pos": 1,
+              "align": "right_mid",
               "obj_text": "",
               "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
+                    "radius": 5,
                     "bg_color": "#373640",
                     "bg_opa": 255,
                     "border_color": "#55555B",
                     "border_opa": 255,
-                    "border_side": "full",
                     "border_width": 1,
-                    "radius": 5
+                    "border_side": "full"
                   }
                 }
               },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 100,
-              "x_pos": 0,
-              "y_pos": 1
+              "children": {
+                "Label23": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "Update"
+                }
+              }
             }
-          },
+          }
+        },
+        "TimeSettingPopUp": {
+          "sub_type": "panel",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 150,
           "height": 100,
+          "x_pos": 0,
+          "y_pos": 0,
+          "align": "center",
           "obj_text": "",
+          "hidden": true,
           "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
-                "bg_color": "#FFFFFF",
-                "bg_opa": 0,
-                "border_side": "none",
-                "pad_bottom": 10,
-                "pad_left": 15,
-                "pad_right": 1,
-                "pad_top": 10
+                "radius": 10,
+                "bg_color": "#302F3A",
+                "bg_opa": 200,
+                "border_color": "#2095F6",
+                "border_opa": 50,
+                "border_side": "full"
               }
             }
           },
-          "sub_type": "panel",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 430,
-          "x_pos": 0,
-          "y_pos": 65
-        },
-        "SyncLocalPcCheckbox": {
-          "align": "center",
-          "height": 0,
-          "obj_text": "Synchronize with Local PC",
-          "style": {
-            "INDICATOR": {
-              "DEFAULT": {
-                "radius": 50
-              }
-            }
-          },
-          "sub_type": "checkbox",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 0,
-          "x_pos": -100,
-          "y_pos": -105
-        },
-        "SyncLocalPcCheckbox2": {
-          "align": "center",
-          "height": 0,
-          "obj_text": "Synchronize with time server",
-          "style": {
-            "INDICATOR": {
-              "DEFAULT": {
-                "radius": 50
-              }
-            }
-          },
-          "sub_type": "checkbox",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 0,
-          "x_pos": -90,
-          "y_pos": 0
-        },
-        "TimeSettingPopUp": {
-          "align": "center",
           "children": {
             "Button16": {
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 50,
+              "height": 30,
+              "x_pos": 0,
+              "y_pos": 15,
               "align": "bottom_mid",
-              "children": {
-                "Label69": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": "OK",
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "text_font": "lv_font_montserrat_18"
-                      }
-                    }
-                  },
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
+              "obj_text": "",
+              "scrollable": false,
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 10,
+                    "bg_color": "#1A7ACE",
+                    "bg_opa": 255
+                  }
                 }
               },
               "events": {
@@ -636,33 +632,68 @@
                   ]
                 }
               },
+              "children": {
+                "Label69": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "OK",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "TimePanel2": {
+              "sub_type": "panel",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 130,
               "height": 30,
+              "x_pos": 0,
+              "y_pos": -25,
+              "align": "center",
               "obj_text": "",
+              "flex_flow": "row",
+              "flex_main": "space_between",
+              "flex_cross": "start",
+              "flex_track": "start",
               "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
-                    "bg_color": "#1A7ACE",
+                    "radius": 10,
+                    "bg_color": "#1B4971",
                     "bg_opa": 255,
-                    "radius": 10
+                    "border_side": "none",
+                    "pad_left": 0,
+                    "pad_right": 0,
+                    "pad_top": 0,
+                    "pad_bottom": 0
                   }
                 }
               },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 50,
-              "x_pos": 0,
-              "y_pos": 15
-            },
-            "TimePanel2": {
-              "align": "center",
               "children": {
                 "Dropdown11": {
-                  "align": "left_mid",
-                  "dir": "left",
+                  "sub_type": "dropdown",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 64,
                   "height": 30,
+                  "x_pos": -10,
+                  "y_pos": 0,
+                  "align": "left_mid",
                   "obj_text": "",
+                  "dir": "left",
                   "options": [
                     "00",
                     "01",
@@ -693,30 +724,52 @@
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18",
+                        "radius": 10,
                         "bg_color": "#18619C",
                         "bg_opa": 255,
                         "border_side": "none",
-                        "pad_bottom": 0,
                         "pad_left": 0,
                         "pad_right": 8,
                         "pad_top": 3,
-                        "radius": 10,
-                        "text_font": "lv_font_montserrat_18"
+                        "pad_bottom": 0
                       }
                     }
-                  },
-                  "sub_type": "dropdown",
-                  "text_type": "literal",
+                  }
+                },
+                "Label67": {
+                  "sub_type": "label",
                   "type": "Widget",
-                  "width": 64,
-                  "x_pos": -10,
-                  "y_pos": 0
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": ":",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18",
+                        "pad_left": 0,
+                        "pad_right": 0,
+                        "pad_top": 3,
+                        "pad_bottom": 0
+                      }
+                    }
+                  }
                 },
                 "Dropdown8": {
-                  "align": "left_mid",
-                  "dir": "right",
+                  "sub_type": "dropdown",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 64,
                   "height": 30,
+                  "x_pos": -10,
+                  "y_pos": 0,
+                  "align": "left_mid",
                   "obj_text": "",
+                  "dir": "right",
                   "options": [
                     "00",
                     "01",
@@ -782,120 +835,90 @@
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18",
+                        "radius": 10,
                         "bg_color": "#18619C",
                         "bg_opa": 255,
                         "border_side": "none",
-                        "pad_bottom": 0,
                         "pad_left": 8,
                         "pad_right": 0,
                         "pad_top": 3,
-                        "radius": 10,
-                        "text_font": "lv_font_montserrat_18"
+                        "pad_bottom": 0
                       }
                     }
-                  },
-                  "sub_type": "dropdown",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 64,
-                  "x_pos": -10,
-                  "y_pos": 0
-                },
-                "Label67": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": ":",
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "pad_bottom": 0,
-                        "pad_left": 0,
-                        "pad_right": 0,
-                        "pad_top": 3,
-                        "text_font": "lv_font_montserrat_18"
-                      }
-                    }
-                  },
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
-              "flex_cross": "start",
-              "flex_flow": "row",
-              "flex_main": "space_between",
-              "flex_track": "start",
-              "height": 30,
-              "obj_text": "",
-              "scrollable": false,
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#1B4971",
-                    "bg_opa": 255,
-                    "border_side": "none",
-                    "pad_bottom": 0,
-                    "pad_left": 0,
-                    "pad_right": 0,
-                    "pad_top": 0,
-                    "radius": 10
                   }
                 }
-              },
-              "sub_type": "panel",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 130,
-              "x_pos": 0,
-              "y_pos": -25
+              }
+            }
+          }
+        },
+        "Calendar3": {
+          "sub_type": "calendar",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 250,
+          "height": 200,
+          "x_pos": 50,
+          "y_pos": 0,
+          "align": "center",
+          "obj_text": "",
+          "today_year": 2026,
+          "today_month": 2,
+          "today_day": 10,
+          "shown_year": 2026,
+          "shown_month": 2,
+          "header": "Arrow",
+          "hidden": true,
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "radius": 10,
+                "bg_color": "#114570",
+                "bg_opa": 240,
+                "bg_grad_color": "#436078",
+                "bg_main_stop": 0,
+                "bg_grad_stop": 255,
+                "bg_grad_dir": "ver",
+                "border_color": "#7FC0F7",
+                "border_opa": 100,
+                "border_width": 2,
+                "shadow_color": "#2095F6",
+                "shadow_opa": 100,
+                "shadow_width": 100,
+                "shadow_spread": 5
+              }
             }
           },
-          "height": 100,
-          "hidden": true,
+          "events": {
+            "VALUE_CHANGED": {
+              "actions": [
+                {
+                  "action": "flag_modify",
+                  "flag": "hidden",
+                  "mode": "add",
+                  "target": "Calendar3"
+                }
+              ]
+            }
+          }
+        },
+        "TimeSyncSetupUpdateBtn": {
+          "sub_type": "button",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 100,
+          "height": 30,
+          "x_pos": 180,
+          "y_pos": 135,
+          "align": "center",
           "obj_text": "",
           "scrollable": false,
           "style": {
             "MAIN": {
               "DEFAULT": {
-                "bg_color": "#302F3A",
-                "bg_opa": 200,
-                "border_color": "#2095F6",
-                "border_opa": 50,
-                "border_side": "full",
-                "radius": 10
+                "bg_color": "#2971A4",
+                "bg_opa": 255
               }
-            }
-          },
-          "sub_type": "panel",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 150,
-          "x_pos": 0,
-          "y_pos": 0
-        },
-        "TimeSyncSetupUpdateBtn": {
-          "align": "center",
-          "children": {
-            "Label72": {
-              "align": "center",
-              "height": 0,
-              "obj_text": "Update",
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "text_font": "lv_font_montserrat_18"
-                  }
-                }
-              },
-              "sub_type": "label",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 0,
-              "x_pos": 0,
-              "y_pos": 0
             }
           },
           "events": {
@@ -911,51 +934,28 @@
               ]
             }
           },
-          "height": 30,
-          "obj_text": "",
-          "scrollable": false,
-          "style": {
-            "MAIN": {
-              "DEFAULT": {
-                "bg_color": "#2971A4",
-                "bg_opa": 255
+          "children": {
+            "Label72": {
+              "sub_type": "label",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 0,
+              "height": 0,
+              "x_pos": 0,
+              "y_pos": 0,
+              "align": "center",
+              "obj_text": "Update",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_font": "lv_font_montserrat_18"
+                  }
+                }
               }
             }
-          },
-          "sub_type": "button",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 100,
-          "x_pos": 180,
-          "y_pos": 135
+          }
         }
-      },
-      "events": {
-        "CLICKED": {
-          "actions": [
-            {
-              "action": "flag_modify",
-              "flag": "hidden",
-              "mode": "add",
-              "target": "TimeSettingPopUp"
-            },
-            {
-              "action": "flag_modify",
-              "flag": "hidden",
-              "mode": "add",
-              "target": "Calendar3"
-            }
-          ]
-        }
-      },
-      "height": 0,
-      "obj_text": "",
-      "sub_type": "screen",
-      "text_type": "literal",
-      "type": "Widget",
-      "width": 0,
-      "x_pos": 0,
-      "y_pos": 0
+      }
     }
   }
 }

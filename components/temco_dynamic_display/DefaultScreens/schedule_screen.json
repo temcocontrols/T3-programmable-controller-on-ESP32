@@ -11,12 +11,87 @@
   ],
   "widgets": {
     "ScheduleScreen": {
+      "sub_type": "screen",
+      "type": "Widget",
+      "text_type": "literal",
+      "width": 0,
+      "height": 0,
+      "x_pos": 0,
+      "y_pos": 0,
+      "obj_text": "",
+      "events": {
+        "CLICKED": {
+          "actions": [
+            {
+              "action": "flag_modify",
+              "flag": "hidden",
+              "mode": "add",
+              "target": "ScheduleKeyboard"
+            }
+          ]
+        }
+      },
       "children": {
         "ChangeConfigTitle5": {
+          "sub_type": "panel",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 450,
+          "height": 40,
+          "x_pos": 0,
+          "y_pos": 0,
           "align": "top_mid",
+          "obj_text": "",
+          "scrollable": false,
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "bg_color": "#2D70A0",
+                "bg_opa": 0,
+                "border_side": "bottom"
+              }
+            }
+          },
           "children": {
+            "ScheduleSetupstr": {
+              "sub_type": "label",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 0,
+              "height": 0,
+              "x_pos": -80,
+              "y_pos": 0,
+              "align": "center",
+              "obj_text": "   Schedule Setup",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "text_font": "lv_font_montserrat_18"
+                  }
+                }
+              }
+            },
             "GotoMenuButton1": {
+              "sub_type": "imagebutton",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 35,
+              "height": 35,
+              "x_pos": 0,
+              "y_pos": 0,
               "align": "left_mid",
+              "obj_text": "",
+              "img_released": "backsmallarrow",
+              "img_pressed": "backsmallarrow",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "radius": 100,
+                    "bg_color": "#3C3C3C",
+                    "bg_opa": 255
+                  }
+                }
+              },
               "events": {
                 "CLICKED": {
                   "actions": [
@@ -29,142 +104,1342 @@
                     }
                   ]
                 }
-              },
-              "height": 35,
-              "img_pressed": "backsmallarrow",
-              "img_released": "backsmallarrow",
-              "obj_text": "",
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#3C3C3C",
-                    "bg_opa": 255,
-                    "radius": 100
-                  }
-                }
-              },
-              "sub_type": "imagebutton",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 35,
-              "x_pos": 0,
-              "y_pos": 0
-            },
-            "ScheduleSetupstr": {
-              "align": "center",
-              "height": 0,
-              "obj_text": "   Schedule Setup",
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "text_font": "lv_font_montserrat_18"
-                  }
-                }
-              },
-              "sub_type": "label",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 0,
-              "x_pos": -80,
-              "y_pos": 0
-            }
-          },
-          "height": 40,
-          "obj_text": "",
-          "scrollable": false,
-          "style": {
-            "MAIN": {
-              "DEFAULT": {
-                "bg_color": "#2D70A0",
-                "bg_opa": 0,
-                "border_side": "bottom"
               }
             }
-          },
-          "sub_type": "panel",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 450,
-          "x_pos": 0,
-          "y_pos": 0
+          }
         },
         "Container2": {
+          "sub_type": "panel",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 480,
+          "height": 280,
+          "x_pos": 0,
+          "y_pos": 20,
           "align": "center",
+          "obj_text": "",
+          "scrollable": false,
+          "no_default_style": true,
           "children": {
-            "Button12": {
-              "align": "bottom_right",
+            "SchedulePanelMain": {
+              "sub_type": "panel",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 480,
+              "height": 220,
+              "x_pos": 0,
+              "y_pos": 5,
+              "align": "top_mid",
+              "obj_text": "",
+              "flex_flow": "column",
+              "flex_main": "start",
+              "flex_cross": "start",
+              "flex_track": "space_between",
+              "style": {
+                "MAIN": {
+                  "DEFAULT": {
+                    "bg_color": "#FFFFFF",
+                    "bg_opa": 0,
+                    "border_side": "none",
+                    "pad_left": 10,
+                    "pad_right": 10,
+                    "pad_top": 5,
+                    "pad_bottom": 10
+                  }
+                },
+                "SCROLLBAR": {
+                  "CHECKED": {
+                    "radius": 0,
+                    "bg_color": "#FFFFFF",
+                    "bg_opa": 255
+                  }
+                }
+              },
               "children": {
-                "Label63": {
+                "SchedulePanel1": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
                   "align": "center",
-                  "height": 0,
-                  "obj_text": "Update",
+                  "obj_text": "",
+                  "scrollable": false,
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
-                        "text_font": "lv_font_montserrat_18"
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
                       }
                     }
                   },
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
-              "events": {
-                "CLICKED": {
-                  "actions": [
-                    {
-                      "action": "screen_change",
-                      "anim": "MOVE_RIGHT",
-                      "delay": 100,
-                      "screen": "main_menu",
-                      "speed": 1000
+                  "children": {
+                    "SchIndex1": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "1",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText1": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 1",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan1": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel1": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch1": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
                     }
-                  ]
+                  }
+                },
+                "SchedulePanel2": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "",
+                  "scrollable": false,
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
+                      }
+                    }
+                  },
+                  "children": {
+                    "SchIndex2": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "2",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText2": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 2",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan2": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel2": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch2": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "SchedulePanel3": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "",
+                  "scrollable": false,
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
+                      }
+                    }
+                  },
+                  "children": {
+                    "SchIndex3": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "3",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText3": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 3",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan3": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel3": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch3": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "SchedulePanel4": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "",
+                  "scrollable": false,
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
+                      }
+                    }
+                  },
+                  "children": {
+                    "SchIndex4": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "4",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText4": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 4",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan4": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel4": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch4": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "SchedulePanel5": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "",
+                  "scrollable": false,
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
+                      }
+                    }
+                  },
+                  "children": {
+                    "SchIndex5": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "5",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText5": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 5",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan5": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel5": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch5": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "SchedulePanel6": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "",
+                  "scrollable": false,
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
+                      }
+                    }
+                  },
+                  "children": {
+                    "SchIndex6": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "6",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText6": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 6",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan6": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel6": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch6": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "SchedulePanel7": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "",
+                  "scrollable": false,
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
+                      }
+                    }
+                  },
+                  "children": {
+                    "SchIndex7": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "7",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText7": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 7",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan7": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel7": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch7": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "SchedulePanel8": {
+                  "sub_type": "panel",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 460,
+                  "height": 30,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "",
+                  "scrollable": false,
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "radius": 0,
+                        "bg_color": "#313031",
+                        "bg_opa": 200,
+                        "border_side": "none"
+                      }
+                    }
+                  },
+                  "children": {
+                    "SchIndex8": {
+                      "sub_type": "label",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 30,
+                      "height": 0,
+                      "x_pos": -10,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "8",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_align": "center",
+                            "text_font": "lv_font_montserrat_18",
+                            "radius": 4,
+                            "bg_color": "#FFFFFF",
+                            "bg_opa": 30
+                          }
+                        }
+                      }
+                    },
+                    "SchText8": {
+                      "sub_type": "textarea",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 180,
+                      "height": 0,
+                      "x_pos": 30,
+                      "y_pos": 0,
+                      "align": "left_mid",
+                      "obj_text": "Schedule 8",
+                      "placeholder": "Placeholder...",
+                      "one_line": true,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "text_font": "lv_font_montserrat_18"
+                          }
+                        }
+                      },
+                      "events": {
+                        "CLICKED": {
+                          "actions": [
+                            {
+                              "action": "flag_modify",
+                              "flag": "hidden",
+                              "mode": "toggle",
+                              "target": "ScheduleKeyboard"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "SchAutoMan8": {
+                      "sub_type": "button",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 100,
+                      "height": 24,
+                      "x_pos": 60,
+                      "y_pos": 0,
+                      "align": "center",
+                      "obj_text": "",
+                      "scrollable": false,
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "radius": 3,
+                            "bg_color": "#414041",
+                            "bg_opa": 255
+                          }
+                        }
+                      },
+                      "children": {
+                        "SchAutoManLabel8": {
+                          "sub_type": "label",
+                          "type": "Widget",
+                          "text_type": "literal",
+                          "width": 0,
+                          "height": 0,
+                          "x_pos": 0,
+                          "y_pos": 0,
+                          "align": "center",
+                          "obj_text": "MANUAL",
+                          "style": {
+                            "MAIN": {
+                              "DEFAULT": {
+                                "text_font": "lv_font_montserrat_18"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "SchSwitch8": {
+                      "sub_type": "switch",
+                      "type": "Widget",
+                      "text_type": "literal",
+                      "width": 50,
+                      "height": 20,
+                      "x_pos": 0,
+                      "y_pos": 0,
+                      "align": "right_mid",
+                      "obj_text": "",
+                      "style": {
+                        "MAIN": {
+                          "DEFAULT": {
+                            "bg_color": "#A04040",
+                            "bg_opa": 200,
+                            "border_color": "#5A846F",
+                            "border_opa": 255,
+                            "border_width": 1,
+                            "border_side": "full",
+                            "outline_color": "#4A745F",
+                            "outline_opa": 200,
+                            "outline_width": 1,
+                            "outline_pad": 2
+                          }
+                        },
+                        "INDICATOR": {
+                          "CHECKED": {
+                            "bg_color": "#00FF7D",
+                            "bg_opa": 255
+                          }
+                        },
+                        "KNOB": {
+                          "DEFAULT": {
+                            "bg_color": "#B0CB79",
+                            "bg_opa": 255
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
-              },
+              }
+            },
+            "Button13": {
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 100,
               "height": 30,
+              "x_pos": 30,
+              "y_pos": -10,
+              "align": "bottom_left",
               "obj_text": "",
               "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
+                    "radius": 10,
                     "bg_color": "#2971A4",
-                    "bg_opa": 255,
-                    "radius": 10
+                    "bg_opa": 255
                   }
-                }
-              },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 100,
-              "x_pos": -30,
-              "y_pos": -10
-            },
-            "Button13": {
-              "align": "bottom_left",
-              "children": {
-                "Label64": {
-                  "align": "center",
-                  "height": 0,
-                  "obj_text": "Edit",
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "text_font": "lv_font_montserrat_18"
-                      }
-                    }
-                  },
-                  "sub_type": "label",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 0,
-                  "x_pos": 0,
-                  "y_pos": 0
                 }
               },
               "events": {
@@ -180,1351 +1455,110 @@
                   ]
                 }
               },
+              "children": {
+                "Label64": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
+                  "align": "center",
+                  "obj_text": "Edit",
+                  "style": {
+                    "MAIN": {
+                      "DEFAULT": {
+                        "text_font": "lv_font_montserrat_18"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "Button12": {
+              "sub_type": "button",
+              "type": "Widget",
+              "text_type": "literal",
+              "width": 100,
               "height": 30,
+              "x_pos": -30,
+              "y_pos": -10,
+              "align": "bottom_right",
               "obj_text": "",
               "scrollable": false,
               "style": {
                 "MAIN": {
                   "DEFAULT": {
+                    "radius": 10,
                     "bg_color": "#2971A4",
-                    "bg_opa": 255,
-                    "radius": 10
+                    "bg_opa": 255
                   }
                 }
               },
-              "sub_type": "button",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 100,
-              "x_pos": 30,
-              "y_pos": -10
-            },
-            "SchedulePanelMain": {
-              "align": "top_mid",
+              "events": {
+                "CLICKED": {
+                  "actions": [
+                    {
+                      "action": "screen_change",
+                      "anim": "MOVE_RIGHT",
+                      "delay": 100,
+                      "screen": "main_menu",
+                      "speed": 1000
+                    }
+                  ]
+                }
+              },
               "children": {
-                "SchedulePanel1": {
+                "Label63": {
+                  "sub_type": "label",
+                  "type": "Widget",
+                  "text_type": "literal",
+                  "width": 0,
+                  "height": 0,
+                  "x_pos": 0,
+                  "y_pos": 0,
                   "align": "center",
-                  "children": {
-                    "SchAutoMan1": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel1": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex1": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "1",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch1": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText1": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 1",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
+                  "obj_text": "Update",
                   "style": {
                     "MAIN": {
                       "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
+                        "text_font": "lv_font_montserrat_18"
                       }
                     }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                },
-                "SchedulePanel2": {
-                  "align": "center",
-                  "children": {
-                    "SchAutoMan2": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel2": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex2": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "2",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch2": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText2": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 2",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
-                      }
-                    }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                },
-                "SchedulePanel3": {
-                  "align": "center",
-                  "children": {
-                    "SchAutoMan3": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel3": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex3": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "3",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch3": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText3": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 3",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
-                      }
-                    }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                },
-                "SchedulePanel4": {
-                  "align": "center",
-                  "children": {
-                    "SchAutoMan4": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel4": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex4": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "4",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch4": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText4": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 4",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
-                      }
-                    }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                },
-                "SchedulePanel5": {
-                  "align": "center",
-                  "children": {
-                    "SchAutoMan5": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel5": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex5": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "5",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch5": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText5": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 5",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
-                      }
-                    }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                },
-                "SchedulePanel6": {
-                  "align": "center",
-                  "children": {
-                    "SchAutoMan6": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel6": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex6": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "6",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch6": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText6": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 6",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
-                      }
-                    }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                },
-                "SchedulePanel7": {
-                  "align": "center",
-                  "children": {
-                    "SchAutoMan7": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel7": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex7": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "7",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch7": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText7": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 7",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
-                      }
-                    }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                },
-                "SchedulePanel8": {
-                  "align": "center",
-                  "children": {
-                    "SchAutoMan8": {
-                      "align": "center",
-                      "children": {
-                        "SchAutoManLabel8": {
-                          "align": "center",
-                          "height": 0,
-                          "obj_text": "MANUAL",
-                          "style": {
-                            "MAIN": {
-                              "DEFAULT": {
-                                "text_font": "lv_font_montserrat_18"
-                              }
-                            }
-                          },
-                          "sub_type": "label",
-                          "text_type": "literal",
-                          "type": "Widget",
-                          "width": 0,
-                          "x_pos": 0,
-                          "y_pos": 0
-                        }
-                      },
-                      "height": 24,
-                      "obj_text": "",
-                      "scrollable": false,
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#414041",
-                            "bg_opa": 255,
-                            "radius": 3
-                          }
-                        }
-                      },
-                      "sub_type": "button",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 100,
-                      "x_pos": 60,
-                      "y_pos": 0
-                    },
-                    "SchIndex8": {
-                      "align": "left_mid",
-                      "height": 0,
-                      "obj_text": "8",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#FFFFFF",
-                            "bg_opa": 30,
-                            "radius": 4,
-                            "text_align": "center",
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "label",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 30,
-                      "x_pos": -10,
-                      "y_pos": 0
-                    },
-                    "SchSwitch8": {
-                      "align": "right_mid",
-                      "height": 20,
-                      "obj_text": "",
-                      "style": {
-                        "INDICATOR": {
-                          "CHECKED": {
-                            "bg_color": "#00FF7D",
-                            "bg_opa": 255
-                          }
-                        },
-                        "KNOB": {
-                          "DEFAULT": {
-                            "bg_color": "#B0CB79",
-                            "bg_opa": 255
-                          }
-                        },
-                        "MAIN": {
-                          "DEFAULT": {
-                            "bg_color": "#A04040",
-                            "bg_opa": 200,
-                            "border_color": "#5A846F",
-                            "border_opa": 255,
-                            "border_side": "full",
-                            "border_width": 1,
-                            "outline_color": "#4A745F",
-                            "outline_opa": 200,
-                            "outline_pad": 2,
-                            "outline_width": 1
-                          }
-                        }
-                      },
-                      "sub_type": "switch",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 50,
-                      "x_pos": 0,
-                      "y_pos": 0
-                    },
-                    "SchText8": {
-                      "align": "left_mid",
-                      "events": {
-                        "CLICKED": {
-                          "actions": [
-                            {
-                              "action": "flag_modify",
-                              "flag": "hidden",
-                              "mode": "toggle",
-                              "target": "ScheduleKeyboard"
-                            }
-                          ]
-                        }
-                      },
-                      "height": 0,
-                      "obj_text": "Schedule 8",
-                      "one_line": true,
-                      "placeholder": "Placeholder...",
-                      "style": {
-                        "MAIN": {
-                          "DEFAULT": {
-                            "text_font": "lv_font_montserrat_18"
-                          }
-                        }
-                      },
-                      "sub_type": "textarea",
-                      "text_type": "literal",
-                      "type": "Widget",
-                      "width": 180,
-                      "x_pos": 30,
-                      "y_pos": 0
-                    }
-                  },
-                  "height": 30,
-                  "obj_text": "",
-                  "scrollable": false,
-                  "style": {
-                    "MAIN": {
-                      "DEFAULT": {
-                        "bg_color": "#313031",
-                        "bg_opa": 200,
-                        "border_side": "none",
-                        "radius": 0
-                      }
-                    }
-                  },
-                  "sub_type": "panel",
-                  "text_type": "literal",
-                  "type": "Widget",
-                  "width": 460,
-                  "x_pos": 0,
-                  "y_pos": 0
-                }
-              },
-              "flex_cross": "start",
-              "flex_flow": "column",
-              "flex_main": "start",
-              "flex_track": "space_between",
-              "height": 220,
-              "obj_text": "",
-              "style": {
-                "MAIN": {
-                  "DEFAULT": {
-                    "bg_color": "#FFFFFF",
-                    "bg_opa": 0,
-                    "border_side": "none",
-                    "pad_bottom": 10,
-                    "pad_left": 10,
-                    "pad_right": 10,
-                    "pad_top": 5
-                  }
-                },
-                "SCROLLBAR": {
-                  "CHECKED": {
-                    "bg_color": "#FFFFFF",
-                    "bg_opa": 255,
-                    "radius": 0
                   }
                 }
-              },
-              "sub_type": "panel",
-              "text_type": "literal",
-              "type": "Widget",
-              "width": 480,
-              "x_pos": 0,
-              "y_pos": 5
+              }
             }
-          },
-          "height": 280,
-          "no_default_style": true,
-          "obj_text": "",
-          "scrollable": false,
-          "sub_type": "panel",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 480,
-          "x_pos": 0,
-          "y_pos": 20
+          }
         },
         "ScheduleKeyboard": {
+          "sub_type": "keyboard",
+          "type": "Widget",
+          "text_type": "literal",
+          "width": 480,
+          "height": 120,
+          "x_pos": 0,
+          "y_pos": 1,
           "align": "bottom_mid",
-          "events": {
-            "CANCEL": {
-              "actions": [
-                {
-                  "action": "flag_modify",
-                  "flag": "hidden",
-                  "mode": "add",
-                  "target": "ScheduleKeyboard"
-                }
-              ]
+          "obj_text": "",
+          "hidden": true,
+          "style": {
+            "MAIN": {
+              "DEFAULT": {
+                "border_side": "none"
+              },
+              "DISABLED": {
+                "opa": 0
+              }
             },
+            "ITEMS": {
+              "DEFAULT": {
+                "radius": 30
+              }
+            }
+          },
+          "events": {
             "READY": {
               "actions": [
                 {
@@ -1534,54 +1568,20 @@
                   "target": "ScheduleKeyboard"
                 }
               ]
-            }
-          },
-          "height": 120,
-          "hidden": true,
-          "obj_text": "",
-          "style": {
-            "ITEMS": {
-              "DEFAULT": {
-                "radius": 30
-              }
             },
-            "MAIN": {
-              "DEFAULT": {
-                "border_side": "none"
-              },
-              "DISABLED": {
-                "opa": 0
-              }
+            "CANCEL": {
+              "actions": [
+                {
+                  "action": "flag_modify",
+                  "flag": "hidden",
+                  "mode": "add",
+                  "target": "ScheduleKeyboard"
+                }
+              ]
             }
-          },
-          "sub_type": "keyboard",
-          "text_type": "literal",
-          "type": "Widget",
-          "width": 480,
-          "x_pos": 0,
-          "y_pos": 1
+          }
         }
-      },
-      "events": {
-        "CLICKED": {
-          "actions": [
-            {
-              "action": "flag_modify",
-              "flag": "hidden",
-              "mode": "add",
-              "target": "ScheduleKeyboard"
-            }
-          ]
-        }
-      },
-      "height": 0,
-      "obj_text": "",
-      "sub_type": "screen",
-      "text_type": "literal",
-      "type": "Widget",
-      "width": 0,
-      "x_pos": 0,
-      "y_pos": 0
+      }
     }
   }
 }
