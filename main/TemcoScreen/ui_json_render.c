@@ -25,6 +25,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
 #include "nvs.h"
 #include "cJSON.h"
 #include "mbedtls/base64.h"
@@ -89,6 +90,7 @@ typedef struct {
 static dbg_rec_t s_dbg[DBG_MAX];
 static int s_dbg_n;
 static char s_dbg_screen[32];
+static lv_obj_t *s_dbg_built;
 static bool s_dbg_on;
 
 static int dbg_set(int on)
@@ -111,6 +113,9 @@ static void dbg_add(const char *name, lv_obj_t *o)
 static void dbg_dump_cb(lv_timer_t *t)
 {
     lv_obj_t *scr = (lv_obj_t *)lv_timer_get_user_data(t);
+    /* s_dbg[]/s_dbg_screen describe the screen that was built *last*; a pending
+     * timer of an earlier screen would print that data under the wrong header. */
+    if (scr != s_dbg_built || scr != lv_screen_active()) return;
     if (scr && lv_obj_is_valid(scr)) lv_obj_update_layout(scr);
     ESP_LOGI(TAG, "---- %s: layout dump (%d objects) ----", s_dbg_screen, s_dbg_n);
     for (int i = 0; i < s_dbg_n; i++) {
@@ -233,6 +238,16 @@ static void keyboard_done_cb(lv_event_t *e)
  * firmware handlers, so the renderer bridges by name. */
 static void bridge_event_cb(lv_event_t *e)
 {
+    /* The compiled load-time handlers animate geometry with *absolute* values
+     * (ShowItem_Animation writes y=0/height=0 on every frame, LeftIn/RightIn
+     * slide x by ±200).  In the JSON UI the geometry is already the design's, so
+     * forwarding these two events would fight it — and on this design the
+     * animations never settle, which left the humidity panel, the WiFi symbol
+     * and the clock at inflated sizes.  Navigation/refresh that the screens need
+     * at load time comes from the JSON "SCREEN_LOADED" action and lv_Lcd_UpdateData. */
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_SCREEN_LOADED || code == LV_EVENT_SCREEN_LOAD_START) return;
+
     ui_json_event_fn fn = (ui_json_event_fn)lv_event_get_user_data(e);
     if (fn) fn(e);
 }
@@ -269,12 +284,57 @@ static void kb_target_timer_cb(lv_timer_t *t)
 static bool s_active;
 static bool s_build_ok = true;
 static bool s_boot_done;
-static bool s_force_compiled;   /* explicit switch: use the compiled SquareLine UI */
+/* How the display decides which UI to draw.
+ *
+ * AUTO (factory default) — draw the compiled `ui_*.c` screens until something
+ *   has been deployed (screen store revision > 0), then draw the deployed JSON.
+ *   A factory reset (`POST /reset-defaults`) drops the revision back to 0 and the
+ *   panel returns to the compiled screens.
+ * JSON / COMPILED — explicit, persisted in NVS, survives reboots.
+ *
+ * The compiled screens are always built by ui_init() and are never deleted, so
+ * every failure path falls back to them rather than to a blank panel. */
+typedef enum {
+    UI_MODE_AUTO = 0,
+    UI_MODE_JSON = 1,
+    UI_MODE_COMPILED = 2,
+} ui_mode_t;
+
+static ui_mode_t s_mode = UI_MODE_AUTO;
+/* set by the watchdog: JSON mode was asked for but could not be served */
+static bool s_mode_failed;
+
+/* true when the deployed JSON should drive the display right now */
+static bool json_mode_wanted(void)
+{
+    if (s_mode == UI_MODE_COMPILED) return false;
+    if (s_mode == UI_MODE_JSON) return true;
+    return screen_txn_is_ready() && screen_txn_revision() > 0;
+}
 static volatile bool s_reload;
 static char s_goto[40];
 static volatile bool s_goto_req;
 static char s_current[40];
 static char s_error[96];
+static TickType_t s_last_nav;   /* when the user last navigated (prewarm gate) */
+static volatile TickType_t s_service_tick;  /* last time the renderer loop ran */
+
+static void watchdog_cb(void *arg);   /* esp_timer, defined below */
+
+/* navigate() in JSON mode never takes longer than this: the target screen is
+ * already built (prewarm), so the slide is the only remaining delay */
+#define JSON_NAV_MAX_MS 250
+
+/* screens still to be built ahead of time (see prewarm_service) */
+#define PREWARM_MAX 24
+#define PREWARM_IDLE_MS 3000
+#define PREWARM_GAP_MS 1500
+static char s_prewarm[PREWARM_MAX][32];
+static int s_prewarm_count;
+static int s_prewarm_at;
+static bool s_prewarm_done;
+static TickType_t s_prewarm_last;
+
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
 
 /* ---------- small helpers ---------- */
@@ -501,6 +561,12 @@ static lv_obj_t *build_screen(const char *name);
 static void settle_content(lv_obj_t *scr);
 static lv_obj_t *find_named(lv_obj_t *scope, const char *name);
 
+static void settle_timer_cb(lv_timer_t *t)
+{
+    lv_obj_t *scr = (lv_obj_t *)lv_timer_get_user_data(t);
+    if (scr && lv_obj_is_valid(scr)) settle_content(scr);
+}
+
 static void navigate(const char *name, int anim, int speed)
 {
     lv_obj_t *scr = get_screen(name);
@@ -510,8 +576,14 @@ static void navigate(const char *name, int anim, int speed)
         return;
     }
     lv_screen_load_anim(scr, (lv_screen_load_anim_t)anim, (uint32_t)speed, 0, false);
-    settle_content(scr);
+    /* Resolving the content-sized placements needs a full layout pass, which
+     * costs up to a second on the big screens.  Defer it to the next frame so
+     * the transition starts immediately; the widgets settle ~16 ms later. */
+    lv_timer_t *st = lv_timer_create(settle_timer_cb, 1, scr);
+    if (st) lv_timer_set_repeat_count(st, 1);
+    else settle_content(scr);
     set_current(name);
+    s_last_nav = xTaskGetTickCount();
 }
 
 static void nav_timer_cb(lv_timer_t *t)
@@ -722,7 +794,11 @@ static int s_content_n;
 
 static void queue_content(lv_obj_t *scr, lv_obj_t *o, lv_align_t a, int x, int y)
 {
-    if (!o || s_content_n >= MAX_CONTENT_REQ) return;
+    if (!o) return;
+    if (s_content_n >= MAX_CONTENT_REQ) {
+        ESP_LOGW(TAG, "content queue full, %p left unpositioned", (void *)o);
+        return;
+    }
     s_content[s_content_n].obj = o;
     s_content[s_content_n].scr = scr;
     s_content[s_content_n].align = a;
@@ -765,7 +841,13 @@ static void queue_keyboard_link(lv_obj_t *scr, lv_obj_t *kbd, const char *target
 static void settle_content(lv_obj_t *scr)
 {
     if (!scr || !lv_obj_is_valid(scr)) return;
-    lv_obj_update_layout(scr);
+
+    /* Settled screens have nothing queued: skip the (up to 1 s) layout pass that
+     * navigating an already-built screen would otherwise pay for again. */
+    bool pending = false;
+    for (int i = 0; i < s_content_n && !pending; i++) pending = (s_content[i].scr == scr);
+    int64_t t0 = pending ? esp_timer_get_time() : 0;
+    if (pending) lv_obj_update_layout(scr);
 
     /* keyboard -> textarea links can only be resolved once every child of the
      * screen exists, which is why the design's "textarea" name is queued. */
@@ -814,6 +896,9 @@ static void settle_content(lv_obj_t *scr)
         if (s_content[i].scr != scr) s_content[keep++] = s_content[i];
     }
     s_content_n = keep;
+
+    uint32_t ms = pending ? (uint32_t)((esp_timer_get_time() - t0) / 1000) : 0;
+    if (ms > 30) ESP_LOGI(TAG, "settle %p: %u ms", (void *)scr, (unsigned)ms);
 }
 
 /* SquareLine positions a child with lv_obj_set_align() + lv_obj_set_pos(): the
@@ -1213,7 +1298,12 @@ static void bind_events(lv_obj_t *o, const cJSON *w, bool bridged)
                 if (!r) continue;
                 snprintf(r->name, sizeof(r->name), "%s", target);
                 r->anim = parse_anim(jstr(a, "anim"));
-                r->speed = jint(a, "speed", 0);
+                /* the design asks for 500 ms transitions; in JSON mode the
+                 * screen is already built, so a shorter slide feels immediate
+                 * without changing the design files */
+                int speed = jint(a, "speed", 0);
+                if (speed > JSON_NAV_MAX_MS) speed = JSON_NAV_MAX_MS;
+                r->speed = speed;
                 int delay = jint(a, "delay", 0);
                 r->delay = delay;
 
@@ -1464,10 +1554,17 @@ static lv_obj_t *build_screen(const char *name)
         bridge_attach(scr, top->string);
     }
 
-    /* alignments are applied once the screen is loaded (see navigate/boot_ui) */
+    /* Position everything whose place depends on a measured size.  Doing it here
+     * rather than after the screen is shown means the *prewarmed* screens are
+     * positioned too — they are never navigated to before a tap, and leaving
+     * their requests queued overflowed the queue, so the last screens of the
+     * deployed set (holiday_calender, wireguard, ddns) rendered their
+     * content-sized labels at the parent's origin. */
     cJSON_Delete(root);
+    settle_content(scr);
     ESP_LOGI(TAG, "built screen %s", name);
 #if UI_JSON_DEBUG_LAYOUT
+    s_dbg_built = scr;
     if (s_dbg_on) {
         /* The screen load animation is up to 600 ms and the design's own entry
          * animations start up to 1 s after SCREEN_LOADED and run for 2 s, so the
@@ -1520,6 +1617,10 @@ static void delete_screens(void)
     s_kb_target_count = 0;
     s_content_n = 0;
     s_kbd_n = 0;
+    s_prewarm_count = 0;
+    s_prewarm_at = 0;
+    s_prewarm_done = false;
+    s_prewarm_last = 0;
 #if UI_JSON_DEBUG_LAYOUT
     s_watch_n = 0;
 #endif
@@ -1607,7 +1708,11 @@ static void status_cb(screen_ui_status_t *out)
     taskENTER_CRITICAL(&s_lock);
     out->ui_json = s_active;
     out->build_ok = s_build_ok;
-    out->forced_compiled = s_force_compiled;
+    out->forced_compiled = (s_mode == UI_MODE_COMPILED);
+    snprintf(out->mode, sizeof(out->mode), "%s",
+             s_mode == UI_MODE_AUTO ? "auto" :
+             s_mode == UI_MODE_JSON ? "json" : "compiled");
+    out->mode_failed = s_mode_failed;
     snprintf(out->screen, sizeof(out->screen), "%s", s_current);
     snprintf(out->last_error, sizeof(out->last_error), "%s", s_error);
     taskEXIT_CRITICAL(&s_lock);
@@ -1622,30 +1727,42 @@ static void mode_load(void)
     nvs_handle_t h;
     if (nvs_open(UI_NVS_NS, NVS_READONLY, &h) != ESP_OK) return;
     uint8_t v = 0;
-    if (nvs_get_u8(h, "compiled", &v) == ESP_OK) s_force_compiled = (v != 0);
+    if (nvs_get_u8(h, "mode", &v) == ESP_OK && v <= UI_MODE_COMPILED) {
+        s_mode = (ui_mode_t)v;
+    } else if (nvs_get_u8(h, "compiled", &v) == ESP_OK) {
+        /* older firmware stored a boolean: keep whatever the unit was using */
+        s_mode = v ? UI_MODE_COMPILED : UI_MODE_JSON;
+    }
     nvs_close(h);
+    ESP_LOGI(TAG, "UI mode: %s", s_mode == UI_MODE_AUTO ? "auto" :
+                                 s_mode == UI_MODE_JSON ? "json" : "compiled");
 }
 
-static void mode_store(bool compiled)
+static void mode_store(ui_mode_t mode)
 {
     nvs_handle_t h;
     if (nvs_open(UI_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
-    nvs_set_u8(h, "compiled", compiled ? 1 : 0);
+    nvs_set_u8(h, "mode", (uint8_t)mode);
     nvs_commit(h);
     nvs_close(h);
 }
 
-/* returns 1 when the compiled UI is in use, 0 when the JSON UI is */
-static int mode_set(bool compiled)
+static int mode_set(int mode)
 {
-    ESP_LOGW(TAG, "UI mode -> %s", compiled ? "compiled" : "json");
-    mode_store(compiled);
+    ui_mode_t m = (mode == 1) ? UI_MODE_COMPILED : (mode == 2) ? UI_MODE_AUTO : UI_MODE_JSON;
+    ESP_LOGW(TAG, "UI mode -> %s", m == UI_MODE_AUTO ? "auto" :
+                                   m == UI_MODE_JSON ? "json" : "compiled");
+    mode_store(m);
+    s_mode_failed = false;
 
     taskENTER_CRITICAL(&s_lock);
-    s_force_compiled = compiled;
+    s_mode = m;
     s_reload = true;
     taskEXIT_CRITICAL(&s_lock);
-    return compiled ? 1 : 0;
+
+    if (m == UI_MODE_COMPILED) return 1;
+    if (m == UI_MODE_AUTO) return screen_txn_is_ready() && screen_txn_revision() > 0 ? 0 : 1;
+    return 0;
 }
 
 /* leave the JSON UI and go back to the compiled start screen */static void show_compiled_ui(void)
@@ -1680,8 +1797,19 @@ void ui_json_render_register(void)
 #if UI_JSON_DEBUG_LAYOUT
     screen_deploy_set_ui_debug_hook(dbg_set);
 #endif
-}
 
+    /* independent of the LVGL task, so it still fires when that task hangs */
+    const esp_timer_create_args_t wd = {
+        .callback = watchdog_cb,
+        .name = "ui_json_wd",
+    };
+    esp_timer_handle_t h = NULL;
+    if (esp_timer_create(&wd, &h) == ESP_OK) {
+        esp_timer_start_periodic(h, 2000 * 1000);
+    } else {
+        ESP_LOGW(TAG, "could not start the UI fallback watchdog");
+    }
+}
 bool ui_json_render_active(void)
 {
     return s_active;
@@ -1728,6 +1856,137 @@ lv_obj_t *ui_json_render_compiled_screen(lv_obj_t *active)
     return active;
 }
 
+/* ---------- background prewarm ---------- */
+
+static bool is_cached(const char *name)
+{
+    for (int i = 0; i < s_screen_count; i++) {
+        if (!strcmp(s_screens[i].name, name)) return true;
+    }
+    return false;
+}
+
+static void prewarm_reset(void)
+{
+    s_prewarm_count = 0;
+    s_prewarm_at = 0;
+    s_prewarm_done = false;
+    s_prewarm_last = 0;
+    size_t n = 0;
+    if (screen_txn_list_active("screens", s_prewarm, PREWARM_MAX, &n) != ESP_OK) return;
+    s_prewarm_count = (int)(n > PREWARM_MAX ? PREWARM_MAX : n);
+    if (s_prewarm_count) ESP_LOGI(TAG, "prewarm: %d screen(s) queued", s_prewarm_count);
+}
+
+static void prewarm_service(void)
+{
+    if (!s_active || !s_boot_done || s_prewarm_done) return;
+#if UI_JSON_DEBUG_LAYOUT
+    /* a background build would interleave its own dump with the one the tool is
+     * waiting for, and thirteen cached screens leave no headroom for the
+     * diagnostics */
+    if (s_dbg_on) return;
+#endif
+    if (s_prewarm_count == 0) {
+        prewarm_reset();
+        return;
+    }
+    if (s_prewarm_at >= s_prewarm_count) {
+        s_prewarm_done = true;
+        ESP_LOGI(TAG, "prewarm: all %d screen(s) built", s_prewarm_count);
+        return;
+    }
+    /* never put a build between a tap and its screen */
+    if (s_goto_req || s_reload) return;
+    if (xTaskGetTickCount() - s_last_nav < pdMS_TO_TICKS(PREWARM_IDLE_MS)) return;
+    /* one build, then let the UI breathe: each build blocks the LVGL task for
+     * 0.1-6 s, so a burst of thirteen would make the panel feel stuck */
+    if (s_prewarm_last && xTaskGetTickCount() - s_prewarm_last < pdMS_TO_TICKS(PREWARM_GAP_MS)) return;
+
+    const char *name = s_prewarm[s_prewarm_at++];
+    if (is_cached(name)) return;
+    ESP_LOGI(TAG, "prewarm: building %s (%d/%d)", name, s_prewarm_at, s_prewarm_count);
+    get_screen(name);
+    s_prewarm_last = xTaskGetTickCount();
+}
+
+/* ---------- fallback watchdog ---------- */
+
+/* JSON rendering runs inside the LVGL task, so a hang there cannot be unwound
+ * from inside it.  This timer runs on the esp_timer task: if the renderer loop
+ * has not run for WATCHDOG_STALL_MS it reboots, and only the *second* stall in a
+ * row switches the unit permanently to the compiled UI (a one-off slow rebuild
+ * must not silently override the user's "auto"/"json" choice).  The threshold is
+ * far above the slowest screen build (~7 s) and the check only arms once the UI
+ * is fully booted and prewarmed. */
+#define WATCHDOG_STALL_MS 30000
+#define BOOT_FAIL_LIMIT 3
+#define STALL_LIMIT 2
+
+static void watchdog_cb(void *arg)
+{
+    (void)arg;
+    if (!s_active || !s_boot_done || !s_prewarm_done) return;  /* booting/rebuilding */
+    TickType_t last = s_service_tick;
+    if (last == 0) return;
+    if (xTaskGetTickCount() - last < pdMS_TO_TICKS(WATCHDOG_STALL_MS)) return;
+
+    uint8_t n = 0;
+    nvs_handle_t h;
+    if (nvs_open(UI_NVS_NS, NVS_READWRITE, &h) == ESP_OK) {
+        if (nvs_get_u8(h, "stall", &n) != ESP_OK) n = 0;
+        if (n < 255) n++;
+        nvs_set_u8(h, "stall", n);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+    ESP_LOGE(TAG, "JSON UI did not service for %d ms (strike %d/%d) - restarting",
+             WATCHDOG_STALL_MS, (int)n, STALL_LIMIT);
+    if (n >= STALL_LIMIT) {
+        s_mode_failed = true;
+        s_mode = UI_MODE_COMPILED;
+        mode_store(UI_MODE_COMPILED);
+    }
+    esp_restart();
+}
+
+static void boot_fail_note(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(UI_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    uint8_t n = 0;
+    if (nvs_get_u8(h, "bootfail", &n) != ESP_OK) n = 0;
+    if (n < 255) n++;
+    nvs_set_u8(h, "bootfail", n);
+    nvs_commit(h);
+    nvs_close(h);
+    ESP_LOGW(TAG, "JSON start screen failed %d time(s)", (int)n);
+    if (n >= BOOT_FAIL_LIMIT) {
+        ESP_LOGE(TAG, "giving up on the deployed screens, using the compiled UI");
+        s_mode_failed = true;
+        s_mode = UI_MODE_COMPILED;
+        mode_store(UI_MODE_COMPILED);
+    }
+}
+
+static void boot_ok_note(void)
+{
+    nvs_handle_t h;
+    if (nvs_open(UI_NVS_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    uint8_t n = 0;
+    bool clean = (nvs_get_u8(h, "bootfail", &n) != ESP_OK || n == 0);
+    uint8_t s = 0;
+    clean = clean && (nvs_get_u8(h, "stall", &s) != ESP_OK || s == 0);
+    if (clean) {
+        nvs_close(h);
+        return;
+    }
+    nvs_set_u8(h, "bootfail", 0);
+    nvs_set_u8(h, "stall", 0);
+    nvs_commit(h);
+    nvs_close(h);
+}
+
 void ui_json_render_service(void)
 {
     watch_poll();
@@ -1735,6 +1994,8 @@ void ui_json_render_service(void)
 
     static TickType_t next_boot_try;
     static int boot_tries;
+
+    s_service_tick = xTaskGetTickCount();
 
     bool reload = false;
 
@@ -1747,7 +2008,7 @@ void ui_json_render_service(void)
 
     if (reload) {
         s_boot_done = true;
-        if (s_force_compiled) {
+        if (!json_mode_wanted()) {
             show_compiled_ui();
             return;
         }
@@ -1755,8 +2016,8 @@ void ui_json_render_service(void)
         return;
     }
 
-    if (s_force_compiled) {
-        /* switched off at runtime or by a previous session */
+    if (!json_mode_wanted()) {
+        /* compiled UI (explicit, or nothing deployed yet in auto mode) */
         if (!s_boot_done) {
             s_boot_done = true;
             show_compiled_ui();
@@ -1782,8 +2043,18 @@ void ui_json_render_service(void)
         boot_tries++;
         if (boot_ui()) {
             s_boot_done = true;
+            boot_ok_note();
         } else {
             next_boot_try = xTaskGetTickCount() + pdMS_TO_TICKS(1000);
+            if (boot_tries >= 20) {
+                /* the deployed set never produced a start screen: stay on the
+                 * compiled UI and count the failure for the next boot too */
+                s_boot_done = true;
+                boot_fail_note();
+                show_compiled_ui();
+            }
         }
     }
+
+    prewarm_service();
 }
